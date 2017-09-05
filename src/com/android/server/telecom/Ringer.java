@@ -47,6 +47,9 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 // QTI_BEGIN: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
 // QTI_END: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
+import android.os.vibrator.persistence.ParsedVibration;
+import android.os.vibrator.persistence.VibrationXmlParser;
+import android.provider.Settings;
 import android.telecom.Log;
 import android.telecom.TelecomManager;
 import android.util.Pair;
@@ -202,6 +205,8 @@ public class Ringer {
 
     private static final VibrationAttributes VIBRATION_ATTRIBUTES =
             new VibrationAttributes.Builder().setUsage(VibrationAttributes.USAGE_RINGTONE).build();
+    private static final VibrationAttributes VIBRATION_INCALL_ATTRIBUTES =
+            new VibrationAttributes.Builder().setUsage(VibrationAttributes.USAGE_ACCESSIBILITY).build();
 
     private static VolumeShaper.Configuration mVolumeShaperConfig;
 
@@ -708,6 +713,11 @@ public class Ringer {
 
         stopRinging();
 
+        if (Settings.System.getInt(mContext.getContentResolver(),
+                "vibrate_on_callwaiting", 0) == 1) {
+            vibrate(200, 300, 500);
+        }
+
         if (mCallWaitingPlayer == null) {
             Log.addEvent(call, LogUtils.Events.START_CALL_WAITING_TONE, reason);
             mCallWaitingCall = call;
@@ -1053,6 +1063,16 @@ public class Ringer {
                 mVibrator.cancel();
                 mIsVibrating = false;
             });
+        }
+    }
+
+    public void vibrate(int v1, int p1, int v2) {
+        if (mVibrator != null && mVibrator.hasVibrator()) {
+            long[] pattern = new long[] {
+                0, v1, p1, v2
+            };
+            mVibrator.vibrate(
+                VibrationEffect.createWaveform(pattern, -1), VIBRATION_INCALL_ATTRIBUTES);
         }
     }
 }
