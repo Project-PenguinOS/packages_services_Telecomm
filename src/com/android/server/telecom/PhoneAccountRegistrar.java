@@ -260,6 +260,22 @@ public class PhoneAccountRegistrar {
     }
 
     /**
+     * Checks if the subscription ID is active.
+     * An active subscription ID is a valid and usable subscription ID.
+     *
+     * @param subId The value of the subscription id to be checked.
+     * @return {@code true} if the supplied phone account handle has an active subscription ID,
+     * {@code false} oterwise.
+     */
+    public boolean isSubscriptionIdActive(int subId) {
+        try {
+            return mSubscriptionManager.isActiveSubscriptionId(subId);
+        } catch (UnsupportedOperationException ignored) {
+            return false;
+        }
+    }
+
+    /**
      * Retrieves the default outgoing phone account supporting the specified uriScheme. Note that if
      * {@link #mCurrentUserHandle} does not have visibility into the current default, {@code null}
      * will be returned.
