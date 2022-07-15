@@ -1129,6 +1129,11 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             mCallerInfo.cachedPhotoIcon = null;
             mCallerInfo.cachedPhoto = null;
         }
+        //Set VideoProviderProxy as null to fix memory leak problem.
+        if (mVideoProviderProxy != null) {
+            mVideoProviderProxy.clearVideoCallback();
+            mVideoProviderProxy = null;
+        }
         closeRttStreams();
 
         Log.addEvent(this, LogUtils.Events.DESTROYED);
