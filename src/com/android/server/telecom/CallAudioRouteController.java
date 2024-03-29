@@ -14,6 +14,12 @@
  * limitations under the License
  */
 
+/**
+* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+* Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* SPDX-License-Identifier: BSD-3-Clause-Clear
+*/
+
 package com.android.server.telecom;
 
 import static com.android.server.telecom.AudioRoute.BT_AUDIO_ROUTE_TYPES;
@@ -136,6 +142,8 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                     if (streamType == AudioManager.STREAM_RING && !isStreamMuted
                             && mCallAudioManager != null) {
                         Log.i(this, "Ring stream was un-muted.");
+                        //clear the silenced calls if device is un-muted
+                        mCallAudioManager.clearSilencedCalls();
                         mCallAudioManager.onRingerModeChange();
                     }
                 } else {

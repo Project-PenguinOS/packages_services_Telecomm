@@ -14,6 +14,12 @@
  * limitations under the License
  */
 
+/**
+* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+* Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* SPDX-License-Identifier: BSD-3-Clause-Clear
+*/
+
 package com.android.server.telecom;
 
 
@@ -1452,6 +1458,8 @@ public class CallAudioRouteStateMachine extends StateMachine implements CallAudi
 
                     if (streamType == AudioManager.STREAM_RING && !isStreamMuted) {
                         Log.i(this, "Ring stream was un-muted.");
+                        //clear silenced calls if device is un-muted
+                        mCallAudioManager.clearSilencedCalls();
                         mCallAudioManager.onRingerModeChange();
                     }
                 } else {

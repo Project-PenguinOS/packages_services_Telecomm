@@ -14,6 +14,12 @@
  * limitations under the License
  */
 
+/**
+* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+* Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* SPDX-License-Identifier: BSD-3-Clause-Clear
+*/
+
 package com.android.server.telecom;
 
 import android.content.Context;
@@ -75,8 +81,8 @@ public class CallAudioManager extends CallsManagerListenerBase {
     private InCallTonePlayer mHoldTonePlayer;
     private boolean mIsInCrsMode = false;
     private int mOriginalCallType = Call.CALL_TYPE_UNKNOWN;
-    private boolean mIsSilenced = false;
     private boolean mIsCrsSupportedFromAudioHal = false;
+    private final Set<Call> mSilencedCalls;
 
     public CallAudioManager(CallAudioRouteAdapter callAudioRouteAdapter,
             CallsManager callsManager,
@@ -114,6 +120,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
         mDtmfLocalTonePlayer = dtmfLocalTonePlayer;
         mFeatureFlags = featureFlags;
         mIsCrsSupportedFromAudioHal = isCrsSupportedFromAudioHal();
+        mSilencedCalls = new HashSet<>();
 
         mPlayerFactory.setCallAudioManager(this);
         mCallAudioModeStateMachine.setCallAudioManager(this);
@@ -167,9 +174,9 @@ public class CallAudioManager extends CallsManagerListenerBase {
                 }
             }
             mOriginalCallType = Call.CALL_TYPE_UNKNOWN;
-            if (mIsSilenced && mRingingCalls.size() == 0) {
-                mIsSilenced = false;
-            }
+        }
+        if (mSilencedCalls.contains(call) && newState != CallState.RINGING) {
+            mSilencedCalls.remove(call);
         }
 
         onCallLeavingState(call, oldState);
@@ -178,7 +185,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
 
     @Override
     public void onCrsFallbackLocalRinging(Call call) {
-        if (!mIsInCrsMode || mIsSilenced || call != mForegroundCall) {
+        if (!mIsInCrsMode || mSilencedCalls.contains(call) || call != mForegroundCall) {
             return;
         }
         Log.i(LOG_TAG, "onCrsFallbackLocalRinging :: Switch to play local ringing");
@@ -242,6 +249,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
         sendCallStatusToBluetoothStateReceiver();
 
         onCallLeavingState(call, call.getState());
+        mSilencedCalls.remove(call);
     }
 
     private void sendCallStatusToBluetoothStateReceiver() {
@@ -529,6 +537,13 @@ public class CallAudioManager extends CallsManagerListenerBase {
         }
     }
 
+    public void clearSilencedCalls() {
+        Log.i(this, "clearSilencedCalls");
+        for (Call call : mRingingCalls) {
+            mSilencedCalls.remove(call);
+        }
+    }
+
     /**
      * Switch call audio routing to the baseline route, including bluetooth headsets if there are
      * any connected.
@@ -547,9 +562,6 @@ public class CallAudioManager extends CallsManagerListenerBase {
         Set<UserHandle> userHandles = new HashSet<>();
         boolean allCallSilenced = true;
         synchronized (mCallsManager.getLock()) {
-            if (mRingingCalls.size() >= 1) {
-                mIsSilenced = true;
-            }
             for (Call call : mRingingCalls) {
                 UserHandle userFromCall = call.getAssociatedUser();
                 // Do not try to silence calls when calling user is different from the phone account
@@ -562,6 +574,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
                 }
                 userHandles.add(userFromCall);
                 call.silence();
+                mSilencedCalls.add(call);
             }
 
             if(!mIsCrsSupportedFromAudioHal && mIsInCrsMode) {
@@ -586,6 +599,11 @@ public class CallAudioManager extends CallsManagerListenerBase {
     public boolean startRinging() {
         synchronized (mCallsManager.getLock()) {
             Call localForegroundCall = mForegroundCall;
+            if (mSilencedCalls.contains(localForegroundCall)) {
+                Log.v(this, "Skip startRinging for silenced ringing call");
+                return false;
+            }
+
             boolean result = mRinger.startRinging(localForegroundCall,
                     mCallAudioRouteAdapter.isHfpDeviceAvailable());
             if (result) {
@@ -598,7 +616,12 @@ public class CallAudioManager extends CallsManagerListenerBase {
     public boolean startPlayingCrs() {
         Log.i(this, "Start playing CRS audio.");
         synchronized (mCallsManager.getLock()) {
-            return mRinger.startPlayingCrs(mForegroundCall,
+            Call localForegroundCall = mForegroundCall;
+            if (mSilencedCalls.contains(localForegroundCall)) {
+                Log.v(this, "Skip startPlayingCrs for silenced ringing call");
+                return false;
+            }
+            return mRinger.startPlayingCrs(localForegroundCall,
                     mCallAudioRouteAdapter.isHfpDeviceAvailable());
         }
     }
