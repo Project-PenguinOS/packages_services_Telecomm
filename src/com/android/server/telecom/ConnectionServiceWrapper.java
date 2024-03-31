@@ -33,7 +33,6 @@ import android.os.Bundle;
 import android.os.CancellationSignal;
 import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
-import android.os.Process;
 import android.os.RemoteException;
 import android.os.ResultReceiver;
 import android.os.UserHandle;
@@ -67,7 +66,6 @@ import com.android.internal.telecom.IVideoProvider;
 import com.android.internal.telecom.RemoteServiceCallback;
 import com.android.internal.util.Preconditions;
 import com.android.server.telecom.flags.FeatureFlags;
-import com.android.server.telecom.flags.Flags;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -91,7 +89,7 @@ import java.util.Objects;
  */
 @VisibleForTesting
 public class ConnectionServiceWrapper extends ServiceBinder implements
-        ConnectionServiceFocusManager.ConnectionServiceFocus {
+        ConnectionServiceFocusManager.ConnectionServiceFocus, CallSourceService {
 
     private static final String TELECOM_ABBREVIATION = "cast";
     private CompletableFuture<Pair<Integer, Location>> mQueryLocationFuture = null;
@@ -1979,6 +1977,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
 
     /** @see IConnectionService#onCallEndpointChanged(String, CallEndpoint, Session.Info) */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    @Override
     public void onCallEndpointChanged(Call activeCall, CallEndpoint callEndpoint) {
         final String callId = mCallIdMapper.getCallId(activeCall);
         if (callId != null && isServiceValid("onCallEndpointChanged")) {
@@ -1994,6 +1993,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
 
     /** @see IConnectionService#onAvailableCallEndpointsChanged(String, List, Session.Info) */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    @Override
     public void onAvailableCallEndpointsChanged(Call activeCall,
             Set<CallEndpoint> availableCallEndpoints) {
         final String callId = mCallIdMapper.getCallId(activeCall);
@@ -2012,6 +2012,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
 
     /** @see IConnectionService#onMuteStateChanged(String, boolean, Session.Info) */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    @Override
     public void onMuteStateChanged(Call activeCall, boolean isMuted) {
         final String callId = mCallIdMapper.getCallId(activeCall);
         if (callId != null && isServiceValid("onMuteStateChanged")) {

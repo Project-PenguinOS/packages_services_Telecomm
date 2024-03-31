@@ -399,7 +399,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
 
     @Override
     public CallAudioState getCurrentCallAudioState() {
-        return null;
+        return mCallAudioState;
     }
 
     @Override

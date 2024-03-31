@@ -86,6 +86,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
@@ -845,6 +846,16 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      * out.
      */
     private CompletableFuture<Boolean> mBtIcsFuture;
+
+    Map<String, CachedCallback> mCachedServiceCallbacks = new HashMap<>();
+
+    public void cacheServiceCallback(CachedCallback callback) {
+        mCachedServiceCallbacks.put(callback.getCallbackId(), callback);
+    }
+
+    public Map<String, CachedCallback> getCachedServiceCallbacks() {
+        return mCachedServiceCallbacks;
+    }
 
     private FeatureFlags mFlags;
 
@@ -2028,7 +2039,27 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     }
 
     public void setTransactionServiceWrapper(TransactionalServiceWrapper service) {
+        Log.i(this, "setTransactionServiceWrapper: service=[%s]", service);
         mTransactionalService = service;
+        processCachedCallbacks(service);
+    }
+
+    private void processCachedCallbacks(CallSourceService service) {
+        if(mFlags.cacheCallAudioCallbacks()) {
+            for (CachedCallback callback : mCachedServiceCallbacks.values()) {
+                callback.executeCallback(service, this);
+            }
+            // clear list for memory cleanup purposes. The Service should never be reset
+            mCachedServiceCallbacks.clear();
+        }
+    }
+
+    public CallSourceService getService() {
+        if (isTransactionalCall()) {
+            return mTransactionalService;
+        } else {
+            return mConnectionService;
+        }
     }
 
     public TransactionalServiceWrapper getTransactionServiceWrapper() {
@@ -2443,6 +2474,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
     @VisibleForTesting
     public void setConnectionService(ConnectionServiceWrapper service) {
+        Log.i(this, "setConnectionService: service=[%s]", service);
         setConnectionService(service, null);
     }
 
@@ -2465,6 +2497,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         mConnectionService = service;
         mAnalytics.setCallConnectionService(service.getComponentName().flattenToShortString());
         mConnectionService.addCall(this);
+        processCachedCallbacks(service);
     }
 
     /**
@@ -3088,16 +3121,24 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     public void awaitCallStateChangeAndMaybeDisconnectCall(int targetCallState,
             boolean shouldDisconnectUponTimeout, String callingMethod) {
         TransactionManager tm = TransactionManager.getInstance();
-        tm.addTransaction(new VerifyCallStateChangeTransaction(mCallsManager,
-                this, targetCallState, shouldDisconnectUponTimeout), new OutcomeReceiver<>() {
+        tm.addTransaction(new VerifyCallStateChangeTransaction(mCallsManager.getLock(),
+                this, targetCallState), new OutcomeReceiver<>() {
             @Override
             public void onResult(VoipCallTransactionResult result) {
+                Log.i(this, "awaitCallStateChangeAndMaybeDisconnectCall: %s: onResult:"
+                        + " due to CallException=[%s]", callingMethod, result);
             }
 
             @Override
             public void onError(CallException e) {
                 Log.i(this, "awaitCallStateChangeAndMaybeDisconnectCall: %s: onError"
                         + " due to CallException=[%s]", callingMethod, e);
+                if (shouldDisconnectUponTimeout) {
+                    mCallsManager.markCallAsDisconnected(Call.this,
+                            new DisconnectCause(DisconnectCause.ERROR,
+                                    "did not hold in timeout window"));
+                    mCallsManager.markCallAsRemoved(Call.this);
+                }
             }
         });
     }
