@@ -26,6 +26,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -69,6 +70,7 @@ import com.android.server.telecom.CallerInfoLookupHelper;
 import com.android.server.telecom.CallsManager;
 import com.android.server.telecom.ClockProxy;
 import com.android.server.telecom.ConnectionServiceWrapper;
+import com.android.server.telecom.EmergencyCallHelper;
 import com.android.server.telecom.PhoneAccountRegistrar;
 import com.android.server.telecom.PhoneNumberUtilsAdapter;
 import com.android.server.telecom.TelecomSystem;
@@ -107,7 +109,6 @@ public class CallTest extends TelecomTestCase {
     @Mock private PhoneAccountRegistrar mMockPhoneAccountRegistrar;
     @Mock private ClockProxy mMockClockProxy;
     @Mock private ToastFactory mMockToastProxy;
-    @Mock private Toast mMockToast;
     @Mock private PhoneNumberUtilsAdapter mMockPhoneNumberUtilsAdapter;
     @Mock private ConnectionServiceWrapper mMockConnectionService;
     @Mock private TransactionalServiceWrapper mMockTransactionalService;
@@ -124,8 +125,9 @@ public class CallTest extends TelecomTestCase {
                 eq(SIM_1_HANDLE));
         doReturn(new ComponentName(mContext, CallTest.class))
                 .when(mMockConnectionService).getComponentName();
-        doReturn(mMockToast).when(mMockToastProxy).makeText(any(), anyInt(), anyInt());
         doReturn(UserHandle.CURRENT).when(mMockCallsManager).getCurrentUserHandle();
+        EmergencyCallHelper helper = mock(EmergencyCallHelper.class);
+        doReturn(helper).when(mMockCallsManager).getEmergencyCallHelper();
     }
 
     @After
@@ -453,7 +455,6 @@ public class CallTest extends TelecomTestCase {
         doReturn(true).when(mMockCallsManager).isInEmergencyCall();
         call.pullExternalCall();
         verify(mMockConnectionService, never()).pullExternalCall(any());
-        verify(mMockToast).show();
     }
 
     @Test
@@ -895,6 +896,24 @@ public class CallTest extends TelecomTestCase {
         assertFalse(call.getExtras().containsKey(TelecomManager.EXTRA_DO_NOT_LOG_CALL));
     }
 
+    /**
+     * Verify that a Call can handle a case where no telephony stack is present to detect emergency
+     * numbers.
+     */
+    @Test
+    @SmallTest
+    public void testNoTelephonyEmergencyBehavior() {
+        when(mComponentContextFixture.getTelephonyManager().isEmergencyNumber(any()))
+                .thenReturn(true);
+        Call testCall = createCall("1", Call.CALL_DIRECTION_OUTGOING, Uri.parse("tel:911"));
+        assertTrue(testCall.isEmergencyCall());
+
+        when(mComponentContextFixture.getTelephonyManager().isEmergencyNumber(any()))
+                .thenThrow(new UnsupportedOperationException("Bee-boop"));
+        Call testCall2 = createCall("2", Call.CALL_DIRECTION_OUTGOING, Uri.parse("tel:911"));
+        assertTrue(!testCall2.isEmergencyCall());
+    }
+
     @Test
     @SmallTest
     public void testExcludesConnectionServiceWithoutModifyStatePermissionFromDoNotLogCallExtra() {
@@ -934,6 +953,10 @@ public class CallTest extends TelecomTestCase {
     }
 
     private Call createCall(String id, int callDirection) {
+        return createCall(id, callDirection, TEST_ADDRESS);
+    }
+
+    private Call createCall(String id, int callDirection, Uri address) {
         return new Call(
                 id,
                 mContext,
@@ -941,7 +964,7 @@ public class CallTest extends TelecomTestCase {
                 mLock,
                 null,
                 mMockPhoneNumberUtilsAdapter,
-                TEST_ADDRESS,
+                address,
                 null /* GatewayInfo */,
                 null,
                 SIM_1_HANDLE,

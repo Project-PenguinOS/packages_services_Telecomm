@@ -1408,20 +1408,23 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         }
     }
 
-    private CellIdentity getLastKnownCellIdentity() {
+    @VisibleForTesting
+    public CellIdentity getLastKnownCellIdentity() {
         TelephonyManager telephonyManager = mContext.getSystemService(TelephonyManager.class);
         if (telephonyManager != null) {
-            CellIdentity lastKnownCellIdentity = telephonyManager.getLastKnownCellIdentity();
             try {
+                CellIdentity lastKnownCellIdentity = telephonyManager.getLastKnownCellIdentity();
                 mAppOpsManager.noteOp(AppOpsManager.OP_FINE_LOCATION,
                         mContext.getPackageManager().getPackageUid(
                                 getComponentName().getPackageName(), 0),
                         getComponentName().getPackageName());
+                return lastKnownCellIdentity;
+            } catch (UnsupportedOperationException ignored) {
+                Log.w(this, "getLastKnownCellIdentity - no telephony on this device");
             } catch (PackageManager.NameNotFoundException nameNotFoundException) {
                 Log.e(this, nameNotFoundException, "could not find the package -- %s",
                         getComponentName().getPackageName());
             }
-            return lastKnownCellIdentity;
         }
         return null;
     }
@@ -2586,17 +2589,17 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
             }
         }
 
-        // Bail early if the caller isn't the sim connection mgr.
-        if (!isCallerConnectionManager) {
-            Log.d(this, "queryRemoteConnectionServices: none; not sim call mgr.");
+        Log.i(this, "queryRemoteConnectionServices, simServices = %s", simServices);
+        // Bail early if the caller isn't the sim connection mgr or no sim connection service
+        // other than caller available.
+        if (!isCallerConnectionManager || simServices.isEmpty()) {
+            Log.d(this, "queryRemoteConnectionServices: not sim call mgr or no simservices.");
             noRemoteServices(callback);
             return;
         }
 
         final List<ComponentName> simServiceComponentNames = new ArrayList<>();
         final List<IBinder> simServiceBinders = new ArrayList<>();
-
-        Log.i(this, "queryRemoteConnectionServices, simServices = %s", simServices);
 
         for (ConnectionServiceWrapper simService : simServices) {
             final ConnectionServiceWrapper currentSimService = simService;

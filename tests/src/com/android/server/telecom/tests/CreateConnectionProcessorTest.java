@@ -16,8 +16,12 @@
 
 package com.android.server.telecom.tests;
 
+import static junit.framework.Assert.assertFalse;
+import static junit.framework.Assert.assertTrue;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.ArgumentMatchers.any;
@@ -35,6 +39,7 @@ import android.graphics.drawable.Icon;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.UserHandle;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.telecom.DisconnectCause;
 import android.telecom.PhoneAccount;
 import android.telecom.PhoneAccountHandle;
@@ -42,6 +47,7 @@ import android.telephony.SubscriptionManager;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.internal.telephony.flags.Flags;
 import com.android.server.telecom.Call;
 import com.android.server.telecom.CallIdMapper;
 import com.android.server.telecom.ConnectionServiceFocusManager;
@@ -49,11 +55,13 @@ import com.android.server.telecom.ConnectionServiceRepository;
 import com.android.server.telecom.ConnectionServiceWrapper;
 import com.android.server.telecom.CreateConnectionProcessor;
 import com.android.server.telecom.CreateConnectionResponse;
+import com.android.server.telecom.CreateConnectionTimeout;
 import com.android.server.telecom.PhoneAccountRegistrar;
 import com.android.server.telecom.flags.FeatureFlags;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -73,6 +81,7 @@ import java.util.UUID;
  */
 @RunWith(JUnit4.class)
 public class CreateConnectionProcessorTest extends TelecomTestCase {
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     private static final String TEST_PACKAGE = "com.android.server.telecom.tests";
     private static final String TEST_CLASS =
@@ -91,10 +100,11 @@ public class CreateConnectionProcessorTest extends TelecomTestCase {
     ConnectionServiceFocusManager mConnectionServiceFocusManager;
 
     CreateConnectionProcessor mTestCreateConnectionProcessor;
+    CreateConnectionTimeout mTestCreateConnectionTimeout;
 
     private ArrayList<PhoneAccount> phoneAccounts;
-    private HashMap<Integer,Integer> mSubToSlot;
-    private HashMap<PhoneAccount,Integer> mAccountToSub;
+    private HashMap<Integer, Integer> mSubToSlot;
+    private HashMap<PhoneAccount, Integer> mAccountToSub;
 
     @Override
     @Before
@@ -117,7 +127,7 @@ public class CreateConnectionProcessorTest extends TelecomTestCase {
                          return null;
                      }
                  }
-                ).when(mConnectionServiceFocusManager).requestFocus(any(), any());
+        ).when(mConnectionServiceFocusManager).requestFocus(any(), any());
 
         mTestCreateConnectionProcessor = new CreateConnectionProcessor(mMockCall,
                 mMockConnectionServiceRepository, mMockCreateConnectionResponse,
@@ -144,6 +154,11 @@ public class CreateConnectionProcessorTest extends TelecomTestCase {
                 .thenReturn(phoneAccounts);
         when(mMockCall.getAssociatedUser()).
                 thenReturn(Binder.getCallingUserHandle());
+
+        mTestCreateConnectionTimeout = new CreateConnectionTimeout(mContext, mMockAccountRegistrar,
+                makeConnectionServiceWrapper(), mMockCall);
+
+        mSetFlagsRule.enableFlags(Flags.FLAG_CARRIER_ENABLED_SATELLITE_FLAG);
     }
 
     @Override
@@ -300,7 +315,8 @@ public class CreateConnectionProcessorTest extends TelecomTestCase {
 
     /**
      * Ensure that when a test emergency number is being dialed and we restrict the usable
-     * PhoneAccounts using {@link PhoneAccountRegistrar#filterRestrictedPhoneAccounts(List)}, the
+     * PhoneAccounts using {@link PhoneAccountRegistrar#filterRestrictedPhoneAccounts(List)},
+     * the
      * test emergency call is sent on the filtered PhoneAccount.
      */
     @SmallTest
@@ -338,7 +354,8 @@ public class CreateConnectionProcessorTest extends TelecomTestCase {
     }
 
     /**
-     * Ensure that when no phone accounts (visible to the user) are available for the call, we use
+     * Ensure that when no phone accounts (visible to the user) are available for the call, we
+     * use
      * an available sim from other another user (on the condition that the user has the
      * INTERACT_ACROSS_USERS permission).
      */
@@ -368,7 +385,8 @@ public class CreateConnectionProcessorTest extends TelecomTestCase {
     }
 
     /**
-     * Ensure that the non-emergency capable PhoneAccount and the SIM manager is not chosen to place
+     * Ensure that the non-emergency capable PhoneAccount and the SIM manager is not chosen to
+     * place
      * the emergency call if there is an emergency capable PhoneAccount available as well.
      */
     @SmallTest
@@ -405,7 +423,8 @@ public class CreateConnectionProcessorTest extends TelecomTestCase {
     }
 
     /**
-     * 1) Ensure that if there is a non-SIM PhoneAccount, it is not chosen as the Phone Account to
+     * 1) Ensure that if there is a non-SIM PhoneAccount, it is not chosen as the Phone Account
+     * to
      * dial the emergency call.
      * 2) Register multiple emergency capable PhoneAccounts. Since there is not preference, we
      * default to sending on the lowest slot.
@@ -445,8 +464,10 @@ public class CreateConnectionProcessorTest extends TelecomTestCase {
     }
 
     /**
-     * Ensure that the call goes out on the PhoneAccount that has the CAPABILITY_EMERGENCY_PREFERRED
-     * capability, even if the user specifically chose the other emergency capable PhoneAccount.
+     * Ensure that the call goes out on the PhoneAccount that has the
+     * CAPABILITY_EMERGENCY_PREFERRED
+     * capability, even if the user specifically chose the other emergency capable
+     * PhoneAccount.
      */
     @SmallTest
     @Test
@@ -478,7 +499,8 @@ public class CreateConnectionProcessorTest extends TelecomTestCase {
     }
 
     /**
-     * If there is no phone account with CAPABILITY_EMERGENCY_PREFERRED capability, choose the user
+     * If there is no phone account with CAPABILITY_EMERGENCY_PREFERRED capability, choose the
+     * user
      * chosen target account.
      */
     @SmallTest
@@ -552,7 +574,8 @@ public class CreateConnectionProcessorTest extends TelecomTestCase {
     }
 
     /**
-     * If the user preferred PhoneAccount is associated with an invalid slot, place on the other,
+     * If the user preferred PhoneAccount is associated with an invalid slot, place on the
+     * other,
      * valid slot.
      */
     @SmallTest
@@ -690,7 +713,8 @@ public class CreateConnectionProcessorTest extends TelecomTestCase {
 
     /**
      * Tests to verify that the
-     * {@link CreateConnectionProcessor#sortSimPhoneAccountsForEmergency(List, PhoneAccount)} can
+     * {@link CreateConnectionProcessor#sortSimPhoneAccountsForEmergency(List, PhoneAccount)}
+     * can
      * successfully sort without running into sort issues related to the hashcodes of the
      * PhoneAccounts.
      */
@@ -705,6 +729,127 @@ public class CreateConnectionProcessorTest extends TelecomTestCase {
         } catch (Exception e) {
             fail("Failed to sort phone accounts");
         }
+    }
+
+    @Test
+    public void testIsTimeoutNeededForCall_nonEmergencyCall() {
+        when(mMockCall.isEmergencyCall()).thenReturn(false);
+
+        assertFalse(mTestCreateConnectionTimeout.isTimeoutNeededForCall(null, null));
+    }
+
+    @Test
+    public void testIsTimeoutNeededForCall_noConnectionManager() {
+        when(mMockCall.isEmergencyCall()).thenReturn(true);
+        List<PhoneAccountHandle> phoneAccountHandles = new ArrayList<>();
+        // Put in a regular phone account handle
+        PhoneAccount regularAccount = makePhoneAccount("tel_acct1",
+                PhoneAccount.CAPABILITY_SIM_SUBSCRIPTION);
+        phoneAccountHandles.add(regularAccount.getAccountHandle());
+        // Create a connection manager for the call and do not include in phoneAccountHandles
+        createNewConnectionManagerPhoneAccountForCall(mMockCall, "cm_acct", 0);
+
+        assertFalse(mTestCreateConnectionTimeout.isTimeoutNeededForCall(phoneAccountHandles, null));
+    }
+
+    @Test
+    public void testIsTimeoutNeededForCall_usingConnectionManager() {
+        when(mMockCall.isEmergencyCall()).thenReturn(true);
+        List<PhoneAccountHandle> phoneAccountHandles = new ArrayList<>();
+        // Put in a regular phone account handle
+        PhoneAccount regularAccount = makePhoneAccount("tel_acct1",
+                PhoneAccount.CAPABILITY_SIM_SUBSCRIPTION);
+        phoneAccountHandles.add(regularAccount.getAccountHandle());
+        // Create a connection manager for the call and include it in phoneAccountHandles
+        PhoneAccount callManagerPA = createNewConnectionManagerPhoneAccountForCall(mMockCall,
+                "cm_acct", 0);
+        phoneAccountHandles.add(callManagerPA.getAccountHandle());
+
+        assertFalse(mTestCreateConnectionTimeout.isTimeoutNeededForCall(
+                phoneAccountHandles, callManagerPA.getAccountHandle()));
+    }
+
+    @Test
+    public void testIsTimeoutNeededForCall_NotSystemSimCallManager() {
+        when(mMockCall.isEmergencyCall()).thenReturn(true);
+        List<PhoneAccountHandle> phoneAccountHandles = new ArrayList<>();
+        // Put in a regular phone account handle
+        PhoneAccount regularAccount = makePhoneAccount("tel_acct1",
+                PhoneAccount.CAPABILITY_SIM_SUBSCRIPTION);
+        phoneAccountHandles.add(regularAccount.getAccountHandle());
+        // Create a connection manager for the call and include it in phoneAccountHandles
+        PhoneAccount callManagerPA = createNewConnectionManagerPhoneAccountForCall(mMockCall,
+                "cm_acct", 0);
+        phoneAccountHandles.add(callManagerPA.getAccountHandle());
+
+        assertFalse(mTestCreateConnectionTimeout.isTimeoutNeededForCall(phoneAccountHandles, null));
+    }
+
+    @Test
+    public void testIsTimeoutNeededForCall_carrierNotInService() {
+        when(mMockCall.isEmergencyCall()).thenReturn(true);
+        when(mMockAccountRegistrar.getSystemSimCallManagerComponent()).thenReturn(
+                new ComponentName(TEST_PACKAGE, TEST_CLASS));
+
+        List<PhoneAccountHandle> phoneAccountHandles = new ArrayList<>();
+        // Put in a regular phone account handle
+        PhoneAccount regularAccount = makePhoneAccount("tel_acct1",
+                PhoneAccount.CAPABILITY_SIM_SUBSCRIPTION);
+        phoneAccountHandles.add(regularAccount.getAccountHandle());
+        // Create a connection manager for the call and include it in phoneAccountHandles
+        int capability = PhoneAccount.CAPABILITY_SUPPORTS_VOICE_CALLING_INDICATIONS;
+        PhoneAccount callManagerPA = createNewConnectionManagerPhoneAccountForCall(mMockCall,
+                "cm_acct", capability);
+        PhoneAccount phoneAccountWithoutService = makeQuickAccount("cm_acct", capability, null);
+        when(mMockAccountRegistrar.getPhoneAccount(callManagerPA.getAccountHandle(),
+                callManagerPA.getAccountHandle().getUserHandle()))
+                .thenReturn(phoneAccountWithoutService);
+        phoneAccountHandles.add(callManagerPA.getAccountHandle());
+
+        assertFalse(mTestCreateConnectionTimeout.isTimeoutNeededForCall(phoneAccountHandles, null));
+    }
+
+    @Test
+    public void testIsTimeoutNeededForCall() {
+        when(mMockCall.isEmergencyCall()).thenReturn(true);
+        when(mMockAccountRegistrar.getSystemSimCallManagerComponent()).thenReturn(
+                new ComponentName(TEST_PACKAGE, TEST_CLASS));
+
+        List<PhoneAccountHandle> phoneAccountHandles = new ArrayList<>();
+        // Put in a regular phone account handle
+        PhoneAccount regularAccount = makePhoneAccount("tel_acct1",
+                PhoneAccount.CAPABILITY_SIM_SUBSCRIPTION);
+        phoneAccountHandles.add(regularAccount.getAccountHandle());
+        // Create a connection manager for the call and include it in phoneAccountHandles
+        int capability = PhoneAccount.CAPABILITY_SUPPORTS_VOICE_CALLING_INDICATIONS
+                | PhoneAccount.CAPABILITY_VOICE_CALLING_AVAILABLE;
+        PhoneAccount callManagerPA = createNewConnectionManagerPhoneAccountForCall(mMockCall,
+                "cm_acct", capability);
+        PhoneAccount phoneAccountWithService = makeQuickAccount("cm_acct", capability, null);
+        when(mMockAccountRegistrar.getPhoneAccount(callManagerPA.getAccountHandle(),
+                callManagerPA.getAccountHandle().getUserHandle()))
+                .thenReturn(phoneAccountWithService);
+        phoneAccountHandles.add(callManagerPA.getAccountHandle());
+
+        assertTrue(mTestCreateConnectionTimeout.isTimeoutNeededForCall(phoneAccountHandles, null));
+    }
+
+    /**
+     * Verifies when telephony is not available that we just get invalid sub id for a phone acct.
+     */
+    @SmallTest
+    @Test
+    public void testTelephonyAdapterWhenNoTelephony() {
+        PhoneAccount telephonyAcct = makePhoneAccount("test-acct",
+                PhoneAccount.CAPABILITY_CALL_PROVIDER
+                        | PhoneAccount.CAPABILITY_PLACE_EMERGENCY_CALLS);
+
+        CreateConnectionProcessor.ITelephonyManagerAdapterImpl impl
+                = new CreateConnectionProcessor.ITelephonyManagerAdapterImpl();
+        when(mComponentContextFixture.getTelephonyManager().
+                getSubscriptionId(any(PhoneAccountHandle.class)))
+                .thenThrow(new UnsupportedOperationException("Bee boop"));
+        assertEquals(-1, impl.getSubIdForPhoneAccount(mContext, telephonyAcct));
     }
 
     /**
