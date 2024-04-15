@@ -2144,7 +2144,14 @@ public class CallAudioRouteStateMachine extends StateMachine implements CallAudi
         return base;
     }
 
+    @Override
     public Handler getAdapterHandler() {
         return getHandler();
+    }
+
+    @Override
+    public PendingAudioRoute getPendingAudioRoute() {
+        // Only used by CallAudioRouteController.
+        return null;
     }
 }
