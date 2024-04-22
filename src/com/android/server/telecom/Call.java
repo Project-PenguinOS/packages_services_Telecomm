@@ -2585,7 +2585,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             return;
         }
         mCreateConnectionProcessor = new CreateConnectionProcessor(this, mRepository, this,
-                phoneAccountRegistrar, mContext, mFlags);
+                phoneAccountRegistrar, mContext, mFlags, new Timeouts.Adapter());
         mCreateConnectionProcessor.process();
     }
 
