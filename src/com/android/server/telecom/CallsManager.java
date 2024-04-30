@@ -3642,7 +3642,8 @@ public class CallsManager extends Call.ListenerBase
     @VisibleForTesting
     public List<PhoneAccountHandle> constructPossiblePhoneAccounts(Uri handle, UserHandle user,
             boolean isVideo, boolean isEmergency,  boolean isConference) {
-        if (mTelephonyFeatureFlags.simultaneousCallingIndications()) {
+        if (!isDsdaOrDsdsTransitionMode() &&
+                mTelephonyFeatureFlags.simultaneousCallingIndications()) {
             return constructPossiblePhoneAccountsNew(handle, user, isVideo, isEmergency,
                     isConference);
         } else {
