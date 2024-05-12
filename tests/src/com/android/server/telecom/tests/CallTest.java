@@ -37,6 +37,7 @@ import static org.mockito.Mockito.when;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
@@ -126,6 +127,11 @@ public class CallTest extends TelecomTestCase {
         doReturn(new ComponentName(mContext, CallTest.class))
                 .when(mMockConnectionService).getComponentName();
         doReturn(UserHandle.CURRENT).when(mMockCallsManager).getCurrentUserHandle();
+        Resources mockResources = mContext.getResources();
+        when(mockResources.getBoolean(R.bool.skip_loading_canned_text_response))
+                .thenReturn(false);
+        when(mockResources.getBoolean(R.bool.skip_incoming_caller_info_query))
+                .thenReturn(false);
         EmergencyCallHelper helper = mock(EmergencyCallHelper.class);
         doReturn(helper).when(mMockCallsManager).getEmergencyCallHelper();
     }
@@ -144,6 +150,69 @@ public class CallTest extends TelecomTestCase {
         assertTrue(call.hasGoneActiveBefore());
         call.setState(CallState.AUDIO_PROCESSING, "");
         assertTrue(call.hasGoneActiveBefore());
+    }
+
+    /**
+     * Verify Call#setVideoState will only upgrade to video if the PhoneAccount supports video
+     * state capabilities
+     */
+    @Test
+    @SmallTest
+    public void testSetVideoStateForTransactionalCalls() {
+        Call call = createCall("1", Call.CALL_DIRECTION_INCOMING);
+        TransactionalServiceWrapper tsw = Mockito.mock(TransactionalServiceWrapper.class);
+        call.setIsTransactionalCall(true);
+        call.setTransactionServiceWrapper(tsw);
+        assertTrue(call.isTransactionalCall());
+        assertNotNull(call.getTransactionServiceWrapper());
+        when(mFeatureFlags.transactionalVideoState()).thenReturn(true);
+
+        // VoIP apps using transactional APIs must register a PhoneAccount that supports
+        // video calling capabilities or the video state will be defaulted to audio
+        assertFalse(call.isVideoCallingSupportedByPhoneAccount());
+        call.setVideoState(VideoProfile.STATE_BIDIRECTIONAL);
+        assertEquals(VideoProfile.STATE_AUDIO_ONLY, call.getVideoState());
+
+        call.setVideoCallingSupportedByPhoneAccount(true);
+        assertTrue(call.isVideoCallingSupportedByPhoneAccount());
+
+        // After the PhoneAccount signals it supports video calling, video state changes can occur
+        call.setVideoState(VideoProfile.STATE_BIDIRECTIONAL);
+        assertEquals(VideoProfile.STATE_BIDIRECTIONAL, call.getVideoState());
+        verify(tsw, times(1)).onVideoStateChanged(call, CallAttributes.VIDEO_CALL);
+    }
+
+    /**
+     * Verify all video state changes are echoed out to the TransactionalServiceWrapper
+     */
+    @Test
+    @SmallTest
+    public void testToggleTransactionalVideoState() {
+        Call call = createCall("1", Call.CALL_DIRECTION_INCOMING);
+        TransactionalServiceWrapper tsw = Mockito.mock(TransactionalServiceWrapper.class);
+        call.setIsTransactionalCall(true);
+        call.setTransactionServiceWrapper(tsw);
+        call.setVideoCallingSupportedByPhoneAccount(true);
+        assertTrue(call.isTransactionalCall());
+        assertNotNull(call.getTransactionServiceWrapper());
+        assertTrue(call.isVideoCallingSupportedByPhoneAccount());
+        when(mFeatureFlags.transactionalVideoState()).thenReturn(true);
+
+        call.setVideoState(VideoProfile.STATE_BIDIRECTIONAL);
+        assertEquals(VideoProfile.STATE_BIDIRECTIONAL, call.getVideoState());
+        verify(tsw, times(1)).onVideoStateChanged(call, CallAttributes.VIDEO_CALL);
+
+        call.setVideoState(VideoProfile.STATE_BIDIRECTIONAL);
+        assertEquals(VideoProfile.STATE_BIDIRECTIONAL, call.getVideoState());
+        verify(tsw, times(2)).onVideoStateChanged(call, CallAttributes.VIDEO_CALL);
+
+        call.setVideoState(VideoProfile.STATE_AUDIO_ONLY);
+        assertEquals(VideoProfile.STATE_AUDIO_ONLY, call.getVideoState());
+        verify(tsw, times(1)).onVideoStateChanged(call, CallAttributes.AUDIO_CALL);
+
+        call.setVideoState(VideoProfile.STATE_BIDIRECTIONAL);
+        assertEquals(VideoProfile.STATE_BIDIRECTIONAL, call.getVideoState());
+        verify(tsw, times(3)).onVideoStateChanged(call, CallAttributes.VIDEO_CALL);
     }
 
     @Test
@@ -623,6 +692,18 @@ public class CallTest extends TelecomTestCase {
 
     @Test
     @SmallTest
+    public void testGetFromCallerInfo_skipLookup() {
+        Resources mockResources = mContext.getResources();
+        when(mockResources.getBoolean(R.bool.skip_incoming_caller_info_query))
+                .thenReturn(true);
+
+        createCall("1");
+
+        verify(mMockCallerInfoLookupHelper, never()).startLookup(any(), any());
+    }
+
+    @Test
+    @SmallTest
     public void testOriginalCallIntent() {
         Call call = createCall("1");
 
@@ -946,6 +1027,18 @@ public class CallTest extends TelecomTestCase {
         call.putConnectionServiceExtras(extra);
 
         assertTrue(call.getExtras().containsKey(TelecomManager.EXTRA_DO_NOT_LOG_CALL));
+    }
+
+    @Test
+    @SmallTest
+    public void testSkipLoadingCannedTextResponse() {
+        Call call = createCall("any");
+        Resources mockResources = mContext.getResources();
+        when(mockResources.getBoolean(R.bool.skip_loading_canned_text_response))
+                .thenReturn(true);
+
+
+        assertFalse(call.isRespondViaSmsCapable());
     }
 
     private Call createCall(String id) {

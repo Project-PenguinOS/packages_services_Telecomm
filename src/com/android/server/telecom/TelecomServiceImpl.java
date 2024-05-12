@@ -215,11 +215,11 @@ public class TelecomServiceImpl {
                 switch (callAttributes.getDirection()) {
                     case DIRECTION_OUTGOING:
                         transaction = new OutgoingCallTransaction(callId, mContext, callAttributes,
-                                mCallsManager, extras);
+                                mCallsManager, extras, mFeatureFlags);
                         break;
                     case DIRECTION_INCOMING:
                         transaction = new IncomingCallTransaction(callId, callAttributes,
-                                mCallsManager, extras);
+                                mCallsManager, extras, mFeatureFlags);
                         break;
                     default:
                         throw new IllegalArgumentException(String.format("Invalid Call Direction. "
@@ -1854,7 +1854,7 @@ public class TelecomServiceImpl {
                     throw new SecurityException("Package " + callingPackage + " is not allowed"
                             + " to start conference call");
                 }
-                // Binder is clearing the identity, so we need to store the user handle
+                // Binder is clearing the identity, so we need to keep the store the handle
                 UserHandle currentUserHandle = Binder.getCallingUserHandle();
                 long token = Binder.clearCallingIdentity();
                 try {
