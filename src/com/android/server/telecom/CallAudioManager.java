@@ -30,6 +30,8 @@ import android.media.AudioManager;
 import android.media.ToneGenerator;
 import android.provider.Settings;
 import android.provider.Settings.SettingNotFoundException;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.UserHandle;
 import android.telecom.CallAudioState;
 import android.telecom.Log;
@@ -46,6 +48,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.LinkedHashSet;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 
@@ -76,6 +79,8 @@ public class CallAudioManager extends CallsManagerListenerBase {
 
     private Call mStreamingCall;
     private Call mForegroundCall;
+    private CompletableFuture<Boolean> mCallRingingFuture;
+    private Thread mBtIcsBindingThread;
     private boolean mIsTonePlaying = false;
     private boolean mIsDisconnectedTonePlaying = false;
     private InCallTonePlayer mHoldTonePlayer;
@@ -83,6 +88,8 @@ public class CallAudioManager extends CallsManagerListenerBase {
     private int mOriginalCallType = Call.CALL_TYPE_UNKNOWN;
     private boolean mIsCrsSupportedFromAudioHal = false;
     private final Set<Call> mSilencedCalls;
+    private final HandlerThread mHandlerThread;
+    private final Handler mHandler;
 
     public CallAudioManager(CallAudioRouteAdapter callAudioRouteAdapter,
             CallsManager callsManager,
@@ -121,6 +128,9 @@ public class CallAudioManager extends CallsManagerListenerBase {
         mFeatureFlags = featureFlags;
         mIsCrsSupportedFromAudioHal = isCrsSupportedFromAudioHal();
         mSilencedCalls = new HashSet<>();
+        mHandlerThread = new HandlerThread(this.getClass().getSimpleName());
+        mHandlerThread.start();
+        mHandler = new Handler(mHandlerThread.getLooper());
 
         mPlayerFactory.setCallAudioManager(this);
         mCallAudioModeStateMachine.setCallAudioManager(this);
@@ -868,14 +878,42 @@ public class CallAudioManager extends CallsManagerListenerBase {
 
     private void onCallEnteringRinging() {
         if (mRingingCalls.size() == 1) {
-            // Wait until the BT ICS binding completed to request further audio route change
-            for (Call ringingCall: mRingingCalls) {
-                ringingCall.waitForBtIcs();
+            Log.i(this, "onCallEnteringRinging: mFeatureFlags.separatelyBindToBtIncallService() ? %s",
+                    mFeatureFlags.separatelyBindToBtIncallService());
+            Log.i(this, "onCallEnteringRinging: mRingingCalls.getFirst().getBtIcsFuture() = %s",
+                    mRingingCalls.getFirst().getBtIcsFuture());
+            if (mFeatureFlags.separatelyBindToBtIncallService()
+                    && mRingingCalls.getFirst().getBtIcsFuture() != null) {
+                mCallRingingFuture  = mRingingCalls.getFirst().getBtIcsFuture()
+                        .thenComposeAsync((completed) -> {
+                            mCallAudioModeStateMachine.sendMessageWithArgs(
+                                    CallAudioModeStateMachine.NEW_RINGING_CALL,
+                                    makeArgsForModeStateMachine());
+                            return CompletableFuture.completedFuture(completed);
+                        }, new LoggedHandlerExecutor(mHandler, "CAM.oCER", mCallsManager.getLock()))
+                        .exceptionally((throwable) -> {
+                            Log.e(this, throwable, "Error while executing BT ICS future");
+                            // Fallback on performing computation on a separate thread.
+                            handleBtBindingWaitFallback();
+                            return null;
+                        });
+            } else {
+                mCallAudioModeStateMachine.sendMessageWithArgs(
+                        CallAudioModeStateMachine.NEW_RINGING_CALL,
+                        makeArgsForModeStateMachine());
             }
+        }
+    }
+
+    private void handleBtBindingWaitFallback() {
+        // Wait until the BT ICS binding completed to request further audio route change
+        mBtIcsBindingThread = new Thread(() -> {
+            mRingingCalls.getFirst().waitForBtIcs();
             mCallAudioModeStateMachine.sendMessageWithArgs(
                     CallAudioModeStateMachine.NEW_RINGING_CALL,
                     makeArgsForModeStateMachine());
-        }
+        });
+        mBtIcsBindingThread.start();
     }
 
     private void onCallEnteringHold() {
@@ -1049,12 +1087,14 @@ public class CallAudioManager extends CallsManagerListenerBase {
         // we will not play a disconnect tone.
         if (call.isHandoverInProgress()) {
             Log.i(LOG_TAG, "Omitting tone because %s is being handed over.", call);
+            completeDisconnectToneFuture(call);
             return;
         }
 
         if (mForegroundCall != null && call != mForegroundCall && mCalls.size() > 1) {
             Log.v(LOG_TAG, "Omitting tone because we are not foreground" +
                     " and there is another call.");
+            completeDisconnectToneFuture(call);
             return;
         }
 
@@ -1095,6 +1135,8 @@ public class CallAudioManager extends CallsManagerListenerBase {
                     mCallsManager.onDisconnectedTonePlaying(call, true);
                     mIsDisconnectedTonePlaying = true;
                 }
+            } else {
+                completeDisconnectToneFuture(call);
             }
         }
     }
@@ -1189,6 +1231,14 @@ public class CallAudioManager extends CallsManagerListenerBase {
                 oldState == CallState.ON_HOLD;
     }
 
+    private void completeDisconnectToneFuture(Call call) {
+        CompletableFuture<Void> disconnectedToneFuture = mCallsManager.getInCallController()
+                .getDisconnectedToneBtFutures().get(call.getId());
+        if (disconnectedToneFuture != null) {
+            disconnectedToneFuture.complete(null);
+        }
+    }
+
     @VisibleForTesting
     public Set<Call> getTrackedCalls() {
         return mCalls;
@@ -1208,5 +1258,10 @@ public class CallAudioManager extends CallsManagerListenerBase {
         String isCrsSupported = am.getParameters("isCRSsupported");
         Log.i(this, "CRS is supported from audio HAL : " + isCrsSupported);
         return isCrsSupported.equals("isCRSsupported=1");
+    }
+
+    @VisibleForTesting
+    public CompletableFuture<Boolean> getCallRingingFuture() {
+        return mCallRingingFuture;
     }
 }
