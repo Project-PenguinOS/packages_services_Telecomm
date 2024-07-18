@@ -3553,7 +3553,8 @@ public class CallsManager extends Call.ListenerBase
                 Log.d(TAG, "unholdCall isDsdaOrDsdsTransitionMode = " +
                         isDsdaOrDsdsTransitionMode());
                 if (canHold(activeCall)) {
-                    if (!isDsdaOrDsdsTransitionMode() || !areFromSameSource(activeCall, call)) {
+                    if (!isDsdaOrDsdsTransitionMode() || !areFromSameSource(activeCall, call)
+                            || isHfpCallPresent()) {
                         // Follow legacy behavior for non DSDA and different source/connection
                         // service use case
                         activeCall.hold("Swap to " + call.getId());
@@ -4004,6 +4005,25 @@ public class CallsManager extends Call.ListenerBase
         maybeMoveToSpeakerPhone(call);
     }
 
+    /* Returns true if HFP call is present */
+    boolean isHfpCallPresent() {
+        Optional<Call> hfpCall = mCalls.stream()
+                .filter(call -> mContext.getString(R.string.hfp_client_connection).equals(
+                         call.getTargetPhoneAccount() == null ? null :
+                         call.getTargetPhoneAccount().getComponentName().getClassName()))
+                .findFirst();
+        return hfpCall.isPresent();
+    }
+
+    /* Returns first held call across phoneaccounts */
+    private Call getHeldCallAcrossPhoneAccounts() {
+        Optional<Call> heldCall = mCalls.stream()
+                .filter(call -> call.getParentCall() == null
+                        && call.getState() == CallState.ON_HOLD)
+                .findFirst();
+        return heldCall.orElse(null);
+    }
+
     /**
      * Returns true if the active call is held.
      */
@@ -4014,6 +4034,27 @@ public class CallsManager extends Call.ListenerBase
         if (activeCall != null && activeCall != call) {
             Log.d(TAG, "holdActiveCallForNewCall isDsdaOrDsdsTransitionMode = " +
                     isDsdaOrDsdsTransitionMode());
+            // Handle if any HFP call is present otherwise fall back to legacy handling
+            if (isHfpCallPresent()) {
+                Call heldCall = getHeldCallAcrossPhoneAccounts();
+                if (heldCall != null) {
+                    if (supportsHold(activeCall)) {
+                        Log.i(this, "holdActiveCallForNewCall: hold active call");
+                        heldCall.disconnect();
+                        activeCall.hold();
+                    } else {
+                        Log.i(this, "holdActiveCallForNewCall: disconnect active call");
+                        activeCall.disconnect();
+                    }
+                } else if(!areFromSameSource(activeCall, call)) {
+                    if (supportsHold(activeCall)) {
+                        activeCall.hold();
+                    } else {
+                        activeCall.disconnect();
+                    }
+                }
+                return true;
+            }
             if (isDsdaOrDsdsTransitionMode() && !arePhoneAccountsEqual(
                     call.getTargetPhoneAccount(), activeCall.getTargetPhoneAccount())) {
                 // For DSDA/DSDS transition cross sub answer, let connection service handle this
