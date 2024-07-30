@@ -148,6 +148,11 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     public static final int CALL_DIRECTION_DUAL_DIFF_ACCOUNT = 4;
 
     /**
+     * Identifies call audio quality
+     */
+    private static final float MIN_BITRATE_FOR_HD_PLUS = 24.4f;
+
+    /**
      * Listener for CallState changes which can be leveraged by a Transaction.
      */
     public interface CallStateListener {
@@ -614,6 +619,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     private boolean mWasWifi = false;
     private boolean mWasVolte = false;
     private boolean mDestroyed = false;
+    private boolean mIsHdPlus = false;
 
     // For conferences which support merge/swap at their level, we retain a notion of an active
     // call. This is used for BluetoothPhoneService.  In order to support hold/merge, it must have
@@ -3538,6 +3544,16 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             l.onExtrasChanged(this, source, extras, requestingPackageName);
         }
 
+        // If mExtra contains info about HD+ call, record it with mIsHdPlus
+        int audioCodec =
+                mExtras.getInt(Connection.EXTRA_AUDIO_CODEC, Connection.AUDIO_CODEC_NONE);
+        if (audioCodec == Connection.AUDIO_CODEC_EVS_SWB) {
+            mIsHdPlus = true;
+        } else if (audioCodec == Connection.AUDIO_CODEC_EVS_FB) {
+            float bitRate = mExtras.getFloat(Connection.EXTRA_AUDIO_CODEC_BITRATE_KBPS, 0.0f);
+            mIsHdPlus = (bitRate >= MIN_BITRATE_FOR_HD_PLUS);
+        }
+
         // If mExtra shows that the call using Volte, record it with mWasVolte
         if (mExtras.containsKey(TelecomManager.EXTRA_CALL_NETWORK_TYPE)) {
             mWasVolte = mExtras.get(TelecomManager.EXTRA_CALL_NETWORK_TYPE)
@@ -4896,6 +4912,15 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      */
     public boolean wasVolte() {
         return mWasVolte;
+    }
+
+    /**
+     * Returns whether or not the call is HD+.
+     *
+     * @return true if it's HD+, false otherwise.
+     */
+    public boolean isHdPlus() {
+        return mIsHdPlus;
     }
 
     /**

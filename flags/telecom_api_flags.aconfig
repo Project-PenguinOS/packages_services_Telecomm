@@ -216,3 +216,15 @@ flag {
       purpose: PURPOSE_FEATURE
   }
 }
+
+# OWNER=arunvoddu TARGET=26Q2
+flag {
+  name: "hd_plus_call"
+  is_exported: true
+  namespace: "telecom"
+  description: "Add call HD+ call indicator"
+  bug: "428115434"
+  metadata {
+      purpose: PURPOSE_FEATURE
+  }
+}
