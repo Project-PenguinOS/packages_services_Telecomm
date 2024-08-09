@@ -103,6 +103,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     private Map<AudioRoute, BluetoothDevice> mBluetoothRoutes;
     private Pair<Integer, String> mActiveBluetoothDevice;
     private Map<Integer, String> mActiveDeviceCache;
+    private String mBluetoothAddressForRinging;
     private Map<Integer, AudioRoute> mTypeRoutes;
     private PendingAudioRoute mPendingAudioRoute;
     private AudioRoute.Factory mAudioRouteFactory;
@@ -802,6 +803,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                     routeTo(false, mCurrentRoute);
                     // Clear pending messages
                     mPendingAudioRoute.clearPendingMessages();
+                    clearRingingBluetoothAddress();
                 }
             }
             case ACTIVE_FOCUS -> {
@@ -810,7 +812,17 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                 // the end tone. Otherwise, it's possible that we'll override the route a client has
                 // previously requested.
                 if (handleEndTone == 0) {
-                    routeTo(true, getBaseRoute(true, null));
+                    // Cache BT device switch in the case that inband ringing is disabled and audio
+                    // was routed to a watch. When active focus is received, this selection will be
+                    // honored provided that the current route is associated.
+                    Log.i(this, "handleSwitchFocus (ACTIVE_FOCUS): mBluetoothAddressForRinging = "
+                        + "%s, mCurrentRoute = %s", mBluetoothAddressForRinging, mCurrentRoute);
+                    AudioRoute audioRoute = mBluetoothAddressForRinging != null
+                        && mBluetoothAddressForRinging.equals(mCurrentRoute.getBluetoothAddress())
+                        ? mCurrentRoute
+                        : getBaseRoute(true, null);
+                    routeTo(true, audioRoute);
+                    clearRingingBluetoothAddress();
                 }
             }
             case RINGING_FOCUS -> {
@@ -865,6 +877,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             if (mFocusType == RINGING_FOCUS) {
                 routeTo(mBluetoothRouteManager.isInbandRingEnabled(bluetoothDevice) && mIsActive,
                         bluetoothRoute);
+                mBluetoothAddressForRinging = bluetoothDevice.getAddress();
             } else {
                 routeTo(mIsActive, bluetoothRoute);
             }
@@ -1303,6 +1316,10 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
 
     public void setIsScoAudioConnected(boolean value) {
         mIsScoAudioConnected = value;
+    }
+
+    private void clearRingingBluetoothAddress() {
+        mBluetoothAddressForRinging = null;
     }
 
     /**
