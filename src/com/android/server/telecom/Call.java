@@ -944,7 +944,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         mLock = lock;
         mRepository = repository;
         mPhoneNumberUtilsAdapter = phoneNumberUtilsAdapter;
-        setHandle(handle);
         mParticipants = participants;
         mPostDialDigits = handle != null
                 ? PhoneNumberUtils.extractPostDialPortion(handle.getSchemeSpecificPart()) : "";
@@ -952,6 +951,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         setConnectionManagerPhoneAccount(connectionManagerPhoneAccountHandle);
         mCallDirection = callDirection;
         setTargetPhoneAccount(targetPhoneAccountHandle);
+        setHandle(handle);
         mIsConference = isConference;
         mShouldAttachToExistingConnection = shouldAttachToExistingConnection
                 || callDirection == CALL_DIRECTION_INCOMING;
@@ -1624,9 +1624,11 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 mIsTestEmergencyCall = mHandle != null &&
                         isTestEmergencyCall(mHandle.getSchemeSpecificPart());
             }
-            if (!mContext.getResources().getBoolean(R.bool.skip_incoming_caller_info_query)) {
+            if (mTargetPhoneAccountHandle == null || !mContext.getResources().getString(
+                    R.string.skip_incoming_caller_info_account_package).equalsIgnoreCase(
+                    mTargetPhoneAccountHandle.getComponentName().getPackageName())) {
                 startCallerInfoLookup();
-            } else  {
+            } else {
                 Log.i(this, "skip incoming caller info lookup");
             }
             for (Listener l : mListeners) {
