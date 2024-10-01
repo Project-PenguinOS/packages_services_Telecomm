@@ -37,7 +37,9 @@ import android.content.res.Resources;
 import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.media.Ringtone;
+import android.media.Utils;
 import android.media.VolumeShaper;
+import android.media.audio.Flags;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -198,6 +200,7 @@ public class Ringer {
     private final VibrationEffectProxy mVibrationEffectProxy;
     private final boolean mIsHapticPlaybackSupportedByDevice;
     private final FeatureFlags mFlags;
+    private final boolean mRingtoneVibrationSupported;
     /**
      * For unit testing purposes only; when set, {@link #startRinging(Call, boolean)} will complete
      * the future provided by the test using {@link #setBlockOnRingingFuture(CompletableFuture)}.
@@ -271,6 +274,8 @@ public class Ringer {
         mIsHapticPlaybackSupportedByDevice =
                 mSystemSettingsUtil.isHapticPlaybackSupported(mContext);
         mFlags = featureFlags;
+        mRingtoneVibrationSupported = mContext.getResources().getBoolean(
+                com.android.internal.R.bool.config_ringtoneVibrationSettingsSupported);
     }
 
     @VisibleForTesting
@@ -650,6 +655,9 @@ public class Ringer {
             if (!isHapticOnly) {
                 ringtoneInfoSupplier = () -> mRingtoneFactory.getRingtone(
                         foregroundCall, mVolumeShaperConfig, finalHapticChannelsMuted);
+            } else if (Flags.enableRingtoneHapticsCustomization() && mRingtoneVibrationSupported) {
+                ringtoneInfoSupplier = () -> mRingtoneFactory.getRingtone(
+                        foregroundCall, null, false);
             }
 
             // If vibration will be done, reserve the vibrator.
@@ -701,7 +709,8 @@ public class Ringer {
                     boolean isUsingAudioCoupledHaptics =
                             !finalHapticChannelsMuted && ringtone != null
                                     && ringtone.hasHapticChannels();
-                    vibrateIfNeeded(isUsingAudioCoupledHaptics, foregroundCall, vibrationEffect);
+                    vibrateIfNeeded(isUsingAudioCoupledHaptics, foregroundCall, vibrationEffect,
+                            ringtoneUri);
                 } finally {
                     // This is used to signal to tests that the async play() call has completed.
                     if (mBlockOnRingingFuture != null) {
@@ -759,10 +768,17 @@ public class Ringer {
    }
 
     private void vibrateIfNeeded(boolean isUsingAudioCoupledHaptics, Call foregroundCall,
-            VibrationEffect effect) {
+            VibrationEffect effect, Uri ringtoneUri) {
         if (isUsingAudioCoupledHaptics) {
             Log.addEvent(
                 foregroundCall, LogUtils.Events.SKIP_VIBRATION, "using audio-coupled haptics");
+            return;
+        }
+
+        if (Flags.enableRingtoneHapticsCustomization() && mRingtoneVibrationSupported
+                && Utils.hasVibration(ringtoneUri)) {
+            Log.addEvent(
+                    foregroundCall, LogUtils.Events.SKIP_VIBRATION, "using custom haptics");
             return;
         }
 
