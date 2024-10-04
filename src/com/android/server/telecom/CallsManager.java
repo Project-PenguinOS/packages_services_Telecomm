@@ -938,7 +938,7 @@ public class CallsManager extends Call.ListenerBase
         DndCallFilter dndCallFilter = new DndCallFilter(incomingHfpCall, mRinger);
         IncomingCallFilterGraph graph = mIncomingCallFilterGraphProvider.createGraph(
                 incomingHfpCall,
-                this::onCallFilteringComplete, mContext, mTimeoutsAdapter, mLock);
+                this::onCallFilteringComplete, mContext, mTimeoutsAdapter, mFeatureFlags, mLock);
         graph.addFilter(dndCallFilter);
         mGraphHandlerThreads.add(graph.getHandlerThread());
         return graph;
@@ -957,7 +957,7 @@ public class CallsManager extends Call.ListenerBase
         ParcelableCallUtils.Converter converter = new ParcelableCallUtils.Converter();
 
         IncomingCallFilterGraph graph = mIncomingCallFilterGraphProvider.createGraph(incomingCall,
-                this::onCallFilteringComplete, mContext, mTimeoutsAdapter, mLock);
+                this::onCallFilteringComplete, mContext, mTimeoutsAdapter, mFeatureFlags, mLock);
         DirectToVoicemailFilter voicemailFilter = new DirectToVoicemailFilter(incomingCall,
                 mCallerInfoLookupHelper);
         BlockCheckerFilter blockCheckerFilter = new BlockCheckerFilter(mContext, incomingCall,
@@ -1630,9 +1630,7 @@ public class CallsManager extends Call.ListenerBase
         if (extras.containsKey(TelecomManager.TRANSACTION_CALL_ID_KEY)) {
             call.setIsTransactionalCall(true);
             call.setCallingPackageIdentity(extras);
-            call.setConnectionCapabilities(
-                    extras.getInt(CallAttributes.CALL_CAPABILITIES_KEY,
-                            CallAttributes.SUPPORTS_SET_INACTIVE), true);
+            call.setTransactionalCapabilities(extras);
             call.setTargetPhoneAccount(phoneAccountHandle);
             if (extras.containsKey(CallAttributes.DISPLAY_NAME_KEY)) {
                 CharSequence displayName = extras.getCharSequence(CallAttributes.DISPLAY_NAME_KEY);
@@ -1984,9 +1982,7 @@ public class CallsManager extends Call.ListenerBase
             if (extras.containsKey(TelecomManager.TRANSACTION_CALL_ID_KEY)) {
                 call.setIsTransactionalCall(true);
                 call.setCallingPackageIdentity(extras);
-                call.setConnectionCapabilities(
-                        extras.getInt(CallAttributes.CALL_CAPABILITIES_KEY,
-                                CallAttributes.SUPPORTS_SET_INACTIVE), true);
+                call.setTransactionalCapabilities(extras);
                 if (extras.containsKey(CallAttributes.DISPLAY_NAME_KEY)) {
                     CharSequence displayName = extras.getCharSequence(
                             CallAttributes.DISPLAY_NAME_KEY);
