@@ -160,6 +160,12 @@ public class CallAudioManager extends CallsManagerListenerBase {
         updateForegroundCall();
         if (shouldPlayDisconnectTone(oldState, newState)) {
             playToneForDisconnectedCall(call);
+        } else {
+            if (newState == CallState.DISCONNECTED) {
+                // This call is not disconnected, but it won't generate a disconnect tone, so
+                // complete the future to ensure we unbind from BT promptly.
+                completeDisconnectToneFuture(call);
+            }
         }
 
         if (newState == CallState.ACTIVE && oldState == CallState.DIALING) {
@@ -1256,6 +1262,10 @@ public class CallAudioManager extends CallsManagerListenerBase {
         CompletableFuture<Void> disconnectedToneFuture = mCallsManager.getInCallController()
                 .getDisconnectedToneBtFutures().get(call.getId());
         if (disconnectedToneFuture != null) {
+            Log.i(this,
+                    "completeDisconnectToneFuture: completing deferred disconnect tone future for"
+                            + " call %s",
+                    call.getId());
             disconnectedToneFuture.complete(null);
         }
     }

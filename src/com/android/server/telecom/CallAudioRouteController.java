@@ -58,6 +58,7 @@ import com.android.internal.os.SomeArgs;
 import com.android.internal.util.IndentingPrintWriter;
 import com.android.server.telecom.bluetooth.BluetoothRouteManager;
 import com.android.server.telecom.flags.FeatureFlags;
+import com.android.server.telecom.metrics.TelecomMetricsController;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -180,13 +181,14 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     private boolean mIsMute;
     private boolean mIsPending;
     private boolean mIsActive;
+    private final TelecomMetricsController mMetricsController;
 
     public CallAudioRouteController(
             Context context, CallsManager callsManager,
             CallAudioManager.AudioServiceFactory audioServiceFactory,
             AudioRoute.Factory audioRouteFactory, WiredHeadsetManager wiredHeadsetManager,
             BluetoothRouteManager bluetoothRouteManager, StatusBarNotifier statusBarNotifier,
-            FeatureFlags featureFlags) {
+            FeatureFlags featureFlags, TelecomMetricsController metricsController) {
         mContext = context;
         mCallsManager = callsManager;
         mAudioManager = context.getSystemService(AudioManager.class);
@@ -197,6 +199,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         mBluetoothRouteManager = bluetoothRouteManager;
         mStatusBarNotifier = statusBarNotifier;
         mFeatureFlags = featureFlags;
+        mMetricsController = metricsController;
         mFocusType = NO_FOCUS;
         mIsScoAudioConnected = false;
         mTelecomLock = callsManager.getLock();
@@ -355,7 +358,8 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         mActiveBluetoothDevice = null;
         mTypeRoutes = new ArrayMap<>();
         mStreamingRoutes = new HashSet<>();
-        mPendingAudioRoute = new PendingAudioRoute(this, mAudioManager, mBluetoothRouteManager);
+        mPendingAudioRoute = new PendingAudioRoute(this, mAudioManager, mBluetoothRouteManager,
+                mFeatureFlags);
         mStreamingRoute = new AudioRoute(AudioRoute.TYPE_STREAMING, null, null);
         mStreamingRoutes.add(mStreamingRoute);
 
@@ -365,18 +369,19 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             // Create speaker routes
             mSpeakerDockRoute = mAudioRouteFactory.create(AudioRoute.TYPE_SPEAKER, null,
                     mAudioManager);
-            // Todo(b/364562758): Represent TYPE_BUS as CallAudioState.ROUTE_SPEAKER (moving
-            // forward, we may rework this if audio fwk team decides to allow list this as a
-            // valid communication device.
-            if (mSpeakerDockRoute != null || hasBusAudioDevice()) {
-                if (mSpeakerDockRoute == null){
-                    mSpeakerDockRoute = new AudioRoute(AudioRoute.TYPE_BUS, null, null);
-                    audioRouteType = AudioRoute.TYPE_BUS;
-                }
+            if (mSpeakerDockRoute == null){
+                Log.i(this, "Can't find available audio device info for route TYPE_SPEAKER, trying"
+                        + " for TYPE_BUS");
+                mSpeakerDockRoute = mAudioRouteFactory.create(AudioRoute.TYPE_BUS, null,
+                        mAudioManager);
+                audioRouteType = AudioRoute.TYPE_BUS;
+            }
+            if (mSpeakerDockRoute != null) {
                 mTypeRoutes.put(audioRouteType, mSpeakerDockRoute);
                 updateAvailableRoutes(mSpeakerDockRoute, true);
             } else {
-                Log.w(this, "Can't find available audio device info for route TYPE_SPEAKER");
+                Log.w(this, "Can't find available audio device info for route TYPE_SPEAKER "
+                        + "or TYPE_BUS.");
             }
         }
 
@@ -550,6 +555,9 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                 mIsScoAudioConnected);
         mIsActive = active;
         mPendingAudioRoute.evaluatePendingState();
+        if (mFeatureFlags.telecomMetricsSupport()) {
+            mMetricsController.getAudioRouteStats().onRouteEnter(mPendingAudioRoute);
+        }
     }
 
     private void handleWiredHeadsetConnected() {
@@ -981,6 +989,9 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             mIsPending = false;
             mPendingAudioRoute.clearPendingMessages();
             onCurrentRouteChanged();
+            if (mFeatureFlags.telecomMetricsSupport()) {
+                mMetricsController.getAudioRouteStats().onRouteExit(mPendingAudioRoute, true);
+            }
         }
     }
 
@@ -1011,7 +1022,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                     BluetoothDevice deviceToAdd = mBluetoothRoutes.get(route);
                     // Only include the lead device for LE audio (otherwise, the routes will show
                     // two separate devices in the UI).
-                    if (route.getType() == AudioRoute.TYPE_BLUETOOTH_LE
+                    if (deviceToAdd != null && route.getType() == AudioRoute.TYPE_BLUETOOTH_LE
                             && getLeAudioService() != null) {
                         int groupId = getLeAudioService().getGroupId(deviceToAdd);
                         if (groupId != BluetoothLeAudio.GROUP_ID_INVALID) {
@@ -1135,25 +1146,6 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         }
 
         return mAudioManager.getPreferredDeviceForStrategy(strategy);
-    }
-
-    /**
-     * For auto, there is no earpiece or speakerphone routes available. The audio is routed to the
-     * bus but because this isn't a valid communication device,
-     * {@link AudioManager#getCommunicationDevice()} will not provide this device even if audio fwk
-     * reports it as the active communication device (refer to
-     * AudioDeviceBroker#getCommunicationDeviceInt()}. Check if the device is the preferred device
-     * for strategy instead.
-     */
-    private boolean hasBusAudioDevice() {
-        AudioDeviceAttributes deviceAttr = getPreferredDeviceForStrategy();
-        if (deviceAttr == null) {
-            return false;
-        }
-        // Get corresponding audio route mapping
-        @AudioRoute.AudioRouteType int type = AudioRoute.DEVICE_INFO_TYPE_TO_AUDIO_ROUTE_TYPE.get(
-                deviceAttr.getType());
-        return type == AudioRoute.TYPE_BUS;
     }
 
     private AudioRoute getPreferredAudioRouteFromDefault(boolean includeBluetooth,
@@ -1483,5 +1475,11 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             mFocusType = NO_FOCUS;
         }
         mIsActive = active;
+    }
+
+    void fallBack(String btAddressToExclude) {
+        mMetricsController.getAudioRouteStats().onRouteExit(mPendingAudioRoute, false);
+        sendMessageWithSessionInfo(SWITCH_BASELINE_ROUTE, INCLUDE_BLUETOOTH_IN_BASELINE,
+                btAddressToExclude);
     }
 }
