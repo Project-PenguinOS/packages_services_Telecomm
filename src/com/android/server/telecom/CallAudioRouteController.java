@@ -58,6 +58,7 @@ import com.android.internal.os.SomeArgs;
 import com.android.internal.util.IndentingPrintWriter;
 import com.android.server.telecom.bluetooth.BluetoothRouteManager;
 import com.android.server.telecom.flags.FeatureFlags;
+import com.android.server.telecom.metrics.ErrorStats;
 import com.android.server.telecom.metrics.TelecomMetricsController;
 
 import java.util.ArrayList;
@@ -520,6 +521,10 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         if (destRoute == null || (!destRoute.equals(mStreamingRoute)
                 && !getCallSupportedRoutes().contains(destRoute))) {
             Log.i(this, "Ignore routing to unavailable route: %s", destRoute);
+            if (mFeatureFlags.telecomMetricsSupport()) {
+                mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_AUDIO,
+                        ErrorStats.ERROR_AUDIO_ROUTE_UNAVAILABLE);
+            }
             return;
         }
         if (mIsPending) {
@@ -567,6 +572,10 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             wiredHeadsetRoute = mAudioRouteFactory.create(AudioRoute.TYPE_WIRED, null,
                     mAudioManager);
         } catch (IllegalArgumentException e) {
+            if (mFeatureFlags.telecomMetricsSupport()) {
+                mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_AUDIO,
+                        ErrorStats.ERROR_EXTERNAL_EXCEPTION);
+            }
             Log.e(this, e, "Can't find available audio device info for route type:"
                     + AudioRoute.DEVICE_TYPE_STRINGS.get(AudioRoute.TYPE_WIRED));
         }
@@ -606,6 +615,10 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         try {
             dockRoute = mAudioRouteFactory.create(AudioRoute.TYPE_DOCK, null, mAudioManager);
         } catch (IllegalArgumentException e) {
+            if (mFeatureFlags.telecomMetricsSupport()) {
+                mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_AUDIO,
+                        ErrorStats.ERROR_EXTERNAL_EXCEPTION);
+            }
             Log.e(this, e, "Can't find available audio device info for route type:"
                     + AudioRoute.DEVICE_TYPE_STRINGS.get(AudioRoute.TYPE_WIRED));
         }
@@ -798,6 +811,10 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                             mCallsManager.getCurrentUserHandle().getIdentifier(),
                             mContext.getAttributionTag());
                 } catch (RemoteException e) {
+                    if (mFeatureFlags.telecomMetricsSupport()) {
+                        mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_AUDIO,
+                                ErrorStats.ERROR_EXTERNAL_EXCEPTION);
+                    }
                     Log.e(this, e, "Remote exception while toggling mute.");
                     return;
                 }
