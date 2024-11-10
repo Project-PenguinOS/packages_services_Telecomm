@@ -2780,7 +2780,9 @@ public class InCallController extends CallsManagerListenerBase implements
                                     "updateCall: (deferred) Sending call disconnected update "
                                             + "to BT ICS.");
                             updateCallToIcs(inCallService, info, parcelableCall, componentName);
-                            mDisconnectedToneBtFutures.remove(call.getId());
+                            synchronized (mLock) {
+                                mDisconnectedToneBtFutures.remove(call.getId());
+                            }
                         });
                         mDisconnectedToneBtFutures.put(call.getId(), disconnectedToneFuture);
                     } else {
