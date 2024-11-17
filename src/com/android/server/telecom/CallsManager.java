@@ -4661,12 +4661,14 @@ public class CallsManager extends Call.ListenerBase
                         return true;
                     }
                 } else {
+                    Log.addEvent(ringingCall, LogUtils.Events.INFO,
+                            "media btn short press - answer call.");
                     answerCall(ringingCall, VideoProfile.STATE_AUDIO_ONLY);
                     return true;
                 }
             } else if (HeadsetMediaButton.LONG_PRESS == type) {
                 if (ringingCall != null) {
-                    Log.addEvent(getForegroundCall(),
+                    Log.addEvent(ringingCall,
                             LogUtils.Events.INFO, "media btn long press - reject");
                     ringingCall.reject(false, null);
                 } else {
@@ -4687,6 +4689,7 @@ public class CallsManager extends Call.ListenerBase
                 return true;
             }
         }
+        Log.i(this, "onMediaButton: type=%d; no active calls", type);
         return false;
     }
 

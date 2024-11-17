@@ -1023,6 +1023,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         Log.i(this, "handleSwitchBaselineRoute: includeBluetooth: %b, "
                 + "btAddressToExclude: %s", includeBluetooth, btAddressToExclude);
         boolean areExcludedBtAndDestBtSame = btAddressToExclude != null
+                && mPendingAudioRoute.getDestRoute() != null
                 && Objects.equals(btAddressToExclude, mPendingAudioRoute.getDestRoute()
                 .getBluetoothAddress());
         Pair<Integer, String> btDevicePendingMsg =
