@@ -588,6 +588,12 @@ public class Ringer {
 
             mVolumeShaperConfig = null;
 
+            String vibratorAttrs = String.format("hasVibrator=%b, userRequestsVibrate=%b, "
+                            + "ringerMode=%d, isVibratorEnabled=%b",
+                    mVibrator.hasVibrator(),
+                    mSystemSettingsUtil.isRingVibrationEnabled(mContext),
+                    mAudioManager.getRingerMode(), isVibratorEnabled);
+
             if (attributes.isRingerAudible()) {
                 mRingingCall = foregroundCall;
                 Log.addEvent(foregroundCall, LogUtils.Events.START_RINGER);
@@ -634,6 +640,8 @@ public class Ringer {
                     }
                 } else {
                     foregroundCall.setUserMissed(USER_MISSED_NO_VIBRATE);
+                    Log.addEvent(foregroundCall, LogUtils.Events.SKIP_VIBRATION,
+                            vibratorAttrs);
                     return attributes.shouldAcquireAudioFocus(); // ringer not audible
                 }
             }
@@ -666,11 +674,7 @@ public class Ringer {
             if (!vibratorReserved) {
                 foregroundCall.setUserMissed(USER_MISSED_NO_VIBRATE);
                 Log.addEvent(foregroundCall, LogUtils.Events.SKIP_VIBRATION,
-                        "hasVibrator=%b, userRequestsVibrate=%b, ringerMode=%d, "
-                                + "isVibratorEnabled=%b",
-                        mVibrator.hasVibrator(),
-                        mSystemSettingsUtil.isRingVibrationEnabled(mContext),
-                        mAudioManager.getRingerMode(), isVibratorEnabled);
+                        vibratorAttrs);
             }
 
             // The vibration logic depends on the loaded ringtone, but we need to defer the ringtone
@@ -792,6 +796,11 @@ public class Ringer {
                 mIsVibrating = true;
                 mVibrator.vibrate(effect, VIBRATION_ATTRIBUTES);
                 Log.i(this, "start vibration.");
+            } else {
+                Log.i(this, "vibrateIfNeeded: skip; isVibrating=%b, fgCallId=%s, vibratingCall=%s",
+                        mIsVibrating,
+                        (foregroundCall == null ? "null" : foregroundCall.getId()),
+                        (mVibratingCall == null ? "null" : mVibratingCall.getId()));
             }
             // else stopped already: this isn't started unless a reservation was made.
         }
