@@ -131,11 +131,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                 synchronized (mLock) {
                     logIncoming("handleCreateConnectionComplete %s", callId);
                     Call call = mCallIdMapper.getCall(callId);
-                    if (call != null && mScheduledFutureMap.containsKey(call)) {
-                        ScheduledFuture<?> existingTimeout = mScheduledFutureMap.get(call);
-                        existingTimeout.cancel(false /* cancelIfRunning */);
-                        mScheduledFutureMap.remove(call);
-                    }
+                    maybeRemoveCleanupFuture(call);
                     // Check status hints image for cross user access
                     if (connection.getStatusHints() != null) {
                         Icon icon = connection.getStatusHints().getIcon();
@@ -175,11 +171,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                 synchronized (mLock) {
                     logIncoming("handleCreateConferenceComplete %s", callId);
                     Call call = mCallIdMapper.getCall(callId);
-                    if (call != null && mScheduledFutureMap.containsKey(call)) {
-                        ScheduledFuture<?> existingTimeout = mScheduledFutureMap.get(call);
-                        existingTimeout.cancel(false /* cancelIfRunning */);
-                        mScheduledFutureMap.remove(call);
-                    }
+                    maybeRemoveCleanupFuture(call);
                     // Check status hints image for cross user access
                     if (conference.getStatusHints() != null) {
                         Icon icon = conference.getStatusHints().getIcon();
@@ -1684,6 +1676,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                         Log.e(this, e, "Failure to createConference -- %s", getComponentName());
                         mPendingResponses.remove(callId).handleCreateConferenceFailure(
                                 new DisconnectCause(DisconnectCause.ERROR, e.toString()));
+                        if (mFlags.dontTimeoutDestroyedCalls()) {
+                            maybeRemoveCleanupFuture(call);
+                        }
                     }
                 } else {
                     Log.w(this,"Failure to createConference -- %s", getComponentName());
@@ -1717,6 +1712,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                     Log.i(ConnectionServiceWrapper.this, "Call not present"
                             + " in call id mapper, maybe it was aborted before the bind"
                             + " completed successfully?");
+                    if (mFlags.dontTimeoutDestroyedCalls()) {
+                        maybeRemoveCleanupFuture(call);
+                    }
                     response.handleCreateConnectionFailure(
                             new DisconnectCause(DisconnectCause.CANCELED));
                     return;
@@ -1802,6 +1800,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                 mScheduledFutureMap.put(call, future);
                 try {
                     if (mFlags.cswServiceInterfaceIsNull() && mServiceInterface == null) {
+                        if (mFlags.dontTimeoutDestroyedCalls()) {
+                            maybeRemoveCleanupFuture(call);
+                        }
                         mPendingResponses.remove(callId).handleCreateConnectionFailure(
                                 new DisconnectCause(DisconnectCause.ERROR,
                                         "CSW#oCC ServiceInterface is null"));
@@ -1816,6 +1817,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                     }
                 } catch (RemoteException e) {
                     Log.e(this, e, "Failure to createConnection -- %s", getComponentName());
+                    if (mFlags.dontTimeoutDestroyedCalls()) {
+                        maybeRemoveCleanupFuture(call);
+                    }
                     mPendingResponses.remove(callId).handleCreateConnectionFailure(
                             new DisconnectCause(DisconnectCause.ERROR));
                 }
@@ -2308,6 +2312,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         if (response != null) {
             response.handleCreateConnectionFailure(disconnectCause);
         }
+        if (mFlags.dontTimeoutDestroyedCalls()) {
+            maybeRemoveCleanupFuture(mCallIdMapper.getCall(callId));
+        }
 
         mCallIdMapper.removeCall(callId);
     }
@@ -2316,6 +2323,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         CreateConnectionResponse response = mPendingResponses.remove(mCallIdMapper.getCallId(call));
         if (response != null) {
             response.handleCreateConnectionFailure(disconnectCause);
+        }
+        if (mFlags.dontTimeoutDestroyedCalls()) {
+            maybeRemoveCleanupFuture(call);
         }
 
         mCallIdMapper.removeCall(call);
@@ -2785,5 +2795,21 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     @VisibleForTesting
     public void setAnomalyReporterAdapter(AnomalyReporterAdapter mAnomalyReporterAdapter){
         mAnomalyReporter = mAnomalyReporterAdapter;
+    }
+
+    /**
+     * Given a call, unschedule and cancel the cleanup future.
+     * @param call the call.
+     */
+    private void maybeRemoveCleanupFuture(Call call) {
+        if (call == null) {
+            return;
+        }
+        ScheduledFuture<?> future = mScheduledFutureMap.remove(call);
+        if (future == null) {
+            return;
+        }
+        future.cancel(false /* interrupt */);
+
     }
 }
