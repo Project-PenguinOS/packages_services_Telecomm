@@ -3678,15 +3678,24 @@ public class CallsManager extends Call.ListenerBase
         String activeCallId = null;
         if (activeCall != null && !activeCall.isLocallyDisconnecting()) {
             activeCallId = activeCall.getId();
+            Log.d(TAG, "unholdCall isDsdaOrDsdsTransitionMode = " + isDsdaOrDsdsTransitionMode());
             if (canHold(activeCall)) {
-                activeCall.hold("Swap to " + call.getId());
-                Log.addEvent(activeCall, LogUtils.Events.SWAP, "To " + call.getId());
-                Log.addEvent(call, LogUtils.Events.SWAP, "From " + activeCall.getId());
+                if (!isDsdaOrDsdsTransitionMode() || !areFromSameSource(activeCall, call)
+                        || isHfpCallPresent()) {
+                    // Follow legacy behavior for non DSDA and different source/connection
+                    // service use case
+                    activeCall.hold("Swap to " + call.getId());
+                    Log.addEvent(activeCall, LogUtils.Events.SWAP, "To " + call.getId());
+                    Log.addEvent(call, LogUtils.Events.SWAP, "From " + activeCall.getId());
+                } else {
+                    // This is dsda/dsds transition mode swap use case.
+                    // Let ConnectionService handle hold and unhold for this case
+                    Log.i(TAG, "unholdCall in DSDA across subs");
+                }
             } else {
                 // This call does not support hold. If it is from a different connection
-                // service or connection manager, then disconnect it, otherwise invoke
-                // call.hold() and allow the connection service or connection manager to handle
-                // the situation.
+                // service or connection manager, then disconnect it, otherwise allow the
+                // connection service or connection manager to handle the situation.
                 if (!areFromSameSource(activeCall, call)) {
                     if (!activeCall.isEmergencyCall()) {
                         activeCall.disconnect("Swap to " + call.getId());
@@ -3697,7 +3706,7 @@ public class CallsManager extends Call.ListenerBase
                         // emergency call.
                         return;
                     }
-                } else {
+                } else if (!isDsdaOrDsdsTransitionMode()) {
                     activeCall.hold("Swap to " + call.getId());
                 }
             }
