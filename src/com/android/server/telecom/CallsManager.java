@@ -56,6 +56,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.pm.PackageManager.ResolveInfoFlags;
 import android.content.pm.ResolveInfo;
 import android.content.pm.UserInfo;
@@ -152,6 +153,7 @@ import com.android.server.telecom.ui.IncomingCallNotifier;
 import com.android.server.telecom.ui.ToastFactory;
 import com.android.server.telecom.callsequencing.voip.VoipCallMonitor;
 import com.android.server.telecom.callsequencing.TransactionManager;
+import com.android.server.telecom.callsequencing.voip.VoipCallMonitorLegacy;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -493,6 +495,7 @@ public class CallsManager extends Call.ListenerBase
     private final EmergencyCallHelper mEmergencyCallHelper;
     private final RoleManagerAdapter mRoleManagerAdapter;
     private final VoipCallMonitor mVoipCallMonitor;
+    private final VoipCallMonitorLegacy mVoipCallMonitorLegacy;
     private final CallEndpointController mCallEndpointController;
     private final CallAnomalyWatchdog mCallAnomalyWatchdog;
 
@@ -508,6 +511,7 @@ public class CallsManager extends Call.ListenerBase
     private final com.android.internal.telephony.flags.FeatureFlags mTelephonyFeatureFlags;
 
     private final IncomingCallFilterGraphProvider mIncomingCallFilterGraphProvider;
+    private final CallAudioWatchdog mCallAudioWatchDog;
 
     private final ConnectionServiceFocusManager.CallsManagerRequester mRequester =
             new ConnectionServiceFocusManager.CallsManagerRequester() {
@@ -672,6 +676,31 @@ public class CallsManager extends Call.ListenerBase
         mCallerInfoLookupHelper = callerInfoLookupHelper;
         mEmergencyCallDiagnosticLogger = emergencyCallDiagnosticLogger;
         mIncomingCallFilterGraphProvider = incomingCallFilterGraphProvider;
+        if (featureFlags.enableCallAudioWatchdog()) {
+            mCallAudioWatchDog = new CallAudioWatchdog(
+                    mContext.getSystemService(AudioManager.class),
+                    new CallAudioWatchdog.PhoneAccountRegistrarProxy() {
+                        @Override
+                        public boolean hasPhoneAccountForUid(int uid) {
+                            return mPhoneAccountRegistrar.hasPhoneAccountForUid(uid);
+                        }
+
+                        @Override
+                        public int getUidForPhoneAccountHandle(PhoneAccountHandle handle) {
+                            Context userContext = mContext.createContextAsUser(
+                                    handle.getUserHandle(),
+                                    0 /*flags */);
+                            try {
+                                return userContext.getPackageManager().getPackageUid(
+                                        handle.getComponentName().getPackageName(), 0 /* flags */);
+                            } catch (NameNotFoundException nfe) {
+                                return -1;
+                            }
+                        }
+                    }, clockProxy, mHandler);
+        } else {
+            mCallAudioWatchDog = null;
+        }
 
         mDtmfLocalTonePlayer =
                 new DtmfLocalTonePlayer(new DtmfLocalTonePlayer.ToneGeneratorProxy());
@@ -760,12 +789,18 @@ public class CallsManager extends Call.ListenerBase
         mClockProxy = clockProxy;
         mToastFactory = toastFactory;
         mRoleManagerAdapter = roleManagerAdapter;
-        mVoipCallMonitor = new VoipCallMonitor(mContext, mLock);
         mTransactionManager = transactionManager;
         mBlockedNumbersAdapter = blockedNumbersAdapter;
         mCallStreamingController = new CallStreamingController(mContext, mLock);
         mCallStreamingNotification = callStreamingNotification;
         mFeatureFlags = featureFlags;
+        if (mFeatureFlags.voipCallMonitorRefactor()) {
+            mVoipCallMonitor = new VoipCallMonitor(mContext, mLock);
+            mVoipCallMonitorLegacy = null;
+        } else {
+            mVoipCallMonitor = null;
+            mVoipCallMonitorLegacy = new VoipCallMonitorLegacy(mContext, mLock);
+        }
         mTelephonyFeatureFlags = telephonyFlags;
         mMetricsController = metricsController;
         mBlockedNumbersManager = mFeatureFlags.telecomMainlineBlockedNumbersManager()
@@ -801,10 +836,18 @@ public class CallsManager extends Call.ListenerBase
 
         // this needs to be after the mCallAudioManager
         mListeners.add(mPhoneStateBroadcaster);
-        mListeners.add(mVoipCallMonitor);
         mListeners.add(mCallStreamingNotification);
+        if (featureFlags.enableCallAudioWatchdog()) {
+            mListeners.add(mCallAudioWatchDog);
+        }
 
-        mVoipCallMonitor.startMonitor();
+        if (mFeatureFlags.voipCallMonitorRefactor()) {
+            mVoipCallMonitor.registerNotificationListener();
+            mListeners.add(mVoipCallMonitor);
+        } else {
+            mVoipCallMonitorLegacy.startMonitor();
+            mListeners.add(mVoipCallMonitorLegacy);
+        }
 
         // There is no USER_SWITCHED broadcast for user 0, handle it here explicitly.
         final UserManager userManager = mContext.getSystemService(UserManager.class);
@@ -4053,7 +4096,7 @@ public class CallsManager extends Call.ListenerBase
         return phoneId != 0 ? Integer.toString(phoneId) : "";
     }
 
-    private PersistableBundle getCarrierConfigForPhoneAccount(PhoneAccountHandle handle) {
+    public PersistableBundle getCarrierConfigForPhoneAccount(PhoneAccountHandle handle) {
         int subscriptionId = mPhoneAccountRegistrar.getSubscriptionIdForPhoneAccount(handle);
         CarrierConfigManager carrierConfigManager =
                 mContext.getSystemService(CarrierConfigManager.class);
@@ -6557,6 +6600,10 @@ public class CallsManager extends Call.ListenerBase
             pw.increaseIndent();
             mConnectionSvrFocusMgr.dump(pw);
             pw.decreaseIndent();
+        }
+
+        if (mCallAudioWatchDog != null) {
+            mCallAudioWatchDog.dump(pw);
         }
     }
 
