@@ -12,6 +12,10 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+ * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 package com.android.server.telecom;
@@ -1592,8 +1596,9 @@ public class CallsManager extends Call.ListenerBase
     public boolean hasVideoCall() {
         for (Call call : mCalls) {
             if (VideoProfile.isVideo(call.getVideoState())
-                    && !isVideoCrbtVoLteCall(call.getVideoState())
-                    && !call.isVideoCrsForVoLteCall()) {
+                    && !call.isVideoCrbtForVoLteCall()
+                    && !call.isVideoCrsForVoLteCall()
+                    && !call.isVisualizedVoiceCall()) {
                 return true;
             }
         }
@@ -3467,11 +3472,12 @@ public class CallsManager extends Call.ListenerBase
      * @return {@code true} if the speakerphone should be enabled.
      */
     public boolean isSpeakerphoneAutoEnabledForVideoCalls(int videoState) {
-        return !isVideoCrbtVoLteCall(videoState) &&
+        return !isVideoCrbtVoLteCall() &&
             VideoProfile.isVideo(videoState) &&
             !mWiredHeadsetManager.isPluggedIn() &&
             !mBluetoothRouteManager.isBluetoothAvailable() &&
-            isSpeakerEnabledForVideoCalls();
+            isSpeakerEnabledForVideoCalls() &&
+            !isVisualizedVoiceCall();
     }
 
      public boolean isWiredHandsetInOrBtAvailble() {
@@ -4865,6 +4871,10 @@ public class CallsManager extends Call.ListenerBase
 
     private Call getDialingCall() {
         return getFirstCallWithState(CallState.DIALING);
+    }
+
+    private Call getDialingOrActiveCall() {
+        return getFirstCallWithState(CallState.DIALING, CallState.ACTIVE);
     }
 
     /** Helper function to retrieve the dialing or pulling call */
@@ -6271,18 +6281,21 @@ public class CallsManager extends Call.ListenerBase
                 new MissedCallNotifier.CallInfoFactory());
     }
 
-    public boolean isVideoCrbtVoLteCall(int videoState) {
+    public boolean isVideoCrbtVoLteCall() {
         Call call = getDialingCall();
         if (call == null) {
             return false;
         }
-        PhoneAccountHandle accountHandle = call.getTargetPhoneAccount();
-        int phoneId = SubscriptionManager.getPhoneId(
-                mPhoneAccountRegistrar.getSubscriptionIdForPhoneAccount(accountHandle));
-        return QtiImsExtUtils.isCarrierConfigEnabled(phoneId, mContext,
-                "config_enable_video_crbt")
-            && !VideoProfile.isTransmissionEnabled(videoState)
-            && VideoProfile.isReceptionEnabled(videoState);
+        return call.isVideoCrbtForVoLteCall();
+    }
+
+
+    public boolean isVisualizedVoiceCall() {
+        Call call = getDialingOrActiveCall();
+        if (call == null) {
+            return false;
+        }
+        return call.isVisualizedVoiceCall();
     }
 
     public boolean isIncomingCallPermitted(PhoneAccountHandle phoneAccountHandle) {
