@@ -65,10 +65,6 @@
         Your call has been disconnected due to an emergency call being placed.
     </string>
 
-    <!-- Disconnected call notification label/description, used when the call has been automatically
-         disconnected by telecom as there is already a dialing call.-->
-    <string name="notification_disconnectedDialing_message">Cannot place a call as another outgoing call is already dialing."</string>
-
     <!-- Title for the persistent notification presented when an app has requested that a call
          be put into the background so that the app can access the audio from the call
          [CHAR LIMIT=40] -->
@@ -421,7 +417,6 @@
          Call streaming is a feature where a user can see and interact with a call from another
          device like a tablet while the call takes place on their phone. -->
     <string name="call_streaming_notification_action_switch_here">Switch here</string>
-    <string name="cant_call_due_to_dsdstransition_invalid_sub">Call cannot be placed because account is not currently valid</string>
     <string name="hfp_client_connection" translatable="false">com.android.bluetooth.hfpclient.HfpClientConnectionService</string>
     <!-- In-call screen: error message shown when the user attempts to place a call, but calling has
          been disabled using a debug property. -->
