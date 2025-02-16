@@ -387,6 +387,7 @@ public class CallsManager extends Call.ListenerBase
                 Analytics.THIRD_PARTY_PHONE);
     }
 
+    private static final long WAIT_FOR_AUDIO_UPDATE_TIMEOUT = 4000L;
     /**
      * The main call repository. Keeps an instance of all live calls. New incoming and outgoing
      * calls are added to the map and removed when the calls move to the disconnected state.
@@ -521,6 +522,7 @@ public class CallsManager extends Call.ListenerBase
 
     private final IncomingCallFilterGraphProvider mIncomingCallFilterGraphProvider;
     private final CallAudioWatchdog mCallAudioWatchDog;
+    private final CallAudioRouteAdapter mCallAudioRouteAdapter;
 
     private final ConnectionServiceFocusManager.CallsManagerRequester mRequester =
             new ConnectionServiceFocusManager.CallsManagerRequester() {
@@ -710,12 +712,11 @@ public class CallsManager extends Call.ListenerBase
 
         mDtmfLocalTonePlayer =
                 new DtmfLocalTonePlayer(new DtmfLocalTonePlayer.ToneGeneratorProxy());
-        CallAudioRouteAdapter callAudioRouteAdapter;
         // TODO: add another flag check when
         // bluetoothDeviceManager.getBluetoothHeadset().isScoManagedByAudio()
         // available and return true
         if (!featureFlags.useRefactoredAudioRouteSwitching()) {
-            callAudioRouteAdapter = callAudioRouteStateMachineFactory.create(
+            mCallAudioRouteAdapter = callAudioRouteStateMachineFactory.create(
                     context,
                     this,
                     bluetoothManager,
@@ -728,17 +729,17 @@ public class CallsManager extends Call.ListenerBase
                     featureFlags
             );
         } else {
-            callAudioRouteAdapter = new CallAudioRouteController(context, this, audioServiceFactory,
-                    new AudioRoute.Factory(), wiredHeadsetManager, mBluetoothRouteManager,
-                    statusBarNotifier, featureFlags, metricsController);
+            mCallAudioRouteAdapter = new CallAudioRouteController(context, this,
+                    audioServiceFactory, new AudioRoute.Factory(), wiredHeadsetManager,
+                    mBluetoothRouteManager, statusBarNotifier, featureFlags, metricsController);
         }
-        callAudioRouteAdapter.initialize();
-        bluetoothStateReceiver.setCallAudioRouteAdapter(callAudioRouteAdapter);
-        bluetoothDeviceManager.setCallAudioRouteAdapter(callAudioRouteAdapter);
+        mCallAudioRouteAdapter.initialize();
+        bluetoothStateReceiver.setCallAudioRouteAdapter(mCallAudioRouteAdapter);
+        bluetoothDeviceManager.setCallAudioRouteAdapter(mCallAudioRouteAdapter);
 
         CallAudioRoutePeripheralAdapter callAudioRoutePeripheralAdapter =
                 new CallAudioRoutePeripheralAdapter(
-                        callAudioRouteAdapter,
+                        mCallAudioRouteAdapter,
                         bluetoothManager,
                         wiredHeadsetManager,
                         mDockManager,
@@ -774,7 +775,7 @@ public class CallsManager extends Call.ListenerBase
             mCallRecordingTonePlayer = new CallRecordingTonePlayer(mContext, audioManager,
                     mTimeoutsAdapter, mLock);
         }
-        mCallAudioManager = new CallAudioManager(callAudioRouteAdapter,
+        mCallAudioManager = new CallAudioManager(mCallAudioRouteAdapter,
                 this, callAudioModeStateMachineFactory.create(systemStateHelper,
                 (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE),
                 featureFlags, communicationDeviceTracker),
@@ -4648,6 +4649,11 @@ public class CallsManager extends Call.ListenerBase
                 CallState.SIMULATED_RINGING, CallState.RINGING, CallState.ANSWERED) != null;
     }
 
+    public boolean hasManagedRingingOrSimulatedRingingCall() {
+        return getFirstCallWithState(null /* callToSkip */, true /* skipSelfManaged */,
+                CallState.SIMULATED_RINGING, CallState.RINGING, CallState.ANSWERED) != null;
+    }
+
     @VisibleForTesting
     public boolean onMediaButton(int type) {
         if (hasAnyCalls()) {
@@ -4803,11 +4809,11 @@ public class CallsManager extends Call.ListenerBase
 
     @VisibleForTesting
     public Call getFirstCallWithState(int... states) {
-        return getFirstCallWithState(null, states);
+        return getFirstCallWithState(null, false /* skipSelfManaged */, states);
     }
 
     public Call getFirstCallWithLiveState() {
-        return getFirstCallWithState(null, LIVE_CALL_STATES);
+        return getFirstCallWithState(null, false /* skipSelfManaged */, LIVE_CALL_STATES);
     }
 
     @VisibleForTesting
@@ -4832,7 +4838,7 @@ public class CallsManager extends Call.ListenerBase
      *
      * @param callToSkip Call that this method should skip while searching
      */
-    Call getFirstCallWithState(Call callToSkip, int... states) {
+    Call getFirstCallWithState(Call callToSkip, boolean skipSelfManaged, int... states) {
         for (int currentState : states) {
             // check the foreground first
             Call foregroundCall = getForegroundCall();
@@ -4851,6 +4857,10 @@ public class CallsManager extends Call.ListenerBase
                 }
 
                 if (call.isExternalCall()) {
+                    continue;
+                }
+
+                if (skipSelfManaged && call.isSelfManaged()) {
                     continue;
                 }
 
@@ -7376,5 +7386,24 @@ public class CallsManager extends Call.ListenerBase
     @VisibleForTesting
     public CallsManagerCallSequencingAdapter getCallSequencingAdapter() {
         return mCallSequencingAdapter;
+    }
+
+    public void waitForAudioToUpdate(boolean expectActive) {
+        Log.i(this, "waitForAudioToUpdate");
+        if (mFeatureFlags.useRefactoredAudioRouteSwitching()) {
+            try {
+                CallAudioRouteController audioRouteController =
+                        (CallAudioRouteController) mCallAudioRouteAdapter;
+                if (expectActive) {
+                    audioRouteController.getAudioActiveCompleteLatch().await(
+                            WAIT_FOR_AUDIO_UPDATE_TIMEOUT, TimeUnit.MILLISECONDS);
+                } else {
+                    audioRouteController.getAudioOperationsCompleteLatch().await(
+                            WAIT_FOR_AUDIO_UPDATE_TIMEOUT, TimeUnit.MILLISECONDS);
+                }
+            } catch (InterruptedException e) {
+                Log.w(this, e.toString());
+            }
+        }
     }
 }

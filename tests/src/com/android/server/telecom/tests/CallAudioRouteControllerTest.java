@@ -717,7 +717,7 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
                 new HashSet<>());
         verify(mAudioService, timeout(TEST_TIMEOUT)).setMicrophoneMute(eq(true), anyString(),
                 anyInt(), anyString());
-        verify(mCallsManager, timeout(TEST_TIMEOUT)).onCallAudioStateChanged(
+        verify(mCallsManager, timeout(TEST_TIMEOUT).atLeastOnce()).onCallAudioStateChanged(
                 any(CallAudioState.class), eq(expectedState));
     }
 

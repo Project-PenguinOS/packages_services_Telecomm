@@ -35,6 +35,7 @@ import android.bluetooth.BluetoothLeAudio;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothStatusCodes;
 import android.content.ContentResolver;
+import android.media.AudioDeviceInfo;
 import android.os.Parcel;
 import android.telecom.Log;
 
@@ -104,6 +105,8 @@ public class BluetoothRouteManagerTest extends TelecomTestCase {
             BluetoothDeviceManager.DEVICE_TYPE_HEARING_AID);
         when(mDeviceManager.connectAudio(anyString(), anyBoolean())).thenReturn(true);
         when(mDeviceManager.isHearingAidSetAsCommunicationDevice()).thenReturn(true);
+        when(mCommunicationDeviceTracker.isAudioDeviceSetForType(
+                eq(AudioDeviceInfo.TYPE_HEARING_AID))).thenReturn(true);
 
         setupConnectedDevices(null, HEARING_AIDS, null, null, HEARING_AIDS, null);
         when(mBluetoothHeadset.getAudioState(nullable(BluetoothDevice.class)))
@@ -130,7 +133,8 @@ public class BluetoothRouteManagerTest extends TelecomTestCase {
             BluetoothDeviceManager.DEVICE_TYPE_HEARING_AID);
         when(mDeviceManager.connectAudio(anyString(), anyBoolean())).thenReturn(true);
         when(mDeviceManager.isHearingAidSetAsCommunicationDevice()).thenReturn(true);
-
+        when(mCommunicationDeviceTracker.isAudioDeviceSetForType(
+                eq(AudioDeviceInfo.TYPE_HEARING_AID))).thenReturn(true);
 
         setupConnectedDevices(null, HEARING_AIDS, null, null, HEARING_AIDS, null);
         when(mBluetoothHeadset.getAudioState(nullable(BluetoothDevice.class)))
@@ -299,7 +303,8 @@ public class BluetoothRouteManagerTest extends TelecomTestCase {
         resetMocks();
         BluetoothRouteManager sm = new BluetoothRouteManager(mContext,
                 new TelecomSystem.SyncRoot() { }, mDeviceManager,
-                mTimeoutsAdapter, mCommunicationDeviceTracker, mFeatureFlags);
+                mTimeoutsAdapter, mCommunicationDeviceTracker, mFeatureFlags,
+                mContext.getMainLooper());
         sm.setListener(mListener);
         sm.setInitialStateForTesting(initialState, initialDevice);
         waitForHandlerAction(sm.getHandler(), TEST_TIMEOUT);
