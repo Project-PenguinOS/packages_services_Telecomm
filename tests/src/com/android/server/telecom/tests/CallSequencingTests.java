@@ -18,7 +18,6 @@ package com.android.server.telecom.tests;
 
 import static com.android.server.telecom.CallsManager.CALL_FILTER_ALL;
 import static com.android.server.telecom.CallsManager.ONGOING_CALL_STATES;
-import static com.android.server.telecom.UserUtil.showErrorDialogForRestrictedOutgoingCall;
 
 import static junit.framework.Assert.assertNotNull;
 import static junit.framework.TestCase.fail;
@@ -78,8 +77,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -342,6 +341,7 @@ public class CallSequencingTests extends TelecomTestCase {
     public void testHoldCallForNewCall_DoesNotSupportHold_Disconnect() {
         setPhoneAccounts(mNewCall, mActiveCall, false);
         setActiveCallFocus(mActiveCall);
+        when(mCallsManager.getCalls()).thenReturn(Collections.singletonList(mActiveCall));
         when(mCallsManager.canHold(mActiveCall)).thenReturn(false);
         when(mCallsManager.supportsHold(mActiveCall)).thenReturn(false);
         when(mActiveCall.disconnect(anyString())).thenReturn(

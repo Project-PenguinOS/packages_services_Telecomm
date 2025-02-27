@@ -49,6 +49,7 @@ public abstract class TelecomTestCase {
         mMockitoHelper.setUp(InstrumentationRegistry.getContext(), getClass());
         MockitoAnnotations.initMocks(this);
 
+        Mockito.when(mFeatureFlags.callAudioCommunicationDeviceRefactor()).thenReturn(true);
         mComponentContextFixture = new ComponentContextFixture(mFeatureFlags);
         mContext = mComponentContextFixture.getTestDouble().getApplicationContext();
         Log.setSessionManager(mComponentContextFixture.getTestDouble().getApplicationContext(),

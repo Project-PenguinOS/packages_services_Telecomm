@@ -966,7 +966,8 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                     BluetoothDevice device = mBluetoothRoutes.get(route);
                     // Check if in-band ringtone is enabled for the device; if it isn't, move to
                     // inactive route.
-                    if (device != null && !mBluetoothRouteManager.isInbandRingEnabled(device)) {
+                    if (device != null && !mBluetoothRouteManager
+                            .isInbandRingEnabled(route.getType(), device)) {
                         routeTo(false, route);
                     } else {
                         routeTo(true, route);
@@ -974,7 +975,8 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                 } else {
                     // Route is already active.
                     BluetoothDevice device = mBluetoothRoutes.get(mCurrentRoute);
-                    if (device != null && !mBluetoothRouteManager.isInbandRingEnabled(device)) {
+                    if (device != null && !mBluetoothRouteManager
+                            .isInbandRingEnabled(mCurrentRoute.getType(), device)) {
                         routeTo(false, mCurrentRoute);
                     }
                 }
@@ -1010,8 +1012,9 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
 
         if (bluetoothRoute != null && bluetoothDevice != null) {
             if (mFocusType == RINGING_FOCUS) {
-                routeTo(mBluetoothRouteManager.isInbandRingEnabled(bluetoothDevice) && mIsActive,
-                        bluetoothRoute);
+                routeTo(mBluetoothRouteManager
+                                .isInbandRingEnabled(bluetoothRoute.getType(), bluetoothDevice)
+                                && mIsActive, bluetoothRoute);
                 mBluetoothAddressForRinging = bluetoothDevice.getAddress();
             } else {
                 routeTo(mIsActive, bluetoothRoute);

@@ -62,6 +62,7 @@ import com.android.server.telecom.metrics.ErrorStats;
 import com.android.server.telecom.metrics.TelecomMetricsController;
 import com.android.server.telecom.stats.CallFailureCause;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -343,8 +344,12 @@ public class CallSequencingController {
                         return CompletableFuture.completedFuture(false);
                     } else {
                         if (isSequencingRequiredActiveAndCall) {
-                            return activeCall.disconnect("Active call disconnected in favor of"
-                                    + " new call.");
+                            // Disconnect all calls with the same phone account as the active call
+                            // as they do would not support holding.
+                            Log.i(this, "Disconnecting non-holdable calls from account (%s).",
+                                    activeCall.getTargetPhoneAccount());
+                            return disconnectAllCallsWithPhoneAccount(
+                                    activeCall.getTargetPhoneAccount());
                         } else {
                             Log.i(this, "holdActiveCallForNewCallWithSequencing: "
                                     + "allowing ConnectionService to determine how to handle "
@@ -895,6 +900,25 @@ public class CallSequencingController {
                 && callToUnhold.getState() == CallState.ON_HOLD;
     }
 
+    private CompletableFuture<Boolean> disconnectAllCallsWithPhoneAccount(
+            PhoneAccountHandle handle) {
+        CompletableFuture<Boolean> disconnectFuture = CompletableFuture.completedFuture(true);
+        List<Call> calls = mCallsManager.getCalls().stream()
+                .filter(c -> c.getTargetPhoneAccount().equals(handle)).toList();
+        for (Call call: calls) {
+            // Wait for all disconnects before we accept the new call.
+            disconnectFuture = disconnectFuture.thenComposeAsync((result) -> {
+                if (!result) {
+                    Log.i(this, "disconnectAllCallsWithPhoneAccount: "
+                            + "Failed to disconnect %s.", call);
+                }
+                return call.disconnect("Un-holdable call " + call + " disconnected "
+                        + "in favor of new call.");
+            }, new LoggedHandlerExecutor(mHandler, "CSC.dACWPA", mCallsManager.getLock()));
+        }
+        return disconnectFuture;
+    }
+
     /**
      * Generic helper to log the result of the {@link CompletableFuture} containing the transactions
      * that are being processed in the context of call sequencing.
@@ -924,6 +948,28 @@ public class CallSequencingController {
             return true;
         }
         return false;
+    }
+
+    public void maybeAddAnsweringCallDropsFg(Call activeCall, Call incomingCall) {
+        // Don't set the extra when we have an incoming self-managed call that would potentially
+        // disconnect the active managed call.
+        if (activeCall == null || (incomingCall.isSelfManaged() && !activeCall.isSelfManaged())) {
+            return;
+        }
+        // Check if the active call doesn't support hold. If it doesn't we should indicate to the
+        // user via the EXTRA_ANSWERING_DROPS_FG_CALL extra that the call would be dropped by
+        // answering the incoming call.
+        if (!mCallsManager.supportsHold(activeCall)) {
+            CharSequence droppedApp = activeCall.getTargetPhoneAccountLabel();
+            Bundle dropCallExtras = new Bundle();
+            dropCallExtras.putBoolean(Connection.EXTRA_ANSWERING_DROPS_FG_CALL, true);
+
+            // Include the name of the app which will drop the call.
+            dropCallExtras.putCharSequence(
+                    Connection.EXTRA_ANSWERING_DROPS_FG_CALL_APP_NAME, droppedApp);
+            Log.i(this, "Incoming call will drop %s call.", droppedApp);
+            incomingCall.putConnectionServiceExtras(dropCallExtras);
+        }
     }
 
     private void showErrorDialogForMaxOutgoingCall(Call call) {

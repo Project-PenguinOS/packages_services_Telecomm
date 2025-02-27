@@ -1714,6 +1714,7 @@ public class CallsManager extends Call.ListenerBase
             call.setAssociatedUser(associatedUser);
         }
 
+        Call activeCall = (Call) mConnectionSvrFocusMgr.getCurrentFocusCall();
         if (phoneAccount != null) {
             Bundle phoneAccountExtras = phoneAccount.getExtras();
             if (call.isSelfManaged()) {
@@ -1722,23 +1723,8 @@ public class CallsManager extends Call.ListenerBase
                 call.setVisibleToInCallService(phoneAccountExtras == null
                         || phoneAccountExtras.getBoolean(
                         PhoneAccount.EXTRA_ADD_SELF_MANAGED_CALLS_TO_INCALLSERVICE, true));
-            } else {
-                // Incoming call is managed, the active call is self-managed and can't be held.
-                // We need to set extras on it to indicate whether answering will cause a
-                // active self-managed call to drop.
-                Call activeCall = (Call) mConnectionSvrFocusMgr.getCurrentFocusCall();
-                if (activeCall != null && !canHold(activeCall) && activeCall.isSelfManaged()) {
-                    Bundle dropCallExtras = new Bundle();
-                    dropCallExtras.putBoolean(Connection.EXTRA_ANSWERING_DROPS_FG_CALL, true);
-
-                    // Include the name of the app which will drop the call.
-                    CharSequence droppedApp = activeCall.getTargetPhoneAccountLabel();
-                    dropCallExtras.putCharSequence(
-                            Connection.EXTRA_ANSWERING_DROPS_FG_CALL_APP_NAME, droppedApp);
-                    Log.i(this, "Incoming managed call will drop %s call.", droppedApp);
-                    call.putConnectionServiceExtras(dropCallExtras);
-                }
             }
+            mCallSequencingAdapter.maybeAddAnsweringCallDropsFg(activeCall, call);
 
             if (phoneAccountExtras != null
                     && phoneAccountExtras.getBoolean(
@@ -1748,6 +1734,7 @@ public class CallsManager extends Call.ListenerBase
                 call.setIsVoipAudioMode(true);
             }
         }
+
 
         boolean isRttSettingOn = isRttSettingOn(phoneAccountHandle);
         if (isRttSettingOn ||
@@ -1888,6 +1875,24 @@ public class CallsManager extends Call.ListenerBase
             } else {
                 notifyCreateConnectionFailed(phoneAccountHandle, call);
             }
+        } else if (mFeatureFlags.enableCallSequencing() && (hasMaximumManagedRingingCalls(call)
+                || hasMaximumManagedDialingCalls(call))) {
+            // Fail incoming call if there's already a ringing or dialing call present.
+            boolean maxRinging = hasMaximumManagedRingingCalls(call);
+            if (maxRinging) {
+                call.setMissedReason(AUTO_MISSED_MAXIMUM_RINGING);
+                call.setStartFailCause(CallFailureCause.MAX_RINGING_CALLS);
+            } else {
+                call.setMissedReason(AUTO_MISSED_MAXIMUM_DIALING);
+            }
+            call.getAnalytics().setMissedReason(call.getMissedReason());
+            mCallLogManager.logCall(call, Calls.MISSED_TYPE,
+                    true /*showNotificationForMissedCall*/, null /*CallFilteringResult*/);
+            if (isConference) {
+                notifyCreateConferenceFailed(phoneAccountHandle, call);
+            } else {
+                notifyCreateConnectionFailed(phoneAccountHandle, call);
+            }
         } else if (call.isTransactionalCall()) {
             // transactional calls should skip Call#startCreateConnection below
             // as that is meant for Call objects with a ConnectionServiceWrapper
@@ -1900,6 +1905,25 @@ public class CallsManager extends Call.ListenerBase
             call.startCreateConnection(mPhoneAccountRegistrar);
         }
         return call;
+    }
+
+    public void maybeAddAnsweringCallDropsFgOld(Call activeCall, Call incomingCall) {
+        // Incoming call is managed, the active call is self-managed and can't be held.
+        // We need to set extras on it to indicate whether answering will cause a
+        // active self-managed call to drop.
+        // Only runs if call sequencing is enabled.
+        if (!incomingCall.isSelfManaged() && activeCall != null && !canHold(activeCall)
+                && activeCall.isSelfManaged()) {
+            Bundle dropCallExtras = new Bundle();
+            dropCallExtras.putBoolean(Connection.EXTRA_ANSWERING_DROPS_FG_CALL, true);
+
+            // Include the name of the app which will drop the call.
+            CharSequence droppedApp = activeCall.getTargetPhoneAccountLabel();
+            dropCallExtras.putCharSequence(
+                    Connection.EXTRA_ANSWERING_DROPS_FG_CALL_APP_NAME, droppedApp);
+            Log.i(this, "Incoming managed call will drop %s call.", droppedApp);
+            incomingCall.putConnectionServiceExtras(dropCallExtras);
+        }
     }
 
     void addNewUnknownCall(PhoneAccountHandle phoneAccountHandle, Bundle extras) {
@@ -3625,6 +3649,9 @@ public class CallsManager extends Call.ListenerBase
      */
     public void disconnectCallOld(Call call, int previousState) {
         call.disconnect();
+        for (CallsManagerListener listener : mListeners) {
+            listener.onCallStateChanged(call, previousState, call.getState());
+        }
         processDisconnectCallAndCleanup(call, previousState);
     }
 
@@ -3635,9 +3662,6 @@ public class CallsManager extends Call.ListenerBase
      * @param previousState The previous call state before the call is disconnected.
      */
     public void processDisconnectCallAndCleanup(Call call, int previousState) {
-        for (CallsManagerListener listener : mListeners) {
-            listener.onCallStateChanged(call, previousState, call.getState());
-        }
         // Cancel any of the outgoing call futures if they're still around.
         if (mPendingCallConfirm != null && !mPendingCallConfirm.isDone()) {
             mPendingCallConfirm.complete(null);

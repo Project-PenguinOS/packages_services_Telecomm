@@ -162,8 +162,6 @@ public class CreateConnectionProcessorTest extends TelecomTestCase {
 
         mTestCreateConnectionTimeout = new CreateConnectionTimeout(mContext, mMockAccountRegistrar,
                 makeConnectionServiceWrapper(), mMockCall, mTimeoutsAdapter);
-
-        mSetFlagsRule.enableFlags(Flags.FLAG_CARRIER_ENABLED_SATELLITE_FLAG);
     }
 
     @Override

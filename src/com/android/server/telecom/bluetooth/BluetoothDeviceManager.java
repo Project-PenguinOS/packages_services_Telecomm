@@ -997,6 +997,34 @@ public class BluetoothDeviceManager {
         return isInbandRingEnabled(activeDevice);
     }
 
+    /**
+     * Check if inband ringing is enabled for the specified BT device.
+     * This is intended for use by {@link CallAudioRouteController}.
+     * @param audioRouteType The BT device type.
+     * @param bluetoothDevice The BT device.
+     * @return {@code true} if inband ringing is enabled, {@code false} otherwise.
+     */
+    public boolean isInbandRingEnabled(@AudioRoute.AudioRouteType int audioRouteType,
+            BluetoothDevice bluetoothDevice) {
+        if (audioRouteType == AudioRoute.TYPE_BLUETOOTH_LE) {
+            if (mBluetoothLeAudioService == null) {
+                Log.i(this, "isInbandRingingEnabled: no leaudio service available.");
+                return false;
+            }
+            int groupId = mBluetoothLeAudioService.getGroupId(bluetoothDevice);
+            return mBluetoothLeAudioService.isInbandRingtoneEnabled(groupId);
+        } else {
+            if (getBluetoothHeadset() == null) {
+                Log.i(this, "isInbandRingingEnabled: no headset service available.");
+                return false;
+            }
+            boolean isEnabled = mBluetoothHeadset.isInbandRingingEnabled();
+            Log.i(this, "isInbandRingEnabled: device: %s, isEnabled: %b", bluetoothDevice,
+                    isEnabled);
+            return isEnabled;
+        }
+    }
+
     public boolean isInbandRingEnabled(BluetoothDevice bluetoothDevice) {
         if (mBluetoothRouteManager.isCachedLeAudioDevice(bluetoothDevice)) {
             if (mBluetoothLeAudioService == null) {

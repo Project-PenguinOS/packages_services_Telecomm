@@ -409,7 +409,8 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testSwitchFocusForBluetoothDeviceSupportInbandRinging() {
-        when(mBluetoothRouteManager.isInbandRingEnabled(eq(BLUETOOTH_DEVICE_1))).thenReturn(true);
+        when(mBluetoothRouteManager.isInbandRingEnabled(eq(AudioRoute.TYPE_BLUETOOTH_SCO),
+                eq(BLUETOOTH_DEVICE_1))).thenReturn(true);
 
         mController.initialize();
         mController.sendMessageWithSessionInfo(BT_DEVICE_ADDED, AudioRoute.TYPE_BLUETOOTH_SCO,
@@ -932,7 +933,8 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
     public void testRouteFromBtSwitchInRingingSelected() {
         when(mFeatureFlags.ignoreAutoRouteToWatchDevice()).thenReturn(true);
         when(mBluetoothRouteManager.isWatch(any(BluetoothDevice.class))).thenReturn(true);
-        when(mBluetoothRouteManager.isInbandRingEnabled(eq(BLUETOOTH_DEVICE_1))).thenReturn(false);
+        when(mBluetoothRouteManager.isInbandRingEnabled(eq(AudioRoute.TYPE_BLUETOOTH_SCO),
+                eq(BLUETOOTH_DEVICE_1))).thenReturn(false);
 
         mController.initialize();
         mController.sendMessageWithSessionInfo(BT_DEVICE_ADDED, AudioRoute.TYPE_BLUETOOTH_SCO,
@@ -1261,7 +1263,8 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
     @SmallTest
     public void testAbandonCallAudioFocusAfterCallEnd() {
         // Make sure in-band ringing is disabled so that route never becomes active
-        when(mBluetoothRouteManager.isInbandRingEnabled(eq(BLUETOOTH_DEVICE_1))).thenReturn(false);
+        when(mBluetoothRouteManager.isInbandRingEnabled(eq(AudioRoute.TYPE_BLUETOOTH_SCO),
+                eq(BLUETOOTH_DEVICE_1))).thenReturn(false);
 
         mController.initialize();
         mController.sendMessageWithSessionInfo(BT_DEVICE_ADDED, AudioRoute.TYPE_BLUETOOTH_SCO,

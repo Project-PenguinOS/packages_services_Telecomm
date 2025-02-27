@@ -173,3 +173,14 @@ flag {
     purpose: PURPOSE_BUGFIX
   }
 }
+
+# OWNER=tgunn TARGET=25Q2
+flag {
+  name: "bus_device_is_a_speaker"
+  namespace: "telecom"
+  description: "Treat TYPE_BUS devices like TYPE_SPEAKER"
+  bug: "395647782"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}

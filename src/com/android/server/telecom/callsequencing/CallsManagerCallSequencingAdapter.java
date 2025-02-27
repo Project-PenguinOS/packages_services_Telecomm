@@ -279,9 +279,21 @@ public class CallsManagerCallSequencingAdapter {
      */
     public void maybeLogFutureResultTransaction(CompletableFuture<Boolean> future,
             String methodName, String sessionName, String successMsg, String failureMsg) {
-        if (mFeatureFlags.enableCallSequencing() && future != null) {
+        if (mIsCallSequencingEnabled && future != null) {
             mSequencingController.logFutureResultTransaction(future, methodName, sessionName,
                     successMsg, failureMsg);
+        }
+    }
+
+    /**
+     * Determines if we need to add the {@link Connection#EXTRA_ANSWERING_DROPS_FG_CALL} extra to
+     * the incoming connection. This is set if the ongoing calls don't support hold.
+     */
+    public void maybeAddAnsweringCallDropsFg(Call activeCall, Call incomingCall) {
+        if (mIsCallSequencingEnabled) {
+            mSequencingController.maybeAddAnsweringCallDropsFg(activeCall, incomingCall);
+        } else {
+            mCallsManager.maybeAddAnsweringCallDropsFgOld(activeCall, incomingCall);
         }
     }
 
