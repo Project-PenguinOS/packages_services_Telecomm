@@ -163,7 +163,9 @@ public class ParcelableCallUtils {
             properties |= android.telecom.Call.Details.PROPERTY_IS_TRANSACTIONAL;
         }
 
+// QTI_BEGIN: 2018-03-26: Telephony: Enable "Respond via SMS" option.
         if (call.isRespondViaSmsCapable()) {
+// QTI_END: 2018-03-26: Telephony: Enable "Respond via SMS" option.
             capabilities |= android.telecom.Call.Details.CAPABILITY_RESPOND_VIA_TEXT;
         }
 
@@ -505,11 +507,15 @@ public class ParcelableCallUtils {
         android.telecom.Call.Details.CAPABILITY_CAN_PULL_CALL,
 
         Connection.CAPABILITY_SUPPORT_DEFLECT,
+// QTI_BEGIN: 2018-03-07: Telephony: IMS: Conference URI support.
         android.telecom.Call.Details.CAPABILITY_SUPPORT_DEFLECT,
 
         Connection.CAPABILITY_ADD_PARTICIPANT,
+// QTI_END: 2018-03-07: Telephony: IMS: Conference URI support.
+// QTI_BEGIN: 2018-05-21: Telephony: IMS: Propagate RTT capability of the called party to UI
         android.telecom.Call.Details.CAPABILITY_ADD_PARTICIPANT,
 
+// QTI_END: 2018-05-21: Telephony: IMS: Propagate RTT capability of the called party to UI
         Connection.CAPABILITY_TRANSFER,
         android.telecom.Call.Details.CAPABILITY_TRANSFER,
 

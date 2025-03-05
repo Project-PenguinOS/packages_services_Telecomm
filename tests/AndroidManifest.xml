@@ -54,6 +54,8 @@
 
     <application android:label="@string/app_name"
                  android:debuggable="true">
+<!-- QTI_BEGIN: 2019-02-08: Telephony: IMS: Decouple ims-ext-common from boot jars-->
+<!-- QTI_END: 2019-02-08: Telephony: IMS: Decouple ims-ext-common from boot jars-->
         <uses-library android:name="ims-ext-common"/>
         <uses-library android:name="android.test.runner" />
     </application>

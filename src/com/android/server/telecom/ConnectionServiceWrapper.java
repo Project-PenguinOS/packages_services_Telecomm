@@ -48,7 +48,9 @@ import android.telecom.Logging.Session;
 import android.telecom.Logging.Runnable;
 import android.telecom.ParcelableConference;
 import android.telecom.ParcelableConnection;
+// QTI_BEGIN: 2019-01-09: Telephony: Unable to add exsiting connection with emergency only account
 import android.telecom.PhoneAccount;
+// QTI_END: 2019-01-09: Telephony: Unable to add exsiting connection with emergency only account
 import android.telecom.PhoneAccountHandle;
 import android.telecom.QueryLocationException;
 import android.telecom.StatusHints;
@@ -258,18 +260,27 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
             }
         }
 
+// QTI_BEGIN: 2018-03-22: Telephony: Telecom: Add support for call timer reset on CDMA MO call
         @Override
+// QTI_END: 2018-03-22: Telephony: Telecom: Add support for call timer reset on CDMA MO call
         public void resetConnectionTime(String callId, Session.Info sessionInfo) {
             Log.startSession(sessionInfo, "CSW.rCCT", mPackageAbbreviation);
+// QTI_BEGIN: 2018-03-22: Telephony: Telecom: Add support for call timer reset on CDMA MO call
             long token = Binder.clearCallingIdentity();
             try {
                 synchronized (mLock) {
+// QTI_END: 2018-03-22: Telephony: Telecom: Add support for call timer reset on CDMA MO call
                     logIncoming("resetConnectionTime %s", callId);
+// QTI_BEGIN: 2018-03-22: Telephony: Telecom: Add support for call timer reset on CDMA MO call
                     Call call = mCallIdMapper.getCall(callId);
                     if (call != null) {
+// QTI_END: 2018-03-22: Telephony: Telecom: Add support for call timer reset on CDMA MO call
                         mCallsManager.resetConnectionTime(call);
+// QTI_BEGIN: 2018-03-22: Telephony: Telecom: Add support for call timer reset on CDMA MO call
                     } else {
+// QTI_END: 2018-03-22: Telephony: Telecom: Add support for call timer reset on CDMA MO call
                         // Log.w(this, "resetConnectionTime, unknown call id: %s", msg.obj);
+// QTI_BEGIN: 2018-03-22: Telephony: Telecom: Add support for call timer reset on CDMA MO call
                     }
                 }
             } finally {
@@ -278,6 +289,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
             }
         }
 
+// QTI_END: 2018-03-22: Telephony: Telecom: Add support for call timer reset on CDMA MO call
         @Override
         public void setVideoProvider(String callId, IVideoProvider videoProvider,
                 Session.Info sessionInfo) {
@@ -1688,6 +1700,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                         NULL_SCHEDULED_EXECUTOR_ERROR_UUID,
                         NULL_SCHEDULED_EXECUTOR_ERROR_MSG);
                 }
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                 if (mServiceInterface != null) {
                     try {
                         mServiceInterface.createConference(
@@ -1697,19 +1710,26 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                                 call.shouldAttachToExistingConnection(),
                                 call.isUnknown(),
                                 Log.getExternalSession(TELECOM_ABBREVIATION));
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
 
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                     } catch (RemoteException e) {
                         Log.e(this, e, "Failure to createConference -- %s", getComponentName());
                         mPendingResponses.remove(callId).handleCreateConferenceFailure(
                                 new DisconnectCause(DisconnectCause.ERROR, e.toString()));
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                         if (mFlags.dontTimeoutDestroyedCalls()) {
                             maybeRemoveCleanupFuture(call);
                         }
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                     }
                 } else {
                     Log.w(this,"Failure to createConference -- %s", getComponentName());
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                     mPendingResponses.remove(callId).handleCreateConferenceFailure(
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                             new DisconnectCause(DisconnectCause.ERROR));
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                 }
             }
 
@@ -1849,6 +1869,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                                 new DisconnectCause(DisconnectCause.ERROR,
                                         "CSW#oCC ServiceInterface is null"));
                     } else {
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                         mServiceInterface.createConnection(
                                 call.getConnectionManagerPhoneAccount(),
                                 callId,
@@ -1857,13 +1878,16 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                                 call.isUnknown(),
                                 Log.getExternalSession(TELECOM_ABBREVIATION));
                     }
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                 } catch (RemoteException e) {
                     Log.e(this, e, "Failure to createConnection -- %s", getComponentName());
                     if (mFlags.dontTimeoutDestroyedCalls()) {
                         maybeRemoveCleanupFuture(call);
                     }
                     mPendingResponses.remove(callId).handleCreateConnectionFailure(
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                             new DisconnectCause(DisconnectCause.ERROR));
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                 }
             }
 
@@ -1893,6 +1917,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                 if (callId != null && isServiceValid("createConnectionFailed")) {
                     Log.addEvent(call, LogUtils.Events.CREATE_CONNECTION_FAILED,
                             Log.piiHandle(call.getHandle()));
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                     if (mServiceInterface != null) {
                         try {
                             logOutgoing("createConnectionFailed %s", callId);
@@ -1912,9 +1937,12 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                         }
                     } else {
                         Log.w(this, "createConnectionFailed - service interface null");
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                     }
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                     call.setDisconnectCause(new DisconnectCause(DisconnectCause.CANCELED));
                     call.disconnect();
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                 }
             }
 
@@ -1943,6 +1971,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                 if (callId != null && isServiceValid("createConferenceFailed")) {
                     Log.addEvent(call, LogUtils.Events.CREATE_CONFERENCE_FAILED,
                             Log.piiHandle(call.getHandle()));
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                     if (mServiceInterface != null) {
                         try {
                             logOutgoing("createConferenceFailed %s", callId);
@@ -1962,9 +1991,12 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                         }
                     } else {
                         Log.w(this, "createConnectionFailed - service interface null");
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                     }
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                     call.setDisconnectCause(new DisconnectCause(DisconnectCause.CANCELED));
                     call.disconnect();
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                 }
             }
 
@@ -1989,6 +2021,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                 if (callId != null && isServiceValid("handoverFailed")) {
                     Log.addEvent(call, LogUtils.Events.HANDOVER_FAILED,
                             Log.piiHandle(call.getHandle()));
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                     if (mServiceInterface != null) {
                         try {
                             mServiceInterface.handoverFailed(
@@ -2004,6 +2037,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                                     Log.getExternalSession(TELECOM_ABBREVIATION));
                         } catch (RemoteException e) {
                         }
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                     }
                 }
             }
@@ -2026,8 +2060,10 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
             public void onSuccess() {
                 final String callId = mCallIdMapper.getCallId(call);
                 // If still bound, tell the connection service create connection has failed.
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                 if (callId != null && isServiceValid("handoverComplete")
                         && mServiceInterface != null) {
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                     try {
                         mServiceInterface.handoverComplete(
                                 callId,
@@ -2054,7 +2090,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         final String callId = mCallIdMapper.getCallId(call);
 
         // If still bound, tell the connection service to abort.
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("abort") && mServiceInterface != null) {
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
             try {
                 logOutgoing("abort %s", callId);
                 mServiceInterface.abort(callId, Log.getExternalSession(TELECOM_ABBREVIATION));
@@ -2068,7 +2106,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     /** @see IConnectionService#silence(String, Session.Info) */
     void silence(Call call) {
         final String callId = mCallIdMapper.getCallId(call);
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("silence") && mServiceInterface != null) {
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
             try {
                 logOutgoing("silence %s", callId);
                 mServiceInterface.silence(callId, Log.getExternalSession(TELECOM_ABBREVIATION));
@@ -2080,7 +2120,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     /** @see IConnectionService#hold(String, Session.Info) */
     void hold(Call call) {
         final String callId = mCallIdMapper.getCallId(call);
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("hold") && mServiceInterface != null) {
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
             try {
                 logOutgoing("hold %s", callId);
                 mServiceInterface.hold(callId, Log.getExternalSession(TELECOM_ABBREVIATION));
@@ -2092,7 +2134,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     /** @see IConnectionService#unhold(String, Session.Info) */
     void unhold(Call call) {
         final String callId = mCallIdMapper.getCallId(call);
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("unhold") && mServiceInterface != null) {
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
             try {
                 logOutgoing("unhold %s", callId);
                 mServiceInterface.unhold(callId, Log.getExternalSession(TELECOM_ABBREVIATION));
@@ -2105,8 +2149,10 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     @VisibleForTesting
     public void onCallAudioStateChanged(Call activeCall, CallAudioState audioState) {
         final String callId = mCallIdMapper.getCallId(activeCall);
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("onCallAudioStateChanged")
                 && mServiceInterface != null) {
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
             try {
                 logOutgoing("onCallAudioStateChanged %s %s", callId, audioState);
                 mServiceInterface.onCallAudioStateChanged(callId, audioState,
@@ -2204,7 +2250,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     @VisibleForTesting
     public void disconnect(Call call) {
         final String callId = mCallIdMapper.getCallId(call);
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("disconnect") && mServiceInterface != null) {
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
             try {
                 logOutgoing("disconnect %s", callId);
                 mServiceInterface.disconnect(callId, Log.getExternalSession(TELECOM_ABBREVIATION));
@@ -2216,7 +2264,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     /** @see IConnectionService#answer(String, Session.Info) */
     void answer(Call call, int videoState) {
         final String callId = mCallIdMapper.getCallId(call);
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("answer") && mServiceInterface != null) {
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
             try {
                 logOutgoing("answer %s %d", callId, videoState);
                 if (VideoProfile.isAudioOnly(videoState)) {
@@ -2233,7 +2283,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     /** @see IConnectionService#deflect(String, Uri , Session.Info) */
     void deflect(Call call, Uri address) {
         final String callId = mCallIdMapper.getCallId(call);
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("deflect") && mServiceInterface != null) {
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
             try {
                 logOutgoing("deflect %s", callId);
                 mServiceInterface.deflect(callId, address,
@@ -2246,7 +2298,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     /** @see IConnectionService#reject(String, Session.Info) */
     void reject(Call call, boolean rejectWithMessage, String message) {
         final String callId = mCallIdMapper.getCallId(call);
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("reject") && mServiceInterface != null) {
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
             try {
                 logOutgoing("reject %s", callId);
 
@@ -2265,7 +2319,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     /** @see IConnectionService#reject(String, Session.Info) */
     void rejectWithReason(Call call, @android.telecom.Call.RejectReason int rejectReason) {
         final String callId = mCallIdMapper.getCallId(call);
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("rejectReason") && mServiceInterface != null) {
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
             try {
                 logOutgoing("rejectReason %s, %d", callId, rejectReason);
 
@@ -2279,7 +2335,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     /** @see IConnectionService#transfer(String, Uri , boolean, Session.Info) */
     void transfer(Call call, Uri number, boolean isConfirmationRequired) {
         final String callId = mCallIdMapper.getCallId(call);
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("transfer") && mServiceInterface != null) {
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
             try {
                 logOutgoing("transfer %s", callId);
                 mServiceInterface.transfer(callId, number, isConfirmationRequired,
@@ -2293,8 +2351,10 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     void transfer(Call call, Call otherCall) {
         final String callId = mCallIdMapper.getCallId(call);
         final String otherCallId = mCallIdMapper.getCallId(otherCall);
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && otherCallId != null && isServiceValid("consultativeTransfer")
                 && mServiceInterface != null) {
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
             try {
                 logOutgoing("consultativeTransfer %s", callId);
                 mServiceInterface.consultativeTransfer(callId, otherCallId,
@@ -2307,7 +2367,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     /** @see IConnectionService#playDtmfTone(String, char, Session.Info) */
     void playDtmfTone(Call call, char digit) {
         final String callId = mCallIdMapper.getCallId(call);
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("playDtmfTone") && mServiceInterface != null) {
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
             try {
                 logOutgoing("playDtmfTone %s %c", callId, digit);
                 mServiceInterface.playDtmfTone(callId, digit,
@@ -2320,7 +2382,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     /** @see IConnectionService#stopDtmfTone(String, Session.Info) */
     void stopDtmfTone(Call call) {
         final String callId = mCallIdMapper.getCallId(call);
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("stopDtmfTone") && mServiceInterface != null) {
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
             try {
                 logOutgoing("stopDtmfTone %s", callId);
                 mServiceInterface.stopDtmfTone(callId,
@@ -2375,7 +2439,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
 
     void onPostDialContinue(Call call, boolean proceed) {
         final String callId = mCallIdMapper.getCallId(call);
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("onPostDialContinue") && mServiceInterface != null) {
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
             try {
                 logOutgoing("onPostDialContinue %s %b", callId, proceed);
                 mServiceInterface.onPostDialContinue(callId, proceed,
@@ -2388,8 +2454,10 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     void conference(final Call call, Call otherCall) {
         final String callId = mCallIdMapper.getCallId(call);
         final String otherCallId = mCallIdMapper.getCallId(otherCall);
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && otherCallId != null && isServiceValid("conference")
                 && mServiceInterface != null) {
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
             try {
                 logOutgoing("conference %s %s", callId, otherCallId);
                 mServiceInterface.conference(callId, otherCallId,
@@ -2401,7 +2469,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
 
     void splitFromConference(Call call) {
         final String callId = mCallIdMapper.getCallId(call);
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("splitFromConference") && mServiceInterface != null) {
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
             try {
                 logOutgoing("splitFromConference %s", callId);
                 mServiceInterface.splitFromConference(callId,
@@ -2413,7 +2483,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
 
     void mergeConference(Call call) {
         final String callId = mCallIdMapper.getCallId(call);
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("mergeConference") && mServiceInterface != null) {
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
             try {
                 logOutgoing("mergeConference %s", callId);
                 mServiceInterface.mergeConference(callId,
@@ -2425,7 +2497,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
 
     void swapConference(Call call) {
         final String callId = mCallIdMapper.getCallId(call);
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("swapConference") && mServiceInterface != null) {
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
             try {
                 logOutgoing("swapConference %s", callId);
                 mServiceInterface.swapConference(callId,
@@ -2437,8 +2511,10 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
 
     void addConferenceParticipants(Call call, List<Uri> participants) {
         final String callId = mCallIdMapper.getCallId(call);
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("addConferenceParticipants")
                 && mServiceInterface != null) {
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
             try {
                 logOutgoing("addConferenceParticipants %s", callId);
                 mServiceInterface.addConferenceParticipants(callId, participants,
@@ -2451,7 +2527,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     @VisibleForTesting
     public void pullExternalCall(Call call) {
         final String callId = mCallIdMapper.getCallId(call);
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("pullExternalCall") && mServiceInterface != null) {
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
             try {
                 logOutgoing("pullExternalCall %s", callId);
                 mServiceInterface.pullExternalCall(callId,
@@ -2464,7 +2542,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     @Override
     public void sendCallEvent(Call call, String event, Bundle extras) {
         final String callId = mCallIdMapper.getCallId(call);
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("sendCallEvent") && mServiceInterface != null) {
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
             try {
                 logOutgoing("sendCallEvent %s %s", callId, event);
                 mServiceInterface.sendCallEvent(callId, event, extras,
@@ -2498,7 +2578,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
 
     void onExtrasChanged(Call call, Bundle extras) {
         final String callId = mCallIdMapper.getCallId(call);
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("onExtrasChanged") && mServiceInterface != null) {
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
             try {
                 logOutgoing("onExtrasChanged %s %s", callId, extras);
                 mServiceInterface.onExtrasChanged(callId, extras,
@@ -2510,7 +2592,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
 
     void startRtt(Call call, ParcelFileDescriptor fromInCall, ParcelFileDescriptor toInCall) {
         final String callId = mCallIdMapper.getCallId(call);
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("startRtt") && mServiceInterface != null) {
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
             try {
                 logOutgoing("startRtt: %s %s %s", callId, fromInCall, toInCall);
                 mServiceInterface.startRtt(callId, fromInCall, toInCall,
@@ -2522,7 +2606,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
 
     void stopRtt(Call call) {
         final String callId = mCallIdMapper.getCallId(call);
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("stopRtt") && mServiceInterface != null) {
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
             try {
                 logOutgoing("stopRtt: %s", callId);
                 mServiceInterface.stopRtt(callId, Log.getExternalSession(TELECOM_ABBREVIATION));
@@ -2534,7 +2620,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     void respondToRttRequest(
             Call call, ParcelFileDescriptor fromInCall, ParcelFileDescriptor toInCall) {
         final String callId = mCallIdMapper.getCallId(call);
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("respondToRttRequest") && mServiceInterface != null) {
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
             try {
                 logOutgoing("respondToRttRequest: %s %s %s", callId, fromInCall, toInCall);
                 mServiceInterface.respondToRttUpgradeRequest(
@@ -2588,6 +2676,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
             @Override
             public void onSuccess() {
                 if (!isServiceValid("connectionServiceFocusLost")) return;
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                 if (mServiceInterface != null) {
                     try {
                         mServiceInterface.connectionServiceFocusLost(
@@ -2597,6 +2686,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                     }
                 } else {
                     Log.w(this, "connectionServiceFocusLost - failed to inform focus lost event");
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                 }
             }
 
@@ -2612,6 +2702,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
             @Override
             public void onSuccess() {
                 if (!isServiceValid("connectionServiceFocusGained")) return;
+// QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                 if (mServiceInterface != null) {
                    try {
                        mServiceInterface.connectionServiceFocusGained(
@@ -2621,6 +2712,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                     }
                 } else {
                     Log.w(this, "connectionServiceFocusGained - failed to inform focus lost event");
+// QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                 }
             }
 

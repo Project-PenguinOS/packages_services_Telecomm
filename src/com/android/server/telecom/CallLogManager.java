@@ -195,12 +195,14 @@ public final class CallLogManager extends CallsManagerListenerBase {
         if (oldState == CallState.SELECT_PHONE_ACCOUNT) {
             return false;
         }
+// QTI_BEGIN: 2020-12-09: Telephony: IMS: Fix conference call log issues
 
         //Not log participant host
         if (call.hasProperty(Connection.PROPERTY_IS_PARTICIPANT_HOST)) {
             return false;
         }
 
+// QTI_END: 2020-12-09: Telephony: IMS: Fix conference call log issues
         // A conference call which had children should not be logged, unless it was remotely hosted.
         if (call.isConference() && call.hadChildren() &&
                 !call.hasProperty(Connection.PROPERTY_REMOTELY_HOSTED)) {

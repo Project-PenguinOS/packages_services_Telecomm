@@ -68,6 +68,8 @@
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
     <uses-permission android:name="android.permission.ACCESS_LAST_KNOWN_CELL_ID"/>
     <uses-permission android:name="android.permission.STATUS_BAR_SERVICE" />
+<!-- QTI_BEGIN: 2022-12-07: Telephony: IMS: Add permissions for ESSENTIAL_RECORDS_LOADED-->
+<!-- QTI_END: 2022-12-07: Telephony: IMS: Add permissions for ESSENTIAL_RECORDS_LOADED-->
     <uses-permission android:name="com.qti.permission.RECEIVE_ESSENTIAL_RECORDS_LOADED" />
 
     <permission android:name="android.permission.BROADCAST_CALLLOG_INFO"
@@ -330,6 +332,8 @@
             </intent-filter>
         </service>
 
+<!-- QTI_BEGIN: 2019-02-01: Telephony: IMS: decouple ims-ext-common from boot jars-->
+<!-- QTI_END: 2019-02-01: Telephony: IMS: decouple ims-ext-common from boot jars-->
         <uses-library android:name="ims-ext-common"/>
     </application>
 </manifest>

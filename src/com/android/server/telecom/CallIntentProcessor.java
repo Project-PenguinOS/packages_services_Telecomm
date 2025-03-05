@@ -30,7 +30,9 @@ import android.widget.Toast;
 
 import java.util.concurrent.CompletableFuture;
 
+// QTI_BEGIN: 2018-03-12: Telephony: IMS-VT: Support IMS calls fallback to CS
 import org.codeaurora.ims.QtiCallConstants;
+// QTI_END: 2018-03-12: Telephony: IMS-VT: Support IMS calls fallback to CS
 
 /**
  * Single point of entry for all outgoing and incoming calls.
@@ -124,7 +126,9 @@ public class CallIntentProcessor {
         String uriString = handle.getSchemeSpecificPart();
 
         // Ensure sip URIs dialed using TEL scheme get converted to SIP scheme.
+// QTI_BEGIN: 2020-03-27: Telephony: Ims: Clean-up old ConfURI implementation
         if (PhoneAccount.SCHEME_TEL.equals(scheme) && PhoneNumberUtils.isUriNumber(uriString)) {
+// QTI_END: 2020-03-27: Telephony: Ims: Clean-up old ConfURI implementation
             handle = Uri.fromParts(PhoneAccount.SCHEME_SIP, uriString, null);
         }
 
@@ -138,6 +142,7 @@ public class CallIntentProcessor {
         if (clientExtras == null) {
             clientExtras = new Bundle();
         }
+// QTI_BEGIN: 2019-02-09: Telephony: FR53347: RTT June18 update
         if (intent.hasExtra(TelecomManager.EXTRA_START_CALL_WITH_RTT)) {
             boolean isStartRttCall = intent.getBooleanExtra(
                     TelecomManager.EXTRA_START_CALL_WITH_RTT, false);
@@ -146,6 +151,7 @@ public class CallIntentProcessor {
                 clientExtras.putBoolean(TelecomManager.EXTRA_START_CALL_WITH_RTT, isStartRttCall);
             }
         }
+// QTI_END: 2019-02-09: Telephony: FR53347: RTT June18 update
 
         if (intent.hasExtra(TelecomManager.EXTRA_IS_USER_INTENT_EMERGENCY_CALL)) {
             clientExtras.putBoolean(TelecomManager.EXTRA_IS_USER_INTENT_EMERGENCY_CALL,
@@ -159,11 +165,13 @@ public class CallIntentProcessor {
             clientExtras.putString(TelecomManager.EXTRA_CALL_SUBJECT, callsubject);
         }
 
+// QTI_BEGIN: 2018-03-12: Telephony: IMS-VT: Support IMS calls fallback to CS
         final int callDomain = intent.getIntExtra(
                 QtiCallConstants.EXTRA_CALL_DOMAIN, QtiCallConstants.DOMAIN_AUTOMATIC);
         Log.d(CallIntentProcessor.class, "callDomain = " + callDomain);
         clientExtras.putInt(QtiCallConstants.EXTRA_CALL_DOMAIN, callDomain);
 
+// QTI_END: 2018-03-12: Telephony: IMS-VT: Support IMS calls fallback to CS
         if (intent.hasExtra(android.telecom.TelecomManager.EXTRA_PRIORITY)) {
             clientExtras.putInt(android.telecom.TelecomManager.EXTRA_PRIORITY, intent.getIntExtra(
                     android.telecom.TelecomManager.EXTRA_PRIORITY,

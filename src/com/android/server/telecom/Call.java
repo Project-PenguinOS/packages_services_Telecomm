@@ -12,10 +12,12 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+// QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
  *
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
+// QTI_END: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
  */
 
 package com.android.server.telecom;
@@ -108,7 +110,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
 import org.codeaurora.ims.QtiCallConstants;
+// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
 /**
  *  Encapsulates all aspects of a given phone call throughout its lifecycle, starting
  *  from the time the call intent was received by Telecom (vs. the time the call was
@@ -128,8 +132,10 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     public static final int SOURCE_CONNECTION_SERVICE = 1;
     /** Identifies extras changes which originated from an incall service. */
     public static final int SOURCE_INCALL_SERVICE = 2;
+// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
     /** UNKNOWN original call type for video CRS. */
     public static final int CALL_TYPE_UNKNOWN = -1;
+// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
 
     private static final int RTT_PIPE_READ_SIDE_INDEX = 0;
     private static final int RTT_PIPE_WRITE_SIDE_INDEX = 1;
@@ -138,6 +144,10 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
     private static final char NO_DTMF_TONE = '\0';
 
+    public static final int CALL_SIMULTANEOUS_UNKNOWN = 0;
+    public static final int CALL_SIMULTANEOUS_SINGLE = 1;
+    public static final int CALL_DIRECTION_DUAL_SAME_ACCOUNT = 2;
+    public static final int CALL_DIRECTION_DUAL_DIFF_ACCOUNT = 3;
 
     /**
      * Listener for CallState changes which can be leveraged by a Transaction.
@@ -156,6 +166,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         return mCallStateListeners.remove(newListener);
     }
 
+// QTI_BEGIN: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
     /**
      * Connection event used to notify InCallService of phoneaccount changes.
      * Dialer uses phone account capability to decide whether to enable
@@ -164,6 +175,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     private static final String EVENT_PHONE_ACCOUNT_CHANGED =
             "org.codeaurora.telecom.event.EVENT_PHONE_ACCOUNT_CHANGED";
 
+// QTI_END: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
     /**
      * Listener for events on the call.
      */
@@ -492,8 +504,10 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
     private boolean mIsDisconnectingChildCall = false;
 
+// QTI_BEGIN: 2020-12-09: Telephony: IMS: Fix conference call log issues
     private boolean mIsChildCall = false;
 
+// QTI_END: 2020-12-09: Telephony: IMS: Fix conference call log issues
     /**
      * Tracks the video states which were applicable over the duration of a call.
      * See {@link VideoProfile} for a list of valid video states.
@@ -517,6 +531,11 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      * an emergency call being placed.
      */
     private DisconnectCause mOverrideDisconnectCause = new DisconnectCause(DisconnectCause.UNKNOWN);
+
+    /**
+     * Simultaneous type of the call.
+     */
+    private int mSimultaneousType = CALL_SIMULTANEOUS_UNKNOWN;
 
     private Bundle mIntentExtras = new Bundle();
 
@@ -1917,7 +1936,9 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 l.onTargetPhoneAccountChanged(this);
             }
             configureCallAttributes();
+// QTI_BEGIN: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
             notifyPhoneAccountChanged();
+// QTI_END: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
         }
         checkIfVideoCapable();
         checkIfRttCapable();
@@ -1951,6 +1972,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         return phoneAccount;
     }
 
+// QTI_BEGIN: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
     public void handlePhoneAccountChanged(PhoneAccount phoneAccount) {
         Log.i(this, "handlePhoneAccountChanged");
         boolean isVideoCapable = phoneAccount != null &&
@@ -1964,6 +1986,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         onConnectionEvent(EVENT_PHONE_ACCOUNT_CHANGED, null);
     }
 
+// QTI_END: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
     public CharSequence getTargetPhoneAccountLabel() {
         if (getTargetPhoneAccount() == null) {
             return null;
@@ -2434,9 +2457,13 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         if (changedProperties != 0) {
             int previousProperties = mConnectionProperties;
             mConnectionProperties = connectionProperties;
+// QTI_BEGIN: 2024-01-19: Telephony: Prevent Call.mIsEmergencyCall from becoming false in normal e911 calls.
             mIsEmergencyCall = mIsEmergencyCall || (mConnectionProperties &
+// QTI_END: 2024-01-19: Telephony: Prevent Call.mIsEmergencyCall from becoming false in normal e911 calls.
+// QTI_BEGIN: 2023-12-14: Telephony: Update Call.mIsEmergencyCall when Connection Propeties are changed.
                                     Connection.PROPERTY_NETWORK_IDENTIFIED_EMERGENCY_CALL)
                                     == Connection.PROPERTY_NETWORK_IDENTIFIED_EMERGENCY_CALL;
+// QTI_END: 2023-12-14: Telephony: Update Call.mIsEmergencyCall when Connection Propeties are changed.
             boolean didRttChange =
                     (changedProperties & Connection.PROPERTY_IS_RTT) == Connection.PROPERTY_IS_RTT;
             if (didRttChange) {
@@ -2542,11 +2569,13 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         return mIsDisconnectingChildCall;
     }
 
+// QTI_BEGIN: 2020-12-09: Telephony: IMS: Fix conference call log issues
     public boolean isChildCall() {
         return mIsChildCall;
     }
 
 
+// QTI_END: 2020-12-09: Telephony: IMS: Fix conference call log issues
     /**
      * Sets whether this call is a child call.
      */
@@ -3362,6 +3391,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         return mExtras;
     }
 
+// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
     public boolean isCrsCall() {
         if (mExtras == null) {
             return false;
@@ -3381,6 +3411,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 CALL_TYPE_UNKNOWN);
     }
 
+// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
     /**
      * Adds extras to the extras bundle associated with this {@link Call}, as made by a
      * {@link ConnectionService} or other non {@link android.telecom.InCallService} source.
@@ -3830,7 +3861,9 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     public void setChildOf(Call parentCall) {
         if (parentCall != null && !parentCall.getChildCalls().contains(this)) {
             parentCall.addChildCall(this);
+// QTI_BEGIN: 2020-12-09: Telephony: IMS: Fix conference call log issues
             mIsChildCall = true;
+// QTI_END: 2020-12-09: Telephony: IMS: Fix conference call log issues
         }
     }
 
@@ -4729,37 +4762,50 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      * the history as an audio call.
      */
     private void updateVideoHistoryViaState(int oldState, int newState) {
+// QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
         // Video state is audio only when it is visualized voice call with VT-RX call type
         if (isVisualizedVoiceCall()) {
             mVideoStateHistory = VideoProfile.STATE_AUDIO_ONLY;
             return;
         }
 
+// QTI_END: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
         if ((oldState == CallState.DIALING && newState == CallState.ACTIVE)
                 || (oldState == CallState.RINGING && newState == CallState.ANSWERED)) {
             mVideoStateHistory = mVideoState;
+// QTI_BEGIN: 2023-03-28: Telephony: IMS: Show incorrect video icon in call history after answering
 
             // Video state is video type when answering Video CRS for VoLTE call
             if (isVideoCrsForVoLteCall()) {
                 mVideoStateHistory = VideoProfile.STATE_AUDIO_ONLY;
                 return;
             }
+// QTI_END: 2023-03-28: Telephony: IMS: Show incorrect video icon in call history after answering
+// QTI_BEGIN: 2023-06-05: Telephony: IMS: Fix incorrect video icon in call history after disconnecting
         } else if (((oldState == CallState.DIALING && newState == CallState.DISCONNECTED)
                 || (oldState == CallState.RINGING && newState == CallState.DISCONNECTED))
+// QTI_END: 2023-06-05: Telephony: IMS: Fix incorrect video icon in call history after disconnecting
+// QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
                 && (isVideoCrbtForVoLteCall()
+// QTI_END: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
+// QTI_BEGIN: 2023-06-05: Telephony: IMS: Fix incorrect video icon in call history after disconnecting
                 || isVideoCrsForVoLteCall())) {
             // For disconnecting Video CRBT/CRS for VoLTE call by APM or other abnormal scenarios
             mVideoStateHistory = VideoProfile.STATE_AUDIO_ONLY;
             return;
+// QTI_END: 2023-06-05: Telephony: IMS: Fix incorrect video icon in call history after disconnecting
         }
 
         mVideoStateHistory |= mVideoState;
     }
 
+// QTI_BEGIN: 2023-03-28: Telephony: IMS: Show incorrect video icon in call history after answering
     public boolean isVideoCrsForVoLteCall() {
         return isCrsCall() && getOriginalCallType() == VideoProfile.STATE_AUDIO_ONLY;
     }
 
+// QTI_END: 2023-03-28: Telephony: IMS: Show incorrect video icon in call history after answering
+// QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
     public boolean isVideoCrbtForVoLteCall() {
         if (mExtras == null) {
             return false;
@@ -4775,6 +4821,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 && mVideoState == VideoProfile.STATE_RX_ENABLED;
     }
 
+// QTI_END: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
     /**
      * Returns whether or not high definition audio was used.
      *
@@ -5160,5 +5207,13 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 listener.onCallStreamingStateChanged(this, false /** isStreaming */);
             }
         }
+    }
+
+    public void setSimultaneousType(int simultaneousType) {
+        mSimultaneousType = simultaneousType;
+    }
+
+    public int getSimultaneousType() {
+        return mSimultaneousType;
     }
 }

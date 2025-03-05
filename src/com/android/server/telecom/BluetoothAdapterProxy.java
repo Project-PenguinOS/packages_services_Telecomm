@@ -50,10 +50,12 @@ public class BluetoothAdapterProxy {
         }
     }
 
+// QTI_BEGIN: 2018-03-27: Bluetooth: Fix to display the proper operator name on carkit.
     public void closeProfileProxy(int profile, BluetoothProfile proxy) {
         if (mBluetoothAdapter == null) {
             return;
         }
         mBluetoothAdapter.closeProfileProxy(profile, proxy);
     }
+// QTI_END: 2018-03-27: Bluetooth: Fix to display the proper operator name on carkit.
 }

@@ -830,12 +830,16 @@ public class PhoneAccountRegistrar {
         return getPhoneAccounts(0, null, null, false, mCurrentUserHandle, crossUserAccess, true);
     }
 
+// QTI_BEGIN: 2019-06-03: Telephony: Fix emergency only call account can't be constructed
     public List<PhoneAccountHandle> getEmergencyCallOnlyPhoneAccounts(String uriScheme,
             UserHandle userHandle) {
         return getPhoneAccountHandles(PhoneAccount.CAPABILITY_EMERGENCY_CALLS_ONLY,
+// QTI_END: 2019-06-03: Telephony: Fix emergency only call account can't be constructed
                 0, uriScheme, null, false, userHandle, false /*crossUserAccess*/);
+// QTI_BEGIN: 2019-06-03: Telephony: Fix emergency only call account can't be constructed
     }
 
+// QTI_END: 2019-06-03: Telephony: Fix emergency only call account can't be constructed
     /**
      * Retrieves a list of all phone account call provider phone accounts supporting the
      * specified URI scheme.

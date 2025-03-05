@@ -417,6 +417,8 @@
          Call streaming is a feature where a user can see and interact with a call from another
          device like a tablet while the call takes place on their phone. -->
     <string name="call_streaming_notification_action_switch_here">Switch here</string>
+<!-- QTI_BEGIN: 2024-07-12: Telephony: HFP: handle HFP and cellular calls-->
+<!-- QTI_END: 2024-07-12: Telephony: HFP: handle HFP and cellular calls-->
     <string name="hfp_client_connection" translatable="false">com.android.bluetooth.hfpclient.HfpClientConnectionService</string>
     <!-- In-call screen: error message shown when the user attempts to place a call, but calling has
          been disabled using a debug property. -->

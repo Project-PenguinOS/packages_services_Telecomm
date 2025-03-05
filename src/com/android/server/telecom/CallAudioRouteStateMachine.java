@@ -14,12 +14,14 @@
  * limitations under the License
  */
 
+// QTI_BEGIN: 2024-03-28: Telephony: Skip startRinging for silenced ringing call
 /**
 * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
 * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
+// QTI_END: 2024-03-28: Telephony: Skip startRinging for silenced ringing call
 package com.android.server.telecom;
 
 
@@ -710,11 +712,13 @@ public class CallAudioRouteStateMachine extends StateMachine implements CallAudi
                     // No change in audio route required
                     return HANDLED;
                 case DISCONNECT_WIRED_HEADSET:
+// QTI_BEGIN: 2023-05-09: Telephony: IMS: Fix audio out from speaker after answering CRS call
                     if (mCallAudioManager.isCrsSupportedFromAudioHal() && isCrsCall()) {
                         Log.i(this, "Ignoring disconnect HEADSET command." +
                                 "Not allowed during CRS call.");
                         return HANDLED;
                     }
+// QTI_END: 2023-05-09: Telephony: IMS: Fix audio out from speaker after answering CRS call
                     if (mWasOnSpeaker) {
                         setSpeakerphoneOn(true);
                         sendInternalMessage(SWITCH_SPEAKER);
@@ -804,6 +808,7 @@ public class CallAudioRouteStateMachine extends StateMachine implements CallAudi
                     transitionTo(mActiveHeadsetRoute);
                     break;
                 case SWITCH_SPEAKER:
+// QTI_BEGIN: 2023-05-09: Telephony: IMS: Fix audio out from speaker after answering CRS call
                     //Enable speaker to play CRS is fully controlled by audio, so ignore to
                     //handle it from telecom in ActiveBluetoothRoute(enable in-band ringtone).
                     if (mCallAudioManager.isCrsSupportedFromAudioHal() && isCrsCall()) {
@@ -811,6 +816,7 @@ public class CallAudioRouteStateMachine extends StateMachine implements CallAudi
                                 "Not allowed during CRS call.");
                         break;
                     }
+// QTI_END: 2023-05-09: Telephony: IMS: Fix audio out from speaker after answering CRS call
                     setSpeakerphoneOn(true);
                     transitionTo(mActiveSpeakerRoute);
                     break;
@@ -983,6 +989,7 @@ public class CallAudioRouteStateMachine extends StateMachine implements CallAudi
                     mHasUserExplicitlyLeftBluetooth = true;
                     // fall through
                 case SWITCH_SPEAKER:
+// QTI_BEGIN: 2023-05-09: Telephony: IMS: Fix audio out from speaker after answering CRS call
                     //Enable speaker to play CRS is fully controlled by audio, so ignore to
                     //handle it from telecom in RingingBluetoothRoute.
                     if (mCallAudioManager.isCrsSupportedFromAudioHal() && isCrsCall()) {
@@ -990,6 +997,7 @@ public class CallAudioRouteStateMachine extends StateMachine implements CallAudi
                                 "Not allowed during CRS call.");
                         return HANDLED;
                     }
+// QTI_END: 2023-05-09: Telephony: IMS: Fix audio out from speaker after answering CRS call
                     setSpeakerphoneOn(true);
                     // fall through
                 case SPEAKER_ON:
@@ -1089,9 +1097,11 @@ public class CallAudioRouteStateMachine extends StateMachine implements CallAudi
                         } else {
                             transitionTo(mRingingBluetoothRoute);
                         }
+// QTI_BEGIN: 2021-04-15: Telephony: Fix to release audio focus after call termination.
                     } else if (msg.arg1 == NO_FOCUS) {
                         reinitialize();
                         mCallAudioManager.notifyAudioOperationsComplete();
+// QTI_END: 2021-04-15: Telephony: Fix to release audio focus after call termination.
                     } else {
                         mCallAudioManager.notifyAudioOperationsComplete();
                     }
@@ -1208,6 +1218,7 @@ public class CallAudioRouteStateMachine extends StateMachine implements CallAudi
                     mWasOnSpeaker = false;
                     // fall through
                 case SWITCH_BLUETOOTH:
+// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
                     // Keeps CRS audio playing out from speaker,including,
                     // 1. Plugin BT/Wired handset after CRS call comes.
                     // 2. Plugin BT/Wired handset before CRS call -> remove during playing
@@ -1217,6 +1228,7 @@ public class CallAudioRouteStateMachine extends StateMachine implements CallAudi
                                 "Not allowed during CRS call.");
                         return HANDLED;
                     }
+// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
                     String address = (msg.obj instanceof SomeArgs) ?
                             (String) ((SomeArgs) msg.obj).arg2 : null;
                     if ((mAvailableRoutes & ROUTE_BLUETOOTH) != 0) {
@@ -1235,11 +1247,13 @@ public class CallAudioRouteStateMachine extends StateMachine implements CallAudi
                     mWasOnSpeaker = false;
                     // fall through
                 case SWITCH_HEADSET:
+// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
                     if (isCrsCall()) {
                         Log.i(this, "Ignoring switch to headset command." +
                                 " Not allowed during CRS call.");
                         return HANDLED;
                     }
+// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
                     if ((mAvailableRoutes & ROUTE_WIRED_HEADSET) != 0) {
                         transitionTo(mActiveHeadsetRoute);
                     } else {
@@ -1274,11 +1288,13 @@ public class CallAudioRouteStateMachine extends StateMachine implements CallAudi
         }
     }
 
+// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
     private boolean isCrsCall() {
         Call ringingCall = mCallsManager.getRingingOrSimulatedRingingCall();
         return ringingCall != null && ringingCall.isCrsCall();
     }
 
+// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
     class QuiescentSpeakerRoute extends SpeakerRoute {
         @Override
         public String getName() {
@@ -1488,8 +1504,10 @@ public class CallAudioRouteStateMachine extends StateMachine implements CallAudi
 
                     if (streamType == AudioManager.STREAM_RING && !isStreamMuted) {
                         Log.i(this, "Ring stream was un-muted.");
+// QTI_BEGIN: 2024-03-28: Telephony: Skip startRinging for silenced ringing call
                         //clear silenced calls if device is un-muted
                         mCallAudioManager.clearSilencedCalls();
+// QTI_END: 2024-03-28: Telephony: Skip startRinging for silenced ringing call
                         mCallAudioManager.onRingerModeChange();
                     }
                 } else {

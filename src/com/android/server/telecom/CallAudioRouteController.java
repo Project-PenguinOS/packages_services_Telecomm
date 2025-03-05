@@ -14,12 +14,14 @@
  * limitations under the License
  */
 
+// QTI_BEGIN: 2024-03-28: Telephony: Skip startRinging for silenced ringing call
 /**
 * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
 * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
+// QTI_END: 2024-03-28: Telephony: Skip startRinging for silenced ringing call
 package com.android.server.telecom;
 
 import static com.android.server.telecom.AudioRoute.BT_AUDIO_ROUTE_TYPES;
@@ -175,8 +177,10 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                     if (streamType == AudioManager.STREAM_RING && !isStreamMuted
                             && mCallAudioManager != null) {
                         Log.i(this, "Ring stream was un-muted.");
+// QTI_BEGIN: 2024-03-28: Telephony: Skip startRinging for silenced ringing call
                         //clear the silenced calls if device is un-muted
                         mCallAudioManager.clearSilencedCalls();
+// QTI_END: 2024-03-28: Telephony: Skip startRinging for silenced ringing call
                         mCallAudioManager.onRingerModeChange();
                     }
                 } else {
@@ -1331,10 +1335,12 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         if (!isExplicitUserRequest) {
             synchronized (mTelecomLock) {
                 skipEarpiece = foregroundCall != null
+// QTI_BEGIN: 2024-12-12: Telephony: IMS: Treat CRS/CRBT/UVS call as VoLTE call and audio routing defaulting to earpiece
                         && VideoProfile.isVideo(foregroundCall.getVideoState())
                         && !foregroundCall.isVideoCrbtForVoLteCall()
                         && !foregroundCall.isVideoCrsForVoLteCall()
                         && !foregroundCall.isVisualizedVoiceCall();
+// QTI_END: 2024-12-12: Telephony: IMS: Treat CRS/CRBT/UVS call as VoLTE call and audio routing defaulting to earpiece
             }
         }
         // Route to earpiece, wired, or speaker route if there are not bluetooth routes or if there

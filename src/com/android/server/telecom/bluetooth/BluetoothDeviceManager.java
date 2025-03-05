@@ -516,8 +516,10 @@ public class BluetoothDeviceManager {
                 /* Check if group is known. */
                 if (!mGroupsByDevice.containsKey(device)) {
                     int groupId = mBluetoothLeAudioService.getGroupId(device);
+// QTI_BEGIN: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
                     Log.i(this, "onDeviceConnected: Device: " + device.getAddress()
                            + " groupId: " + groupId);
+// QTI_END: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
                     /* If it is not yet assigned, then it will be provided in the callback */
                     if (groupId != BluetoothLeAudio.GROUP_ID_INVALID) {
                         mGroupsByDevice.put(device, groupId);
@@ -567,7 +569,9 @@ public class BluetoothDeviceManager {
         synchronized (mLock) {
             LinkedHashMap<String, BluetoothDevice> targetDeviceMap;
             if (deviceType == DEVICE_TYPE_LE_AUDIO) {
+// QTI_BEGIN: 2023-08-15: Telephony: Update cache when LE device is disconnected
                 mGroupsByDevice.remove(device);
+// QTI_END: 2023-08-15: Telephony: Update cache when LE device is disconnected
                 targetDeviceMap = mLeAudioDevicesByAddress;
             } else if (deviceType == DEVICE_TYPE_HEARING_AID) {
                 mHearingAidDeviceSyncIds.remove(device);
@@ -592,7 +596,9 @@ public class BluetoothDeviceManager {
     }
 
     public void disconnectAudio() {
+// QTI_BEGIN: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
         Log.i(this, "disconnectAudio");
+// QTI_END: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
         disconnectSco();
         clearLeAudioCommunicationDevice();
         clearHearingAidCommunicationDevice();
@@ -607,7 +613,9 @@ public class BluetoothDeviceManager {
     }
 
     public int disconnectSco() {
+// QTI_BEGIN: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
         Log.i(this, "disconnectSco");
+// QTI_END: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
         int result = BluetoothStatusCodes.ERROR_UNKNOWN;
         if (getBluetoothHeadset() == null) {
             Log.w(this, "disconnectSco: Trying to disconnect audio but no headset service exists.");
@@ -679,7 +687,9 @@ public class BluetoothDeviceManager {
         }
     }
 
+// QTI_BEGIN: 2023-03-07: Telephony: Handle BT LE Active device changed
     public boolean setLeAudioCommunicationDevice(BluetoothDevice bleDevice) {
+// QTI_END: 2023-03-07: Telephony: Handle BT LE Active device changed
 
         if (mAudioManager == null) {
             Log.w(this, "setLeAudioCommunicationDevice: mAudioManager is null");
@@ -695,7 +705,9 @@ public class BluetoothDeviceManager {
 
         for (AudioDeviceInfo device : devices) {
             Log.i(this, "setLeAudioCommunicationDevice: Available device type:  " + device.getType()
+// QTI_BEGIN: 2023-03-07: Telephony: Handle BT LE Active device changed
                     + ":: address: " + device.getAddress());
+// QTI_END: 2023-03-07: Telephony: Handle BT LE Active device changed
             if (device.getType() == AudioDeviceInfo.TYPE_BLE_HEADSET) {
                 bleHeadset = device;
                 break;

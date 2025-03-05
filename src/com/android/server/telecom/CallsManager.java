@@ -12,10 +12,12 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+// QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
  *
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
+// QTI_END: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
  */
 
 package com.android.server.telecom;
@@ -111,7 +113,9 @@ import android.telecom.VideoProfile;
 import android.telephony.CarrierConfigManager;
 import android.telephony.CellIdentity;
 import android.telephony.PhoneNumberUtils;
+// QTI_BEGIN: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
 import android.telephony.SubscriptionManager;
+// QTI_END: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Pair;
@@ -184,9 +188,13 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+// QTI_BEGIN: 2018-03-13: Telephony: IMS-VT: Add support for Low battery
 import org.codeaurora.ims.QtiCallConstants;
+// QTI_END: 2018-03-13: Telephony: IMS-VT: Add support for Low battery
+// QTI_BEGIN: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
 import org.codeaurora.ims.utils.QtiCarrierConfigHelper;
 import org.codeaurora.ims.utils.QtiImsExtUtils;
+// QTI_END: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
 /**
  * Singleton.
  *
@@ -234,7 +242,9 @@ public class CallsManager extends Call.ListenerBase
         void onConferenceStateChanged(Call call, boolean isConference);
         void onCdmaConferenceSwap(Call call);
         void onSetCamera(Call call, String cameraId);
+// QTI_BEGIN: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
         void onCrsFallbackLocalRinging(Call call);
+// QTI_END: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
     }
 
     /** Interface used to define the action which is executed delay under some condition. */
@@ -562,6 +572,7 @@ public class CallsManager extends Call.ListenerBase
 
     private TelecomMetricsController mMetricsController;
 
+// QTI_BEGIN: 2018-04-09: Telephony: Emergency Call when there is no room left for new Call.
     // Two global variables used to handle the Emergency Call when there
     // is no room available for emergency call. Buffer the Emergency Call
     // in mPendingMOEmerCall until the Current Active call is disconnected
@@ -570,7 +581,10 @@ public class CallsManager extends Call.ListenerBase
     private Call mPendingMOEmerCall = null;
     private Call mDisconnectingCall = null;
 
+// QTI_END: 2018-04-09: Telephony: Emergency Call when there is no room left for new Call.
+// QTI_BEGIN: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
     private String mCrsCallId = null;
+// QTI_END: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
 
     /**
      * Listener to PhoneAccountRegistrar events.
@@ -876,7 +890,9 @@ public class CallsManager extends Call.ListenerBase
         mCallAnomalyWatchdog = callAnomalyWatchdog;
         mAsyncTaskExecutor = asyncTaskExecutor;
         mUserManager = mContext.getSystemService(UserManager.class);
+// QTI_BEGIN: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
         QtiCarrierConfigHelper.getInstance().setup(mContext);
+// QTI_END: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
     }
 
     public void setIncomingCallNotifier(IncomingCallNotifier incomingCallNotifier) {
@@ -1159,7 +1175,9 @@ public class CallsManager extends Call.ListenerBase
                     incomingCall.setMissedReason(AUTO_MISSED_MAXIMUM_RINGING);
                     autoMissCallAndLog(incomingCall, result);
                 }
+// QTI_BEGIN: 2025-01-30: Telephony: Revert "Modify logic when auto rejecting incoming call"
             } else if (hasMaximumManagedDialingCalls(incomingCall)) {
+// QTI_END: 2025-01-30: Telephony: Revert "Modify logic when auto rejecting incoming call"
                 if (shouldSilenceInsteadOfReject(incomingCall)) {
                     incomingCall.silence();
                 } else {
@@ -1168,8 +1186,10 @@ public class CallsManager extends Call.ListenerBase
                     incomingCall.setMissedReason(AUTO_MISSED_MAXIMUM_DIALING);
                     autoMissCallAndLog(incomingCall, result);
                 }
+// QTI_BEGIN: 2018-03-13: Telephony: IMS-VT: Add support for Low battery
             } else if (!isIncomingVideoCallAllowed(incomingCall)) {
                 Log.i(this, "onCallFilteringCompleted: MT Video Call rejecting.");
+// QTI_END: 2018-03-13: Telephony: IMS-VT: Add support for Low battery
                 autoMissCallAndLog(incomingCall, result);
             } else if (result.shouldScreenViaAudio) {
                 Log.i(this, "onCallFilteringCompleted: starting background audio processing");
@@ -1209,6 +1229,7 @@ public class CallsManager extends Call.ListenerBase
         }
     }
 
+// QTI_BEGIN: 2018-03-13: Telephony: IMS-VT: Add support for Low battery
     /**
      * Determines if the incoming video call is allowed or not
      *
@@ -1231,10 +1252,15 @@ public class CallsManager extends Call.ListenerBase
 
     private static boolean isIncomingVideoCall(Call call) {
         return (!VideoProfile.isAudioOnly(call.getVideoState()) &&
+// QTI_END: 2018-03-13: Telephony: IMS-VT: Add support for Low battery
+// QTI_BEGIN: 2023-02-07: Telephony: IMS: Don't reject CRS VoLTE call in low battery mode
             call.getState() == CallState.RINGING) && !(call.isCrsCall() &&
             (call.getOriginalCallType() == VideoProfile.STATE_AUDIO_ONLY));
+// QTI_END: 2023-02-07: Telephony: IMS: Don't reject CRS VoLTE call in low battery mode
+// QTI_BEGIN: 2018-03-13: Telephony: IMS-VT: Add support for Low battery
     }
 
+// QTI_END: 2018-03-13: Telephony: IMS-VT: Add support for Low battery
     /**
      * In the event that the maximum supported calls of a given type is reached, the
      * default behavior is to reject any additional calls of that type.  This checks
@@ -1336,6 +1362,7 @@ public class CallsManager extends Call.ListenerBase
 
     @Override
     public void onConnectionPropertiesChanged(Call call, boolean didRttChange) {
+// QTI_BEGIN: 2023-12-14: Telephony: Update Call.mIsEmergencyCall when Connection Propeties are changed.
         // If a call is redialed as an emergency call,
         // the Add Call button needs to be disabled.
         // This check is for performance reasons, so
@@ -1345,6 +1372,7 @@ public class CallsManager extends Call.ListenerBase
         {
             updateCanAddCall();
         }
+// QTI_END: 2023-12-14: Telephony: Update Call.mIsEmergencyCall when Connection Propeties are changed.
         if (didRttChange) {
             updateHasActiveRttCall();
         }
@@ -1599,10 +1627,14 @@ public class CallsManager extends Call.ListenerBase
 
     public boolean hasVideoCall() {
         for (Call call : mCalls) {
+// QTI_BEGIN: 2023-07-06: Telephony: IMS: Fix CRBT is playing by speaker when plug out headset/BT
             if (VideoProfile.isVideo(call.getVideoState())
+// QTI_END: 2023-07-06: Telephony: IMS: Fix CRBT is playing by speaker when plug out headset/BT
+// QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
                     && !call.isVideoCrbtForVoLteCall()
                     && !call.isVideoCrsForVoLteCall()
                     && !call.isVisualizedVoiceCall()) {
+// QTI_END: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
                 return true;
             }
         }
@@ -1728,7 +1760,9 @@ public class CallsManager extends Call.ListenerBase
 
             if (phoneAccountExtras != null
                     && phoneAccountExtras.getBoolean(
+// QTI_BEGIN: 2018-03-12: Telephony: Fix set voip mode for sip incoming call
                             PhoneAccount.EXTRA_ALWAYS_USE_VOIP_AUDIO_MODE)) {
+// QTI_END: 2018-03-12: Telephony: Fix set voip mode for sip incoming call
                 Log.d(this, "processIncomingCallIntent: defaulting to voip mode for call %s",
                         call.getId());
                 call.setIsVoipAudioMode(true);
@@ -2207,7 +2241,9 @@ public class CallsManager extends Call.ListenerBase
                                 findOutgoingCallPhoneAccount(requestedAccountHandle, handle,
                                         VideoProfile.isVideo(finalVideoState),
                                         finalCall.isEmergencyCall(), initiatingUser,
+// QTI_BEGIN: 2020-03-27: Telephony: Ims: Clean-up old ConfURI implementation
                                         isConference),
+// QTI_END: 2020-03-27: Telephony: Ims: Clean-up old ConfURI implementation
                         new LoggedHandlerExecutor(outgoingCallHandler, "CM.fOCP", mLock));
 
         // This is a block of code that executes after the list of potential phone accts has been
@@ -2419,7 +2455,9 @@ public class CallsManager extends Call.ListenerBase
 
                                 Log.i(CallsManager.this, "Aborting call since there are no"
                                         + " available accounts.");
+// QTI_BEGIN: 2025-01-30: Telephony: Revert "MO call placed on wrong sub"
                                 showErrorMessage(R.string.cant_call_due_to_no_supported_service);
+// QTI_END: 2025-01-30: Telephony: Revert "MO call placed on wrong sub"
                                 mListeners.forEach(l -> l.onCreateConnectionFailed(callToPlace));
                                 if (callToPlace.isEmergencyCall()) {
                                     if (mFeatureFlags.telecomMetricsSupport()) {
@@ -2433,8 +2471,10 @@ public class CallsManager extends Call.ListenerBase
                                 }
                                 return CompletableFuture.completedFuture(null);
                             }
+// QTI_BEGIN: 2025-01-30: Telephony: Revert "DSDS Transition: Check for DSDS Transition mode"
                             boolean needsAccountSelection = accountSuggestions.size() > 1
                                     && !callToPlace.isEmergencyCall() && !isSelfManaged;
+// QTI_END: 2025-01-30: Telephony: Revert "DSDS Transition: Check for DSDS Transition mode"
                             if (!needsAccountSelection) {
                                 return CompletableFuture.completedFuture(Pair.create(callToPlace,
                                         accountSuggestions.get(0).getPhoneAccountHandle()));
@@ -2557,13 +2597,17 @@ public class CallsManager extends Call.ListenerBase
 
                     boolean isVoicemail = isVoicemail(callToUse.getHandle(), accountToUse);
 
+// QTI_BEGIN: 2019-05-23: Telephony: IMS-VT: Handle RTT support for Video Calls.
                     int phoneId = SubscriptionManager.getPhoneId(
                             mPhoneAccountRegistrar.getSubscriptionIdForPhoneAccount(
                             callToUse.getTargetPhoneAccount()));
+// QTI_END: 2019-05-23: Telephony: IMS-VT: Handle RTT support for Video Calls.
                     boolean isRttSettingOn = isRttSettingOn(phoneAccountHandle);
+// QTI_BEGIN: 2019-05-23: Telephony: IMS-VT: Handle RTT support for Video Calls.
                     if (!isVoicemail && (!VideoProfile.isVideo(callToUse.getVideoState())
                             || QtiImsExtUtils.isRttSupportedOnVtCalls(
                             phoneId, mContext))
+// QTI_END: 2019-05-23: Telephony: IMS-VT: Handle RTT support for Video Calls.
                             && (isRttSettingOn || (extras != null
                             && extras.getBoolean(TelecomManager.EXTRA_START_CALL_WITH_RTT,
                             false)))) {
@@ -2820,12 +2864,20 @@ public class CallsManager extends Call.ListenerBase
             PhoneAccountHandle targetPhoneAccountHandle, Uri handle, boolean isVideo,
             boolean isEmergency, UserHandle initiatingUser) {
        return findOutgoingCallPhoneAccount(targetPhoneAccountHandle, handle, isVideo,
+// QTI_BEGIN: 2020-03-27: Telephony: Ims: Clean-up old ConfURI implementation
                isEmergency, initiatingUser, false/* isConference */);
+// QTI_END: 2020-03-27: Telephony: Ims: Clean-up old ConfURI implementation
+// QTI_BEGIN: 2018-03-07: Telephony: IMS: Conference URI support.
     }
 
+// QTI_END: 2018-03-07: Telephony: IMS: Conference URI support.
     public CompletableFuture<List<PhoneAccountHandle>> findOutgoingCallPhoneAccount(
+// QTI_BEGIN: 2018-03-07: Telephony: IMS: Conference URI support.
             PhoneAccountHandle targetPhoneAccountHandle, Uri handle, boolean isVideo,
+// QTI_END: 2018-03-07: Telephony: IMS: Conference URI support.
+// QTI_BEGIN: 2020-03-27: Telephony: Ims: Clean-up old ConfURI implementation
             boolean isEmergency, UserHandle initiatingUser, boolean isConference) {
+// QTI_END: 2020-03-27: Telephony: Ims: Clean-up old ConfURI implementation
 
         if (isSelfManaged(targetPhoneAccountHandle, initiatingUser)) {
             return CompletableFuture.completedFuture(Arrays.asList(targetPhoneAccountHandle));
@@ -2835,12 +2887,16 @@ public class CallsManager extends Call.ListenerBase
         // Try to find a potential phone account, taking into account whether this is a video
         // call.
         accounts = constructPossiblePhoneAccounts(handle, initiatingUser, isVideo, isEmergency,
+// QTI_BEGIN: 2020-03-27: Telephony: Ims: Clean-up old ConfURI implementation
                 isConference);
+// QTI_END: 2020-03-27: Telephony: Ims: Clean-up old ConfURI implementation
         if (isVideo && accounts.size() == 0) {
             // Placing a video call but no video capable accounts were found, so consider any
             // call capable accounts (we can fallback to audio).
             accounts = constructPossiblePhoneAccounts(handle, initiatingUser,
+// QTI_BEGIN: 2020-03-27: Telephony: Ims: Clean-up old ConfURI implementation
                     false /* isVideo */, isEmergency /* isEmergency */, isConference);
+// QTI_END: 2020-03-27: Telephony: Ims: Clean-up old ConfURI implementation
         }
         Log.v(this, "findOutgoingCallPhoneAccount: accounts = " + accounts);
 
@@ -2895,7 +2951,9 @@ public class CallsManager extends Call.ListenerBase
             // handle and verify it can be used.
             PhoneAccountHandle defaultPhoneAccountHandle =
                     mPhoneAccountRegistrar.getOutgoingPhoneAccountForScheme(
+// QTI_BEGIN: 2020-03-27: Telephony: Ims: Clean-up old ConfURI implementation
                             handle.getScheme(), initiatingUser);
+// QTI_END: 2020-03-27: Telephony: Ims: Clean-up old ConfURI implementation
             if (defaultPhoneAccountHandle != null &&
                     possibleAccounts.contains(defaultPhoneAccountHandle)) {
                 Log.i(CallsManager.this, "findOutgoingCallPhoneAccount; defaultAcctForScheme=%s",
@@ -3272,7 +3330,9 @@ public class CallsManager extends Call.ListenerBase
                 }
                 try {
                     notifyStartCreateConnection(call);
+// QTI_BEGIN: 2018-04-09: Telephony: Emergency Call when there is no room left for new Call.
                     call.startCreateConnection(mPhoneAccountRegistrar);
+// QTI_END: 2018-04-09: Telephony: Emergency Call when there is no room left for new Call.
                 } catch (Exception exception) {
                     // If an exceptions is thrown while creating the connection, prompt the user to
                     // generate a bugreport and force disconnect.
@@ -3288,7 +3348,9 @@ public class CallsManager extends Call.ListenerBase
                             new DisconnectCause(DisconnectCause.ERROR,
                             "Failed to create the connection."));
                     markCallAsRemoved(call);
+// QTI_BEGIN: 2018-04-09: Telephony: Emergency Call when there is no room left for new Call.
                 }
+// QTI_END: 2018-04-09: Telephony: Emergency Call when there is no room left for new Call.
 
             }
         } else if (mPhoneAccountRegistrar.getCallCapablePhoneAccounts(
@@ -3475,19 +3537,28 @@ public class CallsManager extends Call.ListenerBase
      * @return {@code true} if the speakerphone should be enabled.
      */
     public boolean isSpeakerphoneAutoEnabledForVideoCalls(int videoState) {
+// QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
         return !isVideoCrbtVoLteCall() &&
+// QTI_END: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
+// QTI_BEGIN: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
             VideoProfile.isVideo(videoState) &&
+// QTI_END: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
             !mWiredHeadsetManager.isPluggedIn() &&
             !mBluetoothRouteManager.isBluetoothAvailable() &&
+// QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
             isSpeakerEnabledForVideoCalls() &&
             !isVisualizedVoiceCall();
+// QTI_END: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
     }
 
+// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
      public boolean isWiredHandsetInOrBtAvailble() {
         return mWiredHeadsetManager.isPluggedIn()
             || mBluetoothRouteManager.isBluetoothAvailable();
      }
 
+// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
+// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
      public boolean isWiredHandsetIn() {
         return mWiredHeadsetManager.isPluggedIn();
      }
@@ -3496,6 +3567,7 @@ public class CallsManager extends Call.ListenerBase
        return  mBluetoothRouteManager.isBluetoothAvailable();
      }
 
+// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
     /**
      * Determines if the speakerphone should be enabled for when docked.  Speakerphone
      * should be enabled if the device is docked and bluetooth or the wired headset are
@@ -3731,25 +3803,35 @@ public class CallsManager extends Call.ListenerBase
         if (activeCall != null && !activeCall.isLocallyDisconnecting()) {
             activeCallId = activeCall.getId();
             if (canHold(activeCall)) {
+// QTI_BEGIN: 2024-12-21: Telephony: DSDA: Add DSDA code removed as part of ks merge conflicts
                     activeCall.hold("Swap to " + call.getId());
                     Log.addEvent(activeCall, LogUtils.Events.SWAP, "To " + call.getId());
                     Log.addEvent(call, LogUtils.Events.SWAP, "From " + activeCall.getId());
+// QTI_END: 2024-12-21: Telephony: DSDA: Add DSDA code removed as part of ks merge conflicts
             } else {
                 // This call does not support hold. If it is from a different connection
+// QTI_BEGIN: 2025-01-30: Telephony: Revert "DSDA Framework changes"
                 // service or connection manager, then disconnect it, otherwise invoke
                 // call.hold() and allow the connection service or connection manager to handle
                 // the situation.
+// QTI_END: 2025-01-30: Telephony: Revert "DSDA Framework changes"
                 if (!areFromSameSource(activeCall, call)) {
                     if (!activeCall.isEmergencyCall()) {
                         activeCall.disconnect("Swap to " + call.getId());
+// QTI_BEGIN: 2021-10-05: Telephony: DSDA Framework changes
                     } else {
+// QTI_END: 2021-10-05: Telephony: DSDA Framework changes
                         Log.w(this, "unholdCall: % is an emergency call, aborting swap to %s",
                                 activeCall.getId(), call.getId());
                         // Don't unhold the call as requested; we don't want to drop an
                         // emergency call.
                         return;
+// QTI_BEGIN: 2021-10-05: Telephony: DSDA Framework changes
                     }
+// QTI_END: 2021-10-05: Telephony: DSDA Framework changes
+// QTI_BEGIN: 2025-01-30: Telephony: Revert "DSDA Framework changes"
                 } else {
+// QTI_END: 2025-01-30: Telephony: Revert "DSDA Framework changes"
                     activeCall.hold("Swap to " + call.getId());
                 }
             }
@@ -3789,7 +3871,9 @@ public class CallsManager extends Call.ListenerBase
         handleCallTechnologyChange(c);
         handleChildAddressChange(c);
         updateCanAddCall();
+// QTI_BEGIN: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
         maybeUpdateVideoCrsCall(c);
+// QTI_END: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
     }
 
     @Override
@@ -3798,6 +3882,7 @@ public class CallsManager extends Call.ListenerBase
         playRttUpgradeToneForCall(call);
     }
 
+// QTI_BEGIN: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
     /**
      * Updates video CRS information if it is a CRS call and handling fallback
      * to play local ringing when CRS audio/video RTP timeout from network.
@@ -3825,6 +3910,7 @@ public class CallsManager extends Call.ListenerBase
         }
     }
 
+// QTI_END: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
     public void playRttUpgradeToneForCall(Call call) {
         mCallAudioManager.playRttUpgradeTone(call);
     }
@@ -3835,15 +3921,19 @@ public class CallsManager extends Call.ListenerBase
     @VisibleForTesting
     public List<PhoneAccountHandle> constructPossiblePhoneAccounts(Uri handle, UserHandle user,
             boolean isVideo, boolean isEmergency,  boolean isConference) {
+// QTI_BEGIN: 2025-01-30: Telephony: Revert "DSDA: Bypass AOSP DSDA logic of account selection"
         if (mTelephonyFeatureFlags.simultaneousCallingIndications()) {
+// QTI_END: 2025-01-30: Telephony: Revert "DSDA: Bypass AOSP DSDA logic of account selection"
             return constructPossiblePhoneAccountsNew(handle, user, isVideo, isEmergency,
                     isConference);
         } else {
             return constructPossiblePhoneAccountsOld(handle, user, isVideo, isEmergency,
                     isConference);
         }
+// QTI_BEGIN: 2018-03-07: Telephony: IMS: Conference URI support.
     }
 
+// QTI_END: 2018-03-07: Telephony: IMS: Conference URI support.
     // Returns whether the device is capable of 2 simultaneous active voice calls on different subs.
     @VisibleForTesting
     public boolean isDsdaCallingPossible() {
@@ -3861,7 +3951,9 @@ public class CallsManager extends Call.ListenerBase
     }
 
     private List<PhoneAccountHandle> constructPossiblePhoneAccountsOld(Uri handle, UserHandle user,
+// QTI_BEGIN: 2020-03-27: Telephony: Ims: Clean-up old ConfURI implementation
             boolean isVideo, boolean isEmergency, boolean isConference) {
+// QTI_END: 2020-03-27: Telephony: Ims: Clean-up old ConfURI implementation
 
         if (handle == null) {
             return Collections.emptyList();
@@ -3878,20 +3970,28 @@ public class CallsManager extends Call.ListenerBase
                         isEmergency ? 0 : PhoneAccount.CAPABILITY_EMERGENCY_CALLS_ONLY,
                         isEmergency);
 
+// QTI_BEGIN: 2019-06-03: Telephony: Fix emergency only call account can't be constructed
         // If no phone account is found, let's query emergency call only account again.
         // That is happening while emergency account has capability CAPABILITY_EMERGENCY_CALLS_ONLY.
         if (isEmergency && allAccounts.size() == 0) {
             Log.v(this, "Try to find an emergency call only phone account");
+// QTI_END: 2019-06-03: Telephony: Fix emergency only call account can't be constructed
+// QTI_BEGIN: 2020-03-27: Telephony: Ims: Clean-up old ConfURI implementation
             allAccounts =  mPhoneAccountRegistrar.
                     getEmergencyCallOnlyPhoneAccounts(handle.getScheme(), user);
+// QTI_END: 2020-03-27: Telephony: Ims: Clean-up old ConfURI implementation
+// QTI_BEGIN: 2019-06-03: Telephony: Fix emergency only call account can't be constructed
         }
 
+// QTI_END: 2019-06-03: Telephony: Fix emergency only call account can't be constructed
         // Only one SIM PhoneAccount can be active at one time for DSDS. Only that SIM PhoneAccount
         // should be available if a call is already active on the SIM account.
         // Similarly, the emergency call should be attempted over the same PhoneAccount as the
         // ongoing call. However, if the ongoing call is over cross-SIM registration, then the
         // emergency call will be attempted over a different Phone object at a later stage.
+// QTI_BEGIN: 2025-01-30: Telephony: Revert "Use new API to construct possible phone accounts"
         if (isEmergency || !isDsdaCallingPossible()) {
+// QTI_END: 2025-01-30: Telephony: Revert "Use new API to construct possible phone accounts"
             List<PhoneAccountHandle> simAccounts =
                     mPhoneAccountRegistrar.getSimPhoneAccountsOfCurrentUser();
             PhoneAccountHandle ongoingCallAccount = null;
@@ -4076,12 +4176,16 @@ public class CallsManager extends Call.ListenerBase
     }
 
     private boolean isRttSettingOn(PhoneAccountHandle handle) {
+// QTI_BEGIN: 2020-01-20: Telephony: IMS: Support for MSIM RTT
         int phoneId = SubscriptionManager.getPhoneId(
+// QTI_END: 2020-01-20: Telephony: IMS: Support for MSIM RTT
           mPhoneAccountRegistrar.getSubscriptionIdForPhoneAccount(handle));
+// QTI_BEGIN: 2020-01-20: Telephony: IMS: Support for MSIM RTT
         if (!SubscriptionManager.isValidPhoneId(phoneId)) {
             Log.w(this, "isRttSettingOn: Invalid phone id = " + phoneId);
             return false;
         }
+// QTI_END: 2020-01-20: Telephony: IMS: Support for MSIM RTT
         boolean isRttModeSettingOn = Settings.Secure.getIntForUser(mContext.getContentResolver(),
                 Settings.Secure.RTT_CALLING_MODE, 0, mContext.getUserId()) != 0;
         // If the carrier config says that we should ignore the RTT mode setting from the user,
@@ -4091,10 +4195,12 @@ public class CallsManager extends Call.ListenerBase
         return isRttModeSettingOn && !shouldIgnoreRttModeSetting;
     }
 
+// QTI_BEGIN: 2020-01-20: Telephony: IMS: Support for MSIM RTT
     private static String convertRttPhoneId(int phoneId) {
         return phoneId != 0 ? Integer.toString(phoneId) : "";
     }
 
+// QTI_END: 2020-01-20: Telephony: IMS: Support for MSIM RTT
     public PersistableBundle getCarrierConfigForPhoneAccount(PhoneAccountHandle handle) {
         int subscriptionId = mPhoneAccountRegistrar.getSubscriptionIdForPhoneAccount(handle);
         CarrierConfigManager carrierConfigManager =
@@ -4187,6 +4293,7 @@ public class CallsManager extends Call.ListenerBase
         maybeMoveToSpeakerPhone(call);
     }
 
+// QTI_BEGIN: 2024-07-12: Telephony: HFP: handle HFP and cellular calls
     /* Returns true if HFP call is present */
     boolean isHfpCallPresent() {
         Optional<Call> hfpCall = mCalls.stream()
@@ -4206,6 +4313,7 @@ public class CallsManager extends Call.ListenerBase
         return heldCall.orElse(null);
     }
 
+// QTI_END: 2024-07-12: Telephony: HFP: handle HFP and cellular calls
     /**
      * Returns true if the active call is held.
      */
@@ -4214,6 +4322,7 @@ public class CallsManager extends Call.ListenerBase
         Log.i(this, "holdActiveCallForNewCall, newCall: %s, activeCall: %s", call.getId(),
                 (activeCall == null ? "<none>" : activeCall.getId()));
         if (activeCall != null && activeCall != call) {
+// QTI_BEGIN: 2024-07-12: Telephony: HFP: handle HFP and cellular calls
             // Handle if any HFP call is present otherwise fall back to legacy handling
             if (isHfpCallPresent()) {
                 Call heldCall = getHeldCallAcrossPhoneAccounts();
@@ -4235,7 +4344,9 @@ public class CallsManager extends Call.ListenerBase
                 }
                 return true;
             }
+// QTI_END: 2024-07-12: Telephony: HFP: handle HFP and cellular calls
             if (canHold(activeCall)) {
+// QTI_BEGIN: 2023-04-06: Telephony: Pseudo-DSDA: Stop additional HOLD at Telecom.
                 // When Pseudo DSDA call is answered via BT, there is a limitation that we will try
                 // to put the call on hold first before disconnecting, below condiiton is added to
                 // stop the additional HOLD at Telecom.
@@ -4244,10 +4355,13 @@ public class CallsManager extends Call.ListenerBase
                 // non Pseudo DSDA cases.
                 if (call.getExtras() == null ||
                         !call.getExtras().getBoolean(Connection.EXTRA_ANSWERING_DROPS_FG_CALL)) {
+// QTI_END: 2023-04-06: Telephony: Pseudo-DSDA: Stop additional HOLD at Telecom.
                     activeCall.hold("swap to " + call.getId());
+// QTI_BEGIN: 2023-04-06: Telephony: Pseudo-DSDA: Stop additional HOLD at Telecom.
                     return true;
                 }
                 return false;
+// QTI_END: 2023-04-06: Telephony: Pseudo-DSDA: Stop additional HOLD at Telecom.
             } else if (sameSourceHoldCase(activeCall, call)) {
 
                 // Handle the case where the active call and the new call are from the same CS or
@@ -4261,7 +4375,9 @@ public class CallsManager extends Call.ListenerBase
                 // Call C - Incoming
                 // Here we need to disconnect A prior to holding B so that C can be answered.
                 // This case is driven by telephony requirements ultimately.
+// QTI_BEGIN: 2025-01-30: Telephony: Revert "DSDA Framework changes"
                 Call heldCall = getHeldCallByConnectionService(call.getTargetPhoneAccount());
+// QTI_END: 2025-01-30: Telephony: Revert "DSDA Framework changes"
                 if (heldCall != null) {
                     heldCall.disconnect();
                     Log.i(this, "holdActiveCallForNewCall: Disconnect held call %s before "
@@ -4492,6 +4608,7 @@ public class CallsManager extends Call.ListenerBase
             mCallLogManager.logCall(call, Calls.MISSED_TYPE, true, null);
         }
 
+// QTI_BEGIN: 2018-04-09: N/A: Emergency Call when there is no room left for new Call.
         // Emergency MO call is still pending and current active call is
         // disconnected succesfully. So initiating pending Emergency call
         // now and clearing both pending and Disconnectcalls.
@@ -4500,6 +4617,7 @@ public class CallsManager extends Call.ListenerBase
             mPendingMOEmerCall.startCreateConnection(mPhoneAccountRegistrar);
             clearPendingMOEmergencyCall();
         }
+// QTI_END: 2018-04-09: N/A: Emergency Call when there is no room left for new Call.
     }
 
     /**
@@ -4775,7 +4893,9 @@ public class CallsManager extends Call.ListenerBase
             // we could put InCallServices into a state where they are showing two calls but
             // also support add-call. Technically it's right, but overall looks better (UI-wise)
             // and acts better if we wait until the call is removed.
+// QTI_BEGIN: 2025-01-30: Telephony: Revert "DSDA - Add support up to 4 calls for Add Call"
             if (count >= MAXIMUM_TOP_LEVEL_CALLS) {
+// QTI_END: 2025-01-30: Telephony: Revert "DSDA - Add support up to 4 calls for Add Call"
                 return false;
             }
         }
@@ -4789,27 +4909,35 @@ public class CallsManager extends Call.ListenerBase
                 CallState.ANSWERED, CallState.SIMULATED_RINGING);
     }
 
+// QTI_BEGIN: 2023-05-30: Telephony: DSDA: Make room to place emergency call
     private List<Call> getAllRingingCalls() {
         return getAllCallWithState(CallState.RINGING, CallState.ANSWERED);
     }
 
+// QTI_END: 2023-05-30: Telephony: DSDA: Make room to place emergency call
     public Call getActiveCall() {
         return getFirstCallWithState(CallState.ACTIVE);
     }
 
+// QTI_BEGIN: 2023-03-28: Telephony: IMS: Fix conflict with LKG
     private Call getDialingCall() {
         return getFirstCallWithState(CallState.DIALING);
     }
 
+// QTI_END: 2023-03-28: Telephony: IMS: Fix conflict with LKG
+// QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
     private Call getDialingOrActiveCall() {
         return getFirstCallWithState(CallState.DIALING, CallState.ACTIVE);
     }
 
+// QTI_END: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
     public Call getHeldCallByConnectionService(PhoneAccountHandle targetPhoneAccount) {
         Optional<Call> heldCall = mCalls.stream()
                 .filter(call -> PhoneAccountHandle.areFromSamePackage(call.getTargetPhoneAccount(),
                         targetPhoneAccount)
+// QTI_BEGIN: 2018-07-27: Telephony: IMS : Dont treat Conference participants as individual calls
                         && call.getParentCall() == null
+// QTI_END: 2018-07-27: Telephony: IMS : Dont treat Conference participants as individual calls
                         && call.getState() == CallState.ON_HOLD)
                 .findFirst();
         return heldCall.isPresent() ? heldCall.get() : null;
@@ -4896,6 +5024,7 @@ public class CallsManager extends Call.ListenerBase
         return null;
     }
 
+// QTI_BEGIN: 2023-05-30: Telephony: DSDA: Make room to place emergency call
     /**
      * Returns all calls that it finds with the given states.
      */
@@ -4915,6 +5044,7 @@ public class CallsManager extends Call.ListenerBase
         return callList;
     }
 
+// QTI_END: 2023-05-30: Telephony: DSDA: Make room to place emergency call
     Call createConferenceCall(
             String callId,
             PhoneAccountHandle phoneAccount,
@@ -5078,7 +5208,9 @@ public class CallsManager extends Call.ListenerBase
         updateCanAddCall();
         updateHasActiveRttCall();
         updateExternalCallCanPullSupport();
+// QTI_BEGIN: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
         maybeUpdateVideoCrsCall(call);
+// QTI_END: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
         // onCallAdded for calls which immediately take the foreground (like the first call).
         for (CallsManagerListener listener : mListeners) {
             listener.onCallAdded(call);
@@ -5156,10 +5288,12 @@ public class CallsManager extends Call.ListenerBase
             if (newState == CallState.ON_HOLD && call.isDtmfTonePlaying()) {
                 stopDtmfTone(call);
             }
+// QTI_BEGIN: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
             // Maybe start a vibration for MO call.
             if (newState == CallState.ACTIVE && !call.isIncoming() && !call.isUnknown()) {
                 mRinger.startVibratingForOutgoingCallActive();
             }
+// QTI_END: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
 
             // Unfortunately, in the telephony world the radio is king. So if the call notifies
             // us that the call is in a particular state, we allow it even if it doesn't make
@@ -5490,8 +5624,10 @@ public class CallsManager extends Call.ListenerBase
     }
 
     private boolean hasMaximumManagedRingingCalls(Call exceptCall) {
+// QTI_BEGIN: 2025-01-30: Telephony: Revert "IMS: Allow 2 ringing calls DSDA - Telecomm"
         return MAXIMUM_RINGING_CALLS <= getNumCallsWithState(false /* isSelfManaged */, exceptCall,
                 null /* phoneAccountHandle */, CallState.RINGING, CallState.ANSWERED);
+// QTI_END: 2025-01-30: Telephony: Revert "IMS: Allow 2 ringing calls DSDA - Telecomm"
     }
 
     private boolean hasMaximumSelfManagedRingingCalls(Call exceptCall,
@@ -5644,6 +5780,7 @@ public class CallsManager extends Call.ListenerBase
             } else { // normal incoming ringing call.
                 // Hang up the ringing call to make room for the emergency call and mark as missed,
                 // since the user did not reject.
+// QTI_BEGIN: 2023-05-30: Telephony: DSDA: Make room to place emergency call
                 // To support DSDA use case, hang up normal ringing calls on both SUBs.
                 // SIMULATED_RINGING is not supported on DSDA.
                 List<Call> ringingCalls = getAllRingingCalls();
@@ -5654,6 +5791,7 @@ public class CallsManager extends Call.ListenerBase
                             new DisconnectCause(DisconnectCause.MISSED));
                     call.reject(false, null, "emergency call dialed during ringing.");
                 }
+// QTI_END: 2023-05-30: Telephony: DSDA: Make room to place emergency call
             }
         }
 
@@ -6040,7 +6178,9 @@ public class CallsManager extends Call.ListenerBase
 
         setCallState(call, Call.getStateFromConnectionState(connection.getState()),
                 "existing connection");
+// QTI_BEGIN: 2018-03-07: Telephony: IMS-VT: Remove video call back attached with old video provider
         call.setVideoState(connection.getVideoState());
+// QTI_END: 2018-03-07: Telephony: IMS-VT: Remove video call back attached with old video provider
         call.setConnectionCapabilities(connection.getConnectionCapabilities());
         call.setConnectionProperties(connection.getConnectionProperties());
         call.setHandle(connection.getHandle(), connection.getHandlePresentation());
@@ -6184,11 +6324,16 @@ public class CallsManager extends Call.ListenerBase
                 new MissedCallNotifier.CallInfoFactory());
     }
 
+// QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
     public boolean isVideoCrbtVoLteCall() {
+// QTI_END: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
+// QTI_BEGIN: 2023-03-28: Telephony: IMS: Fix conflict with LKG
         Call call = getDialingCall();
         if (call == null) {
             return false;
         }
+// QTI_END: 2023-03-28: Telephony: IMS: Fix conflict with LKG
+// QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
         return call.isVideoCrbtForVoLteCall();
     }
 
@@ -6199,7 +6344,10 @@ public class CallsManager extends Call.ListenerBase
             return false;
         }
         return call.isVisualizedVoiceCall();
+// QTI_END: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
+// QTI_BEGIN: 2023-03-28: Telephony: IMS: Fix conflict with LKG
     }
+// QTI_END: 2023-03-28: Telephony: IMS: Fix conflict with LKG
 
     public boolean isIncomingCallPermitted(PhoneAccountHandle phoneAccountHandle) {
         return isIncomingCallPermitted(null /* excludeCall */, phoneAccountHandle);
@@ -6529,10 +6677,14 @@ public class CallsManager extends Call.ListenerBase
     * @param call The call.
     */
     private void maybeShowErrorDialogOnDisconnect(Call call) {
+// QTI_BEGIN: 2021-10-07: Telephony: Show dialog when too many dialing calls are placed
         Bundle extras = call.getIntentExtras();
+// QTI_END: 2021-10-07: Telephony: Show dialog when too many dialing calls are placed
         if (call.getState() == CallState.DISCONNECTED && (mMmiUtils.isPotentialMMICode(
                 call.getHandle())
+// QTI_BEGIN: 2025-01-30: Telephony: Revert "Show dialog when too many dialing calls are placed"
                 || mMmiUtils.isPotentialInCallMMICode(call.getHandle()))) {
+// QTI_END: 2025-01-30: Telephony: Revert "Show dialog when too many dialing calls are placed"
             DisconnectCause disconnectCause = call.getDisconnectCause();
             if (!TextUtils.isEmpty(disconnectCause.getDescription()) && ((disconnectCause.getCode()
                     == DisconnectCause.ERROR) || (disconnectCause.getCode()
@@ -7188,14 +7340,20 @@ public class CallsManager extends Call.ListenerBase
     }
 
     public void resetConnectionTime(Call call) {
+// QTI_BEGIN: 2018-03-22: Telephony: Telecom: Add support for call timer reset on CDMA MO call
         call.setConnectTimeMillis(System.currentTimeMillis());
+// QTI_END: 2018-03-22: Telephony: Telecom: Add support for call timer reset on CDMA MO call
         call.setConnectElapsedTimeMillis(SystemClock.elapsedRealtime());
+// QTI_BEGIN: 2018-03-22: Telephony: Telecom: Add support for call timer reset on CDMA MO call
         if (mCalls.contains(call)) {
             for (CallsManagerListener listener : mListeners) {
+// QTI_END: 2018-03-22: Telephony: Telecom: Add support for call timer reset on CDMA MO call
                 listener.onConnectionTimeChanged(call);
+// QTI_BEGIN: 2018-03-22: Telephony: Telecom: Add support for call timer reset on CDMA MO call
             }
         }
     }
+// QTI_END: 2018-03-22: Telephony: Telecom: Add support for call timer reset on CDMA MO call
 
     public Context getContext() {
         return mContext;
@@ -7239,8 +7397,10 @@ public class CallsManager extends Call.ListenerBase
     /**
      * Handles changes to a {@link PhoneAccount}.
      *
+// QTI_BEGIN: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
      * Invokes phone account changed handler for calls with matching
      * phone account.
+// QTI_END: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
      *
      * @param registrar The {@link PhoneAccountRegistrar} originating the change.
      * @param phoneAccount The {@link PhoneAccount} which changed.
@@ -7250,7 +7410,9 @@ public class CallsManager extends Call.ListenerBase
         Log.i(this, "handlePhoneAccountChanged: phoneAccount=%s", phoneAccount);
         mCalls.stream()
                 .filter(c -> phoneAccount.getAccountHandle().equals(c.getTargetPhoneAccount()))
+// QTI_BEGIN: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
                 .forEach(c -> c.handlePhoneAccountChanged(phoneAccount));
+// QTI_END: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
     }
 
     /**
@@ -7261,6 +7423,7 @@ public class CallsManager extends Call.ListenerBase
      * @return {@code true} if call is visible to the calling user
      */
     boolean isCallVisibleForUser(Call call, UserHandle userHandle) {
+// QTI_BEGIN: 2024-02-21: Telephony: Fix issue for phone process crash.
         if (call == null) {
             return false;
         }
@@ -7269,6 +7432,7 @@ public class CallsManager extends Call.ListenerBase
                 || (call.getPhoneAccountFromHandle() != null &&
                 call.getPhoneAccountFromHandle()
                 .hasCapabilities(PhoneAccount.CAPABILITY_MULTI_USER));
+// QTI_END: 2024-02-21: Telephony: Fix issue for phone process crash.
     }
 
     /**

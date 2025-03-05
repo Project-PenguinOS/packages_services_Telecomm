@@ -54,11 +54,15 @@ public class BluetoothHeadsetProxy {
     }
 
     public boolean setActiveDevice(BluetoothDevice device) {
+// QTI_BEGIN: 2025-02-27: Telephony: Remove tabs
         return false;
+// QTI_END: 2025-02-27: Telephony: Remove tabs
     }
 
     public BluetoothDevice getActiveDevice() {
+// QTI_BEGIN: 2025-02-27: Telephony: Remove tabs
         return null;
+// QTI_END: 2025-02-27: Telephony: Remove tabs
     }
 
     public boolean isAudioOn() {
@@ -74,8 +78,10 @@ public class BluetoothHeadsetProxy {
     public boolean isInbandRingingEnabled() {
         return mBluetoothHeadset.isInbandRingingEnabled();
     }
+// QTI_BEGIN: 2018-03-27: Bluetooth: Fix to display the proper operator name on carkit.
 
     public BluetoothHeadset getBluetoothHeadsetObj() {
         return mBluetoothHeadset;
     }
 }
+// QTI_END: 2018-03-27: Bluetooth: Fix to display the proper operator name on carkit.

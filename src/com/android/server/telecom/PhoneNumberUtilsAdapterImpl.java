@@ -46,4 +46,6 @@ public class PhoneNumberUtilsAdapterImpl implements PhoneNumberUtilsAdapter {
     public String stripSeparators(String number) {
         return PhoneNumberUtils.stripSeparators(number);
     }
+// QTI_BEGIN: 2018-03-07: Telephony: Emergency Number Implementation for SS & DS
 }
+// QTI_END: 2018-03-07: Telephony: Emergency Number Implementation for SS & DS

@@ -130,8 +130,10 @@ public abstract class CallsManagerListenerBase implements CallsManager.CallsMana
     @Override
     public void onSetCamera(Call call, String cameraId) {
     }
+// QTI_BEGIN: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
 
     @Override
     public void onCrsFallbackLocalRinging(Call call) {
     }
+// QTI_END: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
 }

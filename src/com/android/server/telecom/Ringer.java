@@ -26,13 +26,19 @@ import android.annotation.Nullable;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.Person;
+// QTI_BEGIN: 2021-07-06: Telephony: IMS: Align CRS volume level to local ring volume level
 import android.content.BroadcastReceiver;
+// QTI_END: 2021-07-06: Telephony: IMS: Align CRS volume level to local ring volume level
 import android.content.Context;
+// QTI_BEGIN: 2021-07-06: Telephony: IMS: Align CRS volume level to local ring volume level
 import android.content.Intent;
 import android.content.IntentFilter;
+// QTI_END: 2021-07-06: Telephony: IMS: Align CRS volume level to local ring volume level
 import android.content.res.Resources;
 import android.media.AudioAttributes;
+// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
 import android.media.AudioDeviceInfo;
+// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
 import android.content.res.Resources;
 import android.media.AudioAttributes;
 import android.media.AudioManager;
@@ -51,7 +57,9 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.vibrator.persistence.ParsedVibration;
 import android.os.vibrator.persistence.VibrationXmlParser;
+// QTI_BEGIN: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
 import android.provider.Settings;
+// QTI_END: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
 import android.telecom.Log;
 import android.telecom.TelecomManager;
 import android.util.Pair;
@@ -69,7 +77,9 @@ import java.util.ArrayList;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
 import java.util.concurrent.Executors;
+// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -139,8 +149,10 @@ public class Ringer {
     private static final int RAMPING_RINGER_VIBRATION_DURATION = 5000;
     private static final int RAMPING_RINGER_DURATION = 10000;
 
+// QTI_BEGIN: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
     private static final int OUTGOING_CALL_VIBRATING_DURATION = 100;
 
+// QTI_END: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
     static {
         // construct complete pulse pattern
         PULSE_PATTERN = new long[PULSE_PRIMING_PATTERN.length + PULSE_RAMPING_PATTERN.length];
@@ -220,7 +232,9 @@ public class Ringer {
     private AudioManager mAudioManager;
     private NotificationManager mNotificationManager;
     private AccessibilityManagerAdapter mAccessibilityManagerAdapter;
+// QTI_BEGIN: 2023-04-03: Telephony: IMS: Support video CRS in RINGTONE
     private boolean mIsCrsCall = false;
+// QTI_END: 2023-04-03: Telephony: IMS: Support video CRS in RINGTONE
 
     /**
      * Call objects that are ringing, vibrating or call-waiting. These are used only for logging
@@ -233,11 +247,15 @@ public class Ringer {
     /**
      * Used to track the status of {@link #mVibrator} in the case of simultaneous incoming calls.
      */
+// QTI_BEGIN: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
     private volatile boolean mIsVibrating = false;
+// QTI_END: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
 
     private Handler mHandler = null;
+// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
     private int mSavedSpeakerInCallVolume = -1;
     private CommunicationDeviceChangedListener mCommunicationDeviceChangedListener = null;
+// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
 
     /**
      * Use lock different from the Telecom sync because ringing process is asynchronous outside that
@@ -298,6 +316,7 @@ public class Ringer {
         mNotificationManager = notificationManager;
     }
 
+// QTI_BEGIN: 2023-04-03: Telephony: IMS: Support video CRS in RINGTONE
     public boolean isCrsSupportedFromAudioHal() {
         if (mAudioManager == null) {
             return false;
@@ -307,14 +326,26 @@ public class Ringer {
         return isCrsSupported.equals("isCRSsupported=1");
     }
 
+// QTI_END: 2023-04-03: Telephony: IMS: Support video CRS in RINGTONE
+// QTI_BEGIN: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
     public boolean startPlayingCrs(Call foregroundCall, boolean isHfpDeviceAttached) {
+// QTI_END: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
+// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
         if (foregroundCall == null) {
+// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
+// QTI_BEGIN: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
             Log.wtf(this, "startPlayingCrs called with null foreground call.");
+// QTI_END: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
+// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
             return false;
         }
 
         boolean isCrsCall = foregroundCall.isCrsCall();
+// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
+// QTI_BEGIN: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
         Log.i(this, "startPlayingCrs called with video CRS is :: " + isCrsCall);
+// QTI_END: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
+// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
         if (!isCrsCall) {
             return false;
         }
@@ -329,9 +360,15 @@ public class Ringer {
         }
 
         LogUtils.EventTimer timer = new EventTimer();
+// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
+// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
         boolean isVolumeOverZero = mAudioManager.getStreamVolume(AudioManager.STREAM_RING) > 0;
+// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
+// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
         timer.record("isVolumeOverZero");
+// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
         boolean shouldRingForContact = shouldRingForContact(foregroundCall);
+// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
         timer.record("shouldRingForContact");
         boolean isSelfManaged = foregroundCall.isSelfManaged();
         timer.record("isSelfManaged");
@@ -343,12 +380,16 @@ public class Ringer {
         boolean hasExternalRinger = hasExternalRinger(foregroundCall);
         timer.record("hasExternalRinger");
         // Don't do call waiting operations or vibration unless these are false.
+// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
         boolean letDialerHandleRinging = mInCallController.doesConnectedDialerSupportRinging(
                 foregroundCall.getAssociatedUser());
+// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
         timer.record("letDialerHandleRinging");
 
         Log.i(this, "startRinging timings: " + timer);
+// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
         boolean endEarly = letDialerHandleRinging || isSelfManaged ||
+// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
                 hasExternalRinger || isSilentRingingRequested;
 
         // Acquire audio focus under any of the following conditions:
@@ -367,9 +408,13 @@ public class Ringer {
                 Log.addEvent(foregroundCall, LogUtils.Events.SKIP_RINGING, "Silent ringing "
                         + "requested");
             }
+// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
             Log.i(this, "Ending early -- letDialerHandleRinging=%s, " +
+// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
                             "isSelfManaged=%s, hasExternalRinger=%s, silentRingingRequested=%s",
+// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
                     letDialerHandleRinging, isSelfManaged, hasExternalRinger,
+// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
                     isSilentRingingRequested);
             if (mBlockOnRingingFuture != null) {
                 mBlockOnRingingFuture.complete(null);
@@ -380,14 +425,18 @@ public class Ringer {
         stopCallWaiting();
         VibrationEffect effect;
         // Determine if the settings and DND mode indicate that the vibrator can be used right now.
+// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
         boolean isVibratorEnabled = isVibratorEnabled(mContext, isRingerAudible);
         boolean shouldApplyRampingRinger =
                 isVibratorEnabled && mSystemSettingsUtil.isRampingRingerEnabled(mContext);
         // TODO(b/262055367) re-apply value-adds as necessary
         effect = mDefaultVibrationEffect;
+// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
 
         Log.i(this, "isHfpDeviceAttached=%s, isVibratorEnabled=%s, isRingerAudible=%s, ",
                 isHfpDeviceAttached, isVibratorEnabled, isRingerAudible);
+// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
+// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
         if (isRingerAudible) {
             if (!mAudioManager.isSpeakerphoneOn()) {
                 mCommunicationDeviceChangedListener = new CommunicationDeviceChangedListener();
@@ -402,7 +451,11 @@ public class Ringer {
                 Log.i(this,"Speaker is ON for CRS.");
                 setSystemSystemSpeakerInCallVolume();
             }
+// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
+// QTI_BEGIN: 2021-07-06: Telephony: IMS: Align CRS volume level to local ring volume level
         }
+// QTI_END: 2021-07-06: Telephony: IMS: Align CRS volume level to local ring volume level
+// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
         if (mBlockOnRingingFuture != null) {
             mBlockOnRingingFuture.complete(null);
         }
@@ -412,6 +465,8 @@ public class Ringer {
         return shouldAcquireAudioFocus;
     }
 
+// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
+// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
     class CommunicationDeviceChangedListener implements
         AudioManager.OnCommunicationDeviceChangedListener {
             @Override
@@ -456,6 +511,7 @@ public class Ringer {
         }
     }
 
+// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
     private void maybeStartVibration(Call foregroundCall, boolean shouldRingForContact,
         VibrationEffect effect, boolean isVibrationEnabled, boolean isRingerAudible) {
         synchronized (mLock) {
@@ -484,6 +540,7 @@ public class Ringer {
         }
     }
 
+// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
     private int convertVolumeLevelFromRingToCrs(int ringVolume) {
         // CRS volume is same as voice call volume per design and telephony should
         // adjust voice volume according to ring volume when playing CRS audio,
@@ -498,7 +555,11 @@ public class Ringer {
         final int minRingVolume = mAudioManager.getStreamMinVolume(AudioManager.STREAM_RING);
         if (ringVolume >= maxRingVolume) {
             return maxVoiceCallVolume;
+// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
+// QTI_BEGIN: 2021-07-06: Telephony: IMS: Align CRS volume level to local ring volume level
         }
+// QTI_END: 2021-07-06: Telephony: IMS: Align CRS volume level to local ring volume level
+// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
         final float ratio =(float) (maxVoiceCallVolume - minVoiceCallVolume) /
             (maxRingVolume - minRingVolume);
         int crsVolume = minVoiceCallVolume + (int)Math.round(ratio * (ringVolume - minRingVolume));
@@ -513,8 +574,11 @@ public class Ringer {
                 minRingVolume,
                 crsVolume);
         return crsVolume;
+// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
+// QTI_BEGIN: 2021-07-06: Telephony: IMS: Align CRS volume level to local ring volume level
     }
 
+// QTI_END: 2021-07-06: Telephony: IMS: Align CRS volume level to local ring volume level
     public boolean startRinging(Call foregroundCall, boolean isHfpDeviceAttached) {
         boolean deferBlockOnRingingFuture = false;
         // try-finally to ensure that the block on ringing future is always called.
@@ -575,7 +639,9 @@ public class Ringer {
                 return acquireAudioFocus;
             }
 
+// QTI_BEGIN: 2023-05-22: Telephony: IMS: Remove device to device patches for CRS
             mIsCrsCall = foregroundCall.isCrsCall();
+// QTI_END: 2023-05-22: Telephony: IMS: Remove device to device patches for CRS
             stopCallWaiting();
 
             final boolean shouldFlash = attributes.shouldRingForContact();
@@ -732,12 +798,16 @@ public class Ringer {
                 }
             };
             deferBlockOnRingingFuture = true;  // Run in vibrationLogic.
+// QTI_BEGIN: 2023-05-22: Telephony: IMS: Remove device to device patches for CRS
             if (mIsCrsCall && isCrsSupportedFromAudioHal()) {
                 //CRS has no haptics channel
                 Log.i(this, "Play CRS in RING Mode");
                 mAudioManager.setParameters("CRS_volume=" +
                         mAudioManager.getStreamVolume(AudioManager.STREAM_RING));
+// QTI_END: 2023-05-22: Telephony: IMS: Remove device to device patches for CRS
+// QTI_BEGIN: 2023-07-12: Telephony: IMS: Fix no vibration during CRS playing
                 afterRingtoneLogic.accept(/* ringtone= */ null, /* stopped= */ false);
+// QTI_END: 2023-07-12: Telephony: IMS: Fix no vibration during CRS playing
             } else if (ringtoneInfoSupplier != null) {
                 mRingtonePlayer.play(ringtoneInfoSupplier, afterRingtoneLogic, isHfpDeviceAttached);
             } else {
@@ -865,17 +935,24 @@ public class Ringer {
         }
     }
 
+// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
     public void muteCrs(boolean mute) {
         Log.i(this, "Mute CRS : " + mute);
         mAudioManager.adjustStreamVolume(AudioManager.STREAM_VOICE_CALL,
                 mute ? AudioManager.ADJUST_MUTE : AudioManager.ADJUST_UNMUTE, 0);
     }
 
+// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
+// QTI_BEGIN: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
     public void stopPlayingCrs() {
+// QTI_END: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
+// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
         if (mRingingCall != null) {
             Log.addEvent(mRingingCall, LogUtils.Events.STOP_RINGER);
             mRingingCall = null;
         }
+// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
+// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
 
         if (mCommunicationDeviceChangedListener != null) {
             try {
@@ -888,6 +965,8 @@ public class Ringer {
             mCommunicationDeviceChangedListener = null;
 
         }
+// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
+// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
 
         if (mIsVibrating) {
             Log.addEvent(mVibratingCall, LogUtils.Events.STOP_VIBRATOR);
@@ -897,6 +976,7 @@ public class Ringer {
         }
     }
 
+// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
     public void stopRinging() {
         final Call foregroundCall = mRingingCall != null ? mRingingCall : mVibratingCall;
         if (mAccessibilityManagerAdapter != null) {
@@ -911,15 +991,27 @@ public class Ringer {
                 mRingingCall = null;
             }
 
+// QTI_BEGIN: 2023-05-22: Telephony: IMS: Remove device to device patches for CRS
             if (mIsCrsCall && isCrsSupportedFromAudioHal()) {
+// QTI_END: 2023-05-22: Telephony: IMS: Remove device to device patches for CRS
+// QTI_BEGIN: 2023-04-03: Telephony: IMS: Support video CRS in RINGTONE
                 Log.i(this, "Stop CRS ");
+// QTI_END: 2023-04-03: Telephony: IMS: Support video CRS in RINGTONE
+// QTI_BEGIN: 2023-05-22: Telephony: IMS: Remove device to device patches for CRS
                 //set CRS_volume as 0 when CRS is stopped or silence the call.
                 mAudioManager.setParameters("CRS_volume=0");
+// QTI_END: 2023-05-22: Telephony: IMS: Remove device to device patches for CRS
+// QTI_BEGIN: 2023-04-03: Telephony: IMS: Support video CRS in RINGTONE
                 mIsCrsCall = false;
+// QTI_END: 2023-04-03: Telephony: IMS: Support video CRS in RINGTONE
+// QTI_BEGIN: 2023-05-16: Telephony: Fix ringer not stopping issue during answer of waiting call
             } else {
+// QTI_END: 2023-05-16: Telephony: Fix ringer not stopping issue during answer of waiting call
+// QTI_BEGIN: 2023-04-03: Telephony: IMS: Support video CRS in RINGTONE
                 Log.i(this, "Stop local Ringing");
                 mRingtonePlayer.stop();
             }
+// QTI_END: 2023-04-03: Telephony: IMS: Support video CRS in RINGTONE
 
             if (mIsVibrating) {
                 Log.addEvent(mVibratingCall, LogUtils.Events.STOP_VIBRATOR);
@@ -944,7 +1036,9 @@ public class Ringer {
     }
 
     public boolean isRinging() {
+// QTI_BEGIN: 2023-05-22: Telephony: IMS: Remove device to device patches for CRS
         return mRingtonePlayer.isPlaying() || mIsCrsCall;
+// QTI_END: 2023-05-22: Telephony: IMS: Remove device to device patches for CRS
     }
 
     /**
@@ -997,6 +1091,7 @@ public class Ringer {
                 && (audioManager.getRingerMode() != AudioManager.RINGER_MODE_SILENT
                 || (zenModeOn && shouldRingForContact));
     }
+// QTI_BEGIN: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
 
     public void startVibratingForOutgoingCallActive() {
         if (!mIsVibrating
@@ -1018,6 +1113,7 @@ public class Ringer {
             }).start();
         }
     }
+// QTI_END: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
 
     /**
      * There are 3 settings for haptics:

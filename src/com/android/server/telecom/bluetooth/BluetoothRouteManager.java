@@ -283,8 +283,10 @@ public class BluetoothRouteManager extends StateMachine {
 
             SomeArgs args = (SomeArgs) msg.obj;
             String address = (String) args.arg2;
+// QTI_BEGIN: 2023-06-07: Telephony: Prevent BT LE headset disconnect during switch from wired headset
             boolean switchingBtDevices = address != null &&
                     !Objects.equals(mDeviceAddress, address);
+// QTI_END: 2023-06-07: Telephony: Prevent BT LE headset disconnect during switch from wired headset
 
             if (switchingBtDevices) { // check if it is an hearing aid pair
                 BluetoothAdapter bluetoothAdapter = mDeviceManager.getBluetoothAdapter();
@@ -321,8 +323,10 @@ public class BluetoothRouteManager extends StateMachine {
                         }
                         break;
                     case CONNECT_BT:
+// QTI_BEGIN: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
                         Log.i(LOG_TAG, "CONNECT_BT: address =" + address +
                                 " switchingBtDevices = " + switchingBtDevices);
+// QTI_END: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
                         String actualAddress = null;
                         if (mFeatureFlags.resolveSwitchingBtDevicesComputation()) {
                             Pair<String, Boolean> addressInfo = computeAddressToConnectTo(address,
@@ -355,7 +359,9 @@ public class BluetoothRouteManager extends StateMachine {
                         }
                         break;
                     case DISCONNECT_BT:
+// QTI_BEGIN: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
                         Log.i(LOG_TAG, "DISCONNECT_BT");
+// QTI_END: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
                         mDeviceManager.disconnectAudio();
                         break;
                     case RETRY_BT_CONNECTION:
@@ -462,8 +468,10 @@ public class BluetoothRouteManager extends StateMachine {
 
             SomeArgs args = (SomeArgs) msg.obj;
             String address = (String) args.arg2;
+// QTI_BEGIN: 2023-06-07: Telephony: Prevent BT LE headset disconnect during switch from wired headset
             boolean switchingBtDevices = address != null &&
                     !Objects.equals(mDeviceAddress, address);
+// QTI_END: 2023-06-07: Telephony: Prevent BT LE headset disconnect during switch from wired headset
             if (mFeatureFlags.resolveSwitchingBtDevicesComputation()) {
                 switchingBtDevices &= (mDeviceAddress != null);
             }
@@ -480,8 +488,10 @@ public class BluetoothRouteManager extends StateMachine {
                         }
                         break;
                     case CONNECT_BT:
+// QTI_BEGIN: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
                         Log.i(LOG_TAG, "CONNECT_BT: address =" + address +
                                 " switchingBtDevices = " + switchingBtDevices);
+// QTI_END: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
                         String actualAddress = null;
                         if (mFeatureFlags.resolveSwitchingBtDevicesComputation()) {
                             Pair<String, Boolean> addressInfo = computeAddressToConnectTo(address,
@@ -522,7 +532,9 @@ public class BluetoothRouteManager extends StateMachine {
                         }
                         break;
                     case DISCONNECT_BT:
+// QTI_BEGIN: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
                         Log.i(LOG_TAG, "DISCONNECT_BT");
+// QTI_END: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
                         mDeviceManager.disconnectAudio();
                         break;
                     case RETRY_BT_CONNECTION:
@@ -685,7 +697,9 @@ public class BluetoothRouteManager extends StateMachine {
                         "stuck?");
                 return false;
             }
+// QTI_BEGIN: 2020-07-17: Bluetooth: Revert " HearingAid: Ignore audio state for HAP am: 8a52fdd922"
             return currentState != mAudioOffState;
+// QTI_END: 2020-07-17: Bluetooth: Revert " HearingAid: Ignore audio state for HAP am: 8a52fdd922"
         } catch (InterruptedException e) {
             Log.w(LOG_TAG, "isBluetoothAudioConnectedOrPending -- interrupted getting state");
             return false;
@@ -765,7 +779,9 @@ public class BluetoothRouteManager extends StateMachine {
     }
 
     public void onActiveDeviceChanged(BluetoothDevice device, int deviceType) {
+// QTI_BEGIN: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
         Log.i(this, "onActiveDeviceChanged: device = " + device + " type = " + deviceType);
+// QTI_END: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
         boolean wasActiveDevicePresent = hasBtActiveDevice();
         if (deviceType == BluetoothDeviceManager.DEVICE_TYPE_LE_AUDIO) {
             mLeAudioActiveDeviceCache = device;
@@ -986,7 +1002,9 @@ public class BluetoothRouteManager extends StateMachine {
     private String connectBtAudioLegacy(String address, int retryCount,
             boolean switchingBtDevices) {
         Log.i(this, "connectBtAudioLegacy: address = " + address + " retryCount = " + retryCount
+// QTI_BEGIN: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
                 + " switchingBtDevices = " + switchingBtDevices);
+// QTI_END: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
         Collection<BluetoothDevice> deviceList = mDeviceManager.getConnectedDevices();
         Optional<BluetoothDevice> matchingDevice = deviceList.stream()
                 .filter(d -> Objects.equals(d.getAddress(), address))
@@ -1104,6 +1122,7 @@ public class BluetoothRouteManager extends StateMachine {
             for (BluetoothDevice device : bluetoothAdapter.getActiveDevices(
                         BluetoothProfile.HEADSET)) {
                 hfpAudioOnDevice = device;
+// QTI_BEGIN: 2022-12-05: Telephony: BT: Fix counting active devices wrong
                 if (hfpAudioOnDevice != null && bluetoothHeadset.getAudioState(hfpAudioOnDevice)
                         == BluetoothHeadset.STATE_AUDIO_DISCONNECTED) {
                     hfpAudioOnDevice = null;
@@ -1112,6 +1131,7 @@ public class BluetoothRouteManager extends StateMachine {
                     activeDevices++;
                     break;
                 }
+// QTI_END: 2022-12-05: Telephony: BT: Fix counting active devices wrong
             }
         }
 
@@ -1166,15 +1186,21 @@ public class BluetoothRouteManager extends StateMachine {
         }
 
         if (leAudioActiveDevice != null) {
+// QTI_BEGIN: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
             Log.i(this, "getBluetoothAudioConnectedDevice: " + leAudioActiveDevice);
+// QTI_END: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
             return leAudioActiveDevice;
         }
 
         if (hearingAidActiveDevice != null) {
+// QTI_BEGIN: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
             Log.i(this, "getBluetoothAudioConnectedDevice: " + hearingAidActiveDevice);
+// QTI_END: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
             return hearingAidActiveDevice;
         }
+// QTI_BEGIN: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
         Log.i(this, "getBluetoothAudioConnectedDevice: " + hfpAudioOnDevice);
+// QTI_END: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
         return hfpAudioOnDevice;
     }
 
@@ -1200,7 +1226,9 @@ public class BluetoothRouteManager extends StateMachine {
     }
 
     private boolean addDevice(String address) {
+// QTI_BEGIN: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
         Log.i(this, "addDevice : " + address);
+// QTI_END: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
         if (mAudioConnectingStates.containsKey(address)) {
             Log.i(this, "Attempting to add device %s twice.", address);
             return false;
@@ -1215,7 +1243,9 @@ public class BluetoothRouteManager extends StateMachine {
     }
 
     private boolean removeDevice(String address) {
+// QTI_BEGIN: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
         Log.i(this, "removeDevice: " + address);
+// QTI_END: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
         if (!mAudioConnectingStates.containsKey(address)) {
             Log.i(this, "Attempting to remove already-removed device %s", address);
             return false;

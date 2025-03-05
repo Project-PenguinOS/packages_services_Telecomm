@@ -393,9 +393,11 @@ public class InCallController extends CallsManagerListenerBase implements
             Log.i(this, "using user id: %s for binding. User from Call is: %s", userToBind,
                     userFromCall);
             if (!mContext.bindServiceAsUser(intent, mServiceConnection,
+// QTI_BEGIN: 2023-04-13: Telephony: Revert "Ensure to start dialer process with persistent priority"
                     Context.BIND_AUTO_CREATE | Context.BIND_FOREGROUND_SERVICE
                         | Context.BIND_ALLOW_BACKGROUND_ACTIVITY_STARTS
                         | Context.BIND_SCHEDULE_LIKE_TOP_APP, userToBind)) {
+// QTI_END: 2023-04-13: Telephony: Revert "Ensure to start dialer process with persistent priority"
                 Log.w(this, "Failed to connect.");
                 mIsConnected = false;
             }
@@ -2776,9 +2778,11 @@ public class InCallController extends CallsManagerListenerBase implements
             for (Map.Entry<InCallServiceInfo, IInCallService> entry : serviceMap.
                     get(userFromCall).entrySet()) {
                 InCallServiceInfo info = entry.getKey();
+// QTI_BEGIN: 2022-11-22: Telephony: Add null check for InCallServiceInfo when updateCall
                 if (info == null) {
                     continue;
                 }
+// QTI_END: 2022-11-22: Telephony: Add null check for InCallServiceInfo when updateCall
                 ComponentName componentName = info.getComponentName();
 
                 // If specified, skip ICS if it matches the package name.  Used for cases where on

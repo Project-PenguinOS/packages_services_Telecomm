@@ -19,7 +19,9 @@ package com.android.server.telecom;
 import android.content.ComponentName;
 import android.content.Context;
 import android.net.Uri;
+// QTI_BEGIN: 2018-03-07: Telephony: Emergency Number Implementation for SS & DS
 import android.telecom.Log;
+// QTI_END: 2018-03-07: Telephony: Emergency Number Implementation for SS & DS
 import android.telecom.PhoneAccount;
 import android.telecom.PhoneAccountHandle;
 import android.telephony.PhoneNumberUtils;
@@ -42,8 +44,10 @@ public final class TelephonyUtil {
     private static final String PSTN_CALL_SERVICE_CLASS_NAME =
             "com.android.services.telephony.TelephonyConnectionService";
 
+// QTI_BEGIN: 2018-03-07: Telephony: Emergency Number Implementation for SS & DS
     private static final String LOG_TAG = "TelephonyUtil";
 
+// QTI_END: 2018-03-07: Telephony: Emergency Number Implementation for SS & DS
     private static final PhoneAccountHandle DEFAULT_EMERGENCY_PHONE_ACCOUNT_HANDLE =
             new PhoneAccountHandle(
                     new ComponentName(TELEPHONY_PACKAGE_NAME, PSTN_CALL_SERVICE_CLASS_NAME), "E");
@@ -80,5 +84,7 @@ public final class TelephonyUtil {
         } catch (UnsupportedOperationException | IllegalStateException ignored) {
             return false;
         }
+// QTI_BEGIN: 2018-03-07: Telephony: Emergency Number Implementation for SS & DS
     }
+// QTI_END: 2018-03-07: Telephony: Emergency Number Implementation for SS & DS
 }

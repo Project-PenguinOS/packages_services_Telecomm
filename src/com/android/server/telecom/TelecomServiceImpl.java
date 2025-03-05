@@ -84,6 +84,8 @@ import com.android.server.telecom.callsequencing.voip.VoipCallMonitor;
 import com.android.server.telecom.components.UserCallIntentProcessorFactory;
 import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.metrics.ApiStats;
+import com.android.server.telecom.metrics.EventStats;
+import com.android.server.telecom.metrics.EventStats.CriticalEvent;
 import com.android.server.telecom.metrics.TelecomMetricsController;
 import com.android.server.telecom.settings.BlockedNumbersActivity;
 import com.android.server.telecom.callsequencing.TransactionManager;
@@ -195,8 +197,9 @@ public class TelecomServiceImpl {
         @Override
         public void addCall(CallAttributes callAttributes, ICallEventCallback callEventCallback,
                 String callId, String callingPackage) {
+            int uid = Binder.getCallingUid();
             ApiStats.ApiEvent event = new ApiStats.ApiEvent(ApiStats.API_ADDCALL,
-                    Binder.getCallingUid(), ApiStats.RESULT_PERMISSION);
+                    uid, ApiStats.RESULT_PERMISSION);
             try {
                 Log.startSession("TSI.aC", Log.getPackageAbbreviation(callingPackage));
                 Log.i(TAG, "addCall: id=[%s], attributes=[%s]", callId, callAttributes);
@@ -213,8 +216,8 @@ public class TelecomServiceImpl {
 
                 // add extras about info used for FGS delegation
                 Bundle extras = new Bundle();
-                extras.putInt(CallAttributes.CALLER_UID_KEY, Binder.getCallingUid());
-                extras.putInt(CallAttributes.CALLER_PID_KEY, Binder.getCallingPid());
+                extras.putInt(CallAttributes.CALLER_UID_KEY, uid);
+                extras.putInt(CallAttributes.CALLER_PID_KEY, uid);
 
 
                 CompletableFuture<CallTransaction> transactionFuture;
@@ -233,6 +236,11 @@ public class TelecomServiceImpl {
                             public void onResult(CallTransactionResult result) {
                                 Log.d(TAG, "addCall: onResult");
                                 Call call = result.getCall();
+                                if (mFeatureFlags.telecomMetricsSupport()) {
+                                    mMetricsController.getEventStats().log(new CriticalEvent(
+                                            EventStats.ID_ADD_CALL, uid,
+                                            EventStats.CAUSE_CALL_TRANSACTION_SUCCESS));
+                                }
 
                                 if (call == null || !call.getId().equals(callId)) {
                                     Log.i(TAG, "addCall: onResult: call is null or id mismatch");
@@ -277,6 +285,12 @@ public class TelecomServiceImpl {
                                     mAnomalyReporter.reportAnomaly(
                                             ADD_CALL_ON_ERROR_UUID,
                                             exception.getMessage());
+                                }
+                                if (mFeatureFlags.telecomMetricsSupport()) {
+                                    mMetricsController.getEventStats().log(new CriticalEvent(
+                                            EventStats.ID_ADD_CALL, uid,
+                                            EventStats.CAUSE_CALL_TRANSACTION_BASE
+                                                    + exception.getCode()));
                                 }
                             }
                         });
@@ -2146,12 +2160,16 @@ public class TelecomServiceImpl {
                             + " to start conference call");
                 }
                 // Binder is clearing the identity, so we need to keep the store the handle
+// QTI_BEGIN: 2024-04-29: Telephony: Conference : Fix the user handle being passed to Telecom
                 UserHandle currentUserHandle = Binder.getCallingUserHandle();
+// QTI_END: 2024-04-29: Telephony: Conference : Fix the user handle being passed to Telecom
                 long token = Binder.clearCallingIdentity();
                 event.setResult(ApiStats.RESULT_NORMAL);
                 try {
                     mCallsManager.startConference(participants, extras, callingPackage,
+// QTI_BEGIN: 2024-04-29: Telephony: Conference : Fix the user handle being passed to Telecom
                             currentUserHandle);
+// QTI_END: 2024-04-29: Telephony: Conference : Fix the user handle being passed to Telecom
                 } finally {
                     Binder.restoreCallingIdentity(token);
                 }
@@ -3160,8 +3178,10 @@ public class TelecomServiceImpl {
             }
 
             if (videoState == DEFAULT_VIDEO_STATE || !isValidAcceptVideoState(videoState)) {
+// QTI_BEGIN: 2023-09-13: Telephony: Fix video CRS for VoLTE call is answered as video call through KEYCODE_CALL
                 videoState = call.isVideoCrsForVoLteCall()
                         ? VideoProfile.STATE_AUDIO_ONLY : call.getVideoState();
+// QTI_END: 2023-09-13: Telephony: Fix video CRS for VoLTE call is answered as video call through KEYCODE_CALL
             }
             mCallsManager.answerCall(call, videoState);
         }
