@@ -4295,7 +4295,7 @@ public class CallsManager extends Call.ListenerBase
 
 // QTI_BEGIN: 2024-07-12: Telephony: HFP: handle HFP and cellular calls
     /* Returns true if HFP call is present */
-    boolean isHfpCallPresent() {
+    public boolean isHfpCallPresent() {
         Optional<Call> hfpCall = mCalls.stream()
                 .filter(call -> mContext.getString(R.string.hfp_client_connection).equals(
                          call.getTargetPhoneAccount() == null ? null :
@@ -4304,13 +4304,10 @@ public class CallsManager extends Call.ListenerBase
         return hfpCall.isPresent();
     }
 
-    /* Returns first held call across phoneaccounts */
-    private Call getHeldCallAcrossPhoneAccounts() {
-        Optional<Call> heldCall = mCalls.stream()
-                .filter(call -> call.getParentCall() == null
-                        && call.getState() == CallState.ON_HOLD)
-                .findFirst();
-        return heldCall.orElse(null);
+    /* Returns true if call is an HFP call and false otherwise.  */
+    public boolean isCallHfp(Call call) {
+        PhoneAccountHandle account = getPhoneAccountForCall(call);
+        return account != null && isPhoneAccountHfp(account);
     }
 
 // QTI_END: 2024-07-12: Telephony: HFP: handle HFP and cellular calls
@@ -4322,29 +4319,6 @@ public class CallsManager extends Call.ListenerBase
         Log.i(this, "holdActiveCallForNewCall, newCall: %s, activeCall: %s", call.getId(),
                 (activeCall == null ? "<none>" : activeCall.getId()));
         if (activeCall != null && activeCall != call) {
-// QTI_BEGIN: 2024-07-12: Telephony: HFP: handle HFP and cellular calls
-            // Handle if any HFP call is present otherwise fall back to legacy handling
-            if (isHfpCallPresent()) {
-                Call heldCall = getHeldCallAcrossPhoneAccounts();
-                if (heldCall != null) {
-                    if (supportsHold(activeCall)) {
-                        Log.i(this, "holdActiveCallForNewCall: hold active call");
-                        heldCall.disconnect();
-                        activeCall.hold();
-                    } else {
-                        Log.i(this, "holdActiveCallForNewCall: disconnect active call");
-                        activeCall.disconnect();
-                    }
-                } else if(!areFromSameSource(activeCall, call)) {
-                    if (supportsHold(activeCall)) {
-                        activeCall.hold();
-                    } else {
-                        activeCall.disconnect();
-                    }
-                }
-                return true;
-            }
-// QTI_END: 2024-07-12: Telephony: HFP: handle HFP and cellular calls
             if (canHold(activeCall)) {
 // QTI_BEGIN: 2023-04-06: Telephony: Pseudo-DSDA: Stop additional HOLD at Telecom.
                 // When Pseudo DSDA call is answered via BT, there is a limitation that we will try
@@ -4915,6 +4889,10 @@ public class CallsManager extends Call.ListenerBase
     }
 
 // QTI_END: 2023-05-30: Telephony: DSDA: Make room to place emergency call
+    private List<Call> getAllOngoingCalls() {
+        return getAllCallWithState(ONGOING_CALL_STATES);
+    }
+
     public Call getActiveCall() {
         return getFirstCallWithState(CallState.ACTIVE);
     }
@@ -5735,6 +5713,27 @@ public class CallsManager extends Call.ListenerBase
                 ONGOING_CALL_STATES) > 0;
     }
 
+    private PhoneAccountHandle getPhoneAccountForCall(Call call) {
+        if (call == null) {
+            Log.w(this, "getPhoneAccountForCall: call is null.");
+            return null;
+        }
+        PhoneAccountHandle callPhoneAccount = call.getTargetPhoneAccount();
+        if (callPhoneAccount == null && call.isConference() &&
+                !call.getChildCalls().isEmpty()) {
+            callPhoneAccount = getFirstChildPhoneAccount(call);
+            Log.i(this, "getPhoneAccountForCall: using child call PhoneAccount = " +
+                  callPhoneAccount);
+        }
+        return callPhoneAccount;
+    }
+
+    private boolean isPhoneAccountHfp(PhoneAccountHandle phoneAccount) {
+        return mContext.getString(R.string.hfp_client_connection).equals(
+                   phoneAccount == null ? null :
+                   phoneAccount.getComponentName().getClassName());
+    }
+
     /**
      * Determines if the system incoming call UI should be shown.
      * The system incoming call UI will be shown if the new incoming call is self-managed, and there
@@ -5746,6 +5745,26 @@ public class CallsManager extends Call.ListenerBase
         return incomingCall.isIncoming() && incomingCall.isSelfManaged()
                 && hasUnholdableCallsForOtherConnectionService(incomingCall.getTargetPhoneAccount())
                 && incomingCall.getHandoverSourceCall() == null;
+    }
+
+    private void disconnectCallForEmergency(Call liveCall, String disconnectReason) {
+        liveCall.setOverrideDisconnectCauseCode(new DisconnectCause(
+                DisconnectCause.LOCAL, DisconnectCause.REASON_EMERGENCY_CALL_PLACED));
+        liveCall.disconnect(disconnectReason);
+    }
+
+
+   /**
+    * Disconnect all ongoing HFP calls.
+    */
+    public void disconnectAllHfpCalls() {
+        List<Call> ongoingCalls = getAllOngoingCalls();
+        for (Call ongoingCall : ongoingCalls) {
+            if (isCallHfp(ongoingCall)) {
+                disconnectCallForEmergency(ongoingCall,
+                    "Disconnecting ongoing call to make room for emergency call");
+            }
+        }
     }
 
     /**
@@ -5890,8 +5909,8 @@ public class CallsManager extends Call.ListenerBase
                         DisconnectCause.LOCAL, DisconnectCause.REASON_EMERGENCY_CALL_PLACED));
                 liveCall.disconnect("outgoing call does not support emergency calls, "
                         + "disconnecting.");
+                return true;
             }
-            return true;
         }
 
         // First thing, if we are trying to make an emergency call with the same package name as
@@ -5913,6 +5932,7 @@ public class CallsManager extends Call.ListenerBase
             // hold but they still support adding a call by going immediately into conference
             // mode). Return true here and we'll run this code again after user chooses an
             // account.
+            Log.w(this, "makeRoomForOutgoingEmergencyCall: Null phone account for emergency call.");
             return true;
         }
 

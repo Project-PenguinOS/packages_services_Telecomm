@@ -252,6 +252,42 @@ public class CallSequencingController {
                         + "activeCall: %s", call.getId(),
                 (activeCall == null ? "<none>" : activeCall.getId()));
         if (activeCall != null && activeCall != call) {
+            if (mCallsManager.isHfpCallPresent()) {
+                Call heldCall = mCallsManager.getFirstCallWithState(CallState.ON_HOLD);
+                CompletableFuture<Boolean> disconnectFutureHfp;
+                if (heldCall != null) {
+                    boolean heldCallIsHfp = mCallsManager.isCallHfp(heldCall);
+                    if (mCallsManager.supportsHold(activeCall)) {
+                        Log.i(this, "holdActiveCallForNewCall: hold active call");
+                        // We don't wamt to use futures if the held call is HFP because
+                        // it won't be disconnected right away and the hold will fail.
+                        if (heldCallIsHfp) {
+                            Log.i(this, "holdActiveCallForNewCall: Held HFP call present.");
+                            heldCall.disconnect();
+                            activeCall.hold();
+                            return CompletableFuture.completedFuture(true);
+                        }
+                        disconnectFutureHfp = heldCall.disconnect();
+                        return disconnectFutureHfp
+                                .thenComposeAsync((result) -> {
+                                    if (result) {
+                                        return activeCall.hold().thenCompose((holdSuccess) -> {
+                                            if (holdSuccess) {
+                                                // Increase hold count only if hold succeeds.
+                                                call.increaseHeldByThisCallCount();
+                                            }
+                                            return CompletableFuture.completedFuture(holdSuccess);
+                                        });
+                                    }
+                                    return CompletableFuture.completedFuture(false);
+                                }, new LoggedHandlerExecutor(mHandler,
+                                       "CSC.hACFNCWS", mCallsManager.getLock()));
+                    } else {
+                        Log.i(this, "holdActiveCallForNewCall: disconnect active call");
+                        return activeCall.disconnect();
+                    }
+                }
+            }
             boolean isSequencingRequiredActiveAndCall = !arePhoneAccountsSame(call, activeCall);
             if (mCallsManager.canHold(activeCall)) {
                 CompletableFuture<Boolean> holdFuture = activeCall.hold("swap to " + call.getId());
@@ -384,6 +420,7 @@ public class CallSequencingController {
         Call activeCall = (Call) mCallsManager.getConnectionServiceFocusManager()
                 .getCurrentFocusCall();
         String activeCallId = null;
+        boolean isHfpCallPresent = mCallsManager.isHfpCallPresent();
         boolean isSequencingRequiredActiveAndCall = false;
         if (activeCall != null && !activeCall.isLocallyDisconnecting()) {
             activeCallId = activeCall.getId();
@@ -420,7 +457,8 @@ public class CallSequencingController {
         }
 
         // Verify call state was changed to ACTIVE state
-        if (isSequencingRequiredActiveAndCall && unholdCallFutureHandler != null) {
+        if ((isSequencingRequiredActiveAndCall || isHfpCallPresent) &&
+            unholdCallFutureHandler != null) {
             String fixedActiveCallId = activeCallId;
             // Only attempt to unhold call if previous request to hold/disconnect call (on different
             // phone account) succeeded.
@@ -500,6 +538,12 @@ public class CallSequencingController {
             // Not likely, but a good correctness check.
             return CompletableFuture.completedFuture(true);
         }
+        // Disconnect all HFP calls to avoid an ACTIVE + ACTIVE conflict.
+        // BluetoothInCallService isn't guaranteed to hold calls
+        // and HFP calls are in a different phone account from
+        // cellular calls. It is safer to disconnect HFP calls here
+        // than to attempt to hold them.
+        mCallsManager.disconnectAllHfpCalls();
 
         if (mCallsManager.hasMaximumOutgoingCalls(emergencyCall)) {
             Call outgoingCall = mCallsManager.getFirstCallWithState(OUTGOING_CALL_STATES);
