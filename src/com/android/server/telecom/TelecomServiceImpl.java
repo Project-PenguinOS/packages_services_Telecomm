@@ -198,6 +198,7 @@ public class TelecomServiceImpl {
         public void addCall(CallAttributes callAttributes, ICallEventCallback callEventCallback,
                 String callId, String callingPackage) {
             int uid = Binder.getCallingUid();
+            int pid = Binder.getCallingPid();
             ApiStats.ApiEvent event = new ApiStats.ApiEvent(ApiStats.API_ADDCALL,
                     uid, ApiStats.RESULT_PERMISSION);
             try {
@@ -217,7 +218,7 @@ public class TelecomServiceImpl {
                 // add extras about info used for FGS delegation
                 Bundle extras = new Bundle();
                 extras.putInt(CallAttributes.CALLER_UID_KEY, uid);
-                extras.putInt(CallAttributes.CALLER_PID_KEY, uid);
+                extras.putInt(CallAttributes.CALLER_PID_KEY, pid);
 
 
                 CompletableFuture<CallTransaction> transactionFuture;

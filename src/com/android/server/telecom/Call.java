@@ -3485,6 +3485,13 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             }
         }
 
+        if (extras.containsKey(Connection.EXTRA_ANSWERING_DROPS_FG_CALL)) {
+            CharSequence appName =
+                    extras.getCharSequence(Connection.EXTRA_ANSWERING_DROPS_FG_CALL_APP_NAME);
+            Log.addEvent(this, LogUtils.Events.ANSWER_DROPS_FG,
+                    "Answering will drop FG call from %s", appName);
+        }
+
         // The remote connection service API can track the phone account which was originally
         // requested to create a connection via the remote connection service API; we store that so
         // we have some visibility into how a call was actually placed.
