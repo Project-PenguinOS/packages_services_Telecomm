@@ -832,7 +832,7 @@ public class CallsManager extends Call.ListenerBase
                 : null;
         mCallSequencingAdapter = new CallsManagerCallSequencingAdapter(this, mContext,
                 new CallSequencingController(this, mContext, mClockProxy,
-                        mAnomalyReporter, mTimeoutsAdapter, mMetricsController,
+                        mAnomalyReporter, mTimeoutsAdapter, mMetricsController, mMmiUtils,
                         mFeatureFlags), mCallAudioManager, mFeatureFlags);
 
         if (mFeatureFlags.useImprovedListenerOrder()) {
@@ -2308,12 +2308,15 @@ public class CallsManager extends Call.ListenerBase
                 potentialPhoneAccounts -> {
                     Log.i(CallsManager.this, "make room for outgoing call stage");
                     if (mMmiUtils.isPotentialInCallMMICode(handle) && !isSelfManaged) {
+                        // We will allow the MMI code if call sequencing is not enabled or there
+                        // are only calls on the same phone account.
                         boolean shouldAllowMmiCode = mCallSequencingAdapter
                                 .shouldAllowMmiCode(finalCall);
                         if (shouldAllowMmiCode) {
                             return CompletableFuture.completedFuture(true);
                         } else {
-                            Log.i(this, "Rejecting the MMI code because there is an "
+                            // Reject the in-call MMI code.
+                            Log.i(this, "Rejecting the in-call MMI code because there is an "
                                     + "ongoing call on a different phone account.");
                             return CompletableFuture.completedFuture(false);
                         }
@@ -2349,6 +2352,10 @@ public class CallsManager extends Call.ListenerBase
                                     finalCall.getTargetPhoneAccount(), finalCall);
                         }
                         finalCall.setStartFailCause(CallFailureCause.IN_EMERGENCY_CALL);
+                        // Show an error message when dialing a MMI code during an emergency call.
+                        if (mMmiUtils.isPotentialMMICode(handle)) {
+                            showErrorMessage(R.string.emergencyCall_reject_mmi);
+                        }
                         return CompletableFuture.completedFuture(false);
                     }
 

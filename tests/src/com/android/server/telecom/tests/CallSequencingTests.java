@@ -62,6 +62,7 @@ import com.android.server.telecom.CallState;
 import com.android.server.telecom.CallsManager;
 import com.android.server.telecom.ClockProxy;
 import com.android.server.telecom.ConnectionServiceFocusManager;
+import com.android.server.telecom.MmiUtils;
 import com.android.server.telecom.PhoneAccountRegistrar;
 import com.android.server.telecom.Timeouts;
 import com.android.server.telecom.callsequencing.CallSequencingController;
@@ -104,6 +105,7 @@ public class CallSequencingTests extends TelecomTestCase {
     @Mock AnomalyReporterAdapter mAnomalyReporter;
     @Mock Timeouts.Adapter mTimeoutsAdapter;
     @Mock TelecomMetricsController mMetricsController;
+    @Mock MmiUtils mMmiUtils;
     @Mock
     ConnectionServiceFocusManager mConnectionServiceFocusManager;
     @Mock Call mActiveCall;
@@ -117,7 +119,7 @@ public class CallSequencingTests extends TelecomTestCase {
         super.setUp();
         when(mFeatureFlags.enableCallSequencing()).thenReturn(true);
         mController = new CallSequencingController(mCallsManager, mContext, mClockProxy,
-                mAnomalyReporter, mTimeoutsAdapter, mMetricsController, mFeatureFlags);
+                mAnomalyReporter, mTimeoutsAdapter, mMetricsController, mMmiUtils, mFeatureFlags);
 
         when(mActiveCall.getState()).thenReturn(CallState.ACTIVE);
         when(mRingingCall.getState()).thenReturn(CallState.RINGING);
@@ -514,6 +516,25 @@ public class CallSequencingTests extends TelecomTestCase {
                 .reject(anyBoolean(), eq(null), anyString());
         verify(mActiveCall, timeout(SEQUENCING_TIMEOUT_MS)).hold(anyString());
         assertTrue(waitForFutureResult(future, false));
+    }
+
+    @SmallTest
+    @Test
+    public void testMakeRoomForOutgoingEmergencyCall_DoesNotSupportHoldingEmergency() {
+        setupMakeRoomForOutgoingEmergencyCallMocks();
+        when(mCallsManager.getCalls()).thenReturn(List.of(mActiveCall, mRingingCall));
+        when(mActiveCall.getTargetPhoneAccount()).thenReturn(mHandle1);
+        // Set the KEY_ALLOW_HOLD_CALL_DURING_EMERGENCY_BOOL carrier config to false for the active
+        // call's phone account.
+        PersistableBundle bundle = new PersistableBundle();
+        bundle.putBoolean(CarrierConfigManager.KEY_ALLOW_HOLD_CALL_DURING_EMERGENCY_BOOL, false);
+        when(mCallsManager.getCarrierConfigForPhoneAccount(eq(mHandle1))).thenReturn(bundle);
+        when(mNewCall.getTargetPhoneAccount()).thenReturn(mHandle2);
+        when(mRingingCall.getTargetPhoneAccount()).thenReturn(mHandle2);
+
+        mController.makeRoomForOutgoingCall(true, mNewCall);
+        // Verify that the active call got disconnected as it doesn't support holding for emergency.
+        verify(mActiveCall, timeout(SEQUENCING_TIMEOUT_MS)).disconnect(anyString());
     }
 
     @Test
