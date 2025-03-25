@@ -218,6 +218,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         default void onHoldToneRequested(Call call) {};
         default void onCallHoldFailed(Call call) {};
         default void onCallSwitchFailed(Call call) {};
+        default void onCallResumeFailed(Call call) {};
         default void onConnectionEvent(Call call, String event, Bundle extras) {};
         default void onCallStreamingStateChanged(Call call, boolean isStreaming) {}
         default void onExternalCallChanged(Call call, boolean isExternalCall) {};
@@ -307,6 +308,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         public void onCallHoldFailed(Call call) {}
         @Override
         public void onCallSwitchFailed(Call call) {}
+        @Override
+        public void onCallResumeFailed(Call call) {}
         @Override
         public void onConnectionEvent(Call call, String event, Bundle extras) {}
         @Override
@@ -4610,6 +4613,10 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         } else if (Connection.EVENT_CALL_SWITCH_FAILED.equals(event)) {
             for (Listener l : mListeners) {
                 l.onCallSwitchFailed(this);
+            }
+        } else if (Connection.EVENT_CALL_RESUME_FAILED.equals(event)) {
+            for (Listener l : mListeners) {
+                l.onCallResumeFailed(this);
             }
         } else if (Connection.EVENT_DEVICE_TO_DEVICE_MESSAGE.equals(event)
                 && extras != null && extras.containsKey(

@@ -309,6 +309,20 @@ public class CallsManagerCallSequencingAdapter {
         return !mIsCallSequencingEnabled || !mSequencingController.hasMmiCodeRestriction(call);
     }
 
+    /**
+     * Upon a call resume failure, we will auto-unhold the foreground call that was held. Note that
+     * this should only apply for calls across phone accounts as the ImsPhoneCallTracker handles
+     * this for a single phone.
+     * @param callResumeFailed The call that failed to resume.
+     * @param callToUnhold The fg call that was held.
+     */
+    public void handleCallResumeFailed(Call callResumeFailed, Call callToUnhold) {
+        if (mIsCallSequencingEnabled && !mSequencingController.arePhoneAccountsSame(
+                callResumeFailed, callToUnhold)) {
+            unholdCall(callToUnhold);
+        }
+    }
+
     public Handler getHandler() {
         return mHandler;
     }
