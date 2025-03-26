@@ -391,12 +391,15 @@ public class CallSequencingController {
                             Log.i(this, "Disconnecting non-holdable calls from account (%s).",
                                     activeCall.getTargetPhoneAccount());
                             return disconnectAllCallsWithPhoneAccount(
-                                    activeCall.getTargetPhoneAccount());
+                                    activeCall.getTargetPhoneAccount(), false /* excludeAccount */);
                         } else {
+                            // Disconnect calls on other phone accounts and allow CS to handle
+                            // holding/disconnecting calls from the same CS.
                             Log.i(this, "holdActiveCallForNewCallWithSequencing: "
-                                    + "allowing ConnectionService to determine how to handle "
-                                    + "this case");
-                            CompletableFuture.completedFuture(true);
+                                    + "disconnecting calls on other phone accounts and allowing "
+                                    + "ConnectionService to determine how to handle this case.");
+                            return disconnectAllCallsWithPhoneAccount(
+                                    activeCall.getTargetPhoneAccount(), true /* excludeAccount */);
                         }
                     }
                 } else {
@@ -1071,10 +1074,10 @@ public class CallSequencingController {
     }
 
     private CompletableFuture<Boolean> disconnectAllCallsWithPhoneAccount(
-            PhoneAccountHandle handle) {
+            PhoneAccountHandle handle, boolean excludeAccount) {
         CompletableFuture<Boolean> disconnectFuture = CompletableFuture.completedFuture(true);
         List<Call> calls = mCallsManager.getCalls().stream()
-                .filter(c -> c.getTargetPhoneAccount().equals(handle)).toList();
+                .filter(c -> excludeAccount != c.getTargetPhoneAccount().equals(handle)).toList();
         for (Call call: calls) {
             // Wait for all disconnects before we accept the new call.
             disconnectFuture = disconnectFuture.thenComposeAsync((result) -> {
@@ -1082,7 +1085,7 @@ public class CallSequencingController {
                     Log.i(this, "disconnectAllCallsWithPhoneAccount: "
                             + "Failed to disconnect %s.", call);
                 }
-                return call.disconnect("Un-holdable call " + call + " disconnected "
+                return call.disconnect("Call " + call + " disconnected "
                         + "in favor of new call.");
             }, new LoggedHandlerExecutor(mHandler, "CSC.dACWPA", mCallsManager.getLock()));
         }
