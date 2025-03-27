@@ -540,6 +540,11 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      */
     private int mSimultaneousType = CALL_SIMULTANEOUS_UNKNOWN;
 
+    /**
+     * Indicate whether the call has the video
+     */
+    boolean mHasVideoCall;
+
     private Bundle mIntentExtras = new Bundle();
 
     /**
@@ -4403,6 +4408,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         }
 
         if (VideoProfile.isVideo(videoState)) {
+            mHasVideoCall = true;
             mAnalytics.setCallIsVideo(true);
         }
     }
@@ -5229,5 +5235,9 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
     public int getSimultaneousType() {
         return mSimultaneousType;
+    }
+
+    public boolean hasVideoCall() {
+        return mHasVideoCall;
     }
 }
