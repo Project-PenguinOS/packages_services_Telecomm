@@ -910,7 +910,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
             long token = Binder.clearCallingIdentity();
             try {
                 synchronized (mLock) {
-                    logIncoming("setAddress %s %s %d", callId, address, presentation);
+                    logIncoming("setAddress %s %s %d", callId, Log.piiHandle(address),
+                            presentation);
                     Call call = mCallIdMapper.getCall(callId);
                     if (call != null) {
                         call.setHandle(address, presentation);
@@ -932,7 +933,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
             long token = Binder.clearCallingIdentity();
             try {
                 synchronized (mLock) {
-                    logIncoming("setCallerDisplayName %s %s %d", callId, callerDisplayName,
+                    logIncoming("setCallerDisplayName %s %s %d", callId, Log.pii(callerDisplayName),
                             presentation);
                     Call call = mCallIdMapper.getCall(callId);
                     if (call != null) {
@@ -1887,20 +1888,22 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                             Log.piiHandle(call.getHandle()));
                     try {
                         logOutgoing("createConnectionFailed %s", callId);
-                        mServiceInterface.createConnectionFailed(
-                                call.getConnectionManagerPhoneAccount(),
-                                callId,
-                                new ConnectionRequest(
-                                        call.getTargetPhoneAccount(),
-                                        call.getHandle(),
-                                        call.getIntentExtras(),
-                                        call.getVideoState(),
-                                        callId,
-                                        false),
-                                call.isIncoming(),
-                                Log.getExternalSession(TELECOM_ABBREVIATION));
-                        call.setDisconnectCause(new DisconnectCause(DisconnectCause.CANCELED));
-                        call.disconnect();
+                        if (mServiceInterface != null) {
+                            mServiceInterface.createConnectionFailed(
+                                    call.getConnectionManagerPhoneAccount(),
+                                    callId,
+                                    new ConnectionRequest(
+                                            call.getTargetPhoneAccount(),
+                                            call.getHandle(),
+                                            call.getIntentExtras(),
+                                            call.getVideoState(),
+                                            callId,
+                                            false),
+                                    call.isIncoming(),
+                                    Log.getExternalSession(TELECOM_ABBREVIATION));
+                            call.setDisconnectCause(new DisconnectCause(DisconnectCause.CANCELED));
+                            call.disconnect();
+                        }
                     } catch (RemoteException e) {
                     }
                 }
@@ -1974,17 +1977,19 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                     Log.addEvent(call, LogUtils.Events.HANDOVER_FAILED,
                             Log.piiHandle(call.getHandle()));
                     try {
-                        mServiceInterface.handoverFailed(
-                                callId,
-                                new ConnectionRequest(
-                                        call.getTargetPhoneAccount(),
-                                        call.getHandle(),
-                                        call.getIntentExtras(),
-                                        call.getVideoState(),
-                                        callId,
-                                        false),
-                                reason,
-                                Log.getExternalSession(TELECOM_ABBREVIATION));
+                        if (mServiceInterface != null) {
+                            mServiceInterface.handoverFailed(
+                                    callId,
+                                    new ConnectionRequest(
+                                            call.getTargetPhoneAccount(),
+                                            call.getHandle(),
+                                            call.getIntentExtras(),
+                                            call.getVideoState(),
+                                            callId,
+                                            false),
+                                    reason,
+                                    Log.getExternalSession(TELECOM_ABBREVIATION));
+                        }
                     } catch (RemoteException e) {
                     }
                 }
@@ -2010,9 +2015,11 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                 // If still bound, tell the connection service create connection has failed.
                 if (callId != null && isServiceValid("handoverComplete")) {
                     try {
-                        mServiceInterface.handoverComplete(
-                                callId,
-                                Log.getExternalSession(TELECOM_ABBREVIATION));
+                        if (mServiceInterface != null) {
+                            mServiceInterface.handoverComplete(
+                                    callId,
+                                    Log.getExternalSession(TELECOM_ABBREVIATION));
+                        }
                     } catch (RemoteException e) {
                     }
                 }
@@ -2089,8 +2096,10 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         if (callId != null && isServiceValid("onCallAudioStateChanged")) {
             try {
                 logOutgoing("onCallAudioStateChanged %s %s", callId, audioState);
-                mServiceInterface.onCallAudioStateChanged(callId, audioState,
-                        Log.getExternalSession(TELECOM_ABBREVIATION));
+                if (mServiceInterface != null) {
+                    mServiceInterface.onCallAudioStateChanged(callId, audioState,
+                            Log.getExternalSession(TELECOM_ABBREVIATION));
+                }
             } catch (RemoteException e) {
             }
         }
@@ -2566,8 +2575,10 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
             public void onSuccess() {
                 if (!isServiceValid("connectionServiceFocusLost")) return;
                 try {
-                    mServiceInterface.connectionServiceFocusLost(
-                            Log.getExternalSession(TELECOM_ABBREVIATION));
+                    if (mServiceInterface != null) {
+                        mServiceInterface.connectionServiceFocusLost(
+                                Log.getExternalSession(TELECOM_ABBREVIATION));
+                    }
                 } catch (RemoteException ignored) {
                     Log.d(this, "failed to inform the focus lost event");
                 }
@@ -2586,8 +2597,10 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
             public void onSuccess() {
                 if (!isServiceValid("connectionServiceFocusGained")) return;
                 try {
-                    mServiceInterface.connectionServiceFocusGained(
-                            Log.getExternalSession(TELECOM_ABBREVIATION));
+                    if (mServiceInterface != null) {
+                        mServiceInterface.connectionServiceFocusGained(
+                                Log.getExternalSession(TELECOM_ABBREVIATION));
+                    }
                 } catch (RemoteException ignored) {
                     Log.d(this, "failed to inform the focus gained event");
                 }
