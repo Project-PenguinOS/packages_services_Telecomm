@@ -106,6 +106,13 @@ public class InCallController extends CallsManagerListenerBase implements
             UUID.fromString("7d58dedf-b71d-4c18-9d23-47b434bde58b");
     public static final String NULL_IN_CALL_SERVICE_BINDING_ERROR_MSG =
             "InCallController#sendCallToInCallService with null InCallService binding";
+    public static final String QTI_DIALER_PACKAGE =
+            "org.codeaurora.dialer";
+    public static final String QTI_DIALER_INCALLSERVICE =
+            "com.android.incallui.InCallServiceImpl";
+    public static ComponentName qtiDialer = new ComponentName(
+            QTI_DIALER_PACKAGE, QTI_DIALER_INCALLSERVICE);
+    public static Call mCachedCall = null;
     @VisibleForTesting
     public void setAnomalyReporterAdapter(AnomalyReporterAdapter mAnomalyReporterAdapter){
         mAnomalyReporter = mAnomalyReporterAdapter;
@@ -361,6 +368,11 @@ public class InCallController extends CallsManagerListenerBase implements
             }
 
             Log.i(this, "Attempting to bind to InCall %s, with %s", mInCallServiceInfo, intent);
+            if (mInCallServiceInfo.getComponentName().equals(qtiDialer)) {
+                // Cache this call for dialer ICS as binding is taking time
+                mCachedCall = call;
+            }
+
             mIsConnected = true;
             mInCallServiceInfo.setBindingStartTime(mClockProxy.elapsedRealtime());
             boolean isManagedProfile = UserUtil.isManagedProfile(mContext,
@@ -2651,6 +2663,13 @@ public class InCallController extends CallsManagerListenerBase implements
         List<Call> calls = orderCallsWithChildrenFirst(mCallsManager.getCalls().stream().filter(
                 call -> getUserFromCall(call).equals(userHandle))
                 .collect(Collectors.toUnmodifiableList()));
+        if (calls.isEmpty() && mCachedCall != null && info.getComponentName().equals(qtiDialer)) {
+            // If the call list is empty
+            // and yet onServiceConnected callback
+            // is received, this implies that the relevant ICS has not received the call updates
+            // Hence we are adding the cached call, to be sent to ICS.
+            calls.add(mCachedCall);
+        }
         Log.i(this, "Adding %s calls to InCallService after onConnected: %s, including external " +
                 "calls", calls.size(), info.getComponentName());
         int numCallsSent = 0;
@@ -2693,7 +2712,12 @@ public class InCallController extends CallsManagerListenerBase implements
             }
 
             // Track the call if we don't already know about it.
-            addCall(call);
+            if (call.getState() != android.telecom.Call.STATE_DISCONNECTED) {
+                // In the case of late binding for dialer ICS, when we call SendTOICS with
+                // a call in disconnected state, we should not add the call back in CallIdMapper
+                // to avoid a call already removed.
+                addCall(call);
+            }
             ParcelableCall parcelableCall = ParcelableCallUtils.toParcelableCall(
                     call,
                     true /* includeVideoProvider */,
@@ -2715,6 +2739,10 @@ public class InCallController extends CallsManagerListenerBase implements
                 }
             } else {
                 inCallService.addCall(sanitizeParcelableCallForService(info, parcelableCall));
+            }
+            if (info.getComponentName().equals(qtiDialer) && mCachedCall != null) {
+                // Reset cached call once we are done sending to dialer ICS
+                mCachedCall = null;
             }
             updateCallTracking(call, info, true /* isAdd */);
             return 1;
