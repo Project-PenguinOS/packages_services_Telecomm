@@ -144,10 +144,20 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
     private static final char NO_DTMF_TONE = '\0';
 
+    /**
+     * The following simultaneous call types will be set on each call on creation and may be updated
+     * according to priority level. CALL_DIRECTION_DUAL_DIFF_ACCOUNT holds the highest priority.
+     * So if for example, a call is created with CALL_DIRECTION_DUAL_SAME_ACCOUNT, it can be
+     * upgraded to CALL_DIRECTION_DUAL_DIFF_ACCOUNT if another call is added with a different phone
+     * account.
+     */
     public static final int CALL_SIMULTANEOUS_UNKNOWN = 0;
-    public static final int CALL_SIMULTANEOUS_SINGLE = 1;
-    public static final int CALL_DIRECTION_DUAL_SAME_ACCOUNT = 2;
-    public static final int CALL_DIRECTION_DUAL_DIFF_ACCOUNT = 3;
+    // Only used if simultaneous calling is not available
+    public static final int CALL_SIMULTANEOUS_DISABLED_SAME_ACCOUNT = 1;
+    // Only used if simultaneous calling is not available
+    public static final int CALL_SIMULTANEOUS_DISABLED_DIFF_ACCOUNT = 2;
+    public static final int CALL_DIRECTION_DUAL_SAME_ACCOUNT = 3;
+    public static final int CALL_DIRECTION_DUAL_DIFF_ACCOUNT = 4;
 
     /**
      * Listener for CallState changes which can be leveraged by a Transaction.
@@ -664,6 +674,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
     private boolean mIsTransactionalCall = false;
     private CallingPackageIdentity mCallingPackageIdentity = new CallingPackageIdentity();
+    private boolean mSkipAutoUnhold = false;
 
     /**
      * CallingPackageIdentity is responsible for storing properties about the calling package that
@@ -5239,5 +5250,22 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
     public boolean hasVideoCall() {
         return mHasVideoCall;
+    }
+
+    /**
+     * Used only for call sequencing for cases when we may end up auto-unholding the held call while
+     * processing an outgoing (emergency) call. We want to refrain from unholding the held call so
+     * that we don't end up with two active calls. Once the outgoing call is disconnected (either
+     * from a successful disconnect by the user or a failed call), the auto-unhold logic will be
+     * triggered again and successfully unhold the held call at that point. Note, that this only
+     * applies to non-holdable phone accounts (i.e. Verizon). Refer to
+     * {@link CallsManagerCallSequencingAdapter#maybeMoveHeldCallToForeground} for details.
+     */
+    public void setSkipAutoUnhold(boolean result) {
+        mSkipAutoUnhold = result;
+    }
+
+    public boolean getSkipAutoUnhold() {
+        return mSkipAutoUnhold;
     }
 }

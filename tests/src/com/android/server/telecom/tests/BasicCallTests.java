@@ -36,7 +36,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import android.content.Context;
@@ -860,7 +860,7 @@ public class BasicCallTests extends TelecomSystemTest {
 
         mInCallServiceFixtureX.mInCallAdapter.sendCallEvent(ids.mCallId, TEST_EVENT, 26, null);
         verify(mConnectionServiceFixtureA.getTestDouble(), timeout(TEST_TIMEOUT))
-                .sendCallEvent(eq(ids.mConnectionId), eq(TEST_EVENT), isNull(Bundle.class), any());
+                .sendCallEvent(eq(ids.mConnectionId), eq(TEST_EVENT), isNull(), any());
     }
 
     /**
@@ -908,7 +908,7 @@ public class BasicCallTests extends TelecomSystemTest {
     }
 
     private void verifyNoBlockChecks() {
-        verifyZeroInteractions(getBlockedNumberProvider());
+        verifyNoMoreInteractions(getBlockedNumberProvider());
     }
 
     private IContentProvider getBlockedNumberProvider() {

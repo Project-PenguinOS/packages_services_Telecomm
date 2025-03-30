@@ -1245,6 +1245,7 @@ public class Ringer {
         if (!shouldRingForContact) {
             call.setUserMissed(USER_MISSED_DND_MODE);
         }
+
         if (mAttributesLatch != null) {
             mAttributesLatch.countDown();
         }
