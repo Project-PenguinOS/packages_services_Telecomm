@@ -350,9 +350,10 @@ public class CallsManagerTest extends TelecomTestCase {
         when(mConnSvrFocusManagerFactory.create(any())).thenReturn(mConnectionSvrFocusMgr);
         doNothing().when(mRoleManagerAdapter).setCurrentUserHandle(any());
         when(mDisconnectedCallNotifierFactory.create(any(Context.class),any(CallsManager.class),
-                any(FeatureFlags.class))).thenReturn(mDisconnectedCallNotifier);
-        when(mTimeoutsAdapter.getCallDiagnosticServiceTimeoutMillis(any(ContentResolver.class)))
-                .thenReturn(2000L);
+                any(FeatureFlags.class)))
+                .thenReturn(mDisconnectedCallNotifier);
+        when(mTimeoutsAdapter.getCallDiagnosticServiceTimeoutMillis(any(Context.class),
+                any(FeatureFlags.class))).thenReturn(2000L);
         when(mTimeoutsAdapter.getNonVoipCallTransitoryStateTimeoutMillis())
                 .thenReturn(STATE_TIMEOUT);
         when(mClockProxy.elapsedRealtime()).thenReturn(0L);
