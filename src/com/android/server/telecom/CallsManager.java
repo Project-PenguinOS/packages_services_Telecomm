@@ -652,7 +652,8 @@ public class CallsManager extends Call.ListenerBase
         mPhoneAccountRegistrar = phoneAccountRegistrar;
         mPhoneAccountRegistrar.addListener(mPhoneAccountListener);
         mMissedCallNotifier = missedCallNotifier;
-        mDisconnectedCallNotifier = disconnectedCallNotifierFactory.create(mContext, this);
+        mDisconnectedCallNotifier = disconnectedCallNotifierFactory.create(mContext, this,
+                featureFlags);
         StatusBarNotifier statusBarNotifier = new StatusBarNotifier(context, this);
         mWiredHeadsetManager = wiredHeadsetManager;
         mSystemStateHelper = systemStateHelper;
