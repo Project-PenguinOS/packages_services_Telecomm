@@ -758,7 +758,7 @@ public class CallsManager extends Call.ListenerBase
             mCallRecordingTonePlayer = null;
         } else {
             mCallRecordingTonePlayer = new CallRecordingTonePlayer(mContext, audioManager,
-                    mTimeoutsAdapter, mLock);
+                    mTimeoutsAdapter, mLock, featureFlags);
         }
         mCallAudioManager = new CallAudioManager(mCallAudioRouteAdapter,
                 this, callAudioModeStateMachineFactory.create(systemStateHelper,
