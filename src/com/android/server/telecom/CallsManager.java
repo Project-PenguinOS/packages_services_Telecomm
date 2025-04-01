@@ -2449,16 +2449,19 @@ public class CallsManager extends Call.ListenerBase
                                     "needs account selection");
                             // Create our own instance to modify (since extras may be Bundle.EMPTY)
                             Bundle newExtras = new Bundle(extras);
-                            List<PhoneAccountHandle> accountsFromSuggestions = accountSuggestions
+                            ArrayList<PhoneAccountHandle> accountsFromSuggestions =
+                                    accountSuggestions
                                     .stream()
                                     .map(PhoneAccountSuggestion::getPhoneAccountHandle)
-                                    .collect(Collectors.toList());
-                            newExtras.putParcelableList(
+                                    .collect(Collectors.toCollection(ArrayList::new));
+                            newExtras.putParcelableArrayList(
                                     android.telecom.Call.AVAILABLE_PHONE_ACCOUNTS,
                                     accountsFromSuggestions);
-                            newExtras.putParcelableList(
+                            ArrayList<PhoneAccountSuggestion> accountSuggestionArrayList =
+                                    new ArrayList<>(accountSuggestions);
+                            newExtras.putParcelableArrayList(
                                     android.telecom.Call.EXTRA_SUGGESTED_PHONE_ACCOUNTS,
-                                    accountSuggestions);
+                                    accountSuggestionArrayList);
                             // Set a future in place so that we can proceed once the dialer replies.
                             mPendingAccountSelection.put(callToPlace.getId(),
                                     new CompletableFuture<>());
