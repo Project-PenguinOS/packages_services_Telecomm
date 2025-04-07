@@ -946,12 +946,14 @@ public class RingerTest extends TelecomTestCase {
 
     private void enableVibrationWhenRinging() {
         when(mockVibrator.hasVibrator()).thenReturn(true);
-        when(mockSystemSettingsUtil.isRingVibrationEnabled(any(Context.class))).thenReturn(true);
+        when(mockSystemSettingsUtil.isRingVibrationEnabled(any(Context.class),
+                any(FeatureFlags.class))).thenReturn(true);
     }
 
     private void enableVibrationOnlyWhenNotRinging() {
         when(mockVibrator.hasVibrator()).thenReturn(true);
-        when(mockSystemSettingsUtil.isRingVibrationEnabled(any(Context.class))).thenReturn(false);
+        when(mockSystemSettingsUtil.isRingVibrationEnabled(any(Context.class),
+                any(FeatureFlags.class))).thenReturn(false);
     }
 
     private void enableRampingRinger() {
