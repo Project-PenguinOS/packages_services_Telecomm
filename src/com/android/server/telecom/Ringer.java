@@ -433,11 +433,6 @@ public class Ringer {
                     && isVibratorEnabled) {
                 Log.i(this, "Muted haptic channels since audio coupled ramping ringer is disabled");
                 hapticChannelsMuted = true;
-                if (useCustomVibration(foregroundCall)) {
-                    Log.i(this,
-                            "Not muted haptic channel for customization when apply ramping ringer");
-                    hapticChannelsMuted = false;
-                }
             } else if (hapticChannelsMuted) {
                 Log.i(this,
                         "Muted haptic channels isVibratorEnabled=%s, hapticPlaybackSupported=%s",
