@@ -81,14 +81,6 @@ flag {
   bug: "301695370"
 }
 
-# OWNER=pmadapurmath TARGET=24Q3
-flag {
-  name: "clear_communication_device_after_audio_ops_complete"
-  namespace: "telecom"
-  description: "Clear the requested communication device after the audio operations are completed."
-  bug: "315865533"
-}
-
 # OWNER=tgunn TARGET=24Q3
 flag {
   name: "dont_use_communication_device_tracker"
