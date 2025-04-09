@@ -806,15 +806,10 @@ public class CallsManager extends Call.ListenerBase
                         mAnomalyReporter, mTimeoutsAdapter, mMetricsController, mMmiUtils,
                         mFeatureFlags), mCallAudioManager, mFeatureFlags);
 
-        if (mFeatureFlags.useImprovedListenerOrder()) {
-            mListeners.add(mInCallController);
-        }
+        mListeners.add(mInCallController);
         mListeners.add(mInCallWakeLockController);
         mListeners.add(statusBarNotifier);
         mListeners.add(mCallLogManager);
-        if (!mFeatureFlags.useImprovedListenerOrder()) {
-            mListeners.add(mInCallController);
-        }
         mListeners.add(mCallEndpointController);
         mListeners.add(mCallDiagnosticServiceController);
         mListeners.add(mCallAudioManager);
