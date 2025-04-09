@@ -1870,7 +1870,6 @@ public class InCallControllerTests extends TelecomTestCase {
 
     @Test
     public void testRemoveAllServiceConnections_MultiUser() throws Exception {
-        when(mFeatureFlags.associatedUserRefactorForWorkProfile()).thenReturn(true);
         setupMocks(false /* isExternalCall */);
         setupMockPackageManager(true /* default */, true /* system */, false /* external calls */);
         UserHandle workUser = new UserHandle(12);

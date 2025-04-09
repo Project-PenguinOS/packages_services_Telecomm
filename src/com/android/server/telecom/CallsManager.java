@@ -1662,7 +1662,6 @@ public class CallsManager extends Call.ListenerBase
             }
             // Incoming address was set via EXTRA_INCOMING_CALL_ADDRESS above.
             UserHandle associatedUser = UserUtil.getAssociatedUserForCall(
-                    mFeatureFlags.associatedUserRefactorForWorkProfile(),
                     getPhoneAccountRegistrar(), getCurrentUserHandle(), phoneAccountHandle);
             call.setAssociatedUser(associatedUser);
         }
@@ -1905,7 +1904,6 @@ public class CallsManager extends Call.ListenerBase
 
         // For unknown calls, base the associated user off of the target phone account handle.
         UserHandle associatedUser = UserUtil.getAssociatedUserForCall(
-                mFeatureFlags.associatedUserRefactorForWorkProfile(),
                 getPhoneAccountRegistrar(), getCurrentUserHandle(), phoneAccountHandle);
         call.setAssociatedUser(associatedUser);
         setIntentExtrasAndStartTime(call, extras);
@@ -4786,8 +4784,7 @@ public class CallsManager extends Call.ListenerBase
         call.setStatusHints(parcelableConference.getStatusHints());
         call.putConnectionServiceExtras(parcelableConference.getExtras());
         // For conference calls, set the associated user from the target phone account user handle.
-        UserHandle associatedUser = UserUtil.getAssociatedUserForCall(
-                mFeatureFlags.associatedUserRefactorForWorkProfile(), getPhoneAccountRegistrar(),
+        UserHandle associatedUser = UserUtil.getAssociatedUserForCall(getPhoneAccountRegistrar(),
                 getCurrentUserHandle(), phoneAccount);
         call.setAssociatedUser(associatedUser);
         // In case this Conference was added via a ConnectionManager, keep track of the original
@@ -5853,8 +5850,7 @@ public class CallsManager extends Call.ListenerBase
                 connection.getCallerDisplayNamePresentation());
         // For existing connections, use the phone account user handle to determine the user
         // association with the call.
-        UserHandle associatedUser = UserUtil.getAssociatedUserForCall(
-                mFeatureFlags.associatedUserRefactorForWorkProfile(), getPhoneAccountRegistrar(),
+        UserHandle associatedUser = UserUtil.getAssociatedUserForCall(getPhoneAccountRegistrar(),
                 getCurrentUserHandle(), connection.getPhoneAccount());
         call.setAssociatedUser(associatedUser);
         call.addListener(this);

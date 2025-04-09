@@ -1515,9 +1515,7 @@ public class InCallController extends CallsManagerListenerBase implements
         UserHandle userFromCall = getUserFromCall(call);
         Stream<Call> callsAssociatedWithUserFromCall = mCallsManager.getCalls().stream()
                 .filter((c) -> getUserFromCall(c).equals(userFromCall));
-        boolean isCallCountZero = mFeatureFlags.associatedUserRefactorForWorkProfile()
-                ? callsAssociatedWithUserFromCall.count() == 0
-                : mCallsManager.getCalls().isEmpty();
+        boolean isCallCountZero = callsAssociatedWithUserFromCall.count() == 0;
         if (isCallCountZero) {
             /** Let's add a 2 second delay before we send unbind to the services to hopefully
              *  give them enough time to process all the pending messages.
@@ -1532,9 +1530,7 @@ public class InCallController extends CallsManagerListenerBase implements
                     // Check again to make sure there are no active calls for the associated user.
                     Stream<Call> callsAssociatedWithUserFromCall = mCallsManager.getCalls().stream()
                             .filter((c) -> getUserFromCall(c).equals(userFromCall));
-                    boolean isCallCountZero = mFeatureFlags.associatedUserRefactorForWorkProfile()
-                            ? callsAssociatedWithUserFromCall.count() == 0
-                            : mCallsManager.getCalls().isEmpty();
+                    boolean isCallCountZero = callsAssociatedWithUserFromCall.count() == 0;
                     if (isCallCountZero) {
                         unbindFromServices(userFromCall);
                         mEmergencyCallHelper.maybeRevokeTemporaryLocationPermission();
