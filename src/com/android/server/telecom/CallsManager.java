@@ -1097,13 +1097,8 @@ public class CallsManager extends Call.ListenerBase
             incomingCall.setUserMissed(USER_MISSED_CALL_FILTERS_TIMEOUT);
         }
 
-        if (incomingCall.getState() != CallState.DISCONNECTED &&
-                incomingCall.getState() != CallState.DISCONNECTING) {
-            if (!mFeatureFlags.separatelyBindToBtIncallService()) {
-                setCallState(incomingCall, CallState.RINGING,
-                        result.shouldAllowCall ? "successful incoming call" : "blocking call");
-            }
-        } else {
+        if (incomingCall.getState() == CallState.DISCONNECTED ||
+                incomingCall.getState() == CallState.DISCONNECTING) {
             Log.i(this, "onCallFilteringCompleted: call already disconnected.");
             return;
         }
@@ -1147,11 +1142,9 @@ public class CallsManager extends Call.ListenerBase
         }
 
         if (result.shouldAllowCall) {
-            if (mFeatureFlags.separatelyBindToBtIncallService()) {
-                mInCallController.bindToBTService(incomingCall, null);
-                incomingCall.setBtIcsFuture(mInCallController.getBtBindingFuture(incomingCall));
-                setCallState(incomingCall, CallState.RINGING, "successful incoming call");
-            }
+            mInCallController.bindToBTService(incomingCall, null);
+            incomingCall.setBtIcsFuture(mInCallController.getBtBindingFuture(incomingCall));
+            setCallState(incomingCall, CallState.RINGING, "successful incoming call");
             incomingCall.setPostCallPackageName(
                     getRoleManagerAdapter().getDefaultCallScreeningApp(
                             incomingCall.getAssociatedUser()
@@ -1193,9 +1186,7 @@ public class CallsManager extends Call.ListenerBase
         } else {
             if (result.shouldReject) {
                 Log.i(this, "onCallFilteringCompleted: blocked call, rejecting.");
-                if (mFeatureFlags.separatelyBindToBtIncallService()) {
-                    setCallState(incomingCall, CallState.RINGING, "blocking call");
-                }
+                setCallState(incomingCall, CallState.RINGING, "blocking call");
                 incomingCall.reject(false, null);
             }
             if (result.shouldAddToCallLog) {
