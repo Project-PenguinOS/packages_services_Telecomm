@@ -1377,9 +1377,6 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             boolean includeBluetooth, String btAddressToExclude) {
         boolean skipEarpiece = false;
         Call foregroundCall = mCallAudioManager.getForegroundCall();
-        if (!mFeatureFlags.fixUserRequestBaselineRouteVideoCall()) {
-            isExplicitUserRequest = false;
-        }
         if (!isExplicitUserRequest) {
             synchronized (mTelecomLock) {
                 skipEarpiece = foregroundCall != null

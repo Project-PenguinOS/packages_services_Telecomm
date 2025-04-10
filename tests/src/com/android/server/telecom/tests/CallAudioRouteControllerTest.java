@@ -216,7 +216,6 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         when(mFeatureFlags.useRefactoredAudioRouteSwitching()).thenReturn(true);
         when(mFeatureFlags.resolveActiveBtRoutingAndBtTimingIssue()).thenReturn(false);
         when(mFeatureFlags.newAudioPathSpeakerBroadcastAndUnfocusedRouting()).thenReturn(false);
-        when(mFeatureFlags.fixUserRequestBaselineRouteVideoCall()).thenReturn(false);
         when(mFeatureFlags.callAudioRoutingPerformanceImprovemenent()).thenReturn(true);
         BLUETOOTH_DEVICES.add(BLUETOOTH_DEVICE_1);
     }
@@ -1244,7 +1243,6 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
     @Test
     @SmallTest
     public void testUserSwitchBaselineRouteVideoCall() {
-        when(mFeatureFlags.fixUserRequestBaselineRouteVideoCall()).thenReturn(true);
         mController.initialize();
         mController.setActive(true);
         // Set capabilities for video call.
