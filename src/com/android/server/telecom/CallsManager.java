@@ -750,11 +750,17 @@ public class CallsManager extends Call.ListenerBase
                         mDockManager,
                         asyncRingtonePlayer);
         AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
-        InCallTonePlayer.MediaPlayerFactory mediaPlayerFactory =
-                (resourceId, attributes) ->
-                        new InCallTonePlayer.MediaPlayerAdapterImpl(
-                                MediaPlayer.create(mContext, resourceId, attributes,
-                                        audioManager.generateAudioSessionId()));
+        InCallTonePlayer.MediaPlayerFactory mediaPlayerFactory = (resourceId, attributes) -> {
+          MediaPlayer mediaPlayer;
+          try {
+            mediaPlayer = MediaPlayer.create(
+                mContext, resourceId, attributes, audioManager.generateAudioSessionId());
+          } catch (IllegalStateException e) {
+            Log.e(TAG, e, "Failed to create mediaplayer");
+            mediaPlayer = null;
+          }
+          return new InCallTonePlayer.MediaPlayerAdapterImpl(mediaPlayer);
+        };
         InCallTonePlayer.Factory playerFactory = new InCallTonePlayer.Factory(
                 callAudioRoutePeripheralAdapter, lock, toneGeneratorFactory, mediaPlayerFactory,
                 () -> audioManager.getStreamVolume(AudioManager.STREAM_RING) > 0, featureFlags,
