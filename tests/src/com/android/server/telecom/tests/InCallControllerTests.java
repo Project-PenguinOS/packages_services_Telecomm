@@ -329,7 +329,6 @@ public class InCallControllerTests extends TelecomTestCase {
         when(mFeatureFlags.separatelyBindToBtIncallService()).thenReturn(false);
         when(mFeatureFlags.telecomResolveHiddenDependencies()).thenReturn(true);
         when(mMockCurrentUserManager.isManagedProfile()).thenReturn(true);
-        when(mFeatureFlags.profileUserSupport()).thenReturn(false);
         when(mFeatureFlags.resolveHiddenDependenciesTwo()).thenReturn(true);
     }
 
@@ -1945,7 +1944,6 @@ public class InCallControllerTests extends TelecomTestCase {
         when(mMockChildUserCall.getAssociatedUser()).thenReturn(mChildUserHandle);
         when(mMockCallsManager.getCurrentUserHandle()).thenReturn(mParentUserHandle);
         when(mMockUserManager.getProfileParent(mChildUserHandle)).thenReturn(mParentUserHandle);
-        when(mFeatureFlags.profileUserSupport()).thenReturn(true);
     }
 
     /**
@@ -1959,7 +1957,6 @@ public class InCallControllerTests extends TelecomTestCase {
         when(mMockChildUserCall.getAssociatedUser()).thenReturn(mChildUserHandle);
         when(mMockCallsManager.getCurrentUserHandle()).thenReturn(mParentUserHandle);
         when(mMockUserManager.getProfileParent(mChildUserHandle)).thenReturn(mParentUserHandle);
-        when(mFeatureFlags.profileUserSupport()).thenReturn(true);
         when(mMockContext.getSystemService(eq(UserManager.class)))
                 .thenReturn(mMockUserManager);
         // verify a NullPointerException is not thrown
