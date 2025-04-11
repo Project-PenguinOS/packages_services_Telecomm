@@ -4224,44 +4224,6 @@ public class CallsManager extends Call.ListenerBase
         }
     }
 
-    /**
-     * The transactional unflagged (original) code path to hold or swap the active call in favor of
-     * a new call request. Refer to
-     * {@link CallsManagerCallSequencingAdapter#transactionHoldPotentialActiveCallForNewCall}.
-     */
-    public void transactionHoldPotentialActiveCallForNewCallUnflagged(Call activeCall, Call newCall,
-            OutcomeReceiver<Boolean, CallException> callback) {
-        // before attempting CallsManager#holdActiveCallForNewCall(Call), check if it'll fail
-        // early
-        if (!canHold(activeCall) &&
-                !(supportsHold(activeCall) && areFromSameSource(activeCall, newCall))) {
-            String msg = "call does not support hold";
-            Log.i(this, "transactionHoldPotentialActiveCallForNewCall: " + msg);
-            callback.onError(new CallException(msg,
-                    CallException.CODE_CANNOT_HOLD_CURRENT_ACTIVE_CALL));
-            if (mFeatureFlags.enableCallExceptionAnomReports()) {
-                mAnomalyReporter.reportAnomaly(CANNOT_HOLD_CURRENT_ACTIVE_CALL_ERROR_UUID, msg);
-            }
-            return;
-        }
-
-        // attempt to hold the active call
-        if (!holdActiveCallForNewCall(newCall)) {
-            String msg = "cannot hold active call failed";
-            Log.i(this, "transactionHoldPotentialActiveCallForNewCall: " + msg);
-            callback.onError(new CallException(msg,
-                    CallException.CODE_CANNOT_HOLD_CURRENT_ACTIVE_CALL));
-            if (mFeatureFlags.enableCallExceptionAnomReports()) {
-                mAnomalyReporter.reportAnomaly(CANNOT_HOLD_CURRENT_ACTIVE_CALL_ERROR_UUID, msg);
-            }
-            return;
-        }
-
-        // officially mark the activeCall as held
-        markCallAsOnHold(activeCall);
-        callback.onResult(true);
-    }
-
     public boolean canHoldOrSwapActiveCall(Call activeCall, Call newCall) {
         return canHold(activeCall) || sameSourceHoldCase(activeCall, newCall);
     }
