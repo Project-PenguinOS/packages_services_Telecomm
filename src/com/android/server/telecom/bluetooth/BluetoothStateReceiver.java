@@ -344,11 +344,8 @@ public class BluetoothStateReceiver extends BroadcastReceiver {
                         /* In Le Audio case, once device got Active, the Telecom needs to make sure
                          * it is set as communication device before we can say that BT_AUDIO_IS_ON
                          */
-                        boolean isLeAudioSetForCommunication =
-                                mFeatureFlags.callAudioCommunicationDeviceRefactor()
-                                        ? mCommunicationDeviceTracker.setCommunicationDevice(
-                                        AudioDeviceInfo.TYPE_BLE_HEADSET, device)
-                                        : mBluetoothDeviceManager.setLeAudioCommunicationDevice();
+                        boolean isLeAudioSetForCommunication = mCommunicationDeviceTracker
+                                .setCommunicationDevice(AudioDeviceInfo.TYPE_BLE_HEADSET, device);
                         if ((!usePreferredAudioProfile
                                 || preferredDuplexProfile == BluetoothProfile.LE_AUDIO)
                                 && !isLeAudioSetForCommunication) {
@@ -357,12 +354,8 @@ public class BluetoothStateReceiver extends BroadcastReceiver {
                                     device);
                         }
                     } else {
-                        boolean isHearingAidSetForCommunication =
-                                mFeatureFlags.callAudioCommunicationDeviceRefactor()
-                                        ? mCommunicationDeviceTracker.setCommunicationDevice(
-                                        AudioDeviceInfo.TYPE_HEARING_AID, null)
-                                        : mBluetoothDeviceManager
-                                        .setHearingAidCommunicationDevice();
+                        boolean isHearingAidSetForCommunication = mCommunicationDeviceTracker
+                                .setCommunicationDevice(AudioDeviceInfo.TYPE_HEARING_AID, null);
                         /* deviceType == BluetoothDeviceManager.DEVICE_TYPE_HEARING_AID */
                         if (!isHearingAidSetForCommunication) {
                             Log.w(LOG_TAG,
