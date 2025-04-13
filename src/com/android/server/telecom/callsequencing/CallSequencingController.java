@@ -453,7 +453,7 @@ public class CallSequencingController {
                         Log.w(this, "unholdCall: Unable to hold the active call (%s),"
                                         + " aborting swap to %s", activeCallId, call.getId(),
                                 call.getId());
-                        showErrorDialogForCannotHoldCall(call, false);
+                        showErrorDialogForCannotSwapCall(call);
                     } else {
                         Log.w(this, "unholdCall: %s is an emergency call, aborting swap to %s",
                                 activeCallId, call.getId());
@@ -684,8 +684,13 @@ public class CallSequencingController {
                 liveCall.setSkipAutoUnhold(true);
                 // Disconnect the active call instead of the holding call because it is historically
                 // easier to do, rather than disconnecting a held call and holding the active call.
-                return disconnectOngoingCallForEmergencyCall(transactionFuture, liveCall,
+                disconnectOngoingCallForEmergencyCall(transactionFuture, liveCall,
                         disconnectReason);
+                // Don't wait on the live call disconnect future result above since we're handling
+                // the same phone account case. It's possible that disconnect may time out in the
+                // case that two calls are being merged while the disconnect for the live call is
+                // sent.
+                return transactionFuture;
             } else if (heldCall != null) { // Dual sim case
                 // Note at this point, we should always have a held call then that should
                 // be disconnected (over the active call) but still enforce with a null check and
@@ -1201,6 +1206,13 @@ public class CallSequencingController {
     private void showErrorDialogForOutgoingDuringRingingCall(Call call) {
         int resourceId = R.string.callFailed_already_ringing;
         String reason = " can't place outgoing call with an unanswered incoming call.";
+        showErrorDialogForFailedCall(call, null, resourceId, reason);
+    }
+
+    private void showErrorDialogForCannotSwapCall(Call call) {
+        int resourceId = R.string.callSwapFailed_unholdable_call;
+        String reason = " unable to swap the live call. Disconnect the call to switch to "
+                + "the held call.";
         showErrorDialogForFailedCall(call, null, resourceId, reason);
     }
 
