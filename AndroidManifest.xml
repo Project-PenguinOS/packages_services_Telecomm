@@ -71,6 +71,8 @@
 <!-- QTI_BEGIN: 2022-12-07: Telephony: IMS: Add permissions for ESSENTIAL_RECORDS_LOADED-->
 <!-- QTI_END: 2022-12-07: Telephony: IMS: Add permissions for ESSENTIAL_RECORDS_LOADED-->
     <uses-permission android:name="com.qti.permission.RECEIVE_ESSENTIAL_RECORDS_LOADED" />
+    <!-- Used for checking appops permissions with PermissionManager. -->
+    <uses-permission android:name="android.permission.UPDATE_APP_OPS_STATS" />
 
     <permission android:name="android.permission.BROADCAST_CALLLOG_INFO"
          android:label="Broadcast the call type/duration information"
