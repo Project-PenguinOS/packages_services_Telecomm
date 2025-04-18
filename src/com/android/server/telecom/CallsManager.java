@@ -4149,7 +4149,7 @@ public class CallsManager extends Call.ListenerBase
         for (PhoneAccountHandle callHandle : activeCallAccounts) {
             allAccounts.removeIf(candidateHandle -> {
                 PhoneAccount callAcct = mPhoneAccountRegistrar.getPhoneAccount(callHandle,
-                        user);
+                        user, true /* acrossProfiles */);
                 if (callAcct == null) {
                     Log.w(this, "constructPossiblePhoneAccountsNew: unexpected"
                             + "null PA for PAH, removing : " + candidateHandle);
