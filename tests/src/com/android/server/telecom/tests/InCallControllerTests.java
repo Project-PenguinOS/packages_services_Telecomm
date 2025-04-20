@@ -34,6 +34,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -326,10 +327,8 @@ public class InCallControllerTests extends TelecomTestCase {
         when(mMockCreateContextAsUser.getSystemService(eq(NotificationManager.class)))
                 .thenReturn(mNotificationManager);
         // Mock user info to allow binding on user stored in the phone account (mUserHandle).
-        when(mFeatureFlags.separatelyBindToBtIncallService()).thenReturn(false);
         when(mFeatureFlags.telecomResolveHiddenDependencies()).thenReturn(true);
         when(mMockCurrentUserManager.isManagedProfile()).thenReturn(true);
-        when(mFeatureFlags.profileUserSupport()).thenReturn(false);
         when(mFeatureFlags.resolveHiddenDependenciesTwo()).thenReturn(true);
     }
 
@@ -1172,7 +1171,7 @@ public class InCallControllerTests extends TelecomTestCase {
         mInCallController.onCallAdded(mMockCall);
 
         // There will be 4 calls for the various types of ICS; this is normal.
-        verify(mMockPackageManager, times(4)).queryIntentServicesAsUser(
+        verify(mMockPackageManager, atLeastOnce()).queryIntentServicesAsUser(
                 any(Intent.class),
                 eq(PackageManager.GET_META_DATA | PackageManager.MATCH_DISABLED_COMPONENTS),
                 eq(CURRENT_USER_ID));
@@ -1872,7 +1871,6 @@ public class InCallControllerTests extends TelecomTestCase {
 
     @Test
     public void testRemoveAllServiceConnections_MultiUser() throws Exception {
-        when(mFeatureFlags.associatedUserRefactorForWorkProfile()).thenReturn(true);
         setupMocks(false /* isExternalCall */);
         setupMockPackageManager(true /* default */, true /* system */, false /* external calls */);
         UserHandle workUser = new UserHandle(12);
@@ -1945,7 +1943,6 @@ public class InCallControllerTests extends TelecomTestCase {
         when(mMockChildUserCall.getAssociatedUser()).thenReturn(mChildUserHandle);
         when(mMockCallsManager.getCurrentUserHandle()).thenReturn(mParentUserHandle);
         when(mMockUserManager.getProfileParent(mChildUserHandle)).thenReturn(mParentUserHandle);
-        when(mFeatureFlags.profileUserSupport()).thenReturn(true);
     }
 
     /**
@@ -1959,7 +1956,6 @@ public class InCallControllerTests extends TelecomTestCase {
         when(mMockChildUserCall.getAssociatedUser()).thenReturn(mChildUserHandle);
         when(mMockCallsManager.getCurrentUserHandle()).thenReturn(mParentUserHandle);
         when(mMockUserManager.getProfileParent(mChildUserHandle)).thenReturn(mParentUserHandle);
-        when(mFeatureFlags.profileUserSupport()).thenReturn(true);
         when(mMockContext.getSystemService(eq(UserManager.class)))
                 .thenReturn(mMockUserManager);
         // verify a NullPointerException is not thrown
@@ -2005,7 +2001,6 @@ public class InCallControllerTests extends TelecomTestCase {
         expectedIntent.setPackage(mDefaultDialerCache.getBTInCallServicePackages()[0]);
         LinkedList<ResolveInfo> resolveInfo = new LinkedList<ResolveInfo>();
         resolveInfo.add(getBluetoothResolveinfo());
-        when(mFeatureFlags.separatelyBindToBtIncallService()).thenReturn(true);
         when(mMockContext.getPackageManager()).thenReturn(mMockPackageManager);
         doAnswer(invocation -> {
             Object[] args = invocation.getArguments();

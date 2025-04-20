@@ -783,11 +783,17 @@ public class CallsManager extends Call.ListenerBase
                         mDockManager,
                         asyncRingtonePlayer);
         AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
-        InCallTonePlayer.MediaPlayerFactory mediaPlayerFactory =
-                (resourceId, attributes) ->
-                        new InCallTonePlayer.MediaPlayerAdapterImpl(
-                                MediaPlayer.create(mContext, resourceId, attributes,
-                                        audioManager.generateAudioSessionId()));
+        InCallTonePlayer.MediaPlayerFactory mediaPlayerFactory = (resourceId, attributes) -> {
+          MediaPlayer mediaPlayer;
+          try {
+            mediaPlayer = MediaPlayer.create(
+                mContext, resourceId, attributes, audioManager.generateAudioSessionId());
+          } catch (IllegalStateException e) {
+            Log.e(TAG, e, "Failed to create mediaplayer");
+            mediaPlayer = null;
+          }
+          return new InCallTonePlayer.MediaPlayerAdapterImpl(mediaPlayer);
+        };
         InCallTonePlayer.Factory playerFactory = new InCallTonePlayer.Factory(
                 callAudioRoutePeripheralAdapter, lock, toneGeneratorFactory, mediaPlayerFactory,
                 () -> audioManager.getStreamVolume(AudioManager.STREAM_RING) > 0, featureFlags,
@@ -860,15 +866,10 @@ public class CallsManager extends Call.ListenerBase
                         mAnomalyReporter, mTimeoutsAdapter, mMetricsController, mMmiUtils,
                         mFeatureFlags), mCallAudioManager, mFeatureFlags);
 
-        if (mFeatureFlags.useImprovedListenerOrder()) {
-            mListeners.add(mInCallController);
-        }
+        mListeners.add(mInCallController);
         mListeners.add(mInCallWakeLockController);
         mListeners.add(statusBarNotifier);
         mListeners.add(mCallLogManager);
-        if (!mFeatureFlags.useImprovedListenerOrder()) {
-            mListeners.add(mInCallController);
-        }
         mListeners.add(mCallEndpointController);
         mListeners.add(mCallDiagnosticServiceController);
         mListeners.add(mCallAudioManager);
@@ -1132,13 +1133,8 @@ public class CallsManager extends Call.ListenerBase
             incomingCall.setUserMissed(USER_MISSED_CALL_FILTERS_TIMEOUT);
         }
 
-        if (incomingCall.getState() != CallState.DISCONNECTED &&
-                incomingCall.getState() != CallState.DISCONNECTING) {
-            if (!mFeatureFlags.separatelyBindToBtIncallService()) {
-                setCallState(incomingCall, CallState.RINGING,
-                        result.shouldAllowCall ? "successful incoming call" : "blocking call");
-            }
-        } else {
+        if (incomingCall.getState() == CallState.DISCONNECTED ||
+                incomingCall.getState() == CallState.DISCONNECTING) {
             Log.i(this, "onCallFilteringCompleted: call already disconnected.");
             return;
         }
@@ -1182,11 +1178,9 @@ public class CallsManager extends Call.ListenerBase
         }
 
         if (result.shouldAllowCall) {
-            if (mFeatureFlags.separatelyBindToBtIncallService()) {
-                mInCallController.bindToBTService(incomingCall, null);
-                incomingCall.setBtIcsFuture(mInCallController.getBtBindingFuture(incomingCall));
-                setCallState(incomingCall, CallState.RINGING, "successful incoming call");
-            }
+            mInCallController.bindToBTService(incomingCall, null);
+            incomingCall.setBtIcsFuture(mInCallController.getBtBindingFuture(incomingCall));
+            setCallState(incomingCall, CallState.RINGING, "successful incoming call");
             incomingCall.setPostCallPackageName(
                     getRoleManagerAdapter().getDefaultCallScreeningApp(
                             incomingCall.getAssociatedUser()
@@ -1235,9 +1229,7 @@ public class CallsManager extends Call.ListenerBase
         } else {
             if (result.shouldReject) {
                 Log.i(this, "onCallFilteringCompleted: blocked call, rejecting.");
-                if (mFeatureFlags.separatelyBindToBtIncallService()) {
-                    setCallState(incomingCall, CallState.RINGING, "blocking call");
-                }
+                setCallState(incomingCall, CallState.RINGING, "blocking call");
                 incomingCall.reject(false, null);
             }
             if (result.shouldAddToCallLog) {
@@ -1776,7 +1768,6 @@ public class CallsManager extends Call.ListenerBase
             }
             // Incoming address was set via EXTRA_INCOMING_CALL_ADDRESS above.
             UserHandle associatedUser = UserUtil.getAssociatedUserForCall(
-                    mFeatureFlags.associatedUserRefactorForWorkProfile(),
                     getPhoneAccountRegistrar(), getCurrentUserHandle(), phoneAccountHandle);
             call.setAssociatedUser(associatedUser);
         }
@@ -2021,7 +2012,6 @@ public class CallsManager extends Call.ListenerBase
 
         // For unknown calls, base the associated user off of the target phone account handle.
         UserHandle associatedUser = UserUtil.getAssociatedUserForCall(
-                mFeatureFlags.associatedUserRefactorForWorkProfile(),
                 getPhoneAccountRegistrar(), getCurrentUserHandle(), phoneAccountHandle);
         call.setAssociatedUser(associatedUser);
         setIntentExtrasAndStartTime(call, extras);
@@ -5167,8 +5157,7 @@ public class CallsManager extends Call.ListenerBase
         call.setStatusHints(parcelableConference.getStatusHints());
         call.putConnectionServiceExtras(parcelableConference.getExtras());
         // For conference calls, set the associated user from the target phone account user handle.
-        UserHandle associatedUser = UserUtil.getAssociatedUserForCall(
-                mFeatureFlags.associatedUserRefactorForWorkProfile(), getPhoneAccountRegistrar(),
+        UserHandle associatedUser = UserUtil.getAssociatedUserForCall(getPhoneAccountRegistrar(),
                 getCurrentUserHandle(), phoneAccount);
         call.setAssociatedUser(associatedUser);
         // In case this Conference was added via a ConnectionManager, keep track of the original
@@ -6298,8 +6287,7 @@ public class CallsManager extends Call.ListenerBase
                 connection.getCallerDisplayNamePresentation());
         // For existing connections, use the phone account user handle to determine the user
         // association with the call.
-        UserHandle associatedUser = UserUtil.getAssociatedUserForCall(
-                mFeatureFlags.associatedUserRefactorForWorkProfile(), getPhoneAccountRegistrar(),
+        UserHandle associatedUser = UserUtil.getAssociatedUserForCall(getPhoneAccountRegistrar(),
                 getCurrentUserHandle(), connection.getPhoneAccount());
         call.setAssociatedUser(associatedUser);
         call.addListener(this);
