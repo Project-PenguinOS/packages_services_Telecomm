@@ -56,17 +56,6 @@ flag {
     }
 }
 
-# OWNER=tjstuart TARGET=25Q1
-flag {
-  name: "remap_transactional_capabilities"
-  namespace: "telecom"
-  description: "Transactional call capabilities need to be remapped to Connection capabilities"
-  bug: "366063695"
-  metadata {
-      purpose: PURPOSE_BUGFIX
-    }
-}
-
 # OWNER=pmadapurmath TARGET=25Q4
 flag {
   name: "call_sequencing_call_resume_failed"
@@ -74,7 +63,6 @@ flag {
   description: "Connection event received when a call resume fails"
   bug: "390116261"
 }
-
 # OWNER=breadley TARGET=25Q2
 flag {
   name: "enable_respond_via_sms_manager_async"
