@@ -265,7 +265,7 @@ public class BluetoothRouteManager extends StateMachine {
             args.arg1 = Log.createSubsession();
             sendMessageDelayed(CONNECTION_TIMEOUT, args,
                     mTimeoutsAdapter.getBluetoothPendingTimeoutMillis(
-                            mContext.getContentResolver()));
+                            mContext, mFeatureFlags));
             mListener.onBluetoothAudioConnecting();
         }
 
@@ -977,7 +977,7 @@ public class BluetoothRouteManager extends StateMachine {
                 args.argi1 = retryCount + 1;
                 sendMessageDelayed(RETRY_BT_CONNECTION, args,
                         mTimeoutsAdapter.getRetryBluetoothConnectAudioBackoffMillis(
-                                mContext.getContentResolver()));
+                                mContext, mFeatureFlags));
             }
             return false;
         }
@@ -1061,7 +1061,7 @@ public class BluetoothRouteManager extends StateMachine {
                 args.argi1 = retryCount + 1;
                 sendMessageDelayed(RETRY_BT_CONNECTION, args,
                         mTimeoutsAdapter.getRetryBluetoothConnectAudioBackoffMillis(
-                                mContext.getContentResolver()));
+                                mContext, mFeatureFlags));
             }
             return null;
         }
