@@ -4016,7 +4016,6 @@ public class CallsManagerTest extends TelecomTestCase {
             boolean expectOnResult)
             throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
-        when(mFeatureFlags.transactionalHoldDisconnectsUnholdable()).thenReturn(true);
         when(mConnectionSvrFocusMgr.getCurrentFocusCall()).thenReturn(activeCall);
         mCallsManager.getCallSequencingAdapter().transactionHoldPotentialActiveCallForNewCall(
                 newCall,

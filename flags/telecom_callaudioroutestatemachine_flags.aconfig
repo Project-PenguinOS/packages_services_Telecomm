@@ -76,17 +76,6 @@ flag {
   }
 }
 
-# OWNER=pmadapurmath TARGET=24Q3
-flag {
-  name: "early_update_internal_call_audio_state"
-  namespace: "telecom"
-  description: "Update internal call audio state before sending updated state to ICS"
-  bug: "335538831"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
 # OWNER=tgunn TARGET=25Q2
 flag {
   name: "only_clear_communication_device_on_inactive"
