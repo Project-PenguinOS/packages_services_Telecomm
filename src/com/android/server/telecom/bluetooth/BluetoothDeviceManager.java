@@ -599,17 +599,8 @@ public class BluetoothDeviceManager {
 // QTI_BEGIN: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
         Log.i(this, "disconnectAudio");
 // QTI_END: 2022-10-07: Telephony: Disable Le Audio communication flag before notifying audio lost
+        mCommunicationDeviceTracker.clearBtCommunicationDevice();
         disconnectSco();
-        clearLeAudioCommunicationDevice();
-        clearHearingAidCommunicationDevice();
-        if (mFeatureFlags.callAudioCommunicationDeviceRefactor()) {
-            mCommunicationDeviceTracker.clearBtCommunicationDevice();
-            disconnectSco();
-        } else {
-            disconnectSco();
-            clearLeAudioCommunicationDevice();
-            clearHearingAidCommunicationDevice();
-        }
     }
 
     public int disconnectSco() {
@@ -873,11 +864,8 @@ public class BluetoothDeviceManager {
                  * Only after receiving ACTION_ACTIVE_DEVICE_CHANGED it is known that device that
                  * will be audio switched to is available to be choose as communication device */
                 if (!switchingBtDevices) {
-                    return mFeatureFlags.callAudioCommunicationDeviceRefactor() ?
-                            mCommunicationDeviceTracker.setCommunicationDevice(
-                                    AudioDeviceInfo.TYPE_BLE_HEADSET, device)
-// KEYSTONE(I76d16ad05e23507d9b5e24c3d1b9e31727464e74,b/311682533)
-                            : setLeAudioCommunicationDevice(device);
+                    return mCommunicationDeviceTracker.setCommunicationDevice(
+                            AudioDeviceInfo.TYPE_BLE_HEADSET, device);
                 }
                 return true;
             }
@@ -890,10 +878,8 @@ public class BluetoothDeviceManager {
                  * Only after receiving ACTION_ACTIVE_DEVICE_CHANGED it is known that device that
                  * will be audio switched to is available to be choose as communication device */
                 if (!switchingBtDevices) {
-                    return mFeatureFlags.callAudioCommunicationDeviceRefactor() ?
-                            mCommunicationDeviceTracker.setCommunicationDevice(
-                                    AudioDeviceInfo.TYPE_HEARING_AID, null)
-                            : setHearingAidCommunicationDevice();
+                    return mCommunicationDeviceTracker.setCommunicationDevice(
+                            AudioDeviceInfo.TYPE_HEARING_AID, null);
                 }
                 return true;
             }

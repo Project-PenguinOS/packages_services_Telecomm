@@ -289,20 +289,13 @@ public class CallAudioRouteStateMachine extends StateMachine implements CallAudi
         public void enter() {
             super.enter();
             setSpeakerphoneOn(false);
-            if (mFeatureFlags.callAudioCommunicationDeviceRefactor()) {
-                mCommunicationDeviceTracker.setCommunicationDevice(
-                        AudioDeviceInfo.TYPE_BUILTIN_EARPIECE, null);
-            }
+            mCommunicationDeviceTracker.setCommunicationDevice(
+                    AudioDeviceInfo.TYPE_BUILTIN_EARPIECE, null);
             CallAudioState newState = new CallAudioState(mIsMuted, ROUTE_EARPIECE,
                     mAvailableRoutes, null,
                     mBluetoothRouteManager.getConnectedDevices());
-            if (mFeatureFlags.earlyUpdateInternalCallAudioState()) {
-                updateInternalCallAudioState();
-                setSystemAudioState(newState, true);
-            } else {
-                setSystemAudioState(newState, true);
-                updateInternalCallAudioState();
-            }
+            updateInternalCallAudioState();
+            setSystemAudioState(newState, true);
         }
 
         @Override
@@ -328,10 +321,8 @@ public class CallAudioRouteStateMachine extends StateMachine implements CallAudi
                 case SWITCH_BLUETOOTH:
                 case USER_SWITCH_BLUETOOTH:
                     if ((mAvailableRoutes & ROUTE_BLUETOOTH) != 0) {
-                        if (mFeatureFlags.callAudioCommunicationDeviceRefactor()) {
-                            mCommunicationDeviceTracker.clearCommunicationDevice(
-                                    AudioDeviceInfo.TYPE_BUILTIN_EARPIECE);
-                        }
+                        mCommunicationDeviceTracker.clearCommunicationDevice(
+                                AudioDeviceInfo.TYPE_BUILTIN_EARPIECE);
                         if (mAudioFocusType == ACTIVE_FOCUS
                                 || mBluetoothRouteManager.isInbandRingingEnabled()) {
                             String address = (msg.obj instanceof SomeArgs) ?
@@ -348,10 +339,8 @@ public class CallAudioRouteStateMachine extends StateMachine implements CallAudi
                 case SWITCH_HEADSET:
                 case USER_SWITCH_HEADSET:
                     if ((mAvailableRoutes & ROUTE_WIRED_HEADSET) != 0) {
-                        if (mFeatureFlags.callAudioCommunicationDeviceRefactor()) {
-                            mCommunicationDeviceTracker.clearCommunicationDevice(
-                                    AudioDeviceInfo.TYPE_BUILTIN_EARPIECE);
-                        }
+                        mCommunicationDeviceTracker.clearCommunicationDevice(
+                                AudioDeviceInfo.TYPE_BUILTIN_EARPIECE);
                         transitionTo(mActiveHeadsetRoute);
                     } else {
                         Log.w(this, "Ignoring switch to headset command. Not available.");
@@ -361,10 +350,8 @@ public class CallAudioRouteStateMachine extends StateMachine implements CallAudi
                     // fall through; we want to switch to speaker mode when docked and in a call.
                 case SWITCH_SPEAKER:
                 case USER_SWITCH_SPEAKER:
-                    if (mFeatureFlags.callAudioCommunicationDeviceRefactor()) {
-                        mCommunicationDeviceTracker.clearCommunicationDevice(
-                                AudioDeviceInfo.TYPE_BUILTIN_EARPIECE);
-                    }
+                    mCommunicationDeviceTracker.clearCommunicationDevice(
+                            AudioDeviceInfo.TYPE_BUILTIN_EARPIECE);
                     setSpeakerphoneOn(true);
                     // fall through
                 case SPEAKER_ON:
@@ -518,19 +505,12 @@ public class CallAudioRouteStateMachine extends StateMachine implements CallAudi
         public void enter() {
             super.enter();
             setSpeakerphoneOn(false);
-            if (mFeatureFlags.callAudioCommunicationDeviceRefactor()) {
-                mCommunicationDeviceTracker.setCommunicationDevice(
-                        AudioDeviceInfo.TYPE_WIRED_HEADSET, null);
-            }
+            mCommunicationDeviceTracker.setCommunicationDevice(
+                    AudioDeviceInfo.TYPE_WIRED_HEADSET, null);
             CallAudioState newState = new CallAudioState(mIsMuted, ROUTE_WIRED_HEADSET,
                     mAvailableRoutes, null, mBluetoothRouteManager.getConnectedDevices());
-            if (mFeatureFlags.earlyUpdateInternalCallAudioState()) {
-                updateInternalCallAudioState();
-                setSystemAudioState(newState, true);
-            } else {
-                setSystemAudioState(newState, true);
-                updateInternalCallAudioState();
-            }
+            updateInternalCallAudioState();
+            setSystemAudioState(newState, true);
         }
 
         @Override
@@ -548,10 +528,8 @@ public class CallAudioRouteStateMachine extends StateMachine implements CallAudi
                 case SWITCH_EARPIECE:
                 case USER_SWITCH_EARPIECE:
                     if ((mAvailableRoutes & ROUTE_EARPIECE) != 0) {
-                        if (mFeatureFlags.callAudioCommunicationDeviceRefactor()) {
-                            mCommunicationDeviceTracker.clearCommunicationDevice(
-                                    AudioDeviceInfo.TYPE_WIRED_HEADSET);
-                        }
+                        mCommunicationDeviceTracker.clearCommunicationDevice(
+                                AudioDeviceInfo.TYPE_WIRED_HEADSET);
                         transitionTo(mActiveEarpieceRoute);
                     } else {
                         Log.w(this, "Ignoring switch to earpiece command. Not available.");
@@ -567,10 +545,8 @@ public class CallAudioRouteStateMachine extends StateMachine implements CallAudi
                                 || mBluetoothRouteManager.isInbandRingingEnabled()) {
                             String address = (msg.obj instanceof SomeArgs) ?
                                     (String) ((SomeArgs) msg.obj).arg2 : null;
-                            if (mFeatureFlags.callAudioCommunicationDeviceRefactor()) {
-                                mCommunicationDeviceTracker.clearCommunicationDevice(
-                                        AudioDeviceInfo.TYPE_WIRED_HEADSET);
-                            }
+                            mCommunicationDeviceTracker.clearCommunicationDevice(
+                                    AudioDeviceInfo.TYPE_WIRED_HEADSET);
                             // Omit transition to ActiveBluetoothRoute until actual connection.
                             setBluetoothOn(address);
                         } else {
@@ -587,10 +563,8 @@ public class CallAudioRouteStateMachine extends StateMachine implements CallAudi
                     return HANDLED;
                 case SWITCH_SPEAKER:
                 case USER_SWITCH_SPEAKER:
-                    if (mFeatureFlags.callAudioCommunicationDeviceRefactor()) {
-                        mCommunicationDeviceTracker.clearCommunicationDevice(
-                                AudioDeviceInfo.TYPE_WIRED_HEADSET);
-                    }
+                    mCommunicationDeviceTracker.clearCommunicationDevice(
+                            AudioDeviceInfo.TYPE_WIRED_HEADSET);
                     setSpeakerphoneOn(true);
                     // fall through
                 case SPEAKER_ON:
@@ -765,22 +739,15 @@ public class CallAudioRouteStateMachine extends StateMachine implements CallAudi
             // the BT connection fails to be set. Previously, the logic was to setBluetoothOn in
             // ACTIVE_FOCUS but the route would still remain in a quiescent route, so instead we
             // should be transitioning directly into the active route.
-            if (mFeatureFlags.callAudioCommunicationDeviceRefactor()) {
-                setBluetoothOn(null);
-            }
+            setBluetoothOn(null);
             if (mFeatureFlags.updateRouteMaskWhenBtConnected()) {
                 mAvailableRoutes |= ROUTE_BLUETOOTH;
             }
             CallAudioState newState = new CallAudioState(mIsMuted, ROUTE_BLUETOOTH,
                     mAvailableRoutes, mBluetoothRouteManager.getBluetoothAudioConnectedDevice(),
                     mBluetoothRouteManager.getConnectedDevices());
-            if (mFeatureFlags.earlyUpdateInternalCallAudioState()) {
-                updateInternalCallAudioState();
-                setSystemAudioState(newState, true);
-            } else {
-                setSystemAudioState(newState, true);
-                updateInternalCallAudioState();
-            }
+            updateInternalCallAudioState();
+            setSystemAudioState(newState, true);
             // Do not send RINGER_MODE_CHANGE if no Bluetooth SCO audio device is available
             if (mBluetoothRouteManager.getBluetoothAudioConnectedDevice() != null) {
                 mCallAudioManager.onRingerModeChange();
@@ -937,13 +904,8 @@ public class CallAudioRouteStateMachine extends StateMachine implements CallAudi
             CallAudioState newState = new CallAudioState(mIsMuted, ROUTE_BLUETOOTH,
                     mAvailableRoutes, mBluetoothRouteManager.getBluetoothAudioConnectedDevice(),
                     mBluetoothRouteManager.getConnectedDevices());
-            if (mFeatureFlags.earlyUpdateInternalCallAudioState()) {
-                updateInternalCallAudioState();
-                setSystemAudioState(newState, true);
-            } else {
-                setSystemAudioState(newState, true);
-                updateInternalCallAudioState();
-            }
+            updateInternalCallAudioState();
+            setSystemAudioState(newState, true);
         }
 
         @Override
@@ -1086,11 +1048,7 @@ public class CallAudioRouteStateMachine extends StateMachine implements CallAudi
                     if (msg.arg1 == ACTIVE_FOCUS) {
                         // It is possible that the connection to BT will fail while in-call, in
                         // which case, we want to transition into the active route.
-                        if (mFeatureFlags.callAudioCommunicationDeviceRefactor()) {
-                            transitionTo(mActiveBluetoothRoute);
-                        } else {
-                            setBluetoothOn(null);
-                        }
+                        transitionTo(mActiveBluetoothRoute);
                     } else if (msg.arg1 == RINGING_FOCUS) {
                         if (mBluetoothRouteManager.isInbandRingingEnabled()) {
                             setBluetoothOn(null);
@@ -1180,13 +1138,8 @@ public class CallAudioRouteStateMachine extends StateMachine implements CallAudi
             mWasOnSpeaker = true;
             CallAudioState newState = new CallAudioState(mIsMuted, ROUTE_SPEAKER,
                     mAvailableRoutes, null, mBluetoothRouteManager.getConnectedDevices());
-            if (mFeatureFlags.earlyUpdateInternalCallAudioState()) {
-                updateInternalCallAudioState();
-                setSystemAudioState(newState, true);
-            } else {
-                setSystemAudioState(newState, true);
-                updateInternalCallAudioState();
-            }
+            updateInternalCallAudioState();
+            setSystemAudioState(newState, true);
         }
 
         @Override
@@ -1844,16 +1797,12 @@ public class CallAudioRouteStateMachine extends StateMachine implements CallAudi
         // These APIs are all via two-way binder calls so can potentially block Telecom.  Since none
         // of this has to happen in the Telecom lock we'll offload it to the async executor.
         boolean speakerOn = false;
-        if (mFeatureFlags.callAudioCommunicationDeviceRefactor()) {
-            if (on) {
-                speakerOn = mCommunicationDeviceTracker.setCommunicationDevice(
-                        AudioDeviceInfo.TYPE_BUILTIN_SPEAKER, null);
-            } else {
-                mCommunicationDeviceTracker.clearCommunicationDevice(
-                        AudioDeviceInfo.TYPE_BUILTIN_SPEAKER);
-            }
+        if (on) {
+            speakerOn = mCommunicationDeviceTracker.setCommunicationDevice(
+                    AudioDeviceInfo.TYPE_BUILTIN_SPEAKER, null);
         } else {
-            speakerOn = processLegacySpeakerCommunicationDevice(on);
+            mCommunicationDeviceTracker.clearCommunicationDevice(
+                    AudioDeviceInfo.TYPE_BUILTIN_SPEAKER);
         }
         mStatusBarNotifier.notifySpeakerphone(hasAnyCalls && speakerOn);
     }
@@ -2101,30 +2050,6 @@ public class CallAudioRouteStateMachine extends StateMachine implements CallAudi
                 + "non-wearable device: %s, is active device a watch: %s.",
                 containsWatchDevice, containsNonWatchDevice, isActiveDeviceWatch);
         return containsWatchDevice && !containsNonWatchDevice && !isActiveDeviceWatch;
-    }
-
-    private boolean processLegacySpeakerCommunicationDevice(boolean on) {
-        AudioDeviceInfo speakerDevice = null;
-        for (AudioDeviceInfo info : mAudioManager.getAvailableCommunicationDevices()) {
-            if (info.getType() == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) {
-                speakerDevice = info;
-                break;
-            }
-        }
-        boolean speakerOn = false;
-        if (speakerDevice != null && on) {
-            boolean result = mAudioManager.setCommunicationDevice(speakerDevice);
-            if (result) {
-                speakerOn = true;
-            }
-        } else {
-            AudioDeviceInfo curDevice = mAudioManager.getCommunicationDevice();
-            if (curDevice != null
-                    && curDevice.getType() == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) {
-                mAudioManager.clearCommunicationDevice();
-            }
-        }
-        return speakerOn;
     }
 
     private int calculateBaselineRouteMessage(boolean isExplicitUserRequest,

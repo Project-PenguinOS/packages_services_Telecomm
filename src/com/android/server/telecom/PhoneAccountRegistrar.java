@@ -1349,9 +1349,8 @@ public class PhoneAccountRegistrar {
             // Ensure name is correct.
             CharSequence newLabel = mAppLabelProxy.getAppLabel(
                     account.getAccountHandle().getComponentName().getPackageName(),
-                    UserUtil.getAssociatedUserForCall(
-                            mTelecomFeatureFlags.associatedUserRefactorForWorkProfile(),
-                            this, UserHandle.CURRENT, account.getAccountHandle()));
+                    UserUtil.getAssociatedUserForCall(this, UserHandle.CURRENT,
+                            account.getAccountHandle()));
 
             account = account.toBuilder()
                     .setLabel(newLabel)
