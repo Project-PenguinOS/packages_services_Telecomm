@@ -3803,7 +3803,8 @@ public class CallsManagerTest extends TelecomTestCase {
         CallSequencingController sequencingController = mock(CallSequencingController.class);
         CallAudioManager callAudioManager = mock(CallAudioManager.class);
         CallsManagerCallSequencingAdapter adapter = new CallsManagerCallSequencingAdapter(
-                mCallsManager, mContext, sequencingController, callAudioManager, mFeatureFlags);
+                mCallsManager, mContext, sequencingController, callAudioManager,
+                mMockTelecomMetricsController, mFeatureFlags);
         mCallsManager.setCallSequencingAdapter(adapter);
         // Explicitly disable simultaneous calling
         TelephonyManager mockTelephonyManager = mComponentContextFixture.getTelephonyManager();
