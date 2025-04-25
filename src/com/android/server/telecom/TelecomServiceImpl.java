@@ -105,8 +105,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-// TODO: Needed for move to system service: import com.android.internal.R;
-
 /**
  * Implementation of the ITelecom interface.
  */

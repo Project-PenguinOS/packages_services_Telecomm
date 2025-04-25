@@ -3243,8 +3243,20 @@ public class CallsManager extends Call.ListenerBase
             }).start();
         }
 
-        final boolean requireCallCapableAccountByHandle = mContext.getResources().getBoolean(
-                com.android.internal.R.bool.config_requireCallCapableAccountForHandle);
+        final boolean requireCallCapableAccountByHandle;
+        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
+            // This was previously only configured "true" for wear and cuttlefish builds.
+            // For cases where no target phone account handle were given this determines whether
+            // the phone account registrar query to get call capable phone accounts looks for a
+            // specific URI scheme or not.  On non-wear and cuttlefish builds we ued to just check
+            // all call capable phone accounts without accounting for scheme; that logic was
+            // flawed since dialing a tel: uri number REQUIRES a call capable tel: phone account.
+            // We are in effect removing this option.
+            requireCallCapableAccountByHandle = true;
+        } else {
+            requireCallCapableAccountByHandle = mContext.getResources().getBoolean(
+                    com.android.internal.R.bool.config_requireCallCapableAccountForHandle);
+        }
         final boolean isOutgoingCallPermitted = isOutgoingCallPermitted(call,
                 call.getTargetPhoneAccount());
         final String callHandleScheme =
