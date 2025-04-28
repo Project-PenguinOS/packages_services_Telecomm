@@ -2632,7 +2632,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
         service.incrementAssociatedCallCount();
 
-        if (mFlags.updatedRcsCallCountTracking() && remoteService != null) {
+        if (remoteService != null) {
             remoteService.incrementAssociatedCallCount();
             mRemoteConnectionService = remoteService;
         }
@@ -2664,17 +2664,11 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         if (mConnectionService != null) {
             ConnectionServiceWrapper serviceTemp = mConnectionService;
 
-            if (mFlags.updatedRcsCallCountTracking()) {
-                // Continue to track the former CS for this call so that it doesn't unbind early:
-                mRemoteConnectionService = serviceTemp;
-            }
+            // Continue to track the former CS for this call so that it doesn't unbind early:
+            mRemoteConnectionService = serviceTemp;
 
             mConnectionService = null;
             serviceTemp.removeCall(this);
-
-            if (!mFlags.updatedRcsCallCountTracking()) {
-                serviceTemp.decrementAssociatedCallCount(true /*isSuppressingUnbind*/);
-            }
         }
 
         service.incrementAssociatedCallCount();
@@ -2701,7 +2695,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             // to do.
             decrementAssociatedCallCount(serviceTemp);
 
-            if (mFlags.updatedRcsCallCountTracking() && remoteServiceTemp != null) {
+            if (remoteServiceTemp != null) {
                 decrementAssociatedCallCount(remoteServiceTemp);
             }
         }
@@ -4471,7 +4465,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      *
      * @param isLocallyDisconnecting {@code true} if this call is locally disconnecting.
      */
-    private void setLocallyDisconnecting(boolean isLocallyDisconnecting) {
+    public void setLocallyDisconnecting(boolean isLocallyDisconnecting) {
         mIsLocallyDisconnecting = isLocallyDisconnecting;
     }
 
