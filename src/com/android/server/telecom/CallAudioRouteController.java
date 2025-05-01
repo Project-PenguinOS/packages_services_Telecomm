@@ -1373,6 +1373,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                         && !foregroundCall.isVideoCrsForVoLteCall()
                         && !foregroundCall.isVisualizedVoiceCall();
 // QTI_END: 2024-12-12: Telephony: IMS: Treat CRS/CRBT/UVS call as VoLTE call and audio routing defaulting to earpiece
+                Log.i(this, "skipEarpiece for video call?" + skipEarpiece);
             }
         }
         // Route to earpiece, wired, or speaker route if there are not bluetooth routes or if there
