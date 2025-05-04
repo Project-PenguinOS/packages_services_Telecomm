@@ -105,8 +105,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-// TODO: Needed for move to system service: import com.android.internal.R;
-
 /**
  * Implementation of the ITelecom interface.
  */
@@ -2850,9 +2848,7 @@ public class TelecomServiceImpl {
             try {
                 Log.startSession("TSI.sTDCRA");
                 enforceModifyPermission();
-                if (!Build.IS_USERDEBUG) {
-                    throw new SecurityException("Test-only API.");
-                }
+                enforceShellOnly(Binder.getCallingUid(), "Test-only API");
                 synchronized (mLock) {
                     long token = Binder.clearCallingIdentity();
                     try {
@@ -2872,9 +2868,7 @@ public class TelecomServiceImpl {
             try {
                 Log.startSession("TSI.sTDCSA");
                 enforceModifyPermission();
-                if (!Build.IS_USERDEBUG) {
-                    throw new SecurityException("Test-only API.");
-                }
+                enforceShellOnly(Binder.getCallingUid(), "Test-only API");
                 synchronized (mLock) {
                     long token = Binder.clearCallingIdentity();
                     try {
