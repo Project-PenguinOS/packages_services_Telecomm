@@ -827,7 +827,7 @@ public class CallsManager extends Call.ListenerBase
         mCallSequencingAdapter = new CallsManagerCallSequencingAdapter(this, mContext,
                 new CallSequencingController(this, mContext, mClockProxy,
                         mAnomalyReporter, mTimeoutsAdapter, mMetricsController, mMmiUtils,
-                        mFeatureFlags), mCallAudioManager, mFeatureFlags);
+                        mFeatureFlags), mCallAudioManager, mMetricsController, mFeatureFlags);
 
         mListeners.add(mInCallController);
         mListeners.add(mInCallWakeLockController);
@@ -4877,6 +4877,7 @@ public class CallsManager extends Call.ListenerBase
         }
         Log.i(this, "addCall(%s)", call);
         call.addListener(this);
+        mCallSequencingAdapter.setCallSequencingMetrics(call);
         mCalls.add(call);
         // Reprocess the simultaneous call types for all the tracked calls after having added a new
         // call.
