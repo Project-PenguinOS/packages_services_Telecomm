@@ -3429,6 +3429,7 @@ public class CallsManagerTest extends TelecomTestCase {
         verify(mComponentContextFixture.getAudioManager(), times(1)).setStreamVolume(
                 eq(AudioManager.STREAM_VOICE_CALL), anyInt(), anyInt());
     }
+
     @MediumTest
     @Test
     public void testSetCallDialingAndIncreaseVolume() {
@@ -3442,6 +3443,26 @@ public class CallsManagerTest extends TelecomTestCase {
         // We set the volume to zero above, so expect 2
         verify(mComponentContextFixture.getAudioManager(), times(2)).setStreamVolume(
                 eq(AudioManager.STREAM_VOICE_CALL), anyInt(), anyInt());
+    }
+
+    @MediumTest
+    @Test
+    public void testSetCallDialingAndCalculateAverageVolume() {
+        // This test specificaslly tests the new behavior guarded by this flag:
+        when(mFeatureFlags.resolveHiddenDependenciesTwo()).thenReturn(true);
+
+        // Start with a zero volume stream.
+        mComponentContextFixture.getAudioManager().setStreamVolume(AudioManager.STREAM_VOICE_CALL,
+                0, 0 /* flags */);
+
+        Call call = mock(Call.class);
+        mCallsManager.markCallAsDialing(call);
+
+        // Ensure we calculate the new volume using the average of AudioManager min and max volume:
+        verify(mComponentContextFixture.getAudioManager(), times(1))
+                .getStreamMaxVolume(eq(AudioManager.STREAM_VOICE_CALL));
+        verify(mComponentContextFixture.getAudioManager(), times(1))
+                .getStreamMinVolume(eq(AudioManager.STREAM_VOICE_CALL));
     }
 
     @MediumTest
