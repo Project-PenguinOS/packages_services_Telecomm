@@ -1222,7 +1222,7 @@ public class CallsManager extends Call.ListenerBase
                 if (result.shouldShowNotification) {
                     Log.w(this, "onCallScreeningCompleted: blocked call, showing notification.");
                 }
-                mCallLogManager.logCall(incomingCall, Calls.BLOCKED_TYPE,
+                mCallLogManager.logCallIfNotSelfManaged(incomingCall, Calls.BLOCKED_TYPE,
                         result.shouldShowNotification, result);
             }
             if (result.shouldShowNotification) {
@@ -1918,7 +1918,7 @@ public class CallsManager extends Call.ListenerBase
                 if (hasMaximumManagedRingingCalls(call)) {
                     call.setMissedReason(AUTO_MISSED_MAXIMUM_RINGING);
                     call.setStartFailCause(CallFailureCause.MAX_RINGING_CALLS);
-                    mCallLogManager.logCall(call, Calls.MISSED_TYPE,
+                    mCallLogManager.logCallIfNotSelfManaged(call, Calls.MISSED_TYPE,
                             true /*showNotificationForMissedCall*/, null /*CallFilteringResult*/);
                 }
                 call.setStartFailCause(startFailCause);
@@ -1931,7 +1931,7 @@ public class CallsManager extends Call.ListenerBase
             call.setMissedReason(AUTO_MISSED_EMERGENCY_CALL);
             call.getAnalytics().setMissedReason(call.getMissedReason());
             call.setStartFailCause(CallFailureCause.IN_EMERGENCY_CALL);
-            mCallLogManager.logCall(call, Calls.MISSED_TYPE,
+            mCallLogManager.logCallIfNotSelfManaged(call, Calls.MISSED_TYPE,
                     true /*showNotificationForMissedCall*/, null /*CallFilteringResult*/);
             if (isConference) {
                 notifyCreateConferenceFailed(phoneAccountHandle, call);
@@ -1950,7 +1950,7 @@ public class CallsManager extends Call.ListenerBase
                 call.setMissedReason(AUTO_MISSED_MAXIMUM_DIALING);
             }
             call.getAnalytics().setMissedReason(call.getMissedReason());
-            mCallLogManager.logCall(call, Calls.MISSED_TYPE,
+            mCallLogManager.logCallIfNotSelfManaged(call, Calls.MISSED_TYPE,
                     true /*showNotificationForMissedCall*/, null /*CallFilteringResult*/);
             if (isConference) {
                 notifyCreateConferenceFailed(phoneAccountHandle, call);
@@ -4630,7 +4630,7 @@ public class CallsManager extends Call.ListenerBase
 
         if (oldState == CallState.NEW && disconnectCause.getCode() == DisconnectCause.MISSED) {
             Log.i(this, "markCallAsDisconnected: logging missed call ");
-            mCallLogManager.logCall(call, Calls.MISSED_TYPE, true, null);
+            mCallLogManager.logCallIfNotSelfManaged(call, Calls.MISSED_TYPE, true, null);
         }
 
 // QTI_BEGIN: 2018-04-09: N/A: Emergency Call when there is no room left for new Call.
@@ -5207,7 +5207,7 @@ public class CallsManager extends Call.ListenerBase
         // Since the call was not added to the list of calls, we have to call the missed
         // call notifier and the call logger manually.
         // Do we need missed call notification for direct to Voicemail calls?
-        mCallLogManager.logCall(incomingCall, Calls.MISSED_TYPE,
+        mCallLogManager.logCallIfNotSelfManaged(incomingCall, Calls.MISSED_TYPE,
                 true /*showNotificationForMissedCall*/, result);
     }
 
