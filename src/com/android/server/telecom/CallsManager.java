@@ -554,7 +554,7 @@ public class CallsManager extends Call.ListenerBase
 
     private final IncomingCallFilterGraphProvider mIncomingCallFilterGraphProvider;
     private CallAudioWatchdog mCallAudioWatchDog;
-    private final CallAudioRouteAdapter mCallAudioRouteAdapter;
+    private CallAudioRouteAdapter mCallAudioRouteAdapter;
 
     private final ConnectionServiceFocusManager.CallsManagerRequester mRequester =
             new ConnectionServiceFocusManager.CallsManagerRequester() {
@@ -676,7 +676,7 @@ public class CallsManager extends Call.ListenerBase
             ClockProxy clockProxy,
             AudioProcessingNotification audioProcessingNotification,
             BluetoothStateReceiver bluetoothStateReceiver,
-            CallAudioRouteStateMachine.Factory callAudioRouteStateMachineFactory,
+            CallAudioRouteController.Factory audioRouteControllerFactory,
             CallAudioModeStateMachine.Factory callAudioModeStateMachineFactory,
             InCallControllerFactory inCallControllerFactory,
             CallDiagnosticServiceController callDiagnosticServiceController,
@@ -746,27 +746,9 @@ public class CallsManager extends Call.ListenerBase
 
         mDtmfLocalTonePlayer =
                 new DtmfLocalTonePlayer(new DtmfLocalTonePlayer.ToneGeneratorProxy(), featureFlags);
-        // TODO: add another flag check when
-        // bluetoothDeviceManager.getBluetoothHeadset().isScoManagedByAudio()
-        // available and return true
-        if (!featureFlags.useRefactoredAudioRouteSwitching()) {
-            mCallAudioRouteAdapter = callAudioRouteStateMachineFactory.create(
-                    context,
-                    this,
-                    bluetoothManager,
-                    wiredHeadsetManager,
-                    statusBarNotifier,
-                    audioServiceFactory,
-                    CallAudioRouteStateMachine.EARPIECE_AUTO_DETECT,
-                    asyncCallAudioTaskExecutor,
-                    communicationDeviceTracker,
-                    featureFlags
-            );
-        } else {
-            mCallAudioRouteAdapter = new CallAudioRouteController(context, this,
-                    audioServiceFactory, new AudioRoute.Factory(), wiredHeadsetManager,
-                    mBluetoothRouteManager, statusBarNotifier, featureFlags, metricsController);
-        }
+        mCallAudioRouteAdapter = audioRouteControllerFactory.create(context, this,
+                audioServiceFactory, new AudioRoute.Factory(), wiredHeadsetManager,
+                mBluetoothRouteManager, statusBarNotifier, featureFlags, metricsController);
         mCallAudioRouteAdapter.initialize();
         bluetoothStateReceiver.setCallAudioRouteAdapter(mCallAudioRouteAdapter);
         bluetoothDeviceManager.setCallAudioRouteAdapter(mCallAudioRouteAdapter);
@@ -1222,7 +1204,7 @@ public class CallsManager extends Call.ListenerBase
                 if (result.shouldShowNotification) {
                     Log.w(this, "onCallScreeningCompleted: blocked call, showing notification.");
                 }
-                mCallLogManager.logCall(incomingCall, Calls.BLOCKED_TYPE,
+                mCallLogManager.logCallIfNotSelfManaged(incomingCall, Calls.BLOCKED_TYPE,
                         result.shouldShowNotification, result);
             }
             if (result.shouldShowNotification) {
@@ -1918,7 +1900,7 @@ public class CallsManager extends Call.ListenerBase
                 if (hasMaximumManagedRingingCalls(call)) {
                     call.setMissedReason(AUTO_MISSED_MAXIMUM_RINGING);
                     call.setStartFailCause(CallFailureCause.MAX_RINGING_CALLS);
-                    mCallLogManager.logCall(call, Calls.MISSED_TYPE,
+                    mCallLogManager.logCallIfNotSelfManaged(call, Calls.MISSED_TYPE,
                             true /*showNotificationForMissedCall*/, null /*CallFilteringResult*/);
                 }
                 call.setStartFailCause(startFailCause);
@@ -1931,7 +1913,7 @@ public class CallsManager extends Call.ListenerBase
             call.setMissedReason(AUTO_MISSED_EMERGENCY_CALL);
             call.getAnalytics().setMissedReason(call.getMissedReason());
             call.setStartFailCause(CallFailureCause.IN_EMERGENCY_CALL);
-            mCallLogManager.logCall(call, Calls.MISSED_TYPE,
+            mCallLogManager.logCallIfNotSelfManaged(call, Calls.MISSED_TYPE,
                     true /*showNotificationForMissedCall*/, null /*CallFilteringResult*/);
             if (isConference) {
                 notifyCreateConferenceFailed(phoneAccountHandle, call);
@@ -1950,7 +1932,7 @@ public class CallsManager extends Call.ListenerBase
                 call.setMissedReason(AUTO_MISSED_MAXIMUM_DIALING);
             }
             call.getAnalytics().setMissedReason(call.getMissedReason());
-            mCallLogManager.logCall(call, Calls.MISSED_TYPE,
+            mCallLogManager.logCallIfNotSelfManaged(call, Calls.MISSED_TYPE,
                     true /*showNotificationForMissedCall*/, null /*CallFilteringResult*/);
             if (isConference) {
                 notifyCreateConferenceFailed(phoneAccountHandle, call);
@@ -4630,7 +4612,7 @@ public class CallsManager extends Call.ListenerBase
 
         if (oldState == CallState.NEW && disconnectCause.getCode() == DisconnectCause.MISSED) {
             Log.i(this, "markCallAsDisconnected: logging missed call ");
-            mCallLogManager.logCall(call, Calls.MISSED_TYPE, true, null);
+            mCallLogManager.logCallIfNotSelfManaged(call, Calls.MISSED_TYPE, true, null);
         }
 
 // QTI_BEGIN: 2018-04-09: N/A: Emergency Call when there is no room left for new Call.
@@ -5207,7 +5189,7 @@ public class CallsManager extends Call.ListenerBase
         // Since the call was not added to the list of calls, we have to call the missed
         // call notifier and the call logger manually.
         // Do we need missed call notification for direct to Voicemail calls?
-        mCallLogManager.logCall(incomingCall, Calls.MISSED_TYPE,
+        mCallLogManager.logCallIfNotSelfManaged(incomingCall, Calls.MISSED_TYPE,
                 true /*showNotificationForMissedCall*/, result);
     }
 
@@ -7665,20 +7647,18 @@ public class CallsManager extends Call.ListenerBase
 
     public void waitForAudioToUpdate(boolean expectActive) {
         Log.i(this, "waitForAudioToUpdate");
-        if (mFeatureFlags.useRefactoredAudioRouteSwitching()) {
-            try {
-                CallAudioRouteController audioRouteController =
-                        (CallAudioRouteController) mCallAudioRouteAdapter;
-                if (expectActive) {
-                    audioRouteController.getAudioActiveCompleteLatch().await(
-                            WAIT_FOR_AUDIO_UPDATE_TIMEOUT, TimeUnit.MILLISECONDS);
-                } else {
-                    audioRouteController.getAudioOperationsCompleteLatch().await(
-                            WAIT_FOR_AUDIO_UPDATE_TIMEOUT, TimeUnit.MILLISECONDS);
-                }
-            } catch (InterruptedException e) {
-                Log.w(this, e.toString());
+        try {
+            CallAudioRouteController audioRouteController =
+                    (CallAudioRouteController) mCallAudioRouteAdapter;
+            if (expectActive) {
+                audioRouteController.getAudioActiveCompleteLatch().await(
+                        WAIT_FOR_AUDIO_UPDATE_TIMEOUT, TimeUnit.MILLISECONDS);
+            } else {
+                audioRouteController.getAudioOperationsCompleteLatch().await(
+                        WAIT_FOR_AUDIO_UPDATE_TIMEOUT, TimeUnit.MILLISECONDS);
             }
+        } catch (InterruptedException e) {
+            Log.w(this, e.toString());
         }
     }
 

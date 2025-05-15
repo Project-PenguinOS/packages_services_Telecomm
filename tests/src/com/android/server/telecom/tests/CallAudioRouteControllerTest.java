@@ -46,6 +46,8 @@ import static com.android.server.telecom.CallAudioRouteAdapter.USER_SWITCH_SPEAK
 import static com.android.server.telecom.CallAudioRouteController.INCLUDE_BLUETOOTH_IN_BASELINE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -200,9 +202,10 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         when(mBluetoothLeAudio.getConnectedGroupLeadDevice(anyInt()))
                 .thenReturn(BLUETOOTH_DEVICE_1);
         when(mAudioDeviceInfo.getAddress()).thenReturn(BT_ADDRESS_1);
-        mController = new CallAudioRouteController(mContext, mCallsManager, mAudioServiceFactory,
-                mAudioRouteFactory, mWiredHeadsetManager, mBluetoothRouteManager,
-                mockStatusBarNotifier, mFeatureFlags, mMockTelecomMetricsController);
+        mController = new CallAudioRouteController.Factory().create(mContext, mCallsManager,
+                mAudioServiceFactory, mAudioRouteFactory, mWiredHeadsetManager,
+                mBluetoothRouteManager, mockStatusBarNotifier, mFeatureFlags,
+                mMockTelecomMetricsController);
         mController.setAudioRouteFactory(mAudioRouteFactory);
         mController.setAudioManager(mAudioManager);
         mEarpieceRoute = new AudioRoute(AudioRoute.TYPE_EARPIECE, null, null);
@@ -212,7 +215,6 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         when(mCallAudioManager.getForegroundCall()).thenReturn(mCall);
         when(mCall.getVideoState()).thenReturn(VideoProfile.STATE_AUDIO_ONLY);
         when(mCall.getSupportedAudioRoutes()).thenReturn(CallAudioState.ROUTE_ALL);
-        when(mFeatureFlags.useRefactoredAudioRouteSwitching()).thenReturn(true);
         when(mFeatureFlags.callAudioRoutingPerformanceImprovemenent()).thenReturn(true);
         BLUETOOTH_DEVICES.add(BLUETOOTH_DEVICE_1);
     }
@@ -1533,6 +1535,45 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         assertFalse(mController.getPendingAudioRoute().getPendingMessages().contains(
                 new Pair<>(SPEAKER_ON, null)));
         BLUETOOTH_DEVICES.remove(scoDevice);
+    }
+
+    @Test
+    @SmallTest
+    public void testAddAudioRoutesDynamic() {
+        AudioRoute.Factory audioRouteFactory = new AudioRoute.Factory() {
+            @Override
+            public AudioRoute create(@AudioRoute.AudioRouteType int type, String bluetoothAddress,
+                    AudioManager audioManager) {
+                if (mOverrideSpeakerToBus && type == AudioRoute.TYPE_SPEAKER) {
+                    type = AudioRoute.TYPE_BUS;
+                }
+                // Purposely return null to mimic audio routes not being created upon
+                // initialization.
+                return null;
+            }
+        };
+        mController.setAudioRouteFactory(audioRouteFactory);
+        mController.initialize();
+        // Verify that the earpiece/speaker routes aren't created upon initialization of the
+        // controller.
+        assertNull(mController.getAudioRouteForTesting(AudioRoute.TYPE_SPEAKER));
+        assertNull(mController.getAudioRouteForTesting(AudioRoute.TYPE_EARPIECE));
+
+        // Set up the AudioDeviceCallback to signal to the controller of the newly added devices
+        // (earpiece + speaker).
+        CallAudioRouteController.AudioRoutesCallback callback = mController
+                .getAudioRoutesCallback();
+        AudioDeviceInfo earpieceDeviceInfo = mock(AudioDeviceInfo.class);
+        when(earpieceDeviceInfo.getType()).thenReturn(AudioDeviceInfo.TYPE_BUILTIN_EARPIECE);
+        AudioDeviceInfo speakerDeviceInfo = mock(AudioDeviceInfo.class);
+        when(speakerDeviceInfo.getType()).thenReturn(AudioDeviceInfo.TYPE_BUILTIN_SPEAKER);
+
+        // Reset the audio route factory so that the route creation can be successful now.
+        mController.setAudioRouteFactory(mAudioRouteFactory);
+        callback.onAudioDevicesAdded(new AudioDeviceInfo[] {earpieceDeviceInfo, speakerDeviceInfo});
+        // Verify that the earpiece/speaker routes are created this time around.
+        assertNotNull(mController.getAudioRouteForTesting(AudioRoute.TYPE_SPEAKER));
+        assertNotNull(mController.getAudioRouteForTesting(AudioRoute.TYPE_EARPIECE));
     }
 
     private void verifyConnectBluetoothDevice(int audioType) {

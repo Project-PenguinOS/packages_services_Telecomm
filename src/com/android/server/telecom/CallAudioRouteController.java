@@ -39,6 +39,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.media.AudioAttributes;
 import android.media.AudioDeviceAttributes;
+import android.media.AudioDeviceCallback;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.media.IAudioService;
@@ -79,6 +80,24 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class CallAudioRouteController implements CallAudioRouteAdapter {
+    public static class Factory {
+        public CallAudioRouteController create(
+                Context context, CallsManager callsManager,
+                CallAudioManager.AudioServiceFactory audioServiceFactory,
+                AudioRoute.Factory audioRouteFactory, WiredHeadsetManager wiredHeadsetManager,
+                BluetoothRouteManager bluetoothRouteManager, StatusBarNotifier notifier,
+                FeatureFlags featureFlags, TelecomMetricsController metricsController) {
+            return new CallAudioRouteController(context,
+                    callsManager,
+                    audioServiceFactory,
+                    audioRouteFactory,
+                    wiredHeadsetManager,
+                    bluetoothRouteManager,
+                    notifier,
+                    featureFlags,
+                    metricsController);
+        }
+    }
     private static final AudioRoute DUMMY_ROUTE = new AudioRoute(TYPE_INVALID, null, null);
     private static final Map<Integer, Integer> ROUTE_MAP;
     static {
@@ -134,6 +153,62 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     private final TelecomSystem.SyncRoot mTelecomLock;
     private CountDownLatch mAudioOperationsCompleteLatch;
     private CountDownLatch mAudioActiveCompleteLatch;
+
+    /** Receiver for added/removed device outputs that are reported by the audio fwk */
+    public class AudioRoutesCallback extends AudioDeviceCallback {
+        @Override
+        public void onAudioDevicesAdded(AudioDeviceInfo[] addedDevices) {
+            Log.startSession("ARC.oADA");
+            try {
+                updateAudioRoutes(addedDevices, true);
+            } finally {
+                Log.endSession();
+            }
+        }
+
+        @Override
+        public void onAudioDevicesRemoved(AudioDeviceInfo[] devices) {
+            Log.startSession("ARC.oADR");
+            try {
+                updateAudioRoutes(devices, false);
+            } finally {
+                Log.endSession();
+            }
+        }
+
+        private void updateAudioRoutes(AudioDeviceInfo[] devices, boolean addDevices) {
+            Log.i(this, "updateAudioRoutes: add devices? %b", addDevices);
+            for (AudioDeviceInfo deviceInfo: devices) {
+                int audioRouteType = getAudioType(deviceInfo);
+                Log.i(this, "updateAudioRoutes: audioDeviceInfo: %s, audioRouteType: %d",
+                        deviceInfo, audioRouteType);
+                // We should really only worry about handling earpiece and speaker. Bluetooth and
+                // wired headset routes are already dynamically updated. This logic can be updated
+                // once we support call audio route centralization.
+                if (audioRouteType == TYPE_INVALID || audioRouteType == AudioRoute.TYPE_WIRED
+                        || BT_AUDIO_ROUTE_TYPES.contains(audioRouteType)) {
+                    Log.i(this, "updateAudioRoutes: skipping route.");
+                    continue;
+                }
+                if (addDevices) {
+                    switch(audioRouteType) {
+                        case AudioRoute.TYPE_SPEAKER:
+                            createSpeakerRoute();
+                            break;
+                        case AudioRoute.TYPE_EARPIECE:
+                            createEarpieceRoute();
+                            break;
+                        default:
+                            break;
+                    }
+                } else {
+                    AudioRoute route = mTypeRoutes.remove(audioRouteType);
+                    updateAvailableRoutes(route, false);
+                }
+            }
+        }
+    }
+
     private final BroadcastReceiver mSpeakerPhoneChangeReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -199,6 +274,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     private boolean mIsPending;
     private boolean mIsActive;
     private boolean mWasOnSpeaker;
+    private AudioRoutesCallback mAudioRoutesCallback;
     private final TelecomMetricsController mMetricsController;
 
     public CallAudioRouteController(
@@ -416,23 +492,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         int supportMask = calculateSupportedRouteMaskInit();
         if ((supportMask & CallAudioState.ROUTE_SPEAKER) != 0) {
             int audioRouteType = AudioRoute.TYPE_SPEAKER;
-            // Create speaker routes
-            mSpeakerDockRoute = mAudioRouteFactory.create(AudioRoute.TYPE_SPEAKER, null,
-                    mAudioManager);
-            if (mSpeakerDockRoute == null){
-                Log.i(this, "Can't find available audio device info for route TYPE_SPEAKER, trying"
-                        + " for TYPE_BUS");
-                mSpeakerDockRoute = mAudioRouteFactory.create(AudioRoute.TYPE_BUS, null,
-                        mAudioManager);
-                audioRouteType = AudioRoute.TYPE_BUS;
-            }
-            if (mSpeakerDockRoute != null) {
-                mTypeRoutes.put(audioRouteType, mSpeakerDockRoute);
-                updateAvailableRoutes(mSpeakerDockRoute, true);
-            } else {
-                Log.w(this, "Can't find available audio device info for route TYPE_SPEAKER "
-                        + "or TYPE_BUS.");
-            }
+            createSpeakerRoute();
         }
 
         if ((supportMask & CallAudioState.ROUTE_WIRED_HEADSET) != 0) {
@@ -446,15 +506,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                 updateAvailableRoutes(mEarpieceWiredRoute, true);
             }
         } else if ((supportMask & CallAudioState.ROUTE_EARPIECE) != 0) {
-            // Create earpiece routes
-            mEarpieceWiredRoute = mAudioRouteFactory.create(AudioRoute.TYPE_EARPIECE, null,
-                    mAudioManager);
-            if (mEarpieceWiredRoute == null) {
-                Log.w(this, "Can't find available audio device info for route TYPE_EARPIECE");
-            } else {
-                mTypeRoutes.put(AudioRoute.TYPE_EARPIECE, mEarpieceWiredRoute);
-                updateAvailableRoutes(mEarpieceWiredRoute, true);
-            }
+            createEarpieceRoute();
         }
 
         // set current route
@@ -476,6 +528,8 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                 supportMask, null, new HashSet<>());
         mAudioManager.addOnCommunicationDeviceChangedListener(
                 mCommunicationDeviceChangedExecutor, mCommunicationDeviceListener);
+        mAudioRoutesCallback = new AudioRoutesCallback();
+        mAudioManager.registerAudioDeviceCallback(mAudioRoutesCallback, null);
     }
 
     @Override
@@ -1444,8 +1498,15 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         } else {
             AudioDeviceInfo[] deviceList = mAudioManager.getDevices(
                     AudioManager.GET_DEVICES_OUTPUTS);
+            // For debugging purposes in cases where the device list returned by the API fwk is
+            // empty and we don't end up adding the earpiece route upon init.
+            Log.i(this, "calculateSupportedRouteMaskInit: is device list size: %d",
+                    deviceList.length);
             for (AudioDeviceInfo device: deviceList) {
-                if (device.getType() == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE) {
+                Log.i(this, "calculateSupportedRouteMaskInit: audio route type from audio "
+                        + "device info: %d", device != null ? DEVICE_INFO_TYPE_TO_AUDIO_ROUTE_TYPE
+                        .getOrDefault(device.getType(), TYPE_INVALID) : TYPE_INVALID);
+                if (device != null && device.getType() == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE) {
                     routeMask |= CallAudioState.ROUTE_EARPIECE;
                     break;
                 }
@@ -1709,6 +1770,9 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     }
 
     private void updateAvailableRoutes(AudioRoute route, boolean includeRoute) {
+        if (route == null) {
+            return;
+        }
         if (includeRoute) {
             mAvailableRoutes.add(route);
         } else {
@@ -1797,5 +1861,63 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             return true;
         }
         return isDestRouteActive;
+    }
+
+    private void createSpeakerRoute() {
+        int audioRouteType = TYPE_SPEAKER;
+        if (mSpeakerDockRoute == null) {
+            //create type speaker
+            mSpeakerDockRoute = mAudioRouteFactory.create(audioRouteType, null,
+                    mAudioManager);
+            // If speaker route couldn't be instantiated, try for TYPE_BUS
+            if (mSpeakerDockRoute == null) {
+                Log.i(this, "createSpeakerRoute: Can't find available audio device info for "
+                        + "route TYPE_SPEAKER, trying for TYPE_BUS");
+                mSpeakerDockRoute = mAudioRouteFactory.create(AudioRoute.TYPE_BUS, null,
+                        mAudioManager);
+                audioRouteType = AudioRoute.TYPE_BUS;
+            }
+            if (mSpeakerDockRoute == null) {
+                Log.w(this, "createSpeakerRoute: Can't find available audio device info "
+                        + "for route TYPE_SPEAKER or TYPE_BUS.");
+            } else {
+                // Update available routes
+                mTypeRoutes.put(audioRouteType, mSpeakerDockRoute);
+                updateAvailableRoutes(mSpeakerDockRoute, true);
+            }
+        } else {
+            Log.i(this, "createSpeakerRoute: route already created. Skipping.");
+        }
+    }
+
+    private void createEarpieceRoute() {
+        // Create earpiece route
+        if (mEarpieceWiredRoute != null) {
+            Log.i(this, "createEarpieceRoute: route already created. Skipping.");
+            return;
+        }
+        mEarpieceWiredRoute = mAudioRouteFactory.create(AudioRoute.TYPE_EARPIECE, null,
+                mAudioManager);
+        if (mEarpieceWiredRoute == null) {
+            Log.w(this, "createEarpieceRoute: Can't find available audio device info for "
+                    + "route TYPE_EARPIECE");
+        } else {
+            mTypeRoutes.put(AudioRoute.TYPE_EARPIECE, mEarpieceWiredRoute);
+            updateAvailableRoutes(mEarpieceWiredRoute, true);
+        }
+    }
+
+    @VisibleForTesting
+    public AudioRoute getAudioRouteForTesting(int audioRouteType) {
+        return switch (audioRouteType) {
+            case AudioRoute.TYPE_EARPIECE, AudioRoute.TYPE_WIRED -> mEarpieceWiredRoute;
+            case AudioRoute.TYPE_SPEAKER -> mSpeakerDockRoute;
+            default -> DUMMY_ROUTE;
+        };
+    }
+
+    @VisibleForTesting
+    public AudioRoutesCallback getAudioRoutesCallback() {
+        return mAudioRoutesCallback;
     }
 }
