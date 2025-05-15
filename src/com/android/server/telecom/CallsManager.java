@@ -3655,6 +3655,19 @@ public class CallsManager extends Call.ListenerBase
         }
         mPendingAccountSelection.remove(callId);
     }
+
+    /**
+     * Derived from the disconnectCallOld logic to ensure that the registered listeners are notified
+     * of the disconnecting state once the call is disconnected. This is used for call sequencing.
+     * @param call The call to notify the state change for.
+     * @param previousState The previous call state before the disconnect.
+     */
+    public void notifyCallStateChangeForDisconnect(Call call, int previousState) {
+        for (CallsManagerListener listener : mListeners) {
+            listener.onCallStateChanged(call, previousState, call.getState());
+        }
+    }
+
     /**
      * Disconnects calls for any other {@link PhoneAccountHandle} but the one specified.
      * Note: As a protective measure, will NEVER disconnect an emergency call.  Although that
