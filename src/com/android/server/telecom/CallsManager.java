@@ -70,6 +70,7 @@ import android.media.AudioSystem;
 import android.media.MediaPlayer;
 import android.media.ToneGenerator;
 import android.net.Uri;
+import android.os.Binder;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -2372,17 +2373,16 @@ public class CallsManager extends Call.ListenerBase
                             if (accountSuggestions == null || accountSuggestions.isEmpty()) {
                                 Uri callUri = callToPlace.getHandle();
                                 if (PhoneAccount.SCHEME_TEL.equals(callUri.getScheme())) {
-                                    int managedProfileUserId = getManagedProfileUserId(mContext,
+                                    UserHandle managedProfileUserHandle =
+                                            getManagedProfileUserHandle(mContext,
                                             initiatingUser.getIdentifier(), mFeatureFlags);
-                                    if (managedProfileUserId != UserHandle.USER_NULL
-                                            &&
+                                    if (managedProfileUserHandle.getIdentifier() !=
+                                            UserHandle.USER_NULL &&
                                             mPhoneAccountRegistrar.getCallCapablePhoneAccounts(
                                                     handle.getScheme(), false,
-                                                    UserHandle.of(managedProfileUserId),
-                                                    false).size()
-                                                    != 0) {
+                                                    managedProfileUserHandle, false).size() != 0) {
                                         boolean dialogShown = showSwitchToManagedProfileDialog(
-                                                callUri, initiatingUser, managedProfileUserId);
+                                                callUri, initiatingUser, managedProfileUserHandle);
                                         if (dialogShown) {
                                             return CompletableFuture.completedFuture(null);
                                         }
@@ -2683,17 +2683,17 @@ public class CallsManager extends Call.ListenerBase
                             if (accountSuggestions == null || accountSuggestions.isEmpty()) {
                                 Uri callUri = callToPlace.getHandle();
                                 if (PhoneAccount.SCHEME_TEL.equals(callUri.getScheme())) {
-                                    int managedProfileUserId = getManagedProfileUserId(mContext,
+                                    UserHandle managedProfileUserHandle =
+                                            getManagedProfileUserHandle(mContext,
                                             initiatingUser.getIdentifier(), mFeatureFlags);
-                                    if (managedProfileUserId != UserHandle.USER_NULL
-                                            &&
+                                    if (managedProfileUserHandle.getIdentifier() !=
+                                            UserHandle.USER_NULL &&
                                             mPhoneAccountRegistrar.getCallCapablePhoneAccounts(
                                                     handle.getScheme(), false,
-                                                    UserHandle.of(managedProfileUserId),
-                                                    false).size()
+                                                    managedProfileUserHandle, false).size()
                                                     != 0) {
                                         boolean dialogShown = showSwitchToManagedProfileDialog(
-                                                callUri, initiatingUser, managedProfileUserId);
+                                                callUri, initiatingUser, managedProfileUserHandle);
                                         if (dialogShown) {
                                             return CompletableFuture.completedFuture(null);
                                         }
@@ -2985,7 +2985,7 @@ public class CallsManager extends Call.ListenerBase
         return mLatestPostSelectionProcessingFuture;
     }
 
-    private static int getManagedProfileUserId(Context context, int userId,
+    private static UserHandle getManagedProfileUserHandle(Context context, int userId,
             FeatureFlags featureFlags) {
         UserManager um;
         UserHandle userHandle = UserHandle.of(userId);
@@ -3002,7 +3002,7 @@ public class CallsManager extends Call.ListenerBase
                     continue;
                 }
                 if (profileUserManager.isManagedProfile()) {
-                    return userProfile.getIdentifier();
+                    return userProfile;
                 }
             }
         } else {
@@ -3012,32 +3012,37 @@ public class CallsManager extends Call.ListenerBase
                     continue;
                 }
                 if (uInfo.isManagedProfile()) {
-                    return uInfo.id;
+                    return uInfo.getUserHandle();
                 }
             }
         }
-        return UserHandle.USER_NULL;
+        return new UserHandle(UserHandle.USER_NULL);
     }
 
     private boolean showSwitchToManagedProfileDialog(Uri callUri, UserHandle initiatingUser,
-            int managedProfileUserId) {
+            UserHandle managedProfileUserHandle) {
         // Note that the ACTION_CALL intent will resolve to Telecomm's UserCallActivity
         // even if there is no dialer. Hence we explicitly check for whether a default dialer
         // exists instead of relying on ActivityNotFound when sending the call intent.
-        if (TextUtils.isEmpty(
-                mDefaultDialerCache.getDefaultDialerApplication(managedProfileUserId))) {
+        String defaultDialerApp = mFeatureFlags.resolveHiddenDependenciesTwo() ?
+                mDefaultDialerCache.getDefaultDialerApplication(managedProfileUserHandle) :
+                mDefaultDialerCache.getDefaultDialerApplicationLegacy(
+                        managedProfileUserHandle.getIdentifier());
+        if (TextUtils.isEmpty(defaultDialerApp)) {
             Log.i(
                     this,
                     "Work profile telephony: default dialer app missing, showing error dialog.");
-            return maybeShowErrorDialog(callUri, managedProfileUserId, initiatingUser);
+            return maybeShowErrorDialog(callUri, managedProfileUserHandle.getIdentifier(),
+                    initiatingUser);
         }
 
         UserManager userManager = mContext.getSystemService(UserManager.class);
-        if (userManager.isQuietModeEnabled(UserHandle.of(managedProfileUserId))) {
+        if (userManager.isQuietModeEnabled(managedProfileUserHandle)) {
             Log.i(
                     this,
                     "Work profile telephony: quiet mode enabled, showing error dialog");
-            return maybeShowErrorDialog(callUri, managedProfileUserId, initiatingUser);
+            return maybeShowErrorDialog(callUri, managedProfileUserHandle.getIdentifier(),
+                    initiatingUser);
         }
         Log.i(
                 this,
@@ -6523,8 +6528,9 @@ public class CallsManager extends Call.ListenerBase
         }
     }
 
-    public boolean isReplyWithSmsAllowed(int uid) {
-        UserHandle callingUser = UserHandle.of(UserHandle.getUserId(uid));
+    public boolean isReplyWithSmsAllowed(int uid, UserHandle callingUserHandle) {
+        UserHandle callingUser = mFeatureFlags.resolveHiddenDependenciesTwo() ?
+                callingUserHandle : UserHandle.of(UserHandle.getUserId(uid));
         UserManager userManager = mContext.getSystemService(UserManager.class);
         KeyguardManager keyguardManager = mContext.getSystemService(KeyguardManager.class);
 
@@ -7100,8 +7106,10 @@ public class CallsManager extends Call.ListenerBase
         mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
                 PERMISSION_PROCESS_PHONE_ACCOUNT_REGISTRATION);
 
-        String dialerPackage = mDefaultDialerCache.getDefaultDialerApplication(
-                getCurrentUserHandle().getIdentifier());
+        String dialerPackage = mFeatureFlags.resolveHiddenDependenciesTwo() ?
+                mDefaultDialerCache.getDefaultDialerApplication(getCurrentUserHandle()) :
+                mDefaultDialerCache
+                        .getDefaultDialerApplicationLegacy(getCurrentUserHandle().getIdentifier());
         if (!TextUtils.isEmpty(dialerPackage)) {
             Intent directedIntent = new Intent(TelecomManager.ACTION_PHONE_ACCOUNT_UNREGISTERED)
                     .setPackage(dialerPackage);
@@ -7123,8 +7131,10 @@ public class CallsManager extends Call.ListenerBase
         mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
                 PERMISSION_PROCESS_PHONE_ACCOUNT_REGISTRATION);
 
-        String dialerPackage = mDefaultDialerCache.getDefaultDialerApplication(
-                getCurrentUserHandle().getIdentifier());
+        String dialerPackage = mFeatureFlags.resolveHiddenDependenciesTwo() ?
+                mDefaultDialerCache.getDefaultDialerApplication(getCurrentUserHandle()) :
+                mDefaultDialerCache
+                        .getDefaultDialerApplicationLegacy(getCurrentUserHandle().getIdentifier());
         if (!TextUtils.isEmpty(dialerPackage)) {
             Intent directedIntent = new Intent(TelecomManager.ACTION_PHONE_ACCOUNT_REGISTERED)
                     .setPackage(dialerPackage);
