@@ -787,9 +787,17 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
             callsUri = ContentProvider
                     .maybeAddUserId(Calls.CONTENT_URI, userHandle.getIdentifier());
         }
-        // start the query
-        queryHandler.startQuery(0, null, callsUri, CALL_LOG_PROJECTION,
-                CALL_LOG_WHERE_CLAUSE, null, Calls.DEFAULT_SORT_ORDER);
+        //Adding code to catch IllegalArgumentException, which might occur when we
+        //query the ContactsProvider and ContactsProvider is dying,
+        //so that system server does not crash.
+        try {
+            // start the query
+            queryHandler.startQuery(0, null, callsUri, CALL_LOG_PROJECTION,
+                    CALL_LOG_WHERE_CLAUSE, null, Calls.DEFAULT_SORT_ORDER);
+        } catch (IllegalArgumentException e) {
+            Log.e(this, e, "ContactsProvider query command failed for user "
+                    + userHandle);
+        }
     }
 
     @Override
