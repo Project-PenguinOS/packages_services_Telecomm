@@ -1917,8 +1917,14 @@ public class CallsManager extends Call.ListenerBase
                 notifyCreateConnectionFailed(phoneAccountHandle, call);
             }
         } else if (mFeatureFlags.enableCallSequencing()
-                && ((hasMaximumManagedRingingCalls(call) && !ignoreIncomingCallFailureOnSameNumber)
-                || hasMaximumManagedDialingCalls(call))) {
+                && ((hasMaximumManagedRingingCalls(call) && !CallSequencingController
+                .arePhoneAccountsSame(getRingingOrSimulatedRingingCall(), call)
+                && !ignoreIncomingCallFailureOnSameNumber)
+                || (hasMaximumManagedDialingCalls(call)
+                && !CallSequencingController.arePhoneAccountsSame(getDialingCall(), call)))) {
+            // Only perform this when the calls are on different phone accounts. Otherwise, let
+            // Telephony handle the rejection logic.
+
             // Fail incoming call if there's already a ringing or dialing call present.
             boolean maxRinging = hasMaximumManagedRingingCalls(call);
             if (maxRinging) {
@@ -4935,16 +4941,15 @@ public class CallsManager extends Call.ListenerBase
         return getAllCallWithState(ONGOING_CALL_STATES);
     }
 
+    @VisibleForTesting
+    public Call getDialingCall() {
+        return getFirstCallWithState(CallState.DIALING, CallState.PULLING);
+    }
+
     public Call getActiveCall() {
         return getFirstCallWithState(CallState.ACTIVE);
     }
 
-// QTI_BEGIN: 2023-03-28: Telephony: IMS: Fix conflict with LKG
-    private Call getDialingCall() {
-        return getFirstCallWithState(CallState.DIALING);
-    }
-
-// QTI_END: 2023-03-28: Telephony: IMS: Fix conflict with LKG
 // QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
     private Call getDialingOrActiveCall() {
         return getFirstCallWithState(CallState.DIALING, CallState.ACTIVE);
