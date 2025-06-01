@@ -82,6 +82,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 // QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
@@ -276,6 +279,22 @@ public class Ringer {
      */
     private final Object mLock;
 
+    /**
+     * Manages a dedicated single background thread for executing Ringer-specific tasks
+     * asynchronously, such as calculating ringer attributes and posting accessibility updates.
+     * <p>
+     * This ExecutorService replaces the previous Handler/HandlerThread mechanism to align with
+     * Mainline module guidelines, which restrict direct Handler usage to reduce platform coupling
+     * and enhance stability.
+     */
+    private ExecutorService mRingerExecutor = null;
+    /**
+     * Guards mRingerExecutor's lifecycle (lazy initialization, shutdown). This prevents
+     * race conditions during init that could lead to multiple executor instances & resource leaks.
+     * Kept separate from mLock (ringer operational state) to minimize unrelated contention.
+     */
+    private final Object mExecutorLock = new Object();
+
     /** Initializes the Ringer. */
     @VisibleForTesting
     public Ringer(
@@ -317,6 +336,24 @@ public class Ringer {
         mFlags = featureFlags;
         mRingtoneVibrationSupported = mContext.getResources().getBoolean(
                 com.android.internal.R.bool.config_ringtoneVibrationSettingsSupported);
+    }
+
+    public void shutdownExecutor() {
+        Log.i(this, "Shutting down Ringer executor.");
+        synchronized (mExecutorLock) {
+            if (mRingerExecutor != null) {
+                mRingerExecutor.shutdown();
+                try {
+                    if (!mRingerExecutor.awaitTermination(500, TimeUnit.MILLISECONDS)) {
+                        mRingerExecutor.shutdownNow();
+                    }
+                } catch (InterruptedException e) {
+                    mRingerExecutor.shutdownNow();
+                    Thread.currentThread().interrupt();
+                }
+                mRingerExecutor = null;
+            }
+        }
     }
 
     @VisibleForTesting
@@ -617,7 +654,7 @@ public class Ringer {
             // TODO: moving these RingerAttributes calculation out of Telecom lock to avoid blocking
             CompletableFuture<RingerAttributes> ringerAttributesFuture = CompletableFuture
                     .supplyAsync(() -> getRingerAttributes(foregroundCall, isHfpDeviceAttached),
-                            new LoggedHandlerExecutor(getHandler(), "R.sR", null));
+                            getLoggedExecutor("R.sR"));
 
             RingerAttributes attributes = null;
             try {
@@ -663,9 +700,15 @@ public class Ringer {
             final boolean shouldFlash = attributes.shouldRingForContact();
             if (mAccessibilityManagerAdapter != null && shouldFlash) {
                 Log.addEvent(foregroundCall, LogUtils.Events.FLASH_NOTIFICATION_START);
-                getHandler().post(() ->
-                        mAccessibilityManagerAdapter.startFlashNotificationSequence(mContext,
-                                AccessibilityManager.FLASH_REASON_CALL));
+                if (mFlags.resolveHiddenDependenciesTwo()) {
+                    getExecutor().execute(() ->
+                            mAccessibilityManagerAdapter.startFlashNotificationSequence(mContext,
+                                    AccessibilityManager.FLASH_REASON_CALL));
+                } else {
+                    getHandler().post(() ->
+                            mAccessibilityManagerAdapter.startFlashNotificationSequence(mContext,
+                                    AccessibilityManager.FLASH_REASON_CALL));
+                }
             }
 
             // Determine if the settings and DND mode indicate that the vibrator can be used right
@@ -1013,8 +1056,13 @@ public class Ringer {
         final Call foregroundCall = mRingingCall != null ? mRingingCall : mVibratingCall;
         if (mAccessibilityManagerAdapter != null) {
             Log.addEvent(foregroundCall, LogUtils.Events.FLASH_NOTIFICATION_STOP);
-            getHandler().post(() ->
-                    mAccessibilityManagerAdapter.stopFlashNotificationSequence(mContext));
+            if (mFlags.resolveHiddenDependenciesTwo()) {
+                getExecutor().execute(() ->
+                        mAccessibilityManagerAdapter.stopFlashNotificationSequence(mContext));
+            } else {
+                getHandler().post(() ->
+                        mAccessibilityManagerAdapter.stopFlashNotificationSequence(mContext));
+            }
         }
 
         synchronized (mLock) {
@@ -1299,6 +1347,34 @@ public class Ringer {
             mHandler = handlerThread.getThreadHandler();
         }
         return mHandler;
+    }
+
+    private java.util.concurrent.Executor getLoggedExecutor(String functionName) {
+        if (mFlags.resolveHiddenDependenciesTwo()) {
+            return new LoggedExecutor(getExecutor(), functionName, null);
+        } else {
+            return new LoggedHandlerExecutor(getHandler(), functionName, null);
+        }
+    }
+
+    public ExecutorService getExecutor() {
+        synchronized (mExecutorLock) {
+            if (mRingerExecutor == null) {
+                ThreadFactory ringerThread = new ThreadFactory() {
+                    @Override
+                    public Thread newThread(Runnable r) {
+                        Thread t = new Thread(r, "Ringer-Executor");
+                        return t;
+                    }
+                };
+                // A single-thread executor is chosen here to ensure that Ringer-internal
+                // background tasks (e.g., ringer attribute calculation, accessibility updates)
+                // are processed sequentially. This mirrors the execution model of the previous
+                // Handler/HandlerThread, preserving task order and predictable behavior.
+                mRingerExecutor = Executors.newSingleThreadExecutor(ringerThread);
+            }
+        }
+        return mRingerExecutor;
     }
 
     @VisibleForTesting
