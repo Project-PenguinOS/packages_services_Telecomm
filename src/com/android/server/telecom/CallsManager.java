@@ -1000,19 +1000,19 @@ public class CallsManager extends Call.ListenerBase
         DndCallFilter dndCallFilter = new DndCallFilter(incomingCall, getRinger());
         CallScreeningServiceFilter carrierCallScreeningServiceFilter =
                 new CallScreeningServiceFilter(incomingCall, carrierPackageName,
-                        CallScreeningServiceFilter.PACKAGE_TYPE_CARRIER, mContext, this,
+                        CallScreeningServiceFilter.PACKAGE_TYPE_CARRIER, mContext,
                         appLabelProxy, converter, mFeatureFlags);
         CallScreeningServiceFilter callScreeningServiceFilter;
         if ((userChosenPackageName != null)
                 && (!userChosenPackageName.equals(defaultDialerPackageName))) {
             callScreeningServiceFilter = new CallScreeningServiceFilter(incomingCall,
                     userChosenPackageName, CallScreeningServiceFilter.PACKAGE_TYPE_USER_CHOSEN,
-                    mContext, this, appLabelProxy, converter, mFeatureFlags);
+                    mContext, appLabelProxy, converter, mFeatureFlags);
         } else {
             callScreeningServiceFilter = new CallScreeningServiceFilter(incomingCall,
                     defaultDialerPackageName,
                     CallScreeningServiceFilter.PACKAGE_TYPE_DEFAULT_DIALER,
-                    mContext, this, appLabelProxy, converter, mFeatureFlags);
+                    mContext, appLabelProxy, converter, mFeatureFlags);
         }
         graph.addFilter(voicemailFilter);
         graph.addFilter(dndCallFilter);
