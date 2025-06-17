@@ -288,7 +288,6 @@ public class TelecomServiceImplTest extends TelecomTestCase {
         when(mPackageManager.getPackageUid(anyString(), eq(0))).thenReturn(Binder.getCallingUid());
         when(mFeatureFlags.earlyBindingToIncallService()).thenReturn(true);
         when(mTelephonyFeatureFlags.workProfileApiSplit()).thenReturn(false);
-        when(mFeatureFlags.enableCallSequencing()).thenReturn(false);
     }
 
     @Override
