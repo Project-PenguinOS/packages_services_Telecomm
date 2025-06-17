@@ -78,6 +78,7 @@ import java.util.ArrayList;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
 // QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
 import java.util.concurrent.Executors;
 // QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
@@ -197,6 +198,16 @@ public class Ringer {
             0, // No amplitude while waiting
     };
 
+    private static final long[] CALL_CONNECTED_VIBRATION_PATTERN = {
+            0, // No delay before starting
+            1000, // How long to vibrate
+    };
+
+    private static final int[] CALL_CONNECTED_VIBRATION_AMPLITUDE = {
+            0, // No delay before starting
+            255, // Vibrate full amplitude
+    };
+
     /**
      * Indicates that vibration should be repeated at element 5 in the {@link #PULSE_AMPLITUDE} and
      * {@link #PULSE_PATTERN} arrays.  This means repetition will happen for the main ease-in/peak
@@ -263,9 +274,7 @@ public class Ringer {
     /**
      * Used to track the status of {@link #mVibrator} in the case of simultaneous incoming calls.
      */
-// QTI_BEGIN: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
     private volatile boolean mIsVibrating = false;
-// QTI_END: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
 
     private Handler mHandler = null;
 // QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
@@ -278,6 +287,11 @@ public class Ringer {
      * lock
      */
     private final Object mLock;
+    /**
+     * Used to track the status of call connected inidicator preference.
+     */
+    private final CallConnectedIndicatorSettings mCallConnectedIndicatorSettings;
+    private final Executor mAsyncTaskExecutor;
 
     /**
      * Manages a dedicated single background thread for executing Ringer-specific tasks
@@ -309,7 +323,9 @@ public class Ringer {
             NotificationManager notificationManager,
             AccessibilityManagerAdapter accessibilityManagerAdapter,
             FeatureFlags featureFlags,
-            AnomalyReporterAdapter anomalyReporter) {
+            AnomalyReporterAdapter anomalyReporter,
+            CallConnectedIndicatorSettings callConnectedIndicator,
+            Executor asyncTaskExecutor) {
 
         mLock = new Object();
         mSystemSettingsUtil = systemSettingsUtil;
@@ -336,6 +352,8 @@ public class Ringer {
         mFlags = featureFlags;
         mRingtoneVibrationSupported = mContext.getResources().getBoolean(
                 com.android.internal.R.bool.config_ringtoneVibrationSettingsSupported);
+        mCallConnectedIndicatorSettings = callConnectedIndicator;
+        mAsyncTaskExecutor = asyncTaskExecutor;
     }
 
     public void shutdownExecutor() {
