@@ -16,9 +16,9 @@
 
 package com.android.server.telecom;
 
-import static android.provider.CallLog.AddCallParams.AddCallParametersBuilder.MAX_NUMBER_OF_CHARACTERS;
 import static android.provider.CallLog.Calls.BLOCK_REASON_NOT_BLOCKED;
 import static android.telephony.CarrierConfigManager.KEY_SUPPORT_IMS_CONFERENCE_EVENT_PACKAGE_BOOL;
+import static com.android.server.telecom.util.CallLogUtils.AddCallParams.AddCallParametersBuilder.MAX_NUMBER_OF_CHARACTERS;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -57,6 +57,7 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.telecom.callfiltering.CallFilteringResult;
 import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.flags.Flags;
+import com.android.server.telecom.util.CallLogUtils;
 
 import java.util.Arrays;
 import java.util.Locale;
@@ -80,7 +81,7 @@ public final class CallLogManager extends CallsManagerListenerBase {
      * Parameter object to hold the arguments to add a call in the call log DB.
      */
     private static class AddCallArgs {
-        public AddCallArgs(Context context, CallLog.AddCallParams params,
+        public AddCallArgs(Context context, CallLogUtils.AddCallParams params,
                 @Nullable LogCallCompletedListener logCallCompletedListener,
                 @NonNull Call call) {
             this.context = context;
@@ -92,7 +93,7 @@ public final class CallLogManager extends CallsManagerListenerBase {
         // Since the members are accessed directly, we don't use the
         // mXxxx notation.
         public final Context context;
-        public final CallLog.AddCallParams params;
+        public final CallLogUtils.AddCallParams params;
         public final Call call;
         @Nullable
         public final LogCallCompletedListener logCallCompletedListener;
@@ -178,9 +179,7 @@ public final class CallLogManager extends CallsManagerListenerBase {
      */
     void logCallIfNotSelfManaged (Call call, int type, boolean showNotificationForMissedCall,
             CallFilteringResult result) {
-        boolean shouldCallSelfManagedLogged = call.isLoggedSelfManaged() &&
-                (call.getHandoverState() == HandoverState.HANDOVER_NONE
-                || call.getHandoverState() == HandoverState.HANDOVER_COMPLETE);
+        boolean shouldCallSelfManagedLogged = shouldLogVoipCall(call);
         if (!mFeatureFlags.preventSelfManagedCallLogging() || !call.isSelfManaged() ||
                 shouldCallSelfManagedLogged) {
             logCall(call, type, showNotificationForMissedCall, result);
@@ -205,9 +204,7 @@ public final class CallLogManager extends CallsManagerListenerBase {
      */
     @VisibleForTesting
     public boolean shouldLogDisconnectedCall(Call call, int oldState, boolean isCallCanceled) {
-        boolean shouldCallSelfManagedLogged = call.isLoggedSelfManaged() &&
-                (call.getHandoverState() == HandoverState.HANDOVER_NONE
-                || call.getHandoverState() == HandoverState.HANDOVER_COMPLETE);
+        boolean shouldCallSelfManagedLogged = shouldLogVoipCall(call);
 
         // "Choose account" phase when disconnected
         if (oldState == CallState.SELECT_PHONE_ACCOUNT) {
@@ -330,8 +327,8 @@ public final class CallLogManager extends CallsManagerListenerBase {
     void logCall(Call call, int callLogType,
             @Nullable LogCallCompletedListener logCallCompletedListener, CallFilteringResult result) {
 
-        CallLog.AddCallParams.AddCallParametersBuilder paramBuilder =
-                new CallLog.AddCallParams.AddCallParametersBuilder();
+        CallLogUtils.AddCallParams.AddCallParametersBuilder paramBuilder =
+                new CallLogUtils.AddCallParams.AddCallParametersBuilder();
 
         paramBuilder.setStart(call.isChildCall() ? call.getConnectTimeMillis()
             : call.getCreationTimeMillis());
@@ -454,6 +451,10 @@ public final class CallLogManager extends CallsManagerListenerBase {
                     paramBuilder.setAssertedDisplayName(assertedDisplayName);
                 }
             }
+        }
+        if (mFeatureFlags.integratedCallLogs() && call.isTransactionalCall()) {
+            // Todo: Uncomment after provider changes are in
+            // paramBuilder.setUuid(call.getId());
         }
         sendAddCallBroadcast(callLogType, call.getAgeMillis());
 
@@ -598,7 +599,7 @@ public final class CallLogManager extends CallsManagerListenerBase {
                 AddCallArgs c = callList[i];
                 mListeners[i] = c.logCallCompletedListener;
                 try {
-                    result[i] = Calls.addCall(c.context, c.params);
+                    result[i] = CallLogUtils.addCall(c.context, c.params);
                     Log.i(TAG, "LogCall; logged callId=%s, uri=%s",
                             c.call.getId(), result[i]);
                     if (result[i] == null) {
@@ -705,5 +706,12 @@ public final class CallLogManager extends CallsManagerListenerBase {
     @VisibleForTesting
     public void setAnomalyReporterAdapter(AnomalyReporterAdapter anomalyReporterAdapter){
         mAnomalyReporterAdapter = anomalyReporterAdapter;
+    }
+
+    @VisibleForTesting
+    public boolean shouldLogVoipCall(Call call) {
+        return (call.isManaged() || (call.isLoggedSelfManaged() || call.isLoggedTransactional()))
+                && (call.getHandoverState() == HandoverState.HANDOVER_NONE
+                || call.getHandoverState() == HandoverState.HANDOVER_COMPLETE);
     }
 }

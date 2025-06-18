@@ -33,6 +33,8 @@ import static android.provider.CallLog.Calls.USER_MISSED_NEVER_RANG;
 import static android.provider.CallLog.Calls.USER_MISSED_NOT_RUNNING;
 import static android.provider.CallLog.Calls.USER_MISSED_NO_ANSWER;
 import static android.provider.CallLog.Calls.USER_MISSED_SHORT_RING;
+import static android.telecom.Call.AUDIO_PROCESSING_USE_CASE_CALL_SCREENING;
+import static android.telecom.Call.AUDIO_PROCESSING_USE_CASE_VOICEMAIL;
 import static android.telecom.CallAttributes.DIRECTION_INCOMING;
 import static android.telecom.CallAttributes.DIRECTION_OUTGOING;
 import static android.telecom.TelecomManager.ACTION_POST_CALL;
@@ -95,7 +97,6 @@ import android.telecom.CallAudioState;
 import android.telecom.CallEndpoint;
 import android.telecom.CallException;
 import android.telecom.CallScreeningService;
-import android.telecom.CallerInfo;
 import android.telecom.Conference;
 import android.telecom.Connection;
 import android.telecom.DisconnectCause;
@@ -159,6 +160,7 @@ import com.android.server.telecom.ui.ConfirmCallDialogActivity;
 import com.android.server.telecom.ui.DisconnectedCallNotifier;
 import com.android.server.telecom.ui.IncomingCallNotifier;
 import com.android.server.telecom.ui.ToastFactory;
+import com.android.server.telecom.util.CallerInfo;
 import com.android.server.telecom.callsequencing.voip.VoipCallMonitor;
 import com.android.server.telecom.callsequencing.TransactionManager;
 
@@ -1036,19 +1038,19 @@ public class CallsManager extends Call.ListenerBase
         DndCallFilter dndCallFilter = new DndCallFilter(incomingCall, getRinger());
         CallScreeningServiceFilter carrierCallScreeningServiceFilter =
                 new CallScreeningServiceFilter(incomingCall, carrierPackageName,
-                        CallScreeningServiceFilter.PACKAGE_TYPE_CARRIER, mContext, this,
+                        CallScreeningServiceFilter.PACKAGE_TYPE_CARRIER, mContext,
                         appLabelProxy, converter, mFeatureFlags);
         CallScreeningServiceFilter callScreeningServiceFilter;
         if ((userChosenPackageName != null)
                 && (!userChosenPackageName.equals(defaultDialerPackageName))) {
             callScreeningServiceFilter = new CallScreeningServiceFilter(incomingCall,
                     userChosenPackageName, CallScreeningServiceFilter.PACKAGE_TYPE_USER_CHOSEN,
-                    mContext, this, appLabelProxy, converter, mFeatureFlags);
+                    mContext, appLabelProxy, converter, mFeatureFlags);
         } else {
             callScreeningServiceFilter = new CallScreeningServiceFilter(incomingCall,
                     defaultDialerPackageName,
                     CallScreeningServiceFilter.PACKAGE_TYPE_DEFAULT_DIALER,
-                    mContext, this, appLabelProxy, converter, mFeatureFlags);
+                    mContext, appLabelProxy, converter, mFeatureFlags);
         }
         graph.addFilter(voicemailFilter);
         graph.addFilter(dndCallFilter);
@@ -1181,7 +1183,9 @@ public class CallsManager extends Call.ListenerBase
                 autoMissCallAndLog(incomingCall, result);
             } else if (result.shouldScreenViaAudio) {
                 Log.i(this, "onCallFilteringCompleted: starting background audio processing");
-                answerCallForAudioProcessing(incomingCall);
+                // CallScreeningService started the audio processing so set the use case to the same
+                answerCallForAudioProcessing(incomingCall,
+                    AUDIO_PROCESSING_USE_CASE_CALL_SCREENING);
                 incomingCall.setAudioProcessingRequestingApp(result.mCallScreeningAppName);
             } else if (result.shouldSilence) {
                 Log.i(this, "onCallFilteringCompleted: setting the call to silent ringing state");
@@ -3890,7 +3894,7 @@ public class CallsManager extends Call.ListenerBase
         }
     }
 
-    private void answerCallForAudioProcessing(Call call) {
+    private void answerCallForAudioProcessing(Call call, int useCase) {
         // We don't check whether the call has been added to the internal lists yet -- it's optional
         // until the call is actually in the AUDIO_PROCESSING state.
         Call activeCall = (Call) mConnectionSvrFocusMgr.getCurrentFocusCall();
@@ -3903,12 +3907,13 @@ public class CallsManager extends Call.ListenerBase
             addCall(call);
             return;
         }
-        Log.d(this, "answerCallForAudioProcessing: Incoming call = %s", call);
+        Log.d(this, "answerCallForAudioProcessing: Incoming call = %s, useCase=%d", call, useCase);
         mConnectionSvrFocusMgr.requestFocus(
                 call,
                 new RequestCallback(() -> {
                     synchronized (mLock) {
                         Log.d(this, "answering call %s for audio processing with cs focus", call);
+                        call.setAudioProcessingUseCase(useCase);
                         call.answerForAudioProcessing();
                         // Skip setting the call state to ANSWERED -- that's only for calls that
                         // were answered by user intervention.
@@ -3927,7 +3932,8 @@ public class CallsManager extends Call.ListenerBase
      *
      * @param call The call to manipulate
      */
-    public void enterBackgroundAudioProcessing(Call call, String requestingPackageName) {
+    public void enterBackgroundAudioProcessing(Call call, String requestingPackageName,
+        int useCase) {
         if (!mCalls.contains(call)) {
             Log.w(this, "Trying to exit audio processing on an untracked call");
             return;
@@ -3949,9 +3955,10 @@ public class CallsManager extends Call.ListenerBase
         if (call.getState() == CallState.RINGING) {
             // After the connection service sets up the call with the other end, it'll set the call
             // state to AUDIO_PROCESSING
-            answerCallForAudioProcessing(call);
+            answerCallForAudioProcessing(call, useCase);
             call.setAudioProcessingRequestingApp(requestingAppName);
         } else if (call.getState() == CallState.ACTIVE) {
+            call.setAudioProcessingUseCase(useCase);
             setCallState(call, CallState.AUDIO_PROCESSING,
                     "audio processing set by dialer request");
             call.setAudioProcessingRequestingApp(requestingAppName);
@@ -3977,6 +3984,11 @@ public class CallsManager extends Call.ListenerBase
         Call activeCall = getActiveCall();
         if (activeCall != null) {
             Log.w(this, "Ignoring exit audio processing because there's already a call active");
+        }
+
+        if (call.getAudioProcessingUseCase() == AUDIO_PROCESSING_USE_CASE_VOICEMAIL) {
+            disconnectCall(call);
+            return;
         }
 
         if (shouldRing) {
@@ -4800,6 +4812,17 @@ public class CallsManager extends Call.ListenerBase
     }
 
 // QTI_END: 2024-07-12: Telephony: HFP: handle HFP and cellular calls
+    @VisibleForTesting
+    public void markCallAsAudioProcessing(Call call, int useCase) {
+        call.setAudioProcessingUseCase(useCase);
+        setCallState(call, CallState.AUDIO_PROCESSING, "audio processing set explicitly");
+    }
+
+    @VisibleForTesting
+    public void markCallAsSimulatedRinging(Call call) {
+        setCallState(call, CallState.SIMULATED_RINGING, "simulated ringing set explicitly");
+    }
+
     /**
      * Returns true if the active call is held.
      */
@@ -6932,7 +6955,7 @@ public class CallsManager extends Call.ListenerBase
      * Blocks execution until all Telecom handlers have completed their current work.
      */
     public void waitOnHandlers() {
-        CountDownLatch mainHandlerLatch = new CountDownLatch(3);
+        CountDownLatch mainHandlerLatch = new CountDownLatch(4);
         mHandler.post(() -> {
             mainHandlerLatch.countDown();
         });
@@ -6942,7 +6965,7 @@ public class CallsManager extends Call.ListenerBase
         mCallAudioManager.getCallAudioRouteAdapter().getAdapterHandler().post(() -> {
             mainHandlerLatch.countDown();
         });
-
+        mCallAudioRouteAdapter.getAdapterHandler().post(()-> mainHandlerLatch.countDown());
         try {
             mainHandlerLatch.await(HANDLER_WAIT_TIMEOUT, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {

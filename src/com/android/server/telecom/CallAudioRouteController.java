@@ -1447,7 +1447,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         Call foregroundCall = mCallAudioManager.getForegroundCall();
         if (!isExplicitUserRequest) {
             synchronized (mTelecomLock) {
-                skipEarpiece = foregroundCall != null && foregroundCall.isActive()
+                skipEarpiece = foregroundCall != null && foregroundCall.isActiveFocus()
 // QTI_BEGIN: 2024-12-12: Telephony: IMS: Treat CRS/CRBT/UVS call as VoLTE call and audio routing defaulting to earpiece
                         && VideoProfile.isVideo(foregroundCall.getVideoState())
                         && !foregroundCall.isVideoCrbtForVoLteCall()
