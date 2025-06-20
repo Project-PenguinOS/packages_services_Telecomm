@@ -46,7 +46,6 @@ import android.os.Bundle;
 import android.os.UserHandle;
 import android.provider.CallLog;
 import android.provider.CallLog.Calls;
-import android.telecom.CallerInfo;
 import android.telecom.Log;
 import android.telecom.Logging.Runnable;
 import android.telecom.PhoneAccount;
@@ -75,6 +74,7 @@ import com.android.server.telecom.TelecomBroadcastIntentProcessor;
 import com.android.server.telecom.TelecomSystem;
 import com.android.server.telecom.Timeouts;
 import com.android.server.telecom.components.TelecomBroadcastReceiver;
+import com.android.server.telecom.util.CallerInfo;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -566,10 +566,26 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
         Intent intent = new Intent(Intent.ACTION_VIEW, null);
         intent.setType(Calls.CONTENT_TYPE);
 
-        TaskStackBuilder taskStackBuilder = TaskStackBuilder.create(mContext);
-        taskStackBuilder.addNextIntent(intent);
-
-        return taskStackBuilder.getPendingIntent(0, PendingIntent.FLAG_IMMUTABLE, null, userHandle);
+        PendingIntent pendingIntent;
+        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
+            Intent[] myIntents = {intent};
+            Context context = mContext.createContextAsUser(userHandle, 0);
+            pendingIntent = PendingIntent.getActivities(
+                    context,
+                    0 /* requestCode */,
+                    myIntents,
+                    PendingIntent.FLAG_IMMUTABLE,
+                    null);
+        } else {
+            TaskStackBuilder taskStackBuilder = TaskStackBuilder.create(mContext);
+            taskStackBuilder.addNextIntent(intent);
+            pendingIntent = taskStackBuilder.getPendingIntent(
+                    0,
+                    PendingIntent.FLAG_IMMUTABLE,
+                    null,
+                    userHandle);
+        }
+        return pendingIntent;
     }
 
     /**

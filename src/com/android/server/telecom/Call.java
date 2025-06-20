@@ -56,7 +56,6 @@ import android.telecom.CallAudioState;
 import android.telecom.CallDiagnosticService;
 import android.telecom.CallDiagnostics;
 import android.telecom.CallException;
-import android.telecom.CallerInfo;
 import android.telecom.Conference;
 import android.telecom.Connection;
 import android.telecom.ConnectionService;
@@ -90,6 +89,7 @@ import com.android.server.telecom.callsequencing.CallTransaction;
 import com.android.server.telecom.callsequencing.TransactionManager;
 import com.android.server.telecom.callsequencing.VerifyCallStateChangeTransaction;
 import com.android.server.telecom.callsequencing.CallTransactionResult;
+import com.android.server.telecom.util.CallerInfo;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -448,6 +448,9 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
     /** The state of the call. */
     private int mState;
+
+    /** The use case for audio processing when the call is in STATE_AUDIO_PROCESSING */
+    private int mAudioProcessingUseCase = android.telecom.Call.AUDIO_PROCESSING_USE_CASE_UNKNOWN;
 
     /**
      * Determines whether the {@link ConnectionService} has responded to the initial request to
@@ -1022,6 +1025,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         mState = (isConference && callDirection != CALL_DIRECTION_INCOMING &&
                 callDirection != CALL_DIRECTION_OUTGOING) ?
                 CallState.ACTIVE : CallState.NEW;
+        mAudioProcessingUseCase = android.telecom.Call.AUDIO_PROCESSING_USE_CASE_UNKNOWN;
         mContext = context;
         mCallsManager = callsManager;
         mLock = lock;
@@ -1335,6 +1339,10 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         return mState;
     }
 
+    public int getAudioProcessingUseCase() {
+        return mAudioProcessingUseCase;
+    }
+
     /**
      * Similar to {@link #getState()}, except will return {@link CallState#DISCONNECTING} if the
      * call is locally disconnecting.  This is the call state which is reported to the
@@ -1560,6 +1568,10 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                     .write(newState);
         }
         return true;
+    }
+
+    public void setAudioProcessingUseCase(int useCase) {
+        mAudioProcessingUseCase = useCase;
     }
 
     void setRingbackRequested(boolean ringbackRequested) {
@@ -2024,13 +2036,46 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     /**
      * Determines if this Call should be written to the call log.
      * @return {@code true} for managed calls or for self-managed calls which have the
-     * {@link PhoneAccount#EXTRA_LOG_SELF_MANAGED_CALLS} extra set.
+     * {@link PhoneAccount#EXTRA_LOG_SELF_MANAGED_CALLS} extra set (deprecated). Refer to {@link }.
      */
     public boolean isLoggedSelfManaged() {
-        if (!isSelfManaged()) {
-            // Managed calls are always logged.
-            return true;
+        // This behavior should be deprecated once the integrated call logs flag has rolled out.
+        if (!processShouldLogVoipCall() || mFlags.integratedCallLogs()) {
+            return false;
         }
+
+        PhoneAccount phoneAccount = mCallsManager.getPhoneAccountRegistrar()
+                .getPhoneAccountUnchecked(getTargetPhoneAccount());
+        return phoneAccount.getExtras() != null && phoneAccount.getExtras().getBoolean(
+                PhoneAccount.EXTRA_LOG_SELF_MANAGED_CALLS, false);
+    }
+
+    /**
+     * Determines if we should log the transactional call (for call log integration).
+     * @return {@code true} if the call is transactional and meets all the requirements to be
+     * logged.
+     */
+    public boolean isLoggedTransactional() {
+        Intent intent = new Intent(TelecomManager.ACTION_CALL_BACK);
+        PhoneAccountHandle handle = getTargetPhoneAccount();
+        if (!processShouldLogVoipCall() || !mFlags.integratedCallLogs() || handle == null) {
+            return false;
+        }
+        // Ensure that the application registers the intent (opt-in).
+        intent.setPackage(handle.getComponentName().getPackageName());
+        boolean pkgSupportsIntent = !mContext.getPackageManager().queryIntentActivities(intent,
+                PackageManager.MATCH_ALL).isEmpty();
+        return isTransactionalCall() && pkgSupportsIntent;
+    }
+
+    /**
+     * Performs basic pre-processing to determine if we should log the voip call. There is an
+     * additional specified check that varies between self-managed (deprecated) and transactional
+     * calls (call log integration).
+     * @return {@code true} if pre-processing dictates that we should log the voip call.
+     */
+    @VisibleForTesting
+    public boolean processShouldLogVoipCall() {
         if (getTargetPhoneAccount() == null) {
             return false;
         }
@@ -2051,9 +2096,11 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             // Can't log schemes other than SIP or TEL for now.
             return false;
         }
+        return true;
+    }
 
-        return phoneAccount.getExtras() != null && phoneAccount.getExtras().getBoolean(
-                PhoneAccount.EXTRA_LOG_SELF_MANAGED_CALLS, false);
+    public boolean isManaged() {
+        return !isSelfManaged() && !isTransactionalCall();
     }
 
     public boolean isIncoming() {
@@ -3394,6 +3441,10 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
     public boolean isActive() {
         return mState == CallState.ACTIVE;
+    }
+
+    public boolean isActiveFocus() {
+        return isActive() || mState == CallState.DIALING || mState == CallState.PULLING;
     }
 
     @VisibleForTesting

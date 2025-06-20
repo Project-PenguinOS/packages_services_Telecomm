@@ -60,7 +60,6 @@ import android.os.ICancellationSignal;
 import android.os.Looper;
 import android.os.UserHandle;
 import android.provider.CallLog;
-import android.telecom.CallerInfo;
 import android.telecom.PhoneAccount;
 import android.telecom.PhoneAccountHandle;
 import android.telecom.TelecomManager;
@@ -79,6 +78,7 @@ import com.android.server.telecom.TelecomSystem;
 import com.android.server.telecom.components.TelecomBroadcastReceiver;
 import com.android.server.telecom.ui.MissedCallNotifierImpl;
 import com.android.server.telecom.ui.MissedCallNotifierImpl.NotificationBuilderFactory;
+import com.android.server.telecom.util.CallerInfo;
 
 import org.junit.After;
 import org.junit.Before;
@@ -198,6 +198,7 @@ public class MissedCallNotifierImplTest extends TelecomTestCase {
         when(fakeTelephonyManager.getNetworkCountryIso()).thenReturn("US");
         doReturn(new ApplicationInfo()).when(mContext).getApplicationInfo();
         doReturn("com.android.server.telecom.tests").when(mContext).getPackageName();
+        doReturn("com.android.server.telecom.tests").when(mUserContext).getPackageName();
 
         mComponentContextFixture.putResource(R.string.notification_missedCallTitle,
                 MISSED_CALL_TITLE);
