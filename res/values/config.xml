@@ -116,4 +116,5 @@
     <bool name="decline_sends_to_local_voicemail">true</bool>
 
     <string name="oem_call_screening_service_component" translatable="false"></string>
+    <string name="config_audio_parameter_key_crs_volume" translatable="false"></string>
 </resources>

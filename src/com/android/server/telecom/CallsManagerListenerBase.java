@@ -130,4 +130,8 @@ public abstract class CallsManagerListenerBase implements CallsManager.CallsMana
     @Override
     public void onSetCamera(Call call, String cameraId) {
     }
+
+    @Override
+    public void onCrsFallbackLocalRinging(Call call) {
+    }
 }
