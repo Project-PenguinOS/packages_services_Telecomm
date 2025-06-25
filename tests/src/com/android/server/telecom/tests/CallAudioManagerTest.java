@@ -35,6 +35,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.content.Context;
+import android.media.AudioManager;
 import android.media.ToneGenerator;
 import android.os.Handler;
 import android.os.Looper;
@@ -80,6 +82,8 @@ public class CallAudioManagerTest extends TelecomTestCase {
     @Mock private CallAudioRouteStateMachine mCallAudioRouteStateMachine;
     @Mock private InCallController mInCallController;
     @Mock private CallsManager mCallsManager;
+    @Mock private Context mContext;
+    @Mock private AudioManager mAudioManager;
     @Mock private CallAudioModeStateMachine mCallAudioModeStateMachine;
     @Mock private InCallTonePlayer.Factory mPlayerFactory;
     @Mock private Ringer mRinger;
@@ -106,6 +110,9 @@ public class CallAudioManagerTest extends TelecomTestCase {
         }).when(mPlayerFactory).createPlayer(any(Call.class), anyInt());
         when(mCallsManager.getLock()).thenReturn(mLock);
         when(mCallsManager.getInCallController()).thenReturn(mInCallController);
+        when(mCallsManager.getContext()).thenReturn(mContext);
+        when(mContext.getSystemService(AudioManager.class)).thenReturn(mAudioManager);
+        when(mAudioManager.getParameters("isCRSsupported")).thenReturn("isCRSsupported=1");
         when(mInCallController.getBtBindingFuture(any(Call.class))).thenReturn(null);
         when(mFlags.ensureAudioModeUpdatesOnForegroundCallChange()).thenReturn(true);
         mCallAudioManager = new CallAudioManager(
