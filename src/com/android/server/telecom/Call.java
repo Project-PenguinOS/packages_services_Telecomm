@@ -2990,11 +2990,9 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 mState == CallState.CONNECTING) {
             Log.i(this, "disconnect: Aborting call %s", getId());
             abort(disconnectionTimeout);
-            if (mFlags.enableCallSequencing()) {
-                disconnectFutureHandler = awaitCallStateChangeAndMaybeDisconnectCall(
-                        false /* shouldDisconnectUponTimeout */, "disconnect",
-                        CallState.DISCONNECTED, CallState.ABORTED);
-            }
+            disconnectFutureHandler = awaitCallStateChangeAndMaybeDisconnectCall(
+                    false /* shouldDisconnectUponTimeout */, "disconnect",
+                    CallState.DISCONNECTED, CallState.ABORTED);
         } else if (mState != CallState.ABORTED && mState != CallState.DISCONNECTED) {
             if (mState == CallState.AUDIO_PROCESSING && !hasGoneActiveBefore()) {
                 setOverrideDisconnectCauseCode(new DisconnectCause(DisconnectCause.REJECTED));
@@ -3017,11 +3015,9 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 // confirms that the call was actually disconnected. Only then is the
                 // association between call and connection service severed, see
                 // {@link CallsManager#markCallAsDisconnected}.
-                if (mFlags.enableCallSequencing()) {
-                    disconnectFutureHandler = awaitCallStateChangeAndMaybeDisconnectCall(
-                            false /* shouldDisconnectUponTimeout */, "disconnect",
-                            CallState.DISCONNECTED);
-                }
+                disconnectFutureHandler = awaitCallStateChangeAndMaybeDisconnectCall(
+                        false /* shouldDisconnectUponTimeout */, "disconnect",
+                        CallState.DISCONNECTED);
                 mConnectionService.disconnect(this);
             }
         }
@@ -3089,10 +3085,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             // that the call is in a non-STATE_RINGING state before changing the UI. See
             // {@link ConnectionServiceAdapter#setActive} and other set* methods.
             if (mConnectionService != null) {
-                if (mFlags.enableCallSequencing()) {
-                    answerCallFuture = awaitCallStateChangeAndMaybeDisconnectCall(
-                            false /* shouldDisconnectUponTimeout */, "answer", CallState.ACTIVE);
-                }
+                answerCallFuture = awaitCallStateChangeAndMaybeDisconnectCall(
+                        false /* shouldDisconnectUponTimeout */, "answer", CallState.ACTIVE);
                 mConnectionService.answer(this, videoState);
             } else if (mTransactionalService != null) {
                 return mTransactionalService.onAnswer(this, videoState);
@@ -3194,11 +3188,9 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 return mTransactionalService.onDisconnect(this,
                         new DisconnectCause(DisconnectCause.REJECTED));
             } else if (mConnectionService != null) {
-                if (mFlags.enableCallSequencing()) {
-                    rejectFutureHandler = awaitCallStateChangeAndMaybeDisconnectCall(
-                            false /* shouldDisconnectUponTimeout */, "reject",
-                            CallState.DISCONNECTED);
-                }
+                rejectFutureHandler = awaitCallStateChangeAndMaybeDisconnectCall(
+                        false /* shouldDisconnectUponTimeout */, "reject",
+                        CallState.DISCONNECTED);
                 mConnectionService.disconnect(this);
                 return rejectFutureHandler;
             } else {
@@ -3214,11 +3206,9 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 return mTransactionalService.onDisconnect(this,
                         new DisconnectCause(DisconnectCause.REJECTED));
             } else if (mConnectionService != null) {
-                if (mFlags.enableCallSequencing()) {
-                    rejectFutureHandler = awaitCallStateChangeAndMaybeDisconnectCall(
-                            false /* shouldDisconnectUponTimeout */, "reject",
-                            CallState.DISCONNECTED);
-                }
+                rejectFutureHandler = awaitCallStateChangeAndMaybeDisconnectCall(
+                        false /* shouldDisconnectUponTimeout */, "reject",
+                        CallState.DISCONNECTED);
                 mConnectionService.reject(this, rejectWithMessage, textMessage);
                 return rejectFutureHandler;
             } else {
@@ -3246,11 +3236,9 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 return mTransactionalService.onDisconnect(this,
                         new DisconnectCause(DisconnectCause.REJECTED));
             } else if (mConnectionService != null) {
-                if (mFlags.enableCallSequencing()) {
-                    rejectFutureHandler = awaitCallStateChangeAndMaybeDisconnectCall(
-                            false /* shouldDisconnectUponTimeout */, "reject",
-                            CallState.DISCONNECTED);
-                }
+                rejectFutureHandler = awaitCallStateChangeAndMaybeDisconnectCall(
+                        false /* shouldDisconnectUponTimeout */, "reject",
+                        CallState.DISCONNECTED);
                 mConnectionService.disconnect(this);
             } else {
                 Log.e(this, new NullPointerException(),
@@ -3264,11 +3252,9 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 return mTransactionalService.onDisconnect(this,
                         new DisconnectCause(DisconnectCause.REJECTED));
             } else if (mConnectionService != null) {
-                if (mFlags.enableCallSequencing()) {
-                    rejectFutureHandler = awaitCallStateChangeAndMaybeDisconnectCall(
-                            false /* shouldDisconnectUponTimeout */, "reject",
-                            CallState.DISCONNECTED);
-                }
+                rejectFutureHandler = awaitCallStateChangeAndMaybeDisconnectCall(
+                        false /* shouldDisconnectUponTimeout */, "reject",
+                        CallState.DISCONNECTED);
                 mConnectionService.rejectWithReason(this, rejectReason);
             } else {
                 Log.e(this, new NullPointerException(),
@@ -3340,7 +3326,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             if (mTransactionalService != null) {
                 return mTransactionalService.onSetInactive(this);
             } else if (mConnectionService != null) {
-                if (mFlags.transactionalCsVerifier() || mFlags.enableCallSequencing()) {
+                if (mFlags.transactionalCsVerifier()) {
                     holdFutureHandler = awaitCallStateChangeAndMaybeDisconnectCall(isSelfManaged(),
                             "hold", CallState.ON_HOLD, CallState.DISCONNECTED).thenCompose(
                                     (result) -> {
@@ -3412,10 +3398,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             if (mTransactionalService != null){
                 return mTransactionalService.onSetActive(this);
             } else if (mConnectionService != null){
-                if (mFlags.enableCallSequencing()) {
-                    unholdFutureHandler = awaitCallStateChangeAndMaybeDisconnectCall(
-                            false /* shouldDisconnectUponTimeout */, "unhold", CallState.ACTIVE);
-                }
+                unholdFutureHandler = awaitCallStateChangeAndMaybeDisconnectCall(
+                        false /* shouldDisconnectUponTimeout */, "unhold", CallState.ACTIVE);
                 mConnectionService.unhold(this);
                 return unholdFutureHandler;
             } else {
