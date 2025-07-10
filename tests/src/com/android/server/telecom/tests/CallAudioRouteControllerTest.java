@@ -1688,6 +1688,18 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
                         anyBoolean());
     }
 
+    @Test
+    @SmallTest
+    public void testClearCommunicationDeviceAtEndOfCallOnScoDisconnected() {
+        verifyConnectBluetoothDevice(AudioRoute.TYPE_BLUETOOTH_SCO);
+        // Emulate behavior of BT stack signaling SCO audio disconnected
+        mController.getPendingAudioRoute().setCommunicationDeviceType(AudioRoute.TYPE_INVALID);
+        mController.sendMessageWithSessionInfo(SWITCH_FOCUS, NO_FOCUS, 0);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+        // Verify that we still clear the communication device at the end of the call.
+        verify(mAudioManager).clearCommunicationDevice();
+    }
+
     private void verifyConnectBluetoothDevice(int audioType) {
         mController.initialize();
         mController.setActive(true);
