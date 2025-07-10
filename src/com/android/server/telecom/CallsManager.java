@@ -739,8 +739,10 @@ public class CallsManager extends Call.ListenerBase
                 }, clockProxy, mAudioCallbackHandler,
                 featureFlags.telecomMetricsSupport() ? metricsController : null);
 
-        mDtmfLocalTonePlayer =
-                new DtmfLocalTonePlayer(new DtmfLocalTonePlayer.ToneGeneratorProxy(), featureFlags);
+        int volume = mContext.getResources().getInteger(
+                R.integer.config_dtmf_tone_volume);
+        mDtmfLocalTonePlayer = new DtmfLocalTonePlayer(
+                new DtmfLocalTonePlayer.ToneGeneratorProxy(), volume, featureFlags);
         mCallAudioRouteAdapter = audioRouteControllerFactory.create(context, this,
                 audioServiceFactory, new AudioRoute.Factory(), wiredHeadsetManager,
                 mBluetoothRouteManager, statusBarNotifier, featureFlags, metricsController,
