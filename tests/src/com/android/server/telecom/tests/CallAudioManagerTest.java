@@ -52,6 +52,7 @@ import com.android.server.telecom.CallAudioModeStateMachine;
 import com.android.server.telecom.CallAudioModeStateMachine.MessageArgs;
 import com.android.server.telecom.CallAudioModeStateMachine.MessageArgs.Builder;
 import com.android.server.telecom.CallAudioRouteStateMachine;
+import com.android.server.telecom.CallConnectedIndicatorSettings;
 import com.android.server.telecom.CallState;
 import com.android.server.telecom.CallsManager;
 import com.android.server.telecom.DtmfLocalTonePlayer;
@@ -91,6 +92,7 @@ public class CallAudioManagerTest extends TelecomTestCase {
     @Mock private DtmfLocalTonePlayer mDtmfLocalTonePlayer;
     @Mock private BluetoothStateReceiver mBluetoothStateReceiver;
     @Mock private TelecomSystem.SyncRoot mLock;
+    @Mock private CallConnectedIndicatorSettings mCallConnectedIndicatorSettings;
 
     @Mock private FeatureFlags mFlags;
 
@@ -115,6 +117,7 @@ public class CallAudioManagerTest extends TelecomTestCase {
         when(mAudioManager.getParameters("isCRSsupported")).thenReturn("isCRSsupported=1");
         when(mInCallController.getBtBindingFuture(any(Call.class))).thenReturn(null);
         when(mFlags.ensureAudioModeUpdatesOnForegroundCallChange()).thenReturn(true);
+        when(mCallConnectedIndicatorSettings.isCallConnectedToneEnabled()).thenReturn(false);
         mCallAudioManager = new CallAudioManager(
                 mCallAudioRouteStateMachine,
                 mCallsManager,
@@ -124,7 +127,8 @@ public class CallAudioManagerTest extends TelecomTestCase {
                 mRingbackPlayer,
                 mBluetoothStateReceiver,
                 mDtmfLocalTonePlayer,
-                mFlags);
+                mFlags,
+                mCallConnectedIndicatorSettings);
     }
 
     @Override

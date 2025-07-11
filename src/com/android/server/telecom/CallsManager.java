@@ -809,7 +809,8 @@ public class CallsManager extends Call.ListenerBase
                 (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE),
                 featureFlags, communicationDeviceTracker),
                 playerFactory, mRinger, new RingbackPlayer(playerFactory),
-                bluetoothStateReceiver, mDtmfLocalTonePlayer, featureFlags);
+                bluetoothStateReceiver, mDtmfLocalTonePlayer, featureFlags,
+                mCallConnectedIndicatorSettings);
 
         mConnectionSvrFocusMgr = connectionServiceFocusManagerFactory.create(mRequester);
         mHeadsetMediaButton = headsetMediaButtonFactory.create(context, this, mLock);
@@ -2667,7 +2668,8 @@ public class CallsManager extends Call.ListenerBase
                     setIntentExtrasAndStartTime(callToUse, extras);
                     setCallSourceToAnalytics(callToUse, originalIntent);
 
-                    if (mMmiUtils.isPotentialMMICode(handle) && !isSelfManaged) {
+                    if ((mMmiUtils.isPotentialMMICode(handle) || (mMmiUtils
+                            .isPotentialInCallMMICode(handle))) && !isSelfManaged) {
                         // Do not add the call if it is a potential MMI code.
                         callToUse.addListener(this);
                     } else if (!mCalls.contains(callToUse) && mPendingMOEmerCall == null) {
