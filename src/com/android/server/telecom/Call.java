@@ -2518,13 +2518,9 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         if (changedProperties != 0) {
             int previousProperties = mConnectionProperties;
             mConnectionProperties = connectionProperties;
-// QTI_BEGIN: 2024-01-19: Telephony: Prevent Call.mIsEmergencyCall from becoming false in normal e911 calls.
             mIsEmergencyCall = mIsEmergencyCall || (mConnectionProperties &
-// QTI_END: 2024-01-19: Telephony: Prevent Call.mIsEmergencyCall from becoming false in normal e911 calls.
-// QTI_BEGIN: 2023-12-14: Telephony: Update Call.mIsEmergencyCall when Connection Propeties are changed.
                                     Connection.PROPERTY_NETWORK_IDENTIFIED_EMERGENCY_CALL)
                                     == Connection.PROPERTY_NETWORK_IDENTIFIED_EMERGENCY_CALL;
-// QTI_END: 2023-12-14: Telephony: Update Call.mIsEmergencyCall when Connection Propeties are changed.
             boolean didRttChange =
                     (changedProperties & Connection.PROPERTY_IS_RTT) == Connection.PROPERTY_IS_RTT;
             if (didRttChange) {

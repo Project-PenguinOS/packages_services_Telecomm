@@ -1354,7 +1354,6 @@ public class CallsManager extends Call.ListenerBase
 
     @Override
     public void onConnectionPropertiesChanged(Call call, boolean didRttChange) {
-// QTI_BEGIN: 2023-12-14: Telephony: Update Call.mIsEmergencyCall when Connection Propeties are changed.
         // If a call is redialed as an emergency call,
         // the Add Call button needs to be disabled.
         // This check is for performance reasons, so
@@ -1364,7 +1363,6 @@ public class CallsManager extends Call.ListenerBase
         {
             updateCanAddCall();
         }
-// QTI_END: 2023-12-14: Telephony: Update Call.mIsEmergencyCall when Connection Propeties are changed.
         if (didRttChange) {
             updateHasActiveRttCall();
         }
