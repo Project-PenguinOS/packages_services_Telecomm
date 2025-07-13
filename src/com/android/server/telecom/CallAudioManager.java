@@ -77,6 +77,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
 
     private final CallAudioRouteAdapter mCallAudioRouteAdapter;
     private final CallAudioModeStateMachine mCallAudioModeStateMachine;
+    private final CallConnectedIndicatorSettings mCallConnectedIndicatorSettings;
     private final BluetoothStateReceiver mBluetoothStateReceiver;
     private final CallsManager mCallsManager;
     private final InCallTonePlayer.Factory mPlayerFactory;
@@ -113,7 +114,8 @@ public class CallAudioManager extends CallsManagerListenerBase {
             RingbackPlayer ringbackPlayer,
             BluetoothStateReceiver bluetoothStateReceiver,
             DtmfLocalTonePlayer dtmfLocalTonePlayer,
-            FeatureFlags featureFlags) {
+            FeatureFlags featureFlags,
+            CallConnectedIndicatorSettings callConnectedIndicator) {
         mActiveDialingOrConnectingCalls = new LinkedHashSet<>(1);
         mRingingCalls = new LinkedHashSet<>(1);
         mHoldingCalls = new LinkedHashSet<>(1);
@@ -153,6 +155,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
         mPlayerFactory.setCallAudioManager(this);
         mCallAudioModeStateMachine.setCallAudioManager(this);
         mCallAudioRouteAdapter.setCallAudioManager(this);
+        mCallConnectedIndicatorSettings = callConnectedIndicator;
     }
 
     @Override
@@ -186,11 +189,10 @@ public class CallAudioManager extends CallsManagerListenerBase {
             }
         }
 
-// QTI_BEGIN: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
         if (newState == CallState.ACTIVE && oldState == CallState.DIALING) {
             playToneAfterCallConnected(call);
         }
-// QTI_END: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
+
 // QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
         //reset CRS mode once call state changed.
 // QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
@@ -1179,24 +1181,17 @@ public class CallAudioManager extends CallsManagerListenerBase {
         }
     }
 
-// QTI_BEGIN: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
     private void playToneAfterCallConnected(Call call) {
-        final Context context = call.getContext();
-        ToneGenerator toneGenerator = new ToneGenerator(AudioManager.STREAM_MUSIC, 90);
-        try {
-            if (Settings.System.getInt(context.getContentResolver(),
-                        Settings.System.CALL_CONNECTED_TONE_ENABLED) == 1) {
-                if (toneGenerator != null) {
-                    Log.i(LOG_TAG, "playing tone");
-                    toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP, 150);
-                }
-            }
-        } catch (SettingNotFoundException e) {
-            Log.e(this, e, "Settings exception when reading playing tone config");
+        if (!mFeatureFlags.callConnectedIndicatorPreference()) {
+            Log.i(LOG_TAG, "Call connected indicator of playing tone is disabled.");
+            return;
+        }
+        if (mCallConnectedIndicatorSettings != null &&
+                mCallConnectedIndicatorSettings.isCallConnectedToneEnabled()) {
+            mPlayerFactory.createPlayer(call, InCallTonePlayer.TONE_OUTGOING_CALL_ACCEPTED).startTone();
         }
     }
 
-// QTI_END: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
     private void playToneForDisconnectedCall(Call call) {
         // If this call is being disconnected as a result of being handed over to another call,
         // we will not play a disconnect tone.
