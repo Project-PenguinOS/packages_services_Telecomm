@@ -272,7 +272,7 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
         List<ResolveInfo> receivers;
         if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
             receivers = UserUtil.getPackageManagerFromUserHandler(mContext, userHandle)
-                    .queryBroadcastReceiversAsUser(intent, 0, userHandle.getIdentifier());
+                    .queryBroadcastReceivers(intent, 0);
         } else {
             receivers = mContext.getPackageManager()
                     .queryBroadcastReceiversAsUser(intent, 0, userHandle.getIdentifier());
