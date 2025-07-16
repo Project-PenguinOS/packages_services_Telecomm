@@ -1632,8 +1632,9 @@ public class CallsManager extends Call.ListenerBase
 // QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
                     && !call.isVideoCrbtForVoLteCall()
                     && !call.isVideoCrsForVoLteCall()
-                    && !call.isVisualizedVoiceCall()) {
+                    && !call.isVisualizedVoiceCall()
 // QTI_END: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
+                    && !call.isVideoCrbtForVoLteCall()) {
                 return true;
             }
         }
@@ -2895,6 +2896,12 @@ public class CallsManager extends Call.ListenerBase
 
                     // Make sure we set the PhoneAccount before making room
                     callToPlace.setTargetPhoneAccount(callHandle);
+
+                    // Directly place call for incall MMI codes and reused calls
+                    if (isReusedCall || (mMmiUtils.isPotentialInCallMMICode(handle) &&
+                            !isSelfManaged)) {
+                        return CompletableFuture.completedFuture(new Pair<>(callHandle, true));
+                    }
 
                     return mCallSequencingAdapter.makeRoomForOutgoingCall(
                                     callToPlace.isEmergencyCall(), callToPlace)

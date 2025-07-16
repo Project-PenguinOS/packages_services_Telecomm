@@ -1598,6 +1598,17 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         return mSilentRingingRequested;
     }
 
+    public boolean isVideoCrbtForVoLteCall() {
+        if (getExtras() == null) {
+            return false;
+        }
+        // filter out the extra if the PhoneAccount doesn't have
+        // PhoneAccount.CAPABILITY_SIM_SUBSCRIPTION, limit the ability to use this functionality
+        // to just telephony phone accounts permission.
+        return mIsSimCall &&
+            getExtras().getBoolean(android.telecom.Call.EXTRA_IS_USING_VIDEO_RINGBACK);
+    }
+
     public void setCallIsSuppressedByDoNotDisturb(boolean isCallSuppressed) {
         Bundle bundle = new Bundle();
         bundle.putBoolean(android.telecom.Call.EXTRA_IS_SUPPRESSED_BY_DO_NOT_DISTURB,
@@ -4862,13 +4873,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
 // QTI_END: 2023-03-28: Telephony: IMS: Show incorrect video icon in call history after answering
 // QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
-    public boolean isVideoCrbtForVoLteCall() {
-        if (mExtras == null) {
-            return false;
-        }
-        return mExtras.getBoolean(QtiCallConstants.EXTRA_IS_CRBT_CALL, false);
-    }
-
     public boolean isVisualizedVoiceCall() {
         if (mExtras == null) {
             return false;
