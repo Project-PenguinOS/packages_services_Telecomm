@@ -70,6 +70,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Controls the sequencing between calls when moving between the user ACTIVE (RINGING/ACTIVE) and
@@ -696,13 +698,16 @@ public class CallSequencingController {
                 liveCall.setSkipAutoUnhold(true);
                 // Disconnect the active call instead of the holding call because it is historically
                 // easier to do, rather than disconnecting a held call and holding the active call.
-                disconnectOngoingCallForEmergencyCall(transactionFuture, liveCall,
-                        disconnectReason);
-                // Don't wait on the live call disconnect future result above since we're handling
-                // the same phone account case. It's possible that disconnect may time out in the
-                // case that two calls are being merged while the disconnect for the live call is
-                // sent.
-                return transactionFuture;
+                // We'll wait up to 1s for the disconnect to complete before placing the emergency
+                // call regardless of the result.
+                if (mFeatureFlags.eccWaitForLiveCallDisconnect()) {
+                    return disconnectLiveCallForEmergencyCall(transactionFuture, liveCall,
+                            disconnectReason);
+                } else {
+                    disconnectOngoingCallForEmergencyCall(transactionFuture, liveCall,
+                            disconnectReason);
+                    return transactionFuture;
+                }
             } else if (heldCall != null) { // Dual sim case
                 // Note at this point, we should always have a held call then that should
                 // be disconnected (over the active call) but still enforce with a null check and
@@ -1082,6 +1087,35 @@ public class CallSequencingController {
             }
             return callToDisconnect.disconnect(disconnectReason);
         }, new LoggedHandlerExecutor(mHandler, "CSC.mRFOEC", mCallsManager.getLock()));
+    }
+
+    /**
+     * To be used for disconnecting the live call when all calls are on the same phone account.
+     * Normally, we don't wait for the disconnect to finish but there is a potential race with
+     * Telephony so we will wait 1s for the disconnect to complete and still place the call
+     * regardless of the result. This should give Telephony enough time to process the disconnect
+     * and allow the call to be dialed over IMS.
+     */
+    private CompletableFuture<Boolean> disconnectLiveCallForEmergencyCall(
+            CompletableFuture<Boolean> transactionFuture, Call liveCall,
+            String disconnectReason) {
+        CountDownLatch latch = new CountDownLatch(1);
+        disconnectOngoingCallForEmergencyCall(transactionFuture, liveCall, disconnectReason)
+                .thenCompose((result) -> {
+                    latch.countDown();
+                    return CompletableFuture.completedFuture(true);
+                });
+
+        try {
+            // Wait for the disconnect to finish in a 1s. If it doesn't, we'll place the emergency
+            // call anyways. This should give Telephony enough time to have received the disconnect
+            // signal and be able to set up the new dialing call over IMS.
+            latch.await(1000, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Log.i(this, "makeRoomForOutgoingEmergencyCall: Disconnect for %s didn't complete after "
+                    + "1s. Attempting to place emergency call anyway.", liveCall);
+        }
+        return transactionFuture;
     }
 
     /**
