@@ -120,3 +120,13 @@ flag {
     }
 }
 
+# OWNER=pmadapurmath TARGET=25Q4
+flag {
+  name: "ecc_wait_for_live_call_disconnect"
+  namespace: "telecom"
+  description: "Wait up to 1s for the live call to disconnect (for same phone account) before dialing out the emergency call"
+  bug: "429986951"
+  metadata {
+      purpose: PURPOSE_BUGFIX
+    }
+}
