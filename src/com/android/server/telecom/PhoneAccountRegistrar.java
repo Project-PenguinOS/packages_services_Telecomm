@@ -808,26 +808,35 @@ public class PhoneAccountRegistrar {
     }
 
     private List<ResolveInfo> resolveComponent(ComponentName componentName,
-            UserHandle userHandle) {
-        PackageManager pm;
-        if (mTelecomFeatureFlags.resolveHiddenDependenciesTwo()) {
-            pm = UserUtil.getPackageManagerFromUserHandler(mContext, userHandle);
-        } else {
-            pm = mContext.getPackageManager();
-        }
+                                               UserHandle userHandle) {
         Intent intent = new Intent(ConnectionService.SERVICE_INTERFACE);
         intent.setComponent(componentName);
         try {
             if (userHandle != null) {
-                return pm.queryIntentServicesAsUser(intent, 0, userHandle.getIdentifier());
+                List<ResolveInfo> info;
+                if (mTelecomFeatureFlags.resolveHiddenDependenciesTwo()) {
+                    try {
+                        info = UserUtil.getPackageManagerFromUserHandler(mContext, userHandle)
+                                .queryIntentServices(intent, 0);
+                    } catch (Exception e) {
+                        Log.e(this, e, "encountered an exception while" +
+                                        "resolving the component=[%s] under userHandle=[%s]",
+                                componentName, userHandle);
+                        AnomalyReporter.reportAnomaly(
+                                EXCEPTION_COMPONENT_IS_NOT_VISIBLE_FOR_USER_UUID,
+                                EXCEPTION_COMPONENT_IS_NOT_VISIBLE_FOR_USER_MSG);
+                        return Collections.EMPTY_LIST;
+                    }
+                } else {
+                    PackageManager pm = mContext.getPackageManager();
+                    info = pm.queryIntentServicesAsUser(intent, 0, userHandle.getIdentifier());
+                }
+                return info;
             } else {
-                return pm.queryIntentServices(intent, 0);
+                return mContext.getPackageManager().queryIntentServices(intent, 0);
             }
         } catch (SecurityException e) {
             Log.e(this, e, "%s is not visible for the calling user", componentName);
-            AnomalyReporter.reportAnomaly(
-                    EXCEPTION_COMPONENT_IS_NOT_VISIBLE_FOR_USER_UUID,
-                    EXCEPTION_COMPONENT_IS_NOT_VISIBLE_FOR_USER_MSG);
             return Collections.EMPTY_LIST;
         }
     }
