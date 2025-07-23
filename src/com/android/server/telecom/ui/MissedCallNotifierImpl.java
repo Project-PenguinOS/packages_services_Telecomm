@@ -529,8 +529,8 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
             BidiFormatter bidiFormatter = BidiFormatter.getInstance();
             return bidiFormatter.unicodeWrap(handle, TextDirectionHeuristics.LTR);
         } else {
-            // Use "unknown" if the call is unidentifiable.
-            return mContext.getString(R.string.unknown);
+            // Get Name based on Presentation value.
+            return getPresentationString(callInfo.getHandlePresentation());
         }
     }
 
@@ -804,5 +804,20 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
             // Default to mContext, not finding the package system is running as is unlikely.
             return mContext;
         }
+    }
+
+    /**
+     * Gets name strings based on some special presentation modes.
+     * @param presentation Integer containing the presentation type.
+     * @return A String containing the presentation name based on the given type.
+     */
+    private String getPresentationString(int presentation) {
+        String name = mContext.getString(R.string.unknown);
+        if (presentation == TelecomManager.PRESENTATION_RESTRICTED) {
+            name = mContext.getString(R.string.private_num);
+        } else if (presentation == TelecomManager.PRESENTATION_PAYPHONE) {
+            name = mContext.getString(R.string.payphone);
+        }
+        return name;
     }
 }
