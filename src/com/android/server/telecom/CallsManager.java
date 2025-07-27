@@ -6347,6 +6347,7 @@ public class CallsManager extends Call.ListenerBase
      */
     @VisibleForTesting
     public void onUserSwitch(UserHandle userHandle) {
+        Log.i(this, "onUserSwitch: userHandle=%s", userHandle);
         mCurrentUserHandle = userHandle;
         mMissedCallNotifier.setCurrentUserHandle(userHandle);
         mRoleManagerAdapter.setCurrentUserHandle(userHandle);
@@ -6391,6 +6392,7 @@ public class CallsManager extends Call.ListenerBase
     }
 
     private void reloadMissedCallsOfUser(UserHandle userHandle) {
+        Log.i(this, "reloadMissedCallsOfUser: userHandle=%s", userHandle);
         mMissedCallNotifier.reloadFromDatabase(mCallerInfoLookupHelper,
                 new MissedCallNotifier.CallInfoFactory(), userHandle);
     }
