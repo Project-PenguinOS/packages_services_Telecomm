@@ -543,8 +543,8 @@ public class Ringer {
                     return;
                 }
                 Log.i(this,"onCommunicationDeviceChanged, Device type : "
-                        + device.getInternalType());
-                if (device.getInternalType() == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) {
+                        + device.getType());
+                if (device.getType() == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) {
                     setSystemSystemSpeakerInCallVolume();
                 }
             }
