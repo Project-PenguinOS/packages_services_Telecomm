@@ -462,8 +462,8 @@ public class CallAudioModeStateMachine extends StateMachine {
                     return;
                 }
                 Log.i(this,"onCommunicationDeviceChanged, Device type is: "
-                        + device.getInternalType());
-                if (device.getInternalType() == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) {
+                        + device.getType());
+                if (device.getType() == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) {
                     mAudioManager.setMode(AudioManager.MODE_IN_CALL);
                 }
             }
