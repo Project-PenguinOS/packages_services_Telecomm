@@ -43,6 +43,7 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Binder;
 import android.os.Bundle;
+import android.os.PowerExemptionManager;
 import android.os.UserHandle;
 import android.provider.CallLog;
 import android.provider.CallLog.Calls;
@@ -272,7 +273,7 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
         List<ResolveInfo> receivers;
         if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
             receivers = UserUtil.getPackageManagerFromUserHandler(mContext, userHandle)
-                    .queryBroadcastReceiversAsUser(intent, 0, userHandle.getIdentifier());
+                    .queryBroadcastReceivers(intent, 0);
         } else {
             receivers = mContext.getPackageManager()
                     .queryBroadcastReceiversAsUser(intent, 0, userHandle.getIdentifier());
@@ -293,8 +294,25 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
         BroadcastOptions bopts = BroadcastOptions.makeBasic();
         long duration = Timeouts.getDialerMissedCallPowerSaveExemptionTimeMillis(
                 mContext, mFeatureFlags);
-        mDeviceIdleControllerAdapter.exemptAppTemporarilyForEvent(dialerPackage, duration,
-                handle.getIdentifier(), MISSED_CALL_POWER_SAVE_REASON);
+        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
+            PowerExemptionManager powerExemptionManager = mContext.getSystemService(
+                    PowerExemptionManager.class);
+            if (powerExemptionManager != null) {
+                try {
+                    powerExemptionManager.addToTemporaryAllowList(dialerPackage,
+                            PowerExemptionManager.REASON_OTHER, MISSED_CALL_POWER_SAVE_REASON,
+                            duration);
+                } catch (RuntimeException e) {
+                    Log.w(this, "exemptFromPowerSavingTemporarily e=" + e.getMessage());
+                }
+            } else {
+                Log.w(this, "exemptFromPowerSavingTemporarily: could not get "
+                        + "PowerExemptionManager");
+            }
+        } else {
+            mDeviceIdleControllerAdapter.exemptAppTemporarilyForEvent(dialerPackage, duration,
+                    handle.getIdentifier(), MISSED_CALL_POWER_SAVE_REASON);
+        }
         bopts.setTemporaryAppWhitelistDuration(duration);
         return bopts.toBundle();
     }
@@ -529,8 +547,8 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
             BidiFormatter bidiFormatter = BidiFormatter.getInstance();
             return bidiFormatter.unicodeWrap(handle, TextDirectionHeuristics.LTR);
         } else {
-            // Use "unknown" if the call is unidentifiable.
-            return mContext.getString(R.string.unknown);
+            // Get Name based on Presentation value.
+            return getPresentationString(callInfo.getHandlePresentation());
         }
     }
 
@@ -787,9 +805,17 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
             callsUri = ContentProvider
                     .maybeAddUserId(Calls.CONTENT_URI, userHandle.getIdentifier());
         }
-        // start the query
-        queryHandler.startQuery(0, null, callsUri, CALL_LOG_PROJECTION,
-                CALL_LOG_WHERE_CLAUSE, null, Calls.DEFAULT_SORT_ORDER);
+        //Adding code to catch IllegalArgumentException, which might occur when we
+        //query the ContactsProvider and ContactsProvider is dying,
+        //so that system server does not crash.
+        try {
+            // start the query
+            queryHandler.startQuery(0, null, callsUri, CALL_LOG_PROJECTION,
+                    CALL_LOG_WHERE_CLAUSE, null, Calls.DEFAULT_SORT_ORDER);
+        } catch (IllegalArgumentException e) {
+            Log.e(this, e, "ContactsProvider query command failed for user "
+                    + userHandle);
+        }
     }
 
     @Override
@@ -804,5 +830,20 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
             // Default to mContext, not finding the package system is running as is unlikely.
             return mContext;
         }
+    }
+
+    /**
+     * Gets name strings based on some special presentation modes.
+     * @param presentation Integer containing the presentation type.
+     * @return A String containing the presentation name based on the given type.
+     */
+    private String getPresentationString(int presentation) {
+        String name = mContext.getString(R.string.unknown);
+        if (presentation == TelecomManager.PRESENTATION_RESTRICTED) {
+            name = mContext.getString(R.string.private_num);
+        } else if (presentation == TelecomManager.PRESENTATION_PAYPHONE) {
+            name = mContext.getString(R.string.payphone);
+        }
+        return name;
     }
 }
