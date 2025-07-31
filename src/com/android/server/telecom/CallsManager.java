@@ -3197,12 +3197,22 @@ public class CallsManager extends Call.ListenerBase
         showErrorIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         showErrorIntent.putExtra(
                 TelecomManager.EXTRA_MANAGED_PROFILE_USER_ID, managedProfileUserId);
-        if (mContext.getPackageManager()
-                .queryIntentActivitiesAsUser(
-                        showErrorIntent,
-                        ResolveInfoFlags.of(0),
-                        initiatingUser)
-                .isEmpty()) {
+
+        List<ResolveInfo> info;
+        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
+            info = UserUtil.getPackageManagerFromUserHandler(mContext, initiatingUser)
+                    .queryIntentActivities(
+                            showErrorIntent,
+                            ResolveInfoFlags.of(0));
+        } else {
+            info = mContext.getPackageManager()
+                    .queryIntentActivitiesAsUser(
+                            showErrorIntent,
+                            ResolveInfoFlags.of(0),
+                            initiatingUser);
+        }
+
+        if (info.isEmpty()) {
             return false;
         }
         try {
@@ -7510,12 +7520,19 @@ public class CallsManager extends Call.ListenerBase
         if (call == null) {
             return false;
         }
-        return (call.getAssociatedUser() != null &&
-                call.getAssociatedUser().equals(userHandle))
-                || (call.getPhoneAccountFromHandle() != null &&
-                call.getPhoneAccountFromHandle()
-                .hasCapabilities(PhoneAccount.CAPABILITY_MULTI_USER));
+        if  (call.getAssociatedUser() != null &&
+               call.getAssociatedUser().equals(userHandle)) {
+                return true;
+        }
 // QTI_END: 2024-02-21: Telephony: Fix issue for phone process crash.
+        PhoneAccount phoneAccount = call.getPhoneAccountFromHandle();
+        // May get null targetPhoneAccount such as at select phone account stage
+        if (phoneAccount == null) {
+            Log.i(this, "isCallVisibleForUser false, null phoneAccount");
+            return false;
+        } else {
+            return phoneAccount.hasCapabilities(PhoneAccount.CAPABILITY_MULTI_USER);
+        }
     }
 
     /**
