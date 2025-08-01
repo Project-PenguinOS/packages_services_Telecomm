@@ -4592,7 +4592,6 @@ public class CallsManager extends Call.ListenerBase
     }
 
     private boolean isRttSettingOn(PhoneAccountHandle handle) {
-        int userId = UserUtil.getUserIdFromContext(mContext, mFeatureFlags);
 // QTI_BEGIN: 2020-01-20: Telephony: IMS: Support for MSIM RTT
         int phoneId = SubscriptionManager.getPhoneId(
 // QTI_END: 2020-01-20: Telephony: IMS: Support for MSIM RTT
@@ -4603,8 +4602,15 @@ public class CallsManager extends Call.ListenerBase
             return false;
         }
 // QTI_END: 2020-01-20: Telephony: IMS: Support for MSIM RTT
-        boolean isRttModeSettingOn = Settings.Secure.getIntForUser(mContext.getContentResolver(),
-                Settings.Secure.RTT_CALLING_MODE, 0, userId) != 0;
+        boolean isRttModeSettingOn;
+        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
+            isRttModeSettingOn = Settings.Secure.getInt(mContext.getContentResolver(),
+                    Settings.Secure.RTT_CALLING_MODE, 0) != 0;
+        } else {
+            int userId = UserUtil.getUserIdFromContext(mContext, mFeatureFlags);
+            isRttModeSettingOn = Settings.Secure.getIntForUser(mContext.getContentResolver(),
+                    Settings.Secure.RTT_CALLING_MODE, 0, userId) != 0;
+        }
         // If the carrier config says that we should ignore the RTT mode setting from the user,
         // assume that it's off (i.e. only make an RTT call if it's requested through the extra).
         boolean shouldIgnoreRttModeSetting = getCarrierConfigForPhoneAccount(handle)
