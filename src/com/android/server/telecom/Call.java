@@ -1542,6 +1542,9 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 case CallState.SIMULATED_RINGING:
                     event = LogUtils.Events.SET_SIMULATED_RINGING;
                     break;
+                case CallState.LOCAL_VOICEMAIL:
+                    event = LogUtils.Events.SET_LOCAL_VOICEMAIL;
+                    break;
             }
             if (event != null) {
                 // The string data should be just the tag.
@@ -3519,10 +3522,9 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         }
 
         // If mExtra shows that the call using Volte, record it with mWasVolte
-        if (mExtras.containsKey(TelecomManager.EXTRA_CALL_NETWORK_TYPE) &&
-            mExtras.get(TelecomManager.EXTRA_CALL_NETWORK_TYPE)
-                    .equals(TelephonyManager.NETWORK_TYPE_LTE)) {
-            mWasVolte = true;
+        if (mExtras.containsKey(TelecomManager.EXTRA_CALL_NETWORK_TYPE)) {
+            mWasVolte = mExtras.get(TelecomManager.EXTRA_CALL_NETWORK_TYPE)
+                    .equals(TelephonyManager.NETWORK_TYPE_LTE);
         }
 
         if (extras.containsKey(Connection.EXTRA_ORIGINAL_CONNECTION_ID)) {
