@@ -87,6 +87,7 @@ import com.android.server.telecom.util.CallerInfo;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -1492,7 +1493,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             mState = newState;
             maybeLoadCannedSmsResponses();
 
-            if (mState == CallState.ACTIVE || mState == CallState.ON_HOLD) {
+            if (mState == CallState.ACTIVE || mState == CallState.ON_HOLD
+                    || mState == CallState.LOCAL_VOICEMAIL) {
                 if (mConnectTimeMillis == 0) {
                     // We check to see if mConnectTime is already set to prevent the
                     // call from resetting active time when it goes in and out of

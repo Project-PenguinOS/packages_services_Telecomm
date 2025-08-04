@@ -160,6 +160,7 @@ import com.android.server.telecom.callsequencing.TransactionManager;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -881,11 +882,22 @@ public class CallsManager extends Call.ListenerBase
                         public void disconnectCall(Call call) {
                             CallsManager.this.disconnectCall(call);
                         }
+
+                        @Override
+                        public Duration getLocalVoicemailTimeout(PhoneAccountHandle handle) {
+                            try {
+                                return CallsManager.this.getPhoneAccountRegistrar()
+                                        .getLocalVoicemailTimeout(handle);
+                            } catch (IllegalArgumentException ex) {
+                                return null;
+                            }
+                        }
                     },
                     mContext,
                     scheduledExecutorService,
-                    mLock);
-            //TODO(b/394367444) consider skipping if local voicemail not enabled on device.
+                    mLock,
+                    mContext.getResources().getString(
+                            com.android.server.telecom.R.string.local_voicemail_package_name));
             mAudioModeTracker.addListener(mLocalVoicemailController);
             mListeners.add(mLocalVoicemailController);
         } else {
@@ -7615,5 +7627,9 @@ public class CallsManager extends Call.ListenerBase
             boolean isEnabled) {
         mCallLogIntegrationAdapter.setVoipPackageCallLogIntegrationEnabled(userHandle, packageName,
                 isEnabled);
+    }
+
+    public LocalVoicemailController getLocalVoicemailController() {
+        return mLocalVoicemailController;
     }
 }

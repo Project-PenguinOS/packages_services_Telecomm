@@ -104,6 +104,7 @@ import com.android.server.telecom.util.TelecomBundleUtils;
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -2716,6 +2717,102 @@ public class TelecomServiceImpl {
                     long token = Binder.clearCallingIdentity();
                     try {
                         mPhoneAccountRegistrar.setTestPhoneAccountPackageNameFilter(packageName);
+                    } finally {
+                        Binder.restoreCallingIdentity(token);
+                    }
+                }
+            } finally {
+                Log.endSession();
+            }
+        }
+
+        @Override
+        public void setTestLocalVoicemailService(String packageName) {
+            try {
+                Log.startSession("TSI.sTLVS");
+                enforceModifyPermission();
+                enforceShellOnly(Binder.getCallingUid(),
+                        "setTestLocalVoicemailService");
+                synchronized (mLock) {
+                    long token = Binder.clearCallingIdentity();
+                    try {
+                        LocalVoicemailController lvc = mCallsManager.getLocalVoicemailController();
+                        if (lvc == null) {
+                            return;
+                        }
+                        lvc.setTestLocalVoicemailService(packageName);
+                    } finally {
+                        Binder.restoreCallingIdentity(token);
+                    }
+                }
+            } finally {
+                Log.endSession();
+            }
+        }
+
+        /**
+         * Determines if local voicemail is supported on this device; available if there is an
+         * active local voicemail service configured.
+         * @return {@code true} is local VM is supported on the device, {@code false} otherwise.
+         * @throws RemoteException
+         */
+        @Override
+        public boolean isLocalVoicemailSupported(String callingPackage) throws RemoteException {
+            try {
+                Log.startSession("TSI.iLVS", Log.getPackageAbbreviation(callingPackage));
+                mContext.enforceCallingOrSelfPermission(READ_PRIVILEGED_PHONE_STATE,
+                        "READ_PRIVILEGED_PHONE_STATE required.");
+
+                // NOTE: This DOES NOT sync on `mLock` since we are just getting a single
+                // value from `LocalVoicemailController`.
+                long token = Binder.clearCallingIdentity();
+                try {
+                    LocalVoicemailController localVoicemailController =
+                            mCallsManager.getLocalVoicemailController();
+                    if (localVoicemailController == null) {
+                        return false;
+                    }
+                    return localVoicemailController.getActiveLocalVoicemailService() != null;
+                } finally {
+                    Binder.restoreCallingIdentity(token);
+                }
+            } finally {
+                Log.endSession();
+            }
+        }
+
+        @Override
+        public void setLocalVoicemailTimeout(String callingPackage,
+                PhoneAccountHandle phoneAccountHandle, long timeout) {
+            try {
+                Log.startSession("TSI.sLVT", Log.getPackageAbbreviation(callingPackage));
+                synchronized (mLock) {
+                    enforceModifyPermission();
+                    long token = Binder.clearCallingIdentity();
+                    try {
+                        mPhoneAccountRegistrar.setLocalVoicemailTimeout(phoneAccountHandle,
+                                Duration.ofMillis(timeout));
+                    } finally {
+                        Binder.restoreCallingIdentity(token);
+                    }
+                }
+            } finally {
+                Log.endSession();
+            }
+        }
+
+        @Override
+        public long getLocalVoicemailTimeout(String callingPackage,
+                PhoneAccountHandle phoneAccountHandle) {
+            try {
+                Log.startSession("TSI.gLVT", Log.getPackageAbbreviation(callingPackage));
+                synchronized (mLock) {
+                    mContext.enforceCallingOrSelfPermission(READ_PRIVILEGED_PHONE_STATE,
+                            "READ_PRIVILEGED_PHONE_STATE required.");
+                    long token = Binder.clearCallingIdentity();
+                    try {
+                        return mPhoneAccountRegistrar.getLocalVoicemailTimeout(phoneAccountHandle)
+                                .toMillis();
                     } finally {
                         Binder.restoreCallingIdentity(token);
                     }

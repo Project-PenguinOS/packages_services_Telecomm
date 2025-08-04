@@ -92,6 +92,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -2051,6 +2052,21 @@ public class PhoneAccountRegistrarTest extends TelecomTestCase {
                 simAccount.getAccountHandle().getUserHandle());
 
         // There is nothing to verify, we just want to ensure that we didn't crash.
+    }
+
+    @MediumTest
+    @Test
+    public void testLocalVoicemailDuration() throws Exception {
+        PhoneAccountHandle inputAcct = new PhoneAccountHandle(new ComponentName("pkg0", "cls0"),
+                "id0");
+        PhoneAccountRegistrar.LocalVoicemailTimeout input =
+                new PhoneAccountRegistrar.LocalVoicemailTimeout(inputAcct,
+                        Duration.ofSeconds(10));
+        PhoneAccountRegistrar.LocalVoicemailTimeout result = roundTripXml(this, input,
+                PhoneAccountRegistrar.sLocalVoicemailTimeout, mContext,
+                mTelephonyFeatureFlags, mFeatureFlags);
+        assertPhoneAccountHandleEquals(input.phoneAccountHandle, result.phoneAccountHandle);
+        assertEquals(input.timeout, result.timeout);
     }
 
     private static PhoneAccount.Builder makeBuilderWithBindCapabilities(PhoneAccountHandle handle) {
