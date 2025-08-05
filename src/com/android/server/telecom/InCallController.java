@@ -1769,6 +1769,11 @@ public class InCallController extends CallsManagerListenerBase implements
         Log.i(this, "onCallStateChanged: Call state changed for TC@%s: %s -> %s", call.getId(),
                 CallState.toString(oldState), CallState.toString(newState));
         maybeTrackMicrophoneUse(isMuted());
+
+        // TODO(b/394367444): If a call moves to local voicemail state, we can remove it from the
+        // InCallServices listening to it.  Handle there here; for now in development it'll show up
+        // as an active call in the dialer, which is not the final desired state.
+        // This will take the same general shape as the logic above in onExternalCallChanged.
         updateCall(call);
     }
 
@@ -3488,13 +3493,18 @@ public class InCallController extends CallsManagerListenerBase implements
             return mCallsManager.getCurrentUserHandle();
         } else {
             UserHandle userFromCall = call.getAssociatedUser();
+
+            UserHandle currentUser = mCallsManager.getCurrentUserHandle() != null
+                ? mCallsManager.getCurrentUserHandle() : UserHandle.CURRENT;
+
             UserManager userManager = mFeatureFlags.telecomResolveHiddenDependencies()
-                    ? mContext.createContextAsUser(mCallsManager.getCurrentUserHandle(), 0)
+                    ? mContext.createContextAsUser(currentUser, 0)
                             .getSystemService(UserManager.class)
                     : mContext.getSystemService(UserManager.class);
             boolean isCurrentUserAdmin = mFeatureFlags.telecomResolveHiddenDependencies()
                     ? userManager.isAdminUser()
-                    : userManager.isUserAdmin(mCallsManager.getCurrentUserHandle().getIdentifier());
+                    : userManager.isUserAdmin(currentUser.getIdentifier());
+
             // Emergency call should never be blocked, so if the user associated with the target
             // phone account handle user is in quiet mode, use the current user for the ecall.
             // Note, that this only applies to incoming calls that are received on assigned

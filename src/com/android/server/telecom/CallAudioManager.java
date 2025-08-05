@@ -72,6 +72,11 @@ public class CallAudioManager extends CallsManagerListenerBase {
     private final LinkedHashSet<Call> mRingingCalls;
     private final LinkedHashSet<Call> mHoldingCalls;
     private final LinkedHashSet<Call> mAudioProcessingCalls;
+    /**
+     * Realistically there can only be one, but for consistency we'll track using a hash set like
+     * the other states do.
+     */
+    private final LinkedHashSet<Call> mLocalVoicemailCalls;
     private final Set<Call> mCalls;
     private final SparseArray<LinkedHashSet<Call>> mCallStateToCalls;
 
@@ -120,6 +125,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
         mRingingCalls = new LinkedHashSet<>(1);
         mHoldingCalls = new LinkedHashSet<>(1);
         mAudioProcessingCalls = new LinkedHashSet<>(1);
+        mLocalVoicemailCalls = new LinkedHashSet<>(1);
         mStreamingCall = null;
         mCalls = new HashSet<>();
         mCallStateToCalls = new SparseArray<LinkedHashSet<Call>>() {{
@@ -131,6 +137,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
             put(CallState.ON_HOLD, mHoldingCalls);
             put(CallState.SIMULATED_RINGING, mRingingCalls);
             put(CallState.AUDIO_PROCESSING, mAudioProcessingCalls);
+            put(CallState.LOCAL_VOICEMAIL, mLocalVoicemailCalls);
         }};
 
         mCallAudioRouteAdapter = callAudioRouteAdapter;
@@ -862,6 +869,9 @@ public class CallAudioManager extends CallsManagerListenerBase {
             case CallState.AUDIO_PROCESSING:
                 onCallLeavingAudioProcessing();
                 break;
+            case CallState.LOCAL_VOICEMAIL:
+                onCallLeavingLocalVoicemail();
+                break;
         }
     }
 
@@ -907,6 +917,25 @@ public class CallAudioManager extends CallsManagerListenerBase {
             case CallState.AUDIO_PROCESSING:
                 onCallEnteringAudioProcessing();
                 break;
+            case CallState.LOCAL_VOICEMAIL:
+                onCallEnteringLocalVoicemail();
+                break;
+        }
+    }
+
+    private void onCallLeavingLocalVoicemail() {
+        if (mLocalVoicemailCalls.size() == 0) {
+            mCallAudioModeStateMachine.sendMessageWithArgs(
+                    CallAudioModeStateMachine.NO_MORE_LOCAL_VOICEMAIL_CALLS,
+                    makeArgsForModeStateMachine());
+        }
+    }
+
+    private void onCallEnteringLocalVoicemail() {
+        if (mLocalVoicemailCalls.size() == 1) {
+            mCallAudioModeStateMachine.sendMessageWithArgs(
+                    CallAudioModeStateMachine.NEW_LOCAL_VOICEMAIL_CALL,
+                    makeArgsForModeStateMachine());
         }
     }
 
@@ -1133,7 +1162,8 @@ public class CallAudioManager extends CallsManagerListenerBase {
                 .setHasActiveOrDialingCalls(mActiveDialingOrConnectingCalls.size() > 0)
                 .setHasRingingCalls(mRingingCalls.size() > 0)
                 .setHasHoldingCalls(mHoldingCalls.size() > 0)
-                .setHasAudioProcessingCalls(mAudioProcessingCalls.size() > 0)
+                .setHasAudioProcessingCalls(mAudioProcessingCalls.size() > 0
+                        || mLocalVoicemailCalls.size() > 0)
                 .setIsTonePlaying(mIsTonePlaying)
                 .setIsStreaming((mStreamingCall != null) && (!mStreamingCall.isDisconnected()))
                 .setForegroundCallIsVoip(
