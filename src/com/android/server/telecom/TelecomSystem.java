@@ -238,7 +238,7 @@ public class TelecomSystem {
             PhoneNumberUtilsAdapter phoneNumberUtilsAdapter,
             IncomingCallNotifier incomingCallNotifier,
             InCallTonePlayer.ToneGeneratorFactory toneGeneratorFactory,
-            CallAudioRouteStateMachine.Factory callAudioRouteStateMachineFactory,
+            CallAudioRouteController.Factory callAudioRouteControllerFactory,
             CallAudioModeStateMachine.Factory callAudioModeStateMachineFactory,
             ClockProxy clockProxy,
             RoleManagerAdapter roleManagerAdapter,
@@ -279,19 +279,14 @@ public class TelecomSystem {
                             return context.getContentResolver().openInputStream(uri);
                         }
                     });
-            CallAudioCommunicationDeviceTracker communicationDeviceTracker = new
-                    CallAudioCommunicationDeviceTracker(mContext);
             BluetoothDeviceManager bluetoothDeviceManager = new BluetoothDeviceManager(mContext,
                     mContext.getSystemService(BluetoothManager.class).getAdapter(),
-                    communicationDeviceTracker, featureFlags);
-            BluetoothRouteManager bluetoothRouteManager = new BluetoothRouteManager(mContext, mLock,
-                    bluetoothDeviceManager, new Timeouts.Adapter(),
-                    communicationDeviceTracker, featureFlags, looper);
+                    featureFlags);
+            BluetoothRouteManager bluetoothRouteManager = new BluetoothRouteManager(
+                    bluetoothDeviceManager);
             BluetoothStateReceiver bluetoothStateReceiver = new BluetoothStateReceiver(
-                    bluetoothDeviceManager, bluetoothRouteManager,
-                    communicationDeviceTracker, featureFlags);
+                    bluetoothDeviceManager, featureFlags);
             mContext.registerReceiver(bluetoothStateReceiver, BluetoothStateReceiver.INTENT_FILTER);
-            communicationDeviceTracker.setBluetoothRouteManager(bluetoothRouteManager);
 
             WiredHeadsetManager wiredHeadsetManager = new WiredHeadsetManager(mContext);
             SystemStateHelper systemStateHelper = new SystemStateHelper(mContext, mLock);
@@ -423,8 +418,6 @@ public class TelecomSystem {
                             (packageName, userHandle) -> AppLabelProxy.Util.getAppLabel(mContext,
                                     userHandle, packageName, mFeatureFlags), asyncTaskExecutor,
                             mFeatureFlags);
-            CallAudioRouteController.Factory audioRouteControllerFactory =
-                    new CallAudioRouteController.Factory();
 
             mCallsManager = new CallsManager(
                     mContext,
@@ -450,7 +443,7 @@ public class TelecomSystem {
                     clockProxy,
                     audioProcessingNotification,
                     bluetoothStateReceiver,
-                    audioRouteControllerFactory,
+                    callAudioRouteControllerFactory,
                     callAudioModeStateMachineFactory,
                     inCallControllerFactory,
                     callDiagnosticServiceController,
@@ -464,7 +457,6 @@ public class TelecomSystem {
                     blockedNumbersAdapter,
                     transactionManager,
                     emergencyCallDiagnosticLogger,
-                    communicationDeviceTracker,
                     callStreamingNotification,
                     bluetoothDeviceManager,
                     featureFlags,
