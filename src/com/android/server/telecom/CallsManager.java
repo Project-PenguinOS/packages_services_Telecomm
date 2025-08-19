@@ -4674,16 +4674,6 @@ public class CallsManager extends Call.ListenerBase
     }
 
     private boolean isRttSettingOn(PhoneAccountHandle handle) {
-// QTI_BEGIN: 2020-01-20: Telephony: IMS: Support for MSIM RTT
-        int phoneId = SubscriptionManager.getPhoneId(
-// QTI_END: 2020-01-20: Telephony: IMS: Support for MSIM RTT
-          mPhoneAccountRegistrar.getSubscriptionIdForPhoneAccount(handle));
-// QTI_BEGIN: 2020-01-20: Telephony: IMS: Support for MSIM RTT
-        if (!SubscriptionManager.isValidPhoneId(phoneId)) {
-            Log.w(this, "isRttSettingOn: Invalid phone id = " + phoneId);
-            return false;
-        }
-// QTI_END: 2020-01-20: Telephony: IMS: Support for MSIM RTT
         boolean isRttModeSettingOn;
         if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
             isRttModeSettingOn = Settings.Secure.getInt(mContext.getContentResolver(),
@@ -4700,12 +4690,6 @@ public class CallsManager extends Call.ListenerBase
         return isRttModeSettingOn && !shouldIgnoreRttModeSetting;
     }
 
-// QTI_BEGIN: 2020-01-20: Telephony: IMS: Support for MSIM RTT
-    private static String convertRttPhoneId(int phoneId) {
-        return phoneId != 0 ? Integer.toString(phoneId) : "";
-    }
-
-// QTI_END: 2020-01-20: Telephony: IMS: Support for MSIM RTT
     public PersistableBundle getCarrierConfigForPhoneAccount(PhoneAccountHandle handle) {
         int subscriptionId = mPhoneAccountRegistrar.getSubscriptionIdForPhoneAccount(handle);
         CarrierConfigManager carrierConfigManager =
