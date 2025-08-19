@@ -4851,15 +4851,11 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             }
 // QTI_END: 2023-03-28: Telephony: IMS: Show incorrect video icon in call history after answering
 // QTI_BEGIN: 2023-06-05: Telephony: IMS: Fix incorrect video icon in call history after disconnecting
-        } else if (((oldState == CallState.DIALING && newState == CallState.DISCONNECTED)
-                || (oldState == CallState.RINGING && newState == CallState.DISCONNECTED))
+        } else if ((oldState == CallState.RINGING && newState == CallState.DISCONNECTED)
 // QTI_END: 2023-06-05: Telephony: IMS: Fix incorrect video icon in call history after disconnecting
-// QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
-                && (isVideoCrbtForVoLteCall()
-// QTI_END: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
 // QTI_BEGIN: 2023-06-05: Telephony: IMS: Fix incorrect video icon in call history after disconnecting
-                || isVideoCrsForVoLteCall())) {
-            // For disconnecting Video CRBT/CRS for VoLTE call by APM or other abnormal scenarios
+                && isVideoCrsForVoLteCall()) {
+            // For disconnecting Video CRS for VoLTE call by APM or other abnormal scenarios
             mVideoStateHistory = VideoProfile.STATE_AUDIO_ONLY;
             return;
 // QTI_END: 2023-06-05: Telephony: IMS: Fix incorrect video icon in call history after disconnecting
