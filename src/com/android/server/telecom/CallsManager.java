@@ -65,6 +65,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.pm.ComponentInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.pm.PackageManager.ResolveInfoFlags;
@@ -337,6 +338,9 @@ public class CallsManager extends Call.ListenerBase
 
     private static final String PERMISSION_PROCESS_PHONE_ACCOUNT_REGISTRATION =
             "android.permission.PROCESS_PHONE_ACCOUNT_REGISTRATION";
+
+    private static final String FORWARD_INTENT_TO_MANAGED_PROFILE =
+            "com.android.internal.app.ForwardIntentToManagedProfile";
 
     private static final int HANDLER_WAIT_TIMEOUT = 10000;
     private static final int MAXIMUM_LIVE_CALLS = 1;
@@ -3197,10 +3201,64 @@ public class CallsManager extends Call.ListenerBase
         Log.i(
                 this,
                 "Work profile telephony: show forwarding call to managed profile dialog");
-        return maybeRedirectToIntentForwarder(callUri, initiatingUser);
+
+        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
+            return maybeRedirectToIntentForwarder(callUri, initiatingUser);
+        } else {
+            return maybeRedirectToIntentForwarderLegacy(callUri, initiatingUser);
+        }
     }
 
     private boolean maybeRedirectToIntentForwarder(
+            Uri callUri,
+            UserHandle initiatingUser) {
+        // Note: This intent is selected to match the CALL_MANAGED_PROFILE filter in
+        // DefaultCrossProfileIntentFiltersUtils. This ensures that it is redirected to
+        // IntentForwarderActivity.
+        Intent forwardCallIntent = new Intent(Intent.ACTION_CALL, callUri);
+        forwardCallIntent.addCategory(Intent.CATEGORY_DEFAULT);
+        Context userContext = mContext.createContextAsUser(initiatingUser, 0);
+        PackageManager userPackageManager = userContext.getPackageManager();
+        ResolveInfo resolveInfos = userPackageManager.resolveActivity(
+                forwardCallIntent, ResolveInfoFlags.of(0));
+
+        // Check that the intent will actually open the resolver rather than looping to the personal
+        // profile. This should not happen due to the cross profile intent filters.
+        if (resolveInfos == null || getComponentInfo(resolveInfos) == null) {
+            Log.w(
+                    this,
+                    "Work profile telephony: Intent could not be resolved or no activity info.");
+            return false;
+        }
+        ComponentInfo componentInfo = getComponentInfo(resolveInfos);
+        ComponentName componentName = new ComponentName(componentInfo.packageName,
+                componentInfo.name);
+        if (!componentName.getShortClassName()
+                .equals(FORWARD_INTENT_TO_MANAGED_PROFILE)) {
+            Log.w(
+                    this,
+                    "Work profile telephony: Intent would not resolve to forwarder activity."
+                            + " Resolved to: " + componentName.flattenToShortString());
+            return false;
+        }
+
+        try {
+            userContext.startActivity(forwardCallIntent);
+            return true;
+        } catch (ActivityNotFoundException e) {
+            Log.e(this, e, "Unable to start call intent for work telephony");
+            return false;
+        }
+    }
+
+    private ComponentInfo getComponentInfo(ResolveInfo resolveInfo) {
+        if (resolveInfo.activityInfo != null) return resolveInfo.activityInfo;
+        if (resolveInfo.serviceInfo != null) return resolveInfo.serviceInfo;
+        if (resolveInfo.providerInfo != null) return resolveInfo.providerInfo;
+        throw new IllegalStateException("Missing ComponentInfo!");
+    }
+
+    private boolean maybeRedirectToIntentForwarderLegacy(
             Uri callUri,
             UserHandle initiatingUser) {
         // Note: This intent is selected to match the CALL_MANAGED_PROFILE filter in
@@ -5727,7 +5785,10 @@ public class CallsManager extends Call.ListenerBase
                         (newState == CallState.DISCONNECTED)) {
                     maybeSendPostCallScreenIntent(call);
                 }
-                int disconnectCode = call.getDisconnectCause().getCode();
+                int disconnectCode = DisconnectCause.UNKNOWN;
+                if (call.getDisconnectCause() != null) {
+                    disconnectCode = call.getDisconnectCause().getCode();
+                }
                 if ((newState == CallState.ABORTED || newState == CallState.DISCONNECTED)
                         && ((disconnectCode != DisconnectCause.MISSED)
                         && (disconnectCode != DisconnectCause.CANCELED))) {
