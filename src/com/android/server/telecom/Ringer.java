@@ -1211,29 +1211,6 @@ public class Ringer {
                 && (audioManager.getRingerMode() != AudioManager.RINGER_MODE_SILENT
                 || (zenModeOn && shouldRingForContact));
     }
-// QTI_BEGIN: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
-
-    public void startVibratingForOutgoingCallActive() {
-        if (!mIsVibrating
-                && Settings.Global.getInt(mContext.getContentResolver(),
-                        Settings.Global.VIBRATING_FOR_OUTGOING_CALL_ACCEPTED, 1) == 1) {
-            mIsVibrating = true;
-            java.util.concurrent.Executors.defaultThreadFactory().newThread(() -> {
-                final VibrationEffect vibrationEffect =
-                        mVibrationEffectProxy.createWaveform(SIMPLE_VIBRATION_PATTERN,
-                        SIMPLE_VIBRATION_AMPLITUDE, REPEAT_SIMPLE_VIBRATION_AT);
-                final VibrationAttributes vibrationAttributes = new VibrationAttributes.Builder()
-                        // .setContentType(VibrationAttributes.CONTENT_TYPE_SPEECH)
-                        .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
-                        .build();
-                mVibrator.vibrate(vibrationEffect, vibrationAttributes);
-                android.os.SystemClock.sleep(OUTGOING_CALL_VIBRATING_DURATION);
-                mVibrator.cancel();
-                mIsVibrating = false;
-            }).start();
-        }
-    }
-// QTI_END: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
 
     /**
      * There are 3 settings for haptics:
@@ -1476,5 +1453,34 @@ public class Ringer {
             VibrationEffectProxy vibrationEffectProxy) {
         return vibrationEffectProxy.createWaveform(SIMPLE_VIBRATION_PATTERN,
                 SIMPLE_VIBRATION_AMPLITUDE, REPEAT_SIMPLE_VIBRATION_AT);
+    }
+
+    public void startVibratingForOutgoingCallActive() {
+        /*if (!mFlags.callConnectedIndicatorPreference()) {
+            Log.i(TAG, "Call connected indicator of vibration is disabled.");
+            return;
+        }*/
+        final boolean isVibratingEnabled = Settings.Global.getInt(mContext.getContentResolver(),
+                Settings.Global.VIBRATING_FOR_OUTGOING_CALL_ACCEPTED, 1) == 1;
+        if (!mIsVibrating && (mCallConnectedIndicatorSettings.isCallConnectedVibrationEnabled()
+                || isVibratingEnabled)) {
+            mIsVibrating = true;
+            mAsyncTaskExecutor.execute(() -> {
+                final VibrationEffect vibrationEffect =
+                        mVibrationEffectProxy.createWaveform(CALL_CONNECTED_VIBRATION_PATTERN,
+                        CALL_CONNECTED_VIBRATION_AMPLITUDE, -1);
+                final VibrationAttributes vibrationAttributes = new VibrationAttributes.Builder()
+                        .setUsage(VibrationAttributes.USAGE_NOTIFICATION)
+                        .build();
+                mVibrator.vibrate(vibrationEffect, vibrationAttributes);
+                try {
+                    Thread.sleep(OUTGOING_CALL_VIBRATING_DURATION);
+                } catch (InterruptedException e) {
+                    // Womp
+                }
+                mVibrator.cancel();
+                mIsVibrating = false;
+            });
+        }
     }
 }

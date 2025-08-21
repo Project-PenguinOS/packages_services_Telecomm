@@ -1229,12 +1229,21 @@ public class CallAudioManager extends CallsManagerListenerBase {
     }
 
     private void playToneAfterCallConnected(Call call) {
-        if (!mFeatureFlags.callConnectedIndicatorPreference()) {
+        /*if (!mFeatureFlags.callConnectedIndicatorPreference()) {
             Log.i(LOG_TAG, "Call connected indicator of playing tone is disabled.");
             return;
+        }*/
+        boolean isPlayingToneEnabled = false;
+        try {
+            isPlayingToneEnabled = Settings.System.getInt(call.getContext().getContentResolver(),
+                    Settings.System.CALL_CONNECTED_TONE_ENABLED) == 1;
+        } catch (SettingNotFoundException e) {
+            Log.e(this, e, "Settings exception when reading playing tone config");
         }
+
         if (mCallConnectedIndicatorSettings != null &&
-                mCallConnectedIndicatorSettings.isCallConnectedToneEnabled()) {
+                (mCallConnectedIndicatorSettings.isCallConnectedToneEnabled()
+                || isPlayingToneEnabled)) {
             mPlayerFactory.createPlayer(call, InCallTonePlayer.TONE_OUTGOING_CALL_ACCEPTED).startTone();
         }
     }

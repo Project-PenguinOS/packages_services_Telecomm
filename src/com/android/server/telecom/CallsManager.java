@@ -5761,12 +5761,6 @@ public class CallsManager extends Call.ListenerBase
             if (newState == CallState.ON_HOLD && call.isDtmfTonePlaying()) {
                 stopDtmfTone(call);
             }
-// QTI_BEGIN: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
-            // Maybe start a vibration for MO call.
-            if (newState == CallState.ACTIVE && !call.isIncoming() && !call.isUnknown()) {
-                mRinger.startVibratingForOutgoingCallActive();
-            }
-// QTI_END: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
 
             // Maybe start vibrating for MO call.
             if (newState == CallState.ACTIVE && !call.isIncoming() && !call.isUnknown()) {
