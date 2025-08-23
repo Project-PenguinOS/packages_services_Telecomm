@@ -1609,7 +1609,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         // PhoneAccount.CAPABILITY_SIM_SUBSCRIPTION, limit the ability to use this functionality
         // to just telephony phone accounts permission.
         return mIsSimCall &&
-            getExtras().getBoolean(android.telecom.Call.EXTRA_IS_USING_VIDEO_RINGBACK);
+            (getExtras().getBoolean(android.telecom.Call.EXTRA_IS_USING_VIDEO_RINGBACK)
+            || getExtras().getBoolean(QtiCallConstants.EXTRA_IS_CRBT_CALL, false));
     }
 
     public void setCallIsSuppressedByDoNotDisturb(boolean isCallSuppressed) {
