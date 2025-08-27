@@ -1225,6 +1225,48 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
 
     @Test
     @SmallTest
+    public void testHandleBtAudioInactive_UnknownDevice_NoNpe() {
+        // This test verifies that calling handleBtAudioInactive with a BluetoothDevice
+        // that is not a known audio route does not cause a NullPointerException.
+        // This can happen if a SCO disconnected signal is received for a device
+        // that Telecom is not tracking. The fix is in isCurrentCommunicationDevice.
+        when(mFeatureFlags.ignoreBtBroadcast()).thenReturn(true);
+        mController.initialize();
+        mController.setActive(true);
+
+        // Add a known device and switch to it to enter a pending state.
+        mController.sendMessageWithSessionInfo(BT_DEVICE_ADDED, AudioRoute.TYPE_BLUETOOTH_SCO,
+                BLUETOOTH_DEVICE_1);
+        mController.sendMessageWithSessionInfo(USER_SWITCH_BLUETOOTH, 0,
+                BLUETOOTH_DEVICE_1.getAddress());
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+        assertTrue(mController.isPending());
+
+        // Create a Bluetooth device that is NOT a known route in the controller.
+        final BluetoothDevice unknownDevice = makeBluetoothDevice("AA:BB:CC:DD:EE:FF");
+        assertNull(
+                mController.getBluetoothRoute(AudioRoute.TYPE_BLUETOOTH_SCO, "AA:BB:CC:DD:EE:FF"));
+
+        // Set a current communication device to ensure the path is taken.
+        AudioDeviceInfo mockBtDeviceInfo = mock(AudioDeviceInfo.class);
+        when(mockBtDeviceInfo.getType()).thenReturn(AudioDeviceInfo.TYPE_BLUETOOTH_SCO);
+        when(mockBtDeviceInfo.getAddress()).thenReturn(BT_ADDRESS_1);
+        mController.setCurrentCommunicationDevice(mockBtDeviceInfo);
+
+        // Send the BT_AUDIO_DISCONNECTED message for the unknown device.
+        // The test passes if no NullPointerException is thrown.
+        mController.sendMessageWithSessionInfo(BT_AUDIO_DISCONNECTED, 0, unknownDevice);
+
+        // Wait for the handler to process the message.
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+
+        // No specific verification is needed other than the absence of a crash.
+        // We can verify that the pending state was not exited prematurely.
+        assertTrue(mController.isPending());
+    }
+
+    @Test
+    @SmallTest
     public void testBluetoothRouteToActiveDevice() {
         // Connect first BT device.
         verifyConnectBluetoothDevice(AudioRoute.TYPE_BLUETOOTH_SCO);
