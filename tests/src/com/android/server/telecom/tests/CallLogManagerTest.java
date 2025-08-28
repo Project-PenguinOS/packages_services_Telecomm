@@ -205,8 +205,9 @@ public class CallLogManagerTest extends TelecomTestCase {
         when(userManager.isUserUnlocked(any(UserHandle.class))).thenReturn(true);
         when(userManager.hasUserRestrictionForUser(any(String.class), any(UserHandle.class)))
                 .thenReturn(false);
-        when(userManager.getAliveUsers())
-                .thenReturn(Arrays.asList(userInfo, otherUserInfo, managedProfileUserInfo));
+        when(userManager.getUserHandles(true)).thenReturn(Arrays.asList(
+                UserHandle.of(CURRENT_USER_ID), UserHandle.of(OTHER_USER_ID),
+                UserHandle.of(MANAGED_USER_ID)));
         configureContextForUser(CURRENT_USER_ID, userInfo);
         when(userManager.getUserInfo(eq(CURRENT_USER_ID))).thenReturn(userInfo);
 
@@ -237,6 +238,8 @@ public class CallLogManagerTest extends TelecomTestCase {
         Context mockContext = mock(Context.class);
         mComponentContextFixture.addContextForUser(UserHandle.of(userId), mockContext);
         UserManager mockUserManager = mock(UserManager.class);
+        when(mockContext.createContextAsUser(any(UserHandle.class), eq(0))).thenReturn(mockContext);
+        when(mockContext.getSystemService(UserManager.class)).thenReturn(mockUserManager);
         when(mockUserManager.getUserInfo(eq(userId))).thenReturn(info);
         when(mockUserManager.isProfile()).thenReturn(info.isProfile());
         when(mockContext.getSystemService(eq(UserManager.class))).thenReturn(mockUserManager);
