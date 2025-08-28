@@ -148,6 +148,8 @@ public class TelecomSystem {
 
     private boolean mIsBootComplete = false;
 
+    private TelecomMetricsController mMetricsController;
+
     private final BroadcastReceiver mUserSwitchedReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -406,7 +408,7 @@ public class TelecomSystem {
                                     com.android.server.telecom.R.bool
                                             .enable_logcat_collection_for_all_emergency_calls));
 
-            TelecomMetricsController metricsController = featureFlags.telecomMetricsSupport()
+            mMetricsController = featureFlags.telecomMetricsSupport()
                     ? TelecomMetricsController.make(mContext) : null;
 
             ScheduledExecutorService scheduledExecutorService =
@@ -414,7 +416,7 @@ public class TelecomSystem {
             CallAnomalyWatchdog callAnomalyWatchdog = new CallAnomalyWatchdog(
                     scheduledExecutorService,
                     mLock, mFeatureFlags, timeoutsAdapter, clockProxy,
-                    emergencyCallDiagnosticLogger, metricsController);
+                    emergencyCallDiagnosticLogger, mMetricsController);
 
             TransactionManager transactionManager = TransactionManager.getInstance();
 
@@ -470,7 +472,7 @@ public class TelecomSystem {
                     featureFlags,
                     telephonyFlags,
                     IncomingCallFilterGraph::new,
-                    metricsController,
+                    mMetricsController,
                     vibratorAdapter,
                     scheduledExecutorService);
             bluetoothDeviceManager.setCallsManager(mCallsManager);
@@ -555,7 +557,7 @@ public class TelecomSystem {
                     featureFlags,
                     null,
                     mLock,
-                    metricsController,
+                    mMetricsController,
                     sysUiPackageName);
         } finally {
             Log.endSession();
@@ -594,5 +596,9 @@ public class TelecomSystem {
 
     public FeatureFlags getFeatureFlags() {
         return mFeatureFlags;
+    }
+
+    public TelecomMetricsController getMetricsController() {
+        return mMetricsController;
     }
 }
