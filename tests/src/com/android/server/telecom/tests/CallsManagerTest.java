@@ -97,11 +97,9 @@ import com.android.server.telecom.AnomalyReporterAdapter;
 import com.android.server.telecom.AsyncRingtonePlayer;
 import com.android.server.telecom.Call;
 import com.android.server.telecom.CallAnomalyWatchdog;
-import com.android.server.telecom.CallAudioCommunicationDeviceTracker;
 import com.android.server.telecom.CallAudioManager;
 import com.android.server.telecom.CallAudioModeStateMachine;
 import com.android.server.telecom.CallAudioRouteController;
-import com.android.server.telecom.CallAudioRouteStateMachine;
 import com.android.server.telecom.CallDiagnosticServiceController;
 import com.android.server.telecom.CallEndpointController;
 import com.android.server.telecom.CallEndpointControllerFactory;
@@ -320,7 +318,6 @@ public class CallsManagerTest extends TelecomTestCase {
     @Mock private Ringer.AccessibilityManagerAdapter mAccessibilityManagerAdapter;
     @Mock private BlockedNumbersAdapter mBlockedNumbersAdapter;
     @Mock private PhoneCapability mPhoneCapability;
-    @Mock private CallAudioCommunicationDeviceTracker mCommunicationDeviceTracker;
     @Mock private CallStreamingNotification mCallStreamingNotification;
     @Mock private BluetoothDeviceManager mBluetoothDeviceManager;
     @Mock private FeatureFlags mFeatureFlags;
@@ -350,8 +347,8 @@ public class CallsManagerTest extends TelecomTestCase {
         when(mCallEndpointControllerFactory.create(any(), any(), any())).thenReturn(
                 mCallEndpointController);
         when(mCallAudioRouteControllerFactory.create(any(), any(), any(), any(), any(), any(),
-                any(), any(), any(), any())).thenReturn(mCallAudioRouteController);
-        when(mCallAudioModeStateMachineFactory.create(any(), any(), any(), any()))
+                any(), any(), any(), any(), any())).thenReturn(mCallAudioRouteController);
+        when(mCallAudioModeStateMachineFactory.create(any(), any(), any()))
                 .thenReturn(mCallAudioModeStateMachine);
         when(mClockProxy.currentTimeMillis()).thenReturn(System.currentTimeMillis());
         when(mClockProxy.elapsedRealtime()).thenReturn(SystemClock.elapsedRealtime());
@@ -406,7 +403,6 @@ public class CallsManagerTest extends TelecomTestCase {
                 mBlockedNumbersAdapter,
                 TransactionManager.getTestInstance(),
                 mEmergencyCallDiagnosticLogger,
-                mCommunicationDeviceTracker,
                 mCallStreamingNotification,
                 mBluetoothDeviceManager,
                 mFeatureFlags,
@@ -1619,7 +1615,7 @@ public class CallsManagerTest extends TelecomTestCase {
 
         // THEN the microphone toggle mute
         verify(mCallAudioRouteController)
-                .sendMessageWithSessionInfo(CallAudioRouteStateMachine.TOGGLE_MUTE);
+                .sendMessageWithSessionInfo(CallAudioRouteController.TOGGLE_MUTE);
     }
 
     @SmallTest
