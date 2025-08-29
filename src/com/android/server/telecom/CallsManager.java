@@ -4566,6 +4566,11 @@ public class CallsManager extends Call.ListenerBase
     }
 
     public PersistableBundle getCarrierConfigForPhoneAccount(PhoneAccountHandle handle) {
+        // If the phone account isn't for a sim subscription, then carrier config does not apply
+        // so return an empty bundle.
+        if (!mPhoneAccountRegistrar.isCapabilitySimPhoneAccount(handle)) {
+            return new PersistableBundle();
+        }
         int subscriptionId = mPhoneAccountRegistrar.getSubscriptionIdForPhoneAccount(handle);
         CarrierConfigManager carrierConfigManager =
                 mContext.getSystemService(CarrierConfigManager.class);
