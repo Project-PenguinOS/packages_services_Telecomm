@@ -182,12 +182,8 @@ public final class CallLogManager extends CallsManagerListenerBase {
     void logCallIfNotSelfManaged (Call call, int type, boolean showNotificationForMissedCall,
             CallFilteringResult result) {
         boolean shouldCallSelfManagedLogged = shouldLogVoipCall(call);
-        if (!mFeatureFlags.preventSelfManagedCallLogging() || call.isManaged() ||
-                shouldCallSelfManagedLogged) {
+        if (call.isManaged() || shouldCallSelfManagedLogged) {
             logCall(call, type, showNotificationForMissedCall, result);
-        } else {
-            Log.d(TAG, "logCallIfNotSelfManaged: skipping call logging due to self managed "
-                    + "for call = " + call);
         }
     }
 
