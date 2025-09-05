@@ -40,6 +40,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.telephony.flags.Flags;
 import com.android.server.telecom.CallAudioManager.AudioServiceFactory;
 import com.android.server.telecom.DefaultDialerCache.DefaultDialerManagerAdapter;
 import com.android.server.telecom.bluetooth.BluetoothDeviceManager;
@@ -421,6 +422,10 @@ public class TelecomSystem {
                                     userHandle, packageName, mFeatureFlags), asyncTaskExecutor,
                             mFeatureFlags);
 
+            LowBatteryAlertListener lowBatteryAlertListener =
+                    Flags.supportLowBatteryAlert() ? new LowBatteryAlertListener(mContext,
+                            scheduledExecutorService) : null;
+
             mCallsManager = new CallsManager(
                     mContext,
                     mLock,
@@ -466,7 +471,8 @@ public class TelecomSystem {
                     IncomingCallFilterGraph::new,
                     mMetricsController,
                     vibratorAdapter,
-                    scheduledExecutorService);
+                    scheduledExecutorService,
+                    lowBatteryAlertListener);
             bluetoothDeviceManager.setCallsManager(mCallsManager);
             mIncomingCallNotifier = incomingCallNotifier;
             incomingCallNotifier.setCallsManagerProxy(new IncomingCallNotifier.CallsManagerProxy() {

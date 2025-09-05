@@ -126,6 +126,7 @@ import com.android.server.telecom.InCallControllerFactory;
 import com.android.server.telecom.InCallTonePlayer;
 import com.android.server.telecom.InCallWakeLockController;
 import com.android.server.telecom.InCallWakeLockControllerFactory;
+import com.android.server.telecom.LowBatteryAlertListener;
 import com.android.server.telecom.MissedCallNotifier;
 import com.android.server.telecom.PhoneAccountRegistrar;
 import com.android.server.telecom.PhoneNumberUtilsAdapter;
@@ -329,6 +330,7 @@ public class CallsManagerTest extends TelecomTestCase {
     @Mock private IConnectionService mIConnectionService;
     @Mock private TelecomMetricsController mMockTelecomMetricsController;
     @Mock private Ringer.VibratorAdapter mMockVibratorAdapter;
+    @Mock private LowBatteryAlertListener mLowBatteryAlertListener;
     private CallsManager mCallsManager;
     private TestScheduledExecutorService mTestScheduledExecutorService;
 
@@ -412,7 +414,8 @@ public class CallsManagerTest extends TelecomTestCase {
                         mFeatureFlags, lock) -> mIncomingCallFilterGraph,
                 mMockTelecomMetricsController,
                 mMockVibratorAdapter,
-                mTestScheduledExecutorService);
+                mTestScheduledExecutorService,
+                mLowBatteryAlertListener);
         mCallsManager.setCallAudioWatchDog(null);
         when(mPhoneAccountRegistrar.getPhoneAccount(
                 eq(SELF_MANAGED_HANDLE), any())).thenReturn(SELF_MANAGED_ACCOUNT);
