@@ -18,7 +18,6 @@ package com.android.server.telecom;
 
 import android.annotation.NonNull;
 import android.content.Context;
-import android.media.AudioManager;
 import android.media.IAudioService;
 import android.media.ToneGenerator;
 import android.os.Handler;
@@ -73,7 +72,6 @@ public class CallAudioManager extends CallsManagerListenerBase {
     private final RingbackPlayer mRingbackPlayer;
     private final DtmfLocalTonePlayer mDtmfLocalTonePlayer;
     private final FeatureFlags mFeatureFlags;
-
     private Call mStreamingCall;
     private Call mForegroundCall;
     private CompletableFuture<Boolean> mCallRingingFuture;
@@ -131,7 +129,6 @@ public class CallAudioManager extends CallsManagerListenerBase {
         mHandler = new Handler(mHandlerThread.getLooper());
         mSilencedCalls = new HashSet<>();
         mFocusState = CallAudioRouteController.NO_FOCUS;
-
         mPlayerFactory.setCallAudioManager(this);
         mCallAudioModeStateMachine.setCallAudioManager(this);
         mCallAudioRouteAdapter.setCallAudioManager(this);
@@ -176,11 +173,12 @@ public class CallAudioManager extends CallsManagerListenerBase {
             playToneAfterCallConnected(call);
         }
 
-        if (mIsCrsInCallMode && (newState != CallState.RINGING)
-                &&  (call == mForegroundCall)) {
+        if (mIsCrsInCallMode && (newState != CallState.RINGING) && (call == mForegroundCall)
+                && getCrsAudioController() != null) {
+            getCrsAudioController().resetAudioDevices(this, mCallsManager, call, newState);
             mIsCrsInCallMode = false;
+            mSilencedCalls.remove(call);
         }
-
         onCallLeavingState(call, oldState);
         onCallEnteringState(call, newState);
     }
@@ -561,7 +559,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
                 CallAudioRouteController.INCLUDE_BLUETOOTH_IN_BASELINE);
     }
 
-    Set<UserHandle> silenceRingers(Context context, UserHandle callingUser,
+    public Set<UserHandle> silenceRingers(Context context, UserHandle callingUser,
             boolean hasCrossUserPermission) {
         // Store all users from calls that were silenced so that we can silence the
         // InCallServices which are associated with those users.
@@ -596,12 +594,18 @@ public class CallAudioManager extends CallsManagerListenerBase {
         return mRinger.isRinging();
     }
 
+    public Context getContext() {
+        return mCallsManager.getContext();
+    }
+
     @VisibleForTesting
     public boolean startRinging() {
         synchronized (mCallsManager.getLock()) {
             Call localForegroundCall = mForegroundCall;
             if (localForegroundCall != null && localForegroundCall.isCrsCall()
                     && mSilencedCalls.contains(localForegroundCall)) {
+                // This case is when user put the CRS call in silent and then CRS call fallbacks
+                // to normal call, it should not ring.
                 Log.v(this, "Skip startRinging for silenced ringing call");
                 return false;
             }
@@ -769,9 +773,11 @@ public class CallAudioManager extends CallsManagerListenerBase {
                 onCallEnteringActiveDialingOrConnecting();
                 break;
             case CallState.RINGING:
-                mIsCrsInCallMode = (call != null &&
-                        call.getCrsMode() == AudioManager.MODE_IN_CALL &&
-                        call.isCrsCall());
+                if (getCrsAudioController() != null &&
+                        getCrsAudioController().isCrsInCallMode(call)) {
+                    getCrsAudioController().setCrsAudioRoute(this);
+                    mIsCrsInCallMode = true;
+                }
             case CallState.SIMULATED_RINGING:
                 onCallEnteringRinging();
                 break;
@@ -1284,5 +1290,9 @@ public class CallAudioManager extends CallsManagerListenerBase {
 
     public boolean isFocusStateUnfocused() {
         return mFocusState == CallAudioRouteController.NO_FOCUS;
+    }
+
+    public CrsAudioController getCrsAudioController() {
+        return mCallsManager.getCrsAudioController();
     }
 }
