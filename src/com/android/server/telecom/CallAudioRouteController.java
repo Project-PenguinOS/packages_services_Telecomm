@@ -1606,8 +1606,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         if (!isExplicitUserRequest) {
             synchronized (mTelecomLock) {
                 skipEarpiece = foregroundCall != null && foregroundCall.isActiveFocus()
-                        && VideoProfile.isVideo(foregroundCall.getVideoState())
-                        && !foregroundCall.isVideoCrbtForVoLteCall();
+                        && VideoProfile.isVideo(foregroundCall.getVideoState());
                 Log.i(this, "skipEarpiece for video call?" + skipEarpiece);
             }
         }
