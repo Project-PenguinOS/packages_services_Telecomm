@@ -1318,7 +1318,7 @@ public class InCallController extends CallsManagerListenerBase implements
     /**
      * A list of call IDs which are currently using the camera.
      */
-    private ArrayList<String> mCallsUsingCamera = new ArrayList<>();
+    private ArraySet<String> mCallsUsingCamera = new ArraySet<>();
 
     private ArraySet<String> mAllCarrierPrivilegedApps = new ArraySet<>();
     private ArraySet<String> mActiveCarrierPrivilegedApps = new ArraySet<>();
@@ -1936,12 +1936,15 @@ public class InCallController extends CallsManagerListenerBase implements
             return;
         }
 
+        if (cameraId != null && !mCallIdMapper.containsCall(call)) {
+            //camera was set, but the call has already been removed. Do nothing
+            return;
+        }
+
         Log.i(this, "onSetCamera callId=%s, cameraId=%s", call.getId(), cameraId);
         if (cameraId != null) {
             boolean shouldStart = mCallsUsingCamera.isEmpty();
-            if (!mCallsUsingCamera.contains(call.getId())) {
-                mCallsUsingCamera.add(call.getId());
-            }
+            mCallsUsingCamera.add(call.getId());
 
             if (shouldStart) {
                 if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
@@ -1952,8 +1955,8 @@ public class InCallController extends CallsManagerListenerBase implements
                     // Note, not checking return value, as this op call is merely for tracing use
                     mAppOpsManager.startOp(AppOpsManager.OP_PHONE_CALL_CAMERA, myUid(),
                             mContext.getOpPackageName(), false, null, null);
+                    mSensorPrivacyManager.showSensorUseDialog(SensorPrivacyManager.Sensors.CAMERA);
                 }
-                mSensorPrivacyManager.showSensorUseDialog(SensorPrivacyManager.Sensors.CAMERA);
             }
         } else {
             boolean hadCall = !mCallsUsingCamera.isEmpty();
@@ -3395,8 +3398,9 @@ public class InCallController extends CallsManagerListenerBase implements
                 } else {
                     mAppOpsManager.startOp(AppOpsManager.OP_PHONE_CALL_MICROPHONE, opPackageUid,
                             mContext.getOpPackageName(), false, null, null);
+                    mSensorPrivacyManager
+                            .showSensorUseDialog(SensorPrivacyManager.Sensors.MICROPHONE);
                 }
-                mSensorPrivacyManager.showSensorUseDialog(SensorPrivacyManager.Sensors.MICROPHONE);
             } else {
                 if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
                     mAppOpsManager.finishOp(AppOpsManager.OPSTR_PHONE_CALL_MICROPHONE, opPackageUid,
