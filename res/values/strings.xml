@@ -179,7 +179,7 @@
     <!-- Blocked numbers -->
     <string name="blocked_numbers">Blocked numbers</string>
     <!-- Text shown at the beginning of the blocked numbers screen to explain what the screen is about. -->
-    <string name="blocked_numbers_msg">You won\'t receive calls or texts from blocked numbers.</string>
+    <string name="blocked_numbers_msg">You won\'t receive calls or texts from blocked numbers. When you make an emergency call, rejection settings are automatically turned off.</string>
     <!-- Button to add a blocked number. -->
     <string name="block_number">Add a number</string>
     <!-- Body of dialog to confirm unblocking a number. -->
