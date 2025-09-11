@@ -1844,6 +1844,35 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
 
     @Test
     @SmallTest
+    public void testClearCommunicationDeviceAtEndOfCall_WhenScoAlreadyDisconnected() {
+        // This test verifies that when a call on a BT device ends, and the BT device
+        // had already disconnected on its own, we still clear the communication device.
+        // This is the scenario the fix in routeTo addresses, where shouldAvoidBtDisconnect
+        // is overridden to false when moving to an inactive route.
+
+        // 1. Setup: Start with an active call on a BT device.
+        verifyConnectBluetoothDevice(AudioRoute.TYPE_BLUETOOTH_SCO);
+        // Ensure the route is active.
+        mController.setActive(true);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+        assertTrue(mController.isActive());
+
+        // 2. Simulate BT device disconnecting on its own before the call ends.
+        // This is the key condition for the test.
+        mController.setLastScoDisconnectedDevice(BLUETOOTH_DEVICE_1);
+
+        // 3. Simulate the end of the call.
+        mController.sendMessageWithSessionInfo(SWITCH_FOCUS, NO_FOCUS, 0);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+
+        // 4. Verification: Ensure clearCommunicationDevice() is called.
+        // Without the fix, shouldAvoidBtDisconnect would be true, and this would be skipped.
+        verify(mAudioManager, timeout(TEST_TIMEOUT)).clearCommunicationDevice();
+        assertFalse(mController.isActive());
+    }
+
+    @Test
+    @SmallTest
     public void testSkipClearAndSetCommunicationDevice() {
         when(mFeatureFlags.skipPendingMsgIfCommunicationDeviceSet()).thenReturn(true);
         // Setup call as video call to allow baseline routing to speaker
@@ -1923,6 +1952,63 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
     @Test
     public void preservePreferredDeviceRoutingOnActiveFocusSwitch() {
         verifyRouteUnchangedAfterFocusSwitch(ACTIVE_FOCUS, true /* setPreferredDevice */);
+    }
+
+    @SmallTest
+    @Test
+    public void testPreserveInactiveBtOnCommunicationDeviceUpdate() {
+        // Setup bluetooth device connection in inactive routing state.
+        mController.initialize();
+        mController.sendMessageWithSessionInfo(BT_DEVICE_ADDED, AudioRoute.TYPE_BLUETOOTH_SCO,
+                BLUETOOTH_DEVICE_1);
+        CallAudioState expectedState = new CallAudioState(false, CallAudioState.ROUTE_EARPIECE,
+                CallAudioState.ROUTE_EARPIECE | CallAudioState.ROUTE_BLUETOOTH
+                        | CallAudioState.ROUTE_SPEAKER, null, BLUETOOTH_DEVICES);
+        verify(mCallsManager, timeout(TEST_TIMEOUT)).onCallAudioStateChanged(
+                any(CallAudioState.class), eq(expectedState));
+
+        mController.sendMessageWithSessionInfo(BT_ACTIVE_DEVICE_PRESENT,
+                AudioRoute.TYPE_BLUETOOTH_SCO, BT_ADDRESS_1);
+        expectedState = new CallAudioState(false, CallAudioState.ROUTE_BLUETOOTH,
+                CallAudioState.ROUTE_EARPIECE | CallAudioState.ROUTE_BLUETOOTH
+                        | CallAudioState.ROUTE_SPEAKER, BLUETOOTH_DEVICE_1, BLUETOOTH_DEVICES);
+        verify(mCallsManager, timeout(TEST_TIMEOUT)).onCallAudioStateChanged(
+                any(CallAudioState.class), eq(expectedState));
+
+        // Mimic scenario when communication device is updated when the route is still inactive.
+        AudioDeviceInfo mockHfpAudioDevice = mock(AudioDeviceInfo.class);
+        when(mockHfpAudioDevice.getType()).thenReturn(AudioDeviceInfo.TYPE_BLUETOOTH_SCO);
+        when(mockHfpAudioDevice.getAddress()).thenReturn(BT_ADDRESS_1);
+        AudioDeviceInfo mockEarpieceAudioDevice = mock(AudioDeviceInfo.class);
+        when(mockHfpAudioDevice.getType()).thenReturn(AudioDeviceInfo.TYPE_BUILTIN_EARPIECE);
+        mController.setCurrentCommunicationDevice(mockEarpieceAudioDevice);
+        mController.handleCommunicationDeviceChanged(AudioRoute.TYPE_EARPIECE,
+                mockEarpieceAudioDevice, mockHfpAudioDevice);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+        // Verify we never rerouted.
+        assertEquals(AudioRoute.TYPE_BLUETOOTH_SCO, mController.getCurrentRoute().getType());
+    }
+
+    @SmallTest
+    @Test
+    public void testRerouteActiveBtOnCommunicationDeviceUpdate() {
+        // Setup active BT device scenario when routing is active.
+        verifyConnectBluetoothDevice(AudioRoute.TYPE_BLUETOOTH_SCO);
+        // Mimic scenario when communication device is updated when the route is active.
+        AudioDeviceInfo mockHfpAudioDevice = mock(AudioDeviceInfo.class);
+        when(mockHfpAudioDevice.getType()).thenReturn(AudioDeviceInfo.TYPE_BLUETOOTH_SCO);
+        when(mockHfpAudioDevice.getAddress()).thenReturn(BT_ADDRESS_1);
+        AudioDeviceInfo mockEarpieceAudioDevice = mock(AudioDeviceInfo.class);
+        when(mockHfpAudioDevice.getType()).thenReturn(AudioDeviceInfo.TYPE_BUILTIN_EARPIECE);
+        mController.setCurrentCommunicationDevice(mockEarpieceAudioDevice);
+        mController.handleCommunicationDeviceChanged(AudioRoute.TYPE_EARPIECE,
+                mockEarpieceAudioDevice, mockHfpAudioDevice);
+        // Verify we rerouted back to earpiece after SCO disconnected.
+        CallAudioState expectedState = new CallAudioState(false, CallAudioState.ROUTE_EARPIECE,
+                CallAudioState.ROUTE_EARPIECE | CallAudioState.ROUTE_BLUETOOTH
+                        | CallAudioState.ROUTE_SPEAKER, null, BLUETOOTH_DEVICES);
+        verify(mCallsManager, timeout(TEST_TIMEOUT)).onCallAudioStateChanged(
+                any(CallAudioState.class), eq(expectedState));
     }
 
     private void verifyRouteUnchangedAfterFocusSwitch(int focusType, boolean setPreferredDevice) {

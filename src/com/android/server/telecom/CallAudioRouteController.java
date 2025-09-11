@@ -2210,28 +2210,39 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
      *                                    the new communication device update was received from the
      *                                    audio fwk.
      */
-    private void handleCommunicationDeviceChanged(int newAudioType,
+    @VisibleForTesting
+    public void handleCommunicationDeviceChanged(int newAudioType,
             AudioDeviceInfo newCommunicationDevice,
             AudioDeviceInfo previousCommunicationDevice) {
         int currentAudioType = mCurrentRoute.getType();
+        boolean areAudioTypesSame = newAudioType == currentAudioType;
+        boolean areBluetoothAddressesSame = BT_AUDIO_ROUTE_TYPES.contains(newAudioType)
+                && Objects.equals(mCurrentRoute.getBluetoothAddress(),
+                newCommunicationDevice.getAddress());
+        boolean areAudioRoutesSame = areAudioTypesSame && areBluetoothAddressesSame;
+        boolean areCommunicationDevicesSame = Objects.equals(previousCommunicationDevice,
+                newCommunicationDevice);
         // We need to perform an update if the current communication device type is different from
-        // whatever the current route. We should also account for multiple BT devices of the same
-        // type.
-        if (newAudioType != currentAudioType || (BT_AUDIO_ROUTE_TYPES.contains(newAudioType)
-                && !Objects.equals(mCurrentRoute.getBluetoothAddress(),
-                newCommunicationDevice.getAddress()))) {
+        // whatever the current route is and we should also account for multiple BT devices of the
+        // same type. It's also possible that the previous communication device is null in which
+        // case we should also perform an update.
+        if (!areAudioRoutesSame || !areCommunicationDevicesSame) {
             // SOURCE ROUTING HANDLING:
             // Handle clean-up for source route first before handling where audio should be
             // routed to. These are sent to handle any pending SPEAKER_OFF or BT_AUDIO_DISCONNECTED
-            // messages.
-            if (currentAudioType == TYPE_SPEAKER) {
-                sendMessageWithSessionInfo(SPEAKER_OFF);
-            } else if (previousCommunicationDevice != null && currentAudioType == TYPE_BLUETOOTH_SCO
-                           && Objects.equals(mCurrentRoute.getBluetoothAddress(),
-                               previousCommunicationDevice.getAddress())) {
-                handleBtConnectionStateChanged(previousCommunicationDevice.getAddress(),
-                        false /* isScoConnected */);
-                mRingtonePlayer.updateBtActiveState(false);
+            // messages. The pending messages are only sent if Telecom is pending a route change so
+            // we can skip this if the audio routes are the same.
+            if (!areAudioRoutesSame) {
+                if (currentAudioType == TYPE_SPEAKER) {
+                    sendMessageWithSessionInfo(SPEAKER_OFF);
+                } else if (previousCommunicationDevice != null
+                               && currentAudioType == TYPE_BLUETOOTH_SCO
+                               && Objects.equals(mCurrentRoute.getBluetoothAddress(),
+                                   previousCommunicationDevice.getAddress())) {
+                    handleBtConnectionStateChanged(previousCommunicationDevice.getAddress(),
+                            false /* isScoConnected */);
+                    mRingtonePlayer.updateBtActiveState(false);
+                }
             }
 
             // DESTINATION ROUTING HANDLING:
@@ -2304,10 +2315,16 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                 // where a remote device disconnects SCO. Telecom should ensure that audio
                 // is properly routed in the UI. Instead of calculating the baseline, we can just
                 // route to whatever the audio fwk says the new communication device has changed to.
+                // Ignore the rerouting if we're not in a call and the BT device hasn't been
+                // unpaired from the device, we can just stay in inactive routing. We may get a
+                // communication device update signaling that it moved away from SCO if, for
+                // instance, the BT stack is using the set/clear communication device APIs.
                 int audioType = getAudioType(getCurrentCommunicationDevice());
                 getPendingAudioRoute().setCommunicationDeviceType(audioType);
-                routeTo(mIsActive, getAudioRouteForAudioDeviceInfo(
-                        getCurrentCommunicationDevice()));
+                if (mIsActive) {
+                    routeTo(true, getAudioRouteForAudioDeviceInfo(
+                            getCurrentCommunicationDevice()));
+                }
             }
         }
     }
