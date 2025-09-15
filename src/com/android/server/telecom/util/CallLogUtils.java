@@ -41,6 +41,7 @@ import static android.provider.CallLog.Calls.PHONE_ACCOUNT_ADDRESS;
 import static android.provider.CallLog.Calls.PHONE_ACCOUNT_COMPONENT_NAME;
 import static android.provider.CallLog.Calls.PHONE_ACCOUNT_ID;
 import static android.provider.CallLog.Calls.POST_DIAL_DIGITS;
+import static android.provider.CallLog.Calls.PREFERRED_DISPLAY_NAME;
 import static android.provider.CallLog.Calls.PRESENTATION_ALLOWED;
 import static android.provider.CallLog.Calls.PRESENTATION_UNAVAILABLE;
 import static android.provider.CallLog.Calls.PRESENTATION_UNKNOWN;
@@ -334,6 +335,9 @@ public class CallLogUtils {
         if (Flags.integratedCallLogs()) {
             values.put(UUID, params.mUuid);
         }
+        if (Flags.supportDisplayNameCallLog()) {
+            values.put(PREFERRED_DISPLAY_NAME, params.mPreferredDisplayName);
+        }
         if ((params.mCallerInfo != null) && (params.mCallerInfo.getContactId() > 0)) {
             // Update usage information for the number associated with the contact ID.
             // We need to use both the number and the ID for obtaining a data ID since other
@@ -568,8 +572,9 @@ public class CallLogUtils {
                 if (android.provider.Flags.allowConfigMaximumCallLogEntriesPerSim()
                     && TELEPHONY_COMPONENT_NAME
                     .flattenToString().equals(phoneAccountComponentName)) {
-                    maxCallLogSize = context.getResources().getInteger(
-                        com.android.internal.R.integer.config_maximumCallLogEntriesPerSim);
+                    final int resId = context.getResources().getIdentifier(
+                            "config_maximumCallLogEntriesPerSim", "integer", "android");
+                    maxCallLogSize = context.getResources().getInteger(resId);
                 }
                 // Only purge entries for the same phone account.
                 numDeleted = resolver.delete(uri, "_id IN "
@@ -746,6 +751,7 @@ public class CallLogUtils {
         private boolean mIsBusinessCall;
         private String mAssertedDisplayName;
         private String mUuid;
+        private String mPreferredDisplayName;
 
         private AddCallParams(CallerInfo callerInfo, String number, String postDialDigits,
             String viaNumber, int presentation, int callType, int features,
@@ -829,13 +835,16 @@ public class CallLogUtils {
                 long missedReason,
                 int priority, String subject, double latitude, double longitude, Uri pictureUri,
                 int isPhoneAccountMigrationPending, boolean isBusinessCall,
-                String assertedDisplayName, String uuid) {
+                String assertedDisplayName, String uuid, String preferredDisplayName) {
             this(callerInfo, number, postDialDigits, viaNumber, presentation, callType, features,
                     accountHandle, start, duration, dataUsage, addForAllUsers, userToBeInsertedTo,
                     isRead, callBlockReason, callScreeningAppName, callScreeningComponentName,
                     missedReason, priority, subject, latitude, longitude, pictureUri,
                     isPhoneAccountMigrationPending, isBusinessCall, assertedDisplayName);
             mUuid = uuid;
+            if (Flags.supportDisplayNameCallLog()) {
+                mPreferredDisplayName = preferredDisplayName;
+            }
         }
 
         /**
@@ -871,6 +880,7 @@ public class CallLogUtils {
             private boolean mIsBusinessCall;
             private String mAssertedDisplayName;
             private String mUuid;
+            private String mPreferredDisplayName;
 
             /**
              * @param callerInfo the CallerInfo object to get the target contact from.
@@ -1138,6 +1148,23 @@ public class CallLogUtils {
             }
 
             /**
+             * @param preferredDisplayName the preferred display name associated with the call
+             *     call
+             * @throws IllegalArgumentException if the assertedDisplayName is over 256
+             *     characters
+             */
+            public @NonNull AddCallParametersBuilder setPreferredDisplayName(
+                    String preferredDisplayName) {
+                if (preferredDisplayName != null
+                        && preferredDisplayName.length() > MAX_NUMBER_OF_CHARACTERS) {
+                    throw new IllegalArgumentException("preferredDisplayName exceeds the character"
+                            + " limit of " + MAX_NUMBER_OF_CHARACTERS + ".");
+                }
+                mPreferredDisplayName = preferredDisplayName;
+                return this;
+            }
+
+            /**
              * Builds the object
              */
             public @NonNull AddCallParams build() {
@@ -1150,7 +1177,7 @@ public class CallLogUtils {
                                 mCallScreeningAppName, mCallScreeningComponentName, mMissedReason,
                                 mPriority, mSubject, mLatitude, mLongitude, mPictureUri,
                                 mIsPhoneAccountMigrationPending, mIsBusinessCall,
-                                mAssertedDisplayName, mUuid);
+                                mAssertedDisplayName, mUuid, mPreferredDisplayName);
                     } else {
                         return new AddCallParams(mCallerInfo, mNumber, mPostDialDigits, mViaNumber,
                                 mPresentation, mCallType, mFeatures, mAccountHandle, mStart,
