@@ -108,6 +108,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -3149,6 +3150,57 @@ public class TelecomServiceImpl {
                 Log.endSession();
             }
         }
+
+        @Override
+        public @android.annotation.NonNull Map<String, Boolean> getVoipCallLogIntegrationStatus(
+                String callingPackage) {
+            try {
+                mContext.enforceCallingOrSelfPermission(READ_PRIVILEGED_PHONE_STATE,
+                        "READ_PRIVILEGED_PHONE_STATE required.");
+
+                Log.startSession("TSI.gVCLIS", Log.getPackageAbbreviation(callingPackage));
+                synchronized (mLock) {
+                    UserHandle userHandle = Binder.getCallingUserHandle();
+                    long token = Binder.clearCallingIdentity();
+                    try {
+                        return mCallsManager.getVoipPackageNamesCallLogIntegration(userHandle);
+                    } finally {
+                        Binder.restoreCallingIdentity(token);
+                    }
+                }
+            } finally {
+                Log.endSession();
+            }
+        }
+
+        @Override
+        public void setVoipCallLogIntegrationEnabled(String callingPackage,
+                @android.annotation.NonNull String packageName, boolean enabled) {
+            try {
+                mContext.enforceCallingOrSelfPermission(MODIFY_PHONE_STATE,
+                        "MODIFY_PHONE_STATE required.");
+                // Verify that the package supports call log integration by checking that it has
+                // registered the callback intent.
+                UserHandle userHandle = Binder.getCallingUserHandle();
+                if (!doesPackageSupportCallback(packageName, userHandle)) {
+                    throw new IllegalArgumentException("Package (%s) does not register the "
+                            + "TelecomManager.ACTION_CALL_BACK intent.");
+                }
+
+                Log.startSession("TSI.sVCLIE", Log.getPackageAbbreviation(callingPackage));
+                synchronized (mLock) {
+                    long token = Binder.clearCallingIdentity();
+                    try {
+                        mCallsManager.setVoipCallLogIntegrationEnabled(userHandle, packageName,
+                                enabled);
+                    } finally {
+                        Binder.restoreCallingIdentity(token);
+                    }
+                }
+            } finally {
+                Log.endSession();
+            }
+        }
     };
     public TelecomServiceImpl(
             Context context,
@@ -4029,6 +4081,25 @@ public class TelecomServiceImpl {
         if (mFeatureFlags.telecomMetricsSupport()) {
             mMetricsController.getApiStats().log(event);
         }
+    }
+
+    /**
+     * Checks if a given package has registered a broadcast receiver for
+     * TelecomManager.ACTION_CALL_BACK for a specific user.
+     *
+     * @param packageName The package to check.
+     * @param userHandle The user for which to check.
+     * @return {@code true} if the package is relevant, {@code false} otherwise.
+     * @throws IllegalStateException if unable to create the context for the user.
+     */
+    private boolean doesPackageSupportCallback(String packageName, UserHandle userHandle) {
+        Context userContext = mContext.createContextAsUser(userHandle, 0 /* flags */);
+        PackageManager packageManager = userContext.getPackageManager();
+        Intent checkIntent = new Intent(TelecomManager.ACTION_CALL_BACK);
+        checkIntent.setPackage(packageName);
+        // Check if the package supports the callback
+        List<ResolveInfo> resolveInfoList = packageManager.queryBroadcastReceivers(checkIntent, 0);
+        return !resolveInfoList.isEmpty();
     }
 
     public interface SubscriptionManagerAdapter {
