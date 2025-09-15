@@ -323,16 +323,8 @@ public class RingerTest extends TelecomTestCase {
         createRingerUnderTest();
 
         assertEquals(
-                VibrationEffect
-                        .startComposition()
-                        .repeatEffectIndefinitely(
-                                VibrationEffect
-                                        .startComposition()
-                                        .addEffect(VibrationEffect.createPredefined(EFFECT_CLICK))
-                                        .addOffDuration(Duration.ofSeconds(1))
-                                        .compose()
-                        )
-                        .compose(),
+                VibrationEffect.createPredefined(EFFECT_CLICK)
+                        .applyRepeatingIndefinitely(true, 1000),
                 mRingerUnderTest.mDefaultVibrationEffect);
     }
 
