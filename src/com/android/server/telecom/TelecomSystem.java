@@ -362,10 +362,7 @@ public class TelecomSystem {
                     new EmergencyCallDiagnosticLogger(mContext.getSystemService(
                             TelephonyManager.class), mContext.getSystemService(
                             BugreportManager.class), timeoutsAdapter, mContext.getSystemService(
-                            DropBoxManager.class), asyncTaskExecutor, clockProxy,
-                            mContext.getResources().getBoolean(
-                                    com.android.server.telecom.R.bool
-                                            .enable_logcat_collection_for_all_emergency_calls));
+                            DropBoxManager.class), asyncTaskExecutor, clockProxy);
 
             mMetricsController = featureFlags.telecomMetricsSupport()
                     ? TelecomMetricsController.make(mContext) : null;
