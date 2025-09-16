@@ -108,6 +108,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 // QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
@@ -682,6 +683,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     private CallingPackageIdentity mCallingPackageIdentity = new CallingPackageIdentity();
     private boolean mSkipAutoUnhold = false;
     private boolean mIsTransactionalLogExcluded = false;
+    private int mLastCallStateBeforeDisconnect = CallState.DISCONNECTED;
 
     /**
      * CallingPackageIdentity is responsible for storing properties about the calling package that
@@ -915,6 +917,21 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      * out.
      */
     private CompletableFuture<Boolean> mBtIcsFuture;
+
+    /**
+     * Tracks whether this call has been logged to the call log to prevent duplicate entries.
+     */
+    private final AtomicBoolean mHasBeenLogged = new AtomicBoolean(false);
+
+    /**
+     * Atomically checks if the call has been logged and sets the logged status to true.
+     *
+     * @return {@code true} if the call had ALREADY been logged, {@code false} if it had not been
+     * logged and was just now marked as such.
+     */
+    public boolean getAndSetHasBeenLogged() {
+        return mHasBeenLogged.getAndSet(true);
+    }
 
     /**
      * Map of CachedCallbacks that are pending to be executed when the *ServiceWrapper connects
@@ -1465,6 +1482,13 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             Log.v(this, "setState %s -> %s", CallState.toString(mState),
                     CallState.toString(newState));
 
+            // Save the previous call state to figure out if the call failed during setup or while
+            // the call was still ongoing. Used to determine if we should auto-unhold the bg call
+            // when this call has been disconnected due to an error.
+            if (newState == CallState.DISCONNECTED || newState == CallState.ABORTED) {
+                mLastCallStateBeforeDisconnect = mState;
+            }
+
             if (newState == CallState.DISCONNECTED && shouldContinueProcessingAfterDisconnect()) {
                 Log.w(this, "continuing processing disconnected call with another service");
                 if (mFlags.cancelRemovalOnEmergencyRedial() && isDisconnectHandledViaFuture()
@@ -1663,18 +1687,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
     public boolean isSilentRingingRequested() {
         return mSilentRingingRequested;
-    }
-
-    public boolean isVideoCrbtForVoLteCall() {
-        if (getExtras() == null) {
-            return false;
-        }
-        // filter out the extra if the PhoneAccount doesn't have
-        // PhoneAccount.CAPABILITY_SIM_SUBSCRIPTION, limit the ability to use this functionality
-        // to just telephony phone accounts permission.
-        return mIsSimCall &&
-            (getExtras().getBoolean(android.telecom.Call.EXTRA_IS_USING_VIDEO_RINGBACK)
-            || getExtras().getBoolean(QtiCallConstants.EXTRA_IS_CRBT_CALL, false));
     }
 
     public void setCallIsSuppressedByDoNotDisturb(boolean isCallSuppressed) {
@@ -5385,5 +5397,9 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
     public boolean isTransactionalLogExcluded() {
         return mIsTransactionalLogExcluded;
+    }
+
+    public int getLastCallStateBeforeDisconnect() {
+        return mLastCallStateBeforeDisconnect;
     }
 }

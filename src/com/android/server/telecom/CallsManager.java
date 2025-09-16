@@ -1681,11 +1681,9 @@ public class CallsManager extends Call.ListenerBase
             if (VideoProfile.isVideo(call.getVideoState())
 // QTI_END: 2023-07-06: Telephony: IMS: Fix CRBT is playing by speaker when plug out headset/BT
 // QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
-                    && !call.isVideoCrbtForVoLteCall()
                     && !call.isVideoCrsForVoLteCall()
-                    && !call.isVisualizedVoiceCall()
+                    && !call.isVisualizedVoiceCall()) {
 // QTI_END: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
-                    && !call.isVideoCrbtForVoLteCall()) {
                 return true;
             }
         }
@@ -4137,11 +4135,8 @@ public class CallsManager extends Call.ListenerBase
      * @return {@code true} if the speakerphone should be enabled.
      */
     public boolean isSpeakerphoneAutoEnabledForVideoCalls(int videoState) {
-// QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
-        return !isVideoCrbtVoLteCall() &&
-// QTI_END: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
 // QTI_BEGIN: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
-            VideoProfile.isVideo(videoState) &&
+        return VideoProfile.isVideo(videoState) &&
 // QTI_END: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
             !mWiredHeadsetManager.isPluggedIn() &&
             !mBluetoothRouteManager.isBluetoothAvailable() &&
@@ -6592,20 +6587,6 @@ public class CallsManager extends Call.ListenerBase
         mMissedCallNotifier.reloadAfterBootComplete(mCallerInfoLookupHelper,
                 new MissedCallNotifier.CallInfoFactory());
     }
-
-// QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
-    public boolean isVideoCrbtVoLteCall() {
-// QTI_END: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
-// QTI_BEGIN: 2023-03-28: Telephony: IMS: Fix conflict with LKG
-        Call call = getDialingCall();
-        if (call == null) {
-            return false;
-        }
-// QTI_END: 2023-03-28: Telephony: IMS: Fix conflict with LKG
-// QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
-        return call.isVideoCrbtForVoLteCall();
-    }
-
 
     public boolean isVisualizedVoiceCall() {
         Call call = getDialingOrActiveCall();
