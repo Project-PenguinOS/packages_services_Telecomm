@@ -114,4 +114,6 @@
          voicemail or not.  Some OEMs may wish to explicitly require the user to send a call to
          local voicemail. -->
     <bool name="decline_sends_to_local_voicemail">true</bool>
+
+    <string name="oem_call_screening_service_component" translatable="false"></string>
 </resources>

@@ -3385,6 +3385,25 @@ public class TelecomServiceImpl {
                 Log.endSession();
             }
         }
+
+        @Override
+        public void setTestOemCallScreeningService(ComponentName componentName) {
+            try {
+                Log.startSession("TSI.sTOCSS");
+                enforceModifyPermission();
+                enforceShellOnly(Binder.getCallingUid(), "setTestOemCallScreeningService");
+                synchronized (mLock) {
+                    long token = Binder.clearCallingIdentity();
+                    try {
+                        mCallsManager.setCallScreeningServiceComponentOverride(componentName);
+                    } finally {
+                        Binder.restoreCallingIdentity(token);
+                    }
+                }
+            } finally {
+                Log.endSession();
+            }
+        }
     };
 
     /**
