@@ -1080,6 +1080,23 @@ public class CallsManagerTest extends TelecomTestCase {
 
     @SmallTest
     @Test
+    public void testDisconnectCall_alreadyDisconnected_doesNotDisconnectAgain() {
+        // GIVEN a call that is already in the DISCONNECTED state
+        Call call = addSpyCall(CallState.DISCONNECTED);
+        when(call.getState()).thenReturn(CallState.DISCONNECTED);
+
+        // WHEN disconnectCall is called on it
+        mCallsManager.disconnectCall(call);
+
+        // THEN we do not attempt to disconnect it again, verifying that the call to
+        // mCallSequencingAdapter.disconnectCall(call) is skipped.
+        verify(call, never()).disconnect();
+        verify(call, never()).disconnect(anyString());
+    }
+
+
+    @SmallTest
+    @Test
     public void testUnholdCallWhenOngoingEmergCallCanNotBeHeldAndFromDifferentConnectionService() {
         // GIVEN a CallsManager with ongoing call, and this call can not be held, but it also an
         // emergency call.
