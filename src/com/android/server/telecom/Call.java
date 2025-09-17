@@ -3167,7 +3167,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             // {@link ConnectionServiceAdapter#setActive} and other set* methods.
             if (mConnectionService != null) {
                 answerCallFuture = awaitCallStateChangeAndMaybeDisconnectCall(
-                        false /* shouldDisconnectUponTimeout */, "answer", CallState.ACTIVE);
+                        false /* shouldDisconnectUponTimeout */, "answer", CallState.ACTIVE,
+                        CallState.LOCAL_VOICEMAIL);
                 mConnectionService.answer(this, videoState);
             } else if (mTransactionalService != null) {
                 return mTransactionalService.onAnswer(this, videoState);

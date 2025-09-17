@@ -28,13 +28,16 @@ import android.sysprop.TelephonyProperties;
 import android.telecom.Log;
 import android.telecom.PhoneAccount;
 import android.telecom.PhoneAccountHandle;
+import android.telecom.TelecomManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 
 import com.android.internal.telecom.ITelecomService;
 import com.android.modules.utils.BasicShellCommandHandler;
 
+import java.time.Duration;
 import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Collectors;
 
 /**
@@ -97,6 +100,7 @@ public class TelecomShellCommand extends BasicShellCommandHandler {
      */
     private static final String COMMAND_LOG_MARK = "log-mark";
     private static final String COMMAND_SET_LOCAL_VOICEMAIL_SERVICE = "set-local-voicemail-service";
+    private static final String COMMAND_SET_LOCAL_VOICEMAIL_TIMEOUT = "set-local-voicemail-timeout";
 
     private final Context mContext;
     private final ITelecomService mTelecomService;
@@ -211,6 +215,9 @@ public class TelecomShellCommand extends BasicShellCommandHandler {
                     break;
                 case COMMAND_SET_OEM_CALL_SCREENING_SERVICE:
                     runSetOemCallScreeningService();
+                    break;
+                case COMMAND_SET_LOCAL_VOICEMAIL_TIMEOUT:
+                    runSetLocalVoicemailTimeout();
                     break;
                 default:
                     return handleDefaultCommands(command);
@@ -492,6 +499,35 @@ public class TelecomShellCommand extends BasicShellCommandHandler {
         if ("default".equals(packageName)) packageName = null;
         mTelecomService.setTestLocalVoicemailService(packageName);
         getOutPrintWriter().println("Success - changed local vm service to " + packageName);
+    }
+
+    private void runSetLocalVoicemailTimeout() throws RemoteException {
+        String timeout = getNextArg();
+        Log.i(this, "runSetLocalVoicemailTimeout %s", timeout);
+        Duration timeoutSeconds;
+        if ("disabled".equals(timeout)) {
+            timeoutSeconds = null;
+        } else {
+            try {
+                timeoutSeconds = Duration.ofSeconds(Integer.parseInt(timeout));
+            } catch (NumberFormatException nfe) {
+                timeoutSeconds = null;
+            }
+        }
+        try {
+            TelecomManager mgr = mContext.getSystemService(TelecomManager.class);
+            List<PhoneAccountHandle> handles = mgr.getCallCapablePhoneAccounts();
+            for (PhoneAccountHandle h : handles) {
+                if (timeoutSeconds == null) {
+                    mgr.disableLocalVoicemail(h);
+                } else {
+                    mgr.enableLocalVoicemail(h, timeoutSeconds);
+                }
+            }
+            getOutPrintWriter().println("Success - changed local vm timeout to " + timeoutSeconds);
+        } catch (Exception e) {
+            Log.i(this, "runSetLocalVoicemailTimeout failed.");
+        }
     }
 
     private void runLogMark() throws RemoteException {
