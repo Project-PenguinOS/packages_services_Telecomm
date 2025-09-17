@@ -108,7 +108,6 @@ public class CallAudioManagerTest extends TelecomTestCase {
         }).when(mPlayerFactory).createPlayer(any(Call.class), anyInt());
         when(mCallsManager.getLock()).thenReturn(mLock);
         when(mCallsManager.getInCallController()).thenReturn(mInCallController);
-        when(mInCallController.getBtBindingFuture(any(Call.class))).thenReturn(null);
         when(mFlags.ensureAudioModeUpdatesOnForegroundCallChange()).thenReturn(true);
         when(mCallConnectedIndicatorSettings.isCallConnectedToneEnabled()).thenReturn(false);
         mCallAudioManager = new CallAudioManager(
@@ -321,6 +320,84 @@ public class CallAudioManagerTest extends TelecomTestCase {
         disconnectCall(call);
         stopTone(call);
 
+        mCallAudioManager.onCallRemoved(call);
+        verifyProperCleanup();
+    }
+
+    @MediumTest
+    @Test
+    public void testOutgoingCall_SwitchFocus_WaitForBtIcs() {
+        when(mFlags.delayFocusSwitchForBtIcs()).thenReturn(true);
+        Call call = mock(Call.class);
+        when(call.getState()).thenReturn(CallState.CONNECTING);
+        CompletableFuture<Boolean> btIcsFuture = new CompletableFuture<>();
+        when(call.getBtIcsFuture()).thenReturn(btIcsFuture);
+
+        // Add new call in connecting state
+        mCallAudioManager.onCallAdded(call);
+        assertEquals(call, mCallAudioManager.getForegroundCall());
+        verify(mCallAudioRouteController).sendMessageWithSessionInfo(
+                CallAudioRouteController.UPDATE_SYSTEM_AUDIO_ROUTE);
+        // Verify that we don't send the update to the mode state machine yet if the BT ICS future
+        // hasn't completed yet.
+        verify(mCallAudioModeStateMachine, never()).sendMessageWithArgs(
+                eq(CallAudioModeStateMachine.NEW_ACTIVE_OR_DIALING_CALL),
+                any(CallAudioModeStateMachine.MessageArgs.class));
+        // Complete the future and verify the update was sent.
+        btIcsFuture.complete(true);
+        verify(mCallAudioModeStateMachine).sendMessageWithArgs(
+                eq(CallAudioModeStateMachine.NEW_ACTIVE_OR_DIALING_CALL),
+                any(CallAudioModeStateMachine.MessageArgs.class));
+
+        // Cleanup steps
+        disconnectCall(call);
+        stopTone(call);
+        mCallAudioManager.onCallRemoved(call);
+        verifyProperCleanup();
+    }
+
+    @MediumTest
+    @Test
+    public void testOutgoingCall_SwitchFocus_WaitForBtIcs_OnlyOnce() {
+        when(mFlags.delayFocusSwitchForBtIcs()).thenReturn(true);
+        when(mFlags.sendNewRingingCallSync()).thenReturn(true);
+        Call call = mock(Call.class);
+        // When the call is ringing
+        when(call.getState()).thenReturn(CallState.RINGING);
+        CompletableFuture<Boolean> btIcsFuture = new CompletableFuture<>();
+        when(call.getBtIcsFuture()).thenReturn(btIcsFuture);
+
+        // Verify that we wait for the BT ICS to send the NEW_RINGING_CALL update to the call audio
+        // mode state machine.
+        mCallAudioManager.onCallAdded(call);
+        assertEquals(call, mCallAudioManager.getForegroundCall());
+        verify(mCallAudioRouteController).sendMessageWithSessionInfo(
+                CallAudioRouteController.UPDATE_SYSTEM_AUDIO_ROUTE);
+        // Verify that we don't send the update to the mode state machine yet if the BT ICS future
+        // hasn't completed yet.
+        verify(mCallAudioModeStateMachine, never()).sendMessageWithArgs(
+                eq(CallAudioModeStateMachine.NEW_RINGING_CALL),
+                any(CallAudioModeStateMachine.MessageArgs.class));
+        // Complete the future and verify the update was sent.
+        btIcsFuture.complete(true);
+        verify(mCallAudioModeStateMachine).sendMessageWithArgs(
+                eq(CallAudioModeStateMachine.NEW_RINGING_CALL),
+                any(CallAudioModeStateMachine.MessageArgs.class));
+
+        // Simulate the call becoming active and initiating the switch for sending active focus.
+        // Verify that we sent the NEW_ACTIVE_OR_DIALING_CALL msg update to the mode state machine.
+        when(call.getState()).thenReturn(CallState.ACTIVE);
+        mCallAudioManager.onCallStateChanged(call, CallState.RINGING, CallState.ACTIVE);
+        verify(mCallAudioModeStateMachine).sendMessageWithArgs(
+                eq(CallAudioModeStateMachine.NEW_ACTIVE_OR_DIALING_CALL),
+                any(CallAudioModeStateMachine.MessageArgs.class));
+        // Also assert that we did not initialize the future (this is only used for test purposes)
+        // so a null value is okay.
+        assertNull(mCallAudioManager.getCallDialingActiveOrConnectingFuture());
+
+        // Cleanup steps
+        disconnectCall(call);
+        stopTone(call);
         mCallAudioManager.onCallRemoved(call);
         verifyProperCleanup();
     }
