@@ -65,7 +65,8 @@
     <string name="change_default_call_screening_dialog_affirmative" msgid="7162433828280058647">"កំណត់​លំនាំដើម"</string>
     <string name="change_default_call_screening_dialog_negative" msgid="1839266125623106342">"បោះបង់"</string>
     <string name="blocked_numbers" msgid="8322134197039865180">"លេខដែល​បានទប់ស្កាត់"</string>
-    <string name="blocked_numbers_msg" msgid="2797422132329662697">"អ្នក​នឹង​មិន​ទទួល​បាន​ការ​ហៅទូរសព្ទ ឬ​សារ​​ពី​លេខ​ដែល​បានទប់ស្កាត់ឡើយ។"</string>
+    <!-- no translation found for blocked_numbers_msg (141985883563301785) -->
+    <skip />
     <string name="block_number" msgid="3784343046852802722">"បញ្ចូល​លេខ"</string>
     <string name="unblock_dialog_body" msgid="2723393535797217261">"ឈប់ទប់ស្កាត់ <xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g> ឬ?"</string>
     <string name="unblock_button" msgid="8732021675729981781">"ឈប់ទប់ស្កាត់"</string>
