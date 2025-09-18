@@ -186,7 +186,9 @@ public class CallerInfoAsyncQuery {
         boolean isEmergencyNumber = false;
         try {
             isEmergencyNumber = tm.isEmergencyNumber(number);
-        } catch (IllegalStateException | UnsupportedOperationException ise) {
+        } catch (Exception e) {
+            Log.e(LOG_TAG, e, "Error while invoking TelephonyManager#isEmergencyNumber. "
+                    + "Defaulting to PhoneNumberUtils API instead.");
             // Ignore the exception that Telephony is not up. Use PhoneNumberUtils API now.
             // Ideally the PhoneNumberUtils API needs to be removed once the
             // telphony service not up issue can be fixed (b/187412989)
