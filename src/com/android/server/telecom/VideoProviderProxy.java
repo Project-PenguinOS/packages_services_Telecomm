@@ -124,8 +124,6 @@ public class VideoProviderProxy extends Connection.VideoProvider {
         mLock = lock;
 
         mConectionServiceVideoProvider = videoProvider;
-        mConectionServiceVideoProvider.asBinder().linkToDeath(mDeathRecipient, 0);
-
         mVideoCallListenerBinder = new VideoCallListenerBinder();
         mConectionServiceVideoProvider.addVideoCallback(mVideoCallListenerBinder);
         mCall = call;
