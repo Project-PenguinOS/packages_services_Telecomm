@@ -1166,7 +1166,6 @@ public class CallsManager extends Call.ListenerBase
 
         if (result.shouldAllowCall) {
             mInCallController.bindToBTService(incomingCall, null);
-            incomingCall.setBtIcsFuture(mInCallController.getBtBindingFuture(incomingCall));
             setCallState(incomingCall, CallState.RINGING, "successful incoming call");
             incomingCall.setPostCallPackageName(
                     getRoleManagerAdapter().getDefaultCallScreeningApp(
