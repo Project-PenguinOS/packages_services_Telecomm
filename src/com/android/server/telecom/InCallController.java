@@ -2168,7 +2168,9 @@ public class InCallController extends CallsManagerListenerBase implements
                     : userHandle;
             // If we're already connected, then refrain from binding again.
             if (isBoundAndConnectedToBTService(userToBind)) {
-                call.setBtIcsFuture(mBtBindingFuture.get(userToBind));
+                if (call != null) {
+                    call.setBtIcsFuture(mBtBindingFuture.get(userToBind));
+                }
                 return;
             }
 
@@ -2193,7 +2195,9 @@ public class InCallController extends CallsManagerListenerBase implements
                     Log.w(this, "No available BT ICS to bind to for user %s or its parent %s.",
                             userToBind, parentUser);
                     mBtBindingFuture.put(userToBind, CompletableFuture.completedFuture(false));
-                    call.setBtIcsFuture(mBtBindingFuture.get(userToBind));
+                    if (call != null) {
+                        call.setBtIcsFuture(mBtBindingFuture.get(userToBind));
+                    }
                     return;
                 }
             }
@@ -2201,7 +2205,9 @@ public class InCallController extends CallsManagerListenerBase implements
             mBtBindingFuture.put(userToBind, new CompletableFuture<Boolean>().completeOnTimeout(
                     false, mTimeoutsAdapter.getCallBindBluetoothInCallServicesDelay(
                             mContext, mFeatureFlags), TimeUnit.MILLISECONDS));
-            call.setBtIcsFuture(mBtBindingFuture.get(userToBind));
+            if (call != null) {
+                call.setBtIcsFuture(mBtBindingFuture.get(userToBind));
+            }
             InCallServiceBindingConnection btIcsBindingConnection =
                     new InCallServiceBindingConnection(infos.get(0),
                             serviceUnavailableForUser ? parentUser : userToBind);
