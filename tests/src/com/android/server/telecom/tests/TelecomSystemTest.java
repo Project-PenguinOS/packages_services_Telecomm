@@ -226,6 +226,7 @@ public class TelecomSystemTest extends TelecomTestCase{
     BlockedNumbersAdapter mBlockedNumbersAdapter;
     @Mock
     FeatureFlags mFeatureFlags;
+    @Mock android.telecom.flags.FeatureFlags mModuleFeatureFlags;
     @Mock
     com.android.internal.telephony.flags.FeatureFlags mTelephonyFlags;
     @Mock Ringer.VibratorAdapter mVibratorAdapter;
@@ -607,6 +608,7 @@ public class TelecomSystemTest extends TelecomTestCase{
                 Runnable::run,
                 mBlockedNumbersAdapter,
                 mFeatureFlags,
+                mModuleFeatureFlags,
                 mTelephonyFlags,
                 mHandlerThread.getLooper(),
                 mVibratorAdapter);

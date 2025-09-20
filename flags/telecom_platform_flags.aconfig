@@ -1,0 +1,26 @@
+package: "com.android.server.telecom.flags"
+container: "system"
+
+### Add 26Q2 flags here that are part of the platform code (i.e. not updatable). Module code should
+### be put in packages/modules/Telephony/telecom/flags
+
+# OWNER=pmadapurmath TARGET=26Q2
+flag {
+  name: "support_display_name_call_log"
+  is_exported: true
+  namespace: "telecom"
+  description: "Adds support to handle storing the cnap name to be displayed in the call log"
+  bug: "429015736"
+}
+
+# OWNER=arunvoddu TARGET=26Q2
+flag {
+  name: "hd_plus_call"
+  is_exported: true
+  namespace: "telecom"
+  description: "Add call HD+ call indicator"
+  bug: "428115434"
+  metadata {
+      purpose: PURPOSE_FEATURE
+  }
+}

@@ -252,6 +252,7 @@ public class TelecomSystem {
             Executor asyncCallAudioTaskExecutor,
             BlockedNumbersAdapter blockedNumbersAdapter,
             FeatureFlags featureFlags,
+            android.telecom.flags.FeatureFlags moduleFeatureFlags,
             com.android.internal.telephony.flags.FeatureFlags telephonyFlags,
             Looper looper,
             Ringer.VibratorAdapter vibratorAdapter) {
@@ -547,6 +548,7 @@ public class TelecomSystem {
                     new TelecomServiceImpl.SubscriptionManagerAdapterImpl(),
                     new TelecomServiceImpl.SettingsSecureAdapterImpl(),
                     featureFlags,
+                    moduleFeatureFlags,
                     null,
                     mLock,
                     mMetricsController,
