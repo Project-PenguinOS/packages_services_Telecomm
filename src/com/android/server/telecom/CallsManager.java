@@ -4302,6 +4302,9 @@ public class CallsManager extends Call.ListenerBase
 
         if (!mCalls.contains(call)) {
             Log.w(this, "Unknown call (%s) asked to disconnect", call);
+        } else if (call != null && call.getState() == CallState.DISCONNECTED) {
+            //Check the call state
+            Log.w(this, "Disconnected call asked to disconnect, skip");
         } else {
             mLocallyDisconnectingCalls.add(call);
             mCallSequencingAdapter.disconnectCall(call);

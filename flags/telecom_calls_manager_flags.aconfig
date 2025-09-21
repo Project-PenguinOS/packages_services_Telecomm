@@ -1,17 +1,6 @@
 package: "com.android.server.telecom.flags"
 container: "system"
 
-# OWNER=grantmenke TARGET=25Q3
-flag {
-  name: "prevent_self_managed_call_logging"
-  namespace: "telecom"
-  description: "Prevent self managed calls from logging to the call log"
-  bug: "405942024"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
 # OWNER=breadley TARGET=25Q3
 flag {
   name: "select_phone_account_before_making_room"

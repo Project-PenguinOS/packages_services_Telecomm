@@ -730,18 +730,14 @@ public class Ringer {
             }
 
             Context userContext = null;
-            if (mFlags.ringerVibrationUserAware()) {
-                try {
-                    userContext = mContext.createContextAsUser(UserHandle.CURRENT, 0 /* flags */);
-                } catch (Exception e) {
-                    Log.i(this, "createContextAsUser fail exception=[%s]", e.toString());
-                } finally {
-                    if (userContext == null) {
-                        userContext = mContext;
-                    }
+            try {
+                userContext = mContext.createContextAsUser(UserHandle.CURRENT, 0 /* flags */);
+            } catch (Exception e) {
+                Log.i(this, "createContextAsUser fail exception=[%s]", e.toString());
+            } finally {
+                if (userContext == null) {
+                    userContext = mContext;
                 }
-            } else {
-                userContext = mContext;
             }
             // Determine if the settings and DND mode indicate that the vibrator can be used right
             // now.
