@@ -193,6 +193,14 @@ flag {
   }
 }
 
+# OWNER=grantmenke TARGET=26Q2
+flag {
+  name: "move_get_tty_mode_to_telephony_manager"
+  namespace: "telecom"
+  description: "Moving getTTYMode to TelephonyManager as part of Telecom mainline modularization"
+  bug: "433987834"
+}
+
 # OWNER=arunvoddu TARGET=26Q2
 flag {
   name: "is_using_unidirectional_video_service"
