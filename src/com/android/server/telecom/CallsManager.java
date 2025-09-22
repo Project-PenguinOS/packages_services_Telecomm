@@ -4763,25 +4763,54 @@ public class CallsManager extends Call.ListenerBase
             // to active directly. We should hold or disconnect the current active call based on the
             // holdability, and request the call focus for the self-managed call before the state
             // change.
-            mCallSequencingAdapter.markCallAsActiveSelfManagedCall(call);
+            mCallSequencingAdapter.markCallAsActive(call);
         } else {
-            if (mPendingAudioProcessingCall == call) {
-                if (mCalls.contains(call)) {
-                    setCallState(call, CallState.AUDIO_PROCESSING, "active set explicitly");
-                } else {
-                    call.setState(CallState.AUDIO_PROCESSING, "active set explicitly and adding");
-                    addCall(call);
-                }
-                // Clear mPendingAudioProcessingCall so that future attempts to mark the call as
-                // active (e.g. coming off of hold) don't put the call into audio processing instead
-                mPendingAudioProcessingCall = null;
-            } else if (call.getState() == CallState.ANSWERED_FOR_LOCAL_VOICEMAIL) {
-                setCallState(call, CallState.LOCAL_VOICEMAIL, "active");
+            Call activeCall = (Call) mConnectionSvrFocusMgr.getCurrentFocusCall();
+            // It's possible that the call is answered directly without going through the in-call
+            // UI (i.e. answer via ATA cmd) in which case we should ensure that the focus call is
+            // updated accordingly.
+            if (mFeatureFlags.requestFocusForSetActive() && !Objects.equals(activeCall, call)) {
+                mCallSequencingAdapter.markCallAsActive(call);
             } else {
-                setCallState(call, CallState.ACTIVE, "active set explicitly");
-                maybeMoveToSpeakerPhone(call);
-                ensureCallAudible();
+                processMarkCallAsActive(call);
             }
+        }
+    }
+
+    /**
+     * Ensures that focus call is updated for the managed call if it's not currently reflected in
+     * the state before the call is marked as active. See
+     * {@link CallSequencingController#handleSetCallActive(Call)}. This is invoked after sequencing
+     * has been enforced.
+     */
+    public void requestFocusForSetManagedActive(Call call) {
+        mConnectionSvrFocusMgr.requestFocus(call,
+                new RequestCallback(() -> {
+                    synchronized (mLock) {
+                        Log.d(this, "requestFocusForSetManagedActive: handle set active "
+                                + "after having updated the focus call for %s", call);
+                        processMarkCallAsActive(call);
+                    }
+                }));
+    }
+
+    private void processMarkCallAsActive(Call call) {
+        if (mPendingAudioProcessingCall == call) {
+            if (mCalls.contains(call)) {
+                setCallState(call, CallState.AUDIO_PROCESSING, "active set explicitly");
+            } else {
+                call.setState(CallState.AUDIO_PROCESSING, "active set explicitly and adding");
+                addCall(call);
+            }
+            // Clear mPendingAudioProcessingCall so that future attempts to mark the call as
+            // active (e.g. coming off of hold) don't put the call into audio processing instead
+            mPendingAudioProcessingCall = null;
+        } else if (call.getState() == CallState.ANSWERED_FOR_LOCAL_VOICEMAIL) {
+            setCallState(call, CallState.LOCAL_VOICEMAIL, "active");
+        } else {
+            setCallState(call, CallState.ACTIVE, "active set explicitly");
+            maybeMoveToSpeakerPhone(call);
+            ensureCallAudible();
         }
     }
 

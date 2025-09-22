@@ -194,17 +194,25 @@ public class CallSequencingController {
     }
 
     /**
-     * Handles the case of setting a self-managed call active with call sequencing support.
-     * @param call The self-managed call that's waiting to go active.
+     * Handles the case of setting a call active with call sequencing support. This applies for all
+     * self-managed calls where the CS directly sets the call active but also sometimes for managed
+     * calls if the call is not answered via the UI and the CS also sets the call active. We should
+     * ensure that the focus call is updated accordingly.
+     * @param call The call that's waiting to go active.
      */
-    public void handleSetSelfManagedCallActive(Call call) {
+    public void handleSetCallActive(Call call) {
+        boolean isSelfManaged = call.isSelfManaged();
         holdActiveCallForNewCallWithSequencing(call, CallsManager.REQUEST_ORIGIN_UNKNOWN)
                 .thenComposeAsync((result) -> {
                 if (result) {
-                    Log.i(this, "markCallAsActive: requesting focus for self managed call "
-                            + "before setting active.");
-                    mCallsManager.requestActionSetActiveCall(call,
-                            "active set explicitly for self-managed");
+                    Log.i(this, "markCallAsActive: requesting focus for call %s"
+                            + "before setting active.", call);
+                    if (isSelfManaged) {
+                        mCallsManager.requestActionSetActiveCall(call,
+                                "active set explicitly for self-managed");
+                    } else {
+                        mCallsManager.requestFocusForSetManagedActive(call);
+                    }
                 } else {
                     Log.i(this, "markCallAsActive: Unable to hold active call. "
                             + "Aborting transaction to set self managed call active.");
