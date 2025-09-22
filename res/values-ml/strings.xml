@@ -65,8 +65,7 @@
     <string name="change_default_call_screening_dialog_affirmative" msgid="7162433828280058647">"ഡിഫോൾട്ട് കോൾ സ്‌ക്രീനിംഗ് ആപ്പ് സജ്ജീകരിക്കുക"</string>
     <string name="change_default_call_screening_dialog_negative" msgid="1839266125623106342">"റദ്ദാക്കുക"</string>
     <string name="blocked_numbers" msgid="8322134197039865180">"ബ്ലോക്ക് ചെയ്‍ത നമ്പറുകൾ"</string>
-    <!-- no translation found for blocked_numbers_msg (141985883563301785) -->
-    <skip />
+    <string name="blocked_numbers_msg" msgid="141985883563301785">"ബ്ലോക്ക് ചെയ്‌ത നമ്പറുകളിൽ നിന്ന് നിങ്ങൾക്ക് കോളുകളോ ടെക്‌സ്‌റ്റുകളോ ലഭിക്കില്ല. നിങ്ങൾ ഒരു എമർജൻസി കോൾ വിളിക്കുമ്പോൾ, നിരസിക്കൽ ക്രമീകരണം സ്വയമേവ ഓഫാകും."</string>
     <string name="block_number" msgid="3784343046852802722">"ഒരു നമ്പർ ചേർക്കുക"</string>
     <string name="unblock_dialog_body" msgid="2723393535797217261">"<xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g> അൺബ്ലോക്ക് ചെയ്യണോ?"</string>
     <string name="unblock_button" msgid="8732021675729981781">"അൺബ്ലോക്ക് ചെയ്യുക"</string>

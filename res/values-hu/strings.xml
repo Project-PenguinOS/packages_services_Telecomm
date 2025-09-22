@@ -65,8 +65,7 @@
     <string name="change_default_call_screening_dialog_affirmative" msgid="7162433828280058647">"Beállítás alapértelmezettként"</string>
     <string name="change_default_call_screening_dialog_negative" msgid="1839266125623106342">"Mégse"</string>
     <string name="blocked_numbers" msgid="8322134197039865180">"Letiltott számok"</string>
-    <!-- no translation found for blocked_numbers_msg (141985883563301785) -->
-    <skip />
+    <string name="blocked_numbers_msg" msgid="141985883563301785">"A jövőben nem kap hívásokat vagy SMS-eket a letiltott számokról. Segélyhívás kezdeményezésekor a rendszer automatikusan kikapcsolja az elutasítási beállításokat."</string>
     <string name="block_number" msgid="3784343046852802722">"Szám hozzáadása"</string>
     <string name="unblock_dialog_body" msgid="2723393535797217261">"Feloldja a következő szám letiltását: <xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g>?"</string>
     <string name="unblock_button" msgid="8732021675729981781">"Letiltás feloldása"</string>
