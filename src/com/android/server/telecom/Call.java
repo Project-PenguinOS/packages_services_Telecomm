@@ -2045,6 +2045,11 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 l.onTargetPhoneAccountChanged(this);
             }
             configureCallAttributes();
+
+            if (this.getState() != CallState.NEW) {
+                // Don't send event when call object is created
+                notifyPhoneAccountChanged();
+            }
         }
         checkIfVideoCapable();
         checkIfRttCapable();
@@ -2075,6 +2080,19 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         }
 
         return phoneAccount;
+    }
+
+    public void handlePhoneAccountChanged(PhoneAccount phoneAccount) {
+        Log.i(this, "handlePhoneAccountChanged");
+        boolean isVideoCapable = phoneAccount != null &&
+                phoneAccount.hasCapabilities(PhoneAccount.CAPABILITY_VIDEO_CALLING);
+        setVideoCallingSupportedByPhoneAccount(isVideoCapable);
+
+        notifyPhoneAccountChanged();
+    }
+
+    private void notifyPhoneAccountChanged() {
+        onConnectionEvent(android.telecom.Call.EVENT_PHONE_ACCOUNT_CHANGED, null);
     }
 
     public CharSequence getTargetPhoneAccountLabel() {
