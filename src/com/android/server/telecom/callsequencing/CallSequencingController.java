@@ -822,6 +822,19 @@ public class CallSequencingController {
         if (mCallsManager.hasMaximumOutgoingCalls(call)) {
             Call outgoingCall = mCallsManager.getFirstCallWithState(OUTGOING_CALL_STATES);
             if (outgoingCall.getState() == CallState.SELECT_PHONE_ACCOUNT) {
+                // Users may accidentally repeat a click on the call button quickly after attempting
+                // a call. This casuses Telecom to end the previous SELECT_PHONE_ACCOUNT call to
+                // make room for 2nd call. But InCallUI will be handling the phone account selection
+                // for the 1st call causing the 2nd call to be stuck waiting for an account to place
+                // out call. The InCall screen will not refresh before account selected, and appear
+                // stuck. This will ensure that the new request from a same number will be blocked
+                // if done too quickly.
+                if (call.getCreationTimeMillis() - outgoingCall.getCreationTimeMillis() < 1000
+                    && mCallsManager.areHandlesEqual(call.getHandle(), outgoingCall.getHandle())) {
+                    Log.i(this, "Repeat click on call button, ignore the new call request: "
+                        + call.getHandle());
+                    return CompletableFuture.completedFuture(false);
+                }
                 // If there is an orphaned call in the {@link CallState#SELECT_PHONE_ACCOUNT}
                 // state, just disconnect it since the user has explicitly started a new call.
                 call.getAnalytics().setCallIsAdditional(true);
