@@ -1053,7 +1053,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         }
 
         // Fallback to an available route
-        if (Objects.equals(mCurrentRoute, bluetoothRoute)) {
+        if (Objects.equals(getCurrentOrPendingRoute(), bluetoothRoute)) {
             routeTo(mIsActive, getBaseRoute(true, null));
         }
     }
