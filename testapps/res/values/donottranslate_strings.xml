@@ -30,6 +30,12 @@
     <!-- String for button in CarModeDialerActivity that places a test call -->
     <string name="placeCallButton">Place call</string>
 
+    <string name="blindTransferButton">Blind Transfer</string>
+
+    <string name="assuredTransferButton">Assured Transfer</string>
+
+    <string name="consultativeTransferButton">Consultative Transfer</string>
+
     <!-- String for button in CarModeDialerActivity that performs voicemail requests to verify
             voicemail permissions -->
     <string name="testVoicemailButton">Exercise voicemail permissions</string>
