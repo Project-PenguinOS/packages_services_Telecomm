@@ -65,8 +65,7 @@
     <string name="change_default_call_screening_dialog_affirmative" msgid="7162433828280058647">"ડિફૉલ્ટ સેટ કરો"</string>
     <string name="change_default_call_screening_dialog_negative" msgid="1839266125623106342">"રદ કરો"</string>
     <string name="blocked_numbers" msgid="8322134197039865180">"અવરોધિત નંબરો"</string>
-    <!-- no translation found for blocked_numbers_msg (141985883563301785) -->
-    <skip />
+    <string name="blocked_numbers_msg" msgid="141985883563301785">"બ્લૉક કરેલા નંબર પરથી તમને કૉલ કે ટેક્સ્ટ પ્રાપ્ત થશે નહીં. જ્યારે તમે ઇમર્જન્સી કૉલ કરો, ત્યારે નકારવાના સેટિંગ ઑટોમૅટિક રીતે બંધ થઈ જાય છે."</string>
     <string name="block_number" msgid="3784343046852802722">"એક નંબર ઉમેરો"</string>
     <string name="unblock_dialog_body" msgid="2723393535797217261">"<xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g> ને અનબ્લૉક કરીએ?"</string>
     <string name="unblock_button" msgid="8732021675729981781">"અનબ્લૉક કરો"</string>
