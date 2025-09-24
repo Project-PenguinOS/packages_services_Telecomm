@@ -471,18 +471,7 @@ public class CallsManagerTest extends TelecomTestCase {
 
     @MediumTest
     @Test
-    public void testConstructPossiblePhoneAccounts() throws Exception {
-        when(mTelephonyFlags.simultaneousCallingIndications()).thenReturn(false);
-        setupMsimAccounts();
-        // Should be empty since the URI is null.
-        assertEquals(0, mCallsManager.constructPossiblePhoneAccounts(null, null,
-                false, false, false).size());
-    }
-
-    @MediumTest
-    @Test
     public void testConstructPossiblePhoneAccounts_simulCalling() {
-        when(mTelephonyFlags.simultaneousCallingIndications()).thenReturn(true);
         setupMsimAccounts();
         // Should be empty since the URI is null.
         assertEquals(0, mCallsManager.constructPossiblePhoneAccounts(null, null,
@@ -513,33 +502,12 @@ public class CallsManagerTest extends TelecomTestCase {
 
     /**
      * Verify behavior for multisim devices where we want to ensure that the active sim is used for
-     * placing a new call.
-     * @throws Exception
-     */
-    @MediumTest
-    @Test
-    public void testConstructPossiblePhoneAccountsMultiSimActive() throws Exception {
-        when(mTelephonyFlags.simultaneousCallingIndications()).thenReturn(false);
-        setupMsimAccounts();
-
-        Call ongoingCall = constructOngoingCall("1", SIM_2_HANDLE);
-        mCallsManager.addCall(ongoingCall);
-
-        List<PhoneAccountHandle> phoneAccountHandles = mCallsManager.constructPossiblePhoneAccounts(
-                TEST_ADDRESS, null, false, false, false);
-        assertEquals(1, phoneAccountHandles.size());
-        assertEquals(SIM_2_HANDLE, phoneAccountHandles.get(0));
-    }
-
-    /**
-     * Verify behavior for multisim devices where we want to ensure that the active sim is used for
      * placing a new call when a restriction is set as well as other call providers from different
      * apps.
      */
     @MediumTest
     @Test
     public void testConstructPossiblePhoneAccountsMultiSimActive_simulCallingRestriction() {
-        when(mTelephonyFlags.simultaneousCallingIndications()).thenReturn(true);
         setupAccountsWithCallingRestriction(Arrays.asList(SIM_1_HANDLE, SIM_2_HANDLE,
                 CALL_PROVIDER_HANDLE), Collections.emptySet());
 
@@ -559,7 +527,6 @@ public class CallsManagerTest extends TelecomTestCase {
     @MediumTest
     @Test
     public void testConstructPossiblePhoneAccountsMultiSimActive_simulCallingRestrictionSubset() {
-        when(mTelephonyFlags.simultaneousCallingIndications()).thenReturn(true);
         setupAccountsWithCallingRestriction(Arrays.asList(SIM_1_HANDLE, SIM_2_HANDLE, SIM_3_HANDLE,
                 CALL_PROVIDER_HANDLE), new ArraySet<>(Arrays.asList(SIM_1_HANDLE, SIM_2_HANDLE)));
 
@@ -580,7 +547,6 @@ public class CallsManagerTest extends TelecomTestCase {
     @MediumTest
     @Test
     public void testConstructPossiblePhoneAccountsMultiSimActive_simulCallingRestrictionSubset2() {
-        when(mTelephonyFlags.simultaneousCallingIndications()).thenReturn(true);
         setupAccountsWithCallingRestriction(Arrays.asList(SIM_1_HANDLE, SIM_2_HANDLE, SIM_3_HANDLE,
                 CALL_PROVIDER_HANDLE), new ArraySet<>(Arrays.asList(SIM_1_HANDLE, SIM_2_HANDLE)));
 
@@ -594,28 +560,12 @@ public class CallsManagerTest extends TelecomTestCase {
     }
 
     /**
-     * Verify behavior for multisim devices when there are no calls active; expect both accounts.
-     * @throws Exception
-     */
-    @MediumTest
-    @Test
-    public void testConstructPossiblePhoneAccountsMultiSimIdle() throws Exception {
-        when(mTelephonyFlags.simultaneousCallingIndications()).thenReturn(false);
-        setupMsimAccounts();
-
-        List<PhoneAccountHandle> phoneAccountHandles = mCallsManager.constructPossiblePhoneAccounts(
-                TEST_ADDRESS, null, false, false, false);
-        assertEquals(2, phoneAccountHandles.size());
-    }
-
-    /**
      * Verify behavior for multisim devices when there are no calls active and there are no calling
      * restrictions set; expect both accounts.
      */
     @MediumTest
     @Test
     public void testConstructPossiblePhoneAccountsMultiSimIdle_noSimulCallingRestriction() {
-        when(mTelephonyFlags.simultaneousCallingIndications()).thenReturn(true);
         setupAccountsNoSimultaneousCallingRestriction();
 
         List<PhoneAccountHandle> phoneAccountHandles = mCallsManager.constructPossiblePhoneAccounts(
@@ -630,7 +580,6 @@ public class CallsManagerTest extends TelecomTestCase {
     @MediumTest
     @Test
     public void testConstructPossiblePhoneAccountsMultiSimIdle_withSimulCallingRestriction() {
-        when(mTelephonyFlags.simultaneousCallingIndications()).thenReturn(true);
         setupAccountsWithCallingRestriction(Arrays.asList(SIM_1_HANDLE, SIM_2_HANDLE,
                 CALL_PROVIDER_HANDLE), Collections.emptySet());
 
@@ -640,34 +589,12 @@ public class CallsManagerTest extends TelecomTestCase {
     }
 
     /**
-     * For DSDA-enabled multisim devices with an ongoing call, verify that both SIMs'
-     * PhoneAccountHandles are constructed while placing a new call.
-     * @throws Exception
-     */
-    @MediumTest
-    @Test
-    public void testConstructPossiblePhoneAccountsMultiSimActive_dsdaCallingPossible() throws
-            Exception {
-        when(mTelephonyFlags.simultaneousCallingIndications()).thenReturn(false);
-        setupMsimAccounts();
-        setMaxActiveVoiceSubscriptions(2);
-
-        Call ongoingCall = constructOngoingCall("1", SIM_2_HANDLE);
-        mCallsManager.addCall(ongoingCall);
-
-        List<PhoneAccountHandle> phoneAccountHandles = mCallsManager.constructPossiblePhoneAccounts(
-                TEST_ADDRESS, null, false, false, false);
-        assertEquals(2, phoneAccountHandles.size());
-    }
-
-    /**
      * For multisim devices with an ongoing call, verify that all call capable PhoneAccounts are
      * available when creating a second call.
      */
     @MediumTest
     @Test
     public void testConstructPossiblePhoneAccountsMultiSimActive_simulCalling_dsdaPossible() {
-        when(mTelephonyFlags.simultaneousCallingIndications()).thenReturn(true);
         setupAccountsNoSimultaneousCallingRestriction();
 
         Call ongoingCall = constructOngoingCall("1", SIM_2_HANDLE);
@@ -679,28 +606,6 @@ public class CallsManagerTest extends TelecomTestCase {
     }
 
     /**
-     * For DSDA-enabled multisim devices with an ongoing call, verify that only the active SIMs'
-     * PhoneAccountHandle is constructed while placing an emergency call.
-     * @throws Exception
-     */
-    @MediumTest
-    @Test
-    public void testConstructPossiblePhoneAccountsMultiSimActive_dsdaCallingPossible_emergencyCall()
-            throws Exception {
-        when(mTelephonyFlags.simultaneousCallingIndications()).thenReturn(false);
-        setupMsimAccounts();
-        setMaxActiveVoiceSubscriptions(2);
-
-        Call ongoingCall = constructOngoingCall("1", SIM_2_HANDLE);
-        mCallsManager.addCall(ongoingCall);
-
-        List<PhoneAccountHandle> phoneAccountHandles = mCallsManager.constructPossiblePhoneAccounts(
-                TEST_ADDRESS, null, false, true /* isEmergency */, false);
-        assertEquals(1, phoneAccountHandles.size());
-        assertEquals(SIM_2_HANDLE, phoneAccountHandles.get(0));
-    }
-
-    /**
      * For multisim devices with an ongoing call, verify that only the active SIM's
      * PhoneAccountHandle is available if we have a calling restriction where only one SIM is
      * active at a time.
@@ -708,7 +613,6 @@ public class CallsManagerTest extends TelecomTestCase {
     @MediumTest
     @Test
     public void testConstructPossiblePhoneAccountsMultiSimActive_simulCalling_emergencyCall() {
-        when(mTelephonyFlags.simultaneousCallingIndications()).thenReturn(true);
         setupAccountsWithCallingRestriction(Arrays.asList(SIM_1_HANDLE, SIM_2_HANDLE,
                 CALL_PROVIDER_HANDLE), Collections.emptySet());
 
@@ -731,7 +635,6 @@ public class CallsManagerTest extends TelecomTestCase {
     @MediumTest
     @Test
     public void testConstructPossiblePhoneAccounts_callProvider_emergencyCall() {
-        when(mTelephonyFlags.simultaneousCallingIndications()).thenReturn(true);
         setupAccountsWithCallingRestriction(Arrays.asList(SIM_1_HANDLE, SIM_2_HANDLE,
                 CALL_PROVIDER_HANDLE), Collections.emptySet());
 
@@ -751,7 +654,6 @@ public class CallsManagerTest extends TelecomTestCase {
     @MediumTest
     @Test
     public void testConstructPossiblePhoneAccountsMultiSimActive_simulCallingRest_emergencyCall() {
-        when(mTelephonyFlags.simultaneousCallingIndications()).thenReturn(true);
         setupAccountsNoSimultaneousCallingRestriction();
 
         Call ongoingCall = constructOngoingCall("1", SIM_2_HANDLE);
@@ -773,7 +675,6 @@ public class CallsManagerTest extends TelecomTestCase {
     @MediumTest
     @Test
     public void testConstructPossiblePhoneAccounts_crossAccount_simulCalling() {
-        when(mTelephonyFlags.simultaneousCallingIndications()).thenReturn(true);
         setupAccountsWithCallingRestriction(Arrays.asList(SIM_1_HANDLE, SIM_2_HANDLE,
                 CALL_PROVIDER_HANDLE), Collections.emptySet());
 

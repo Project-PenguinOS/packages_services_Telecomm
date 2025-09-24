@@ -202,7 +202,6 @@ public class PhoneAccountRegistrarTest extends TelecomTestCase {
     @MediumTest
     @Test
     public void testPhoneAccountParsing_simultaneousCallingRestriction() throws Exception {
-        doReturn(true).when(mTelephonyFeatureFlags).simultaneousCallingIndications();
         // workaround: UserManager converts the user to a serial and back, we need to mock this
         // behavior, unfortunately: USER_HANDLE_10 <-> 10L
         UserManager userManager = mContext.getSystemService(UserManager.class);
@@ -230,76 +229,6 @@ public class PhoneAccountRegistrarTest extends TelecomTestCase {
                 .build();
         PhoneAccount result = roundTripXml(this, input, PhoneAccountRegistrar.sPhoneAccountXml,
                 mContext, mTelephonyFeatureFlags, mFeatureFlags);
-
-        assertPhoneAccountEquals(input, result);
-    }
-
-    @MediumTest
-    @Test
-    public void testPhoneAccountParsing_simultaneousCallingRestrictionOnOffFlag() throws Exception {
-        // Start the test with the flag on
-        doReturn(true).when(mTelephonyFeatureFlags).simultaneousCallingIndications();
-        // workaround: UserManager converts the user to a serial and back, we need to mock this
-        // behavior, unfortunately: USER_HANDLE_10 <-> 10L
-        UserManager userManager = mContext.getSystemService(UserManager.class);
-        doReturn(10L).when(userManager).getSerialNumberForUser(eq(USER_HANDLE_10));
-        doReturn(USER_HANDLE_10).when(userManager).getUserForSerialNumber(eq(10L));
-        Bundle testBundle = new Bundle();
-        testBundle.putInt("EXTRA_INT_1", 1);
-        testBundle.putInt("EXTRA_INT_100", 100);
-        testBundle.putBoolean("EXTRA_BOOL_TRUE", true);
-        testBundle.putBoolean("EXTRA_BOOL_FALSE", false);
-        testBundle.putString("EXTRA_STR1", "Hello");
-        testBundle.putString("EXTRA_STR2", "There");
-
-        Set<PhoneAccountHandle> restriction = new HashSet<>(10);
-        for (int i = 0; i < 10; i++) {
-            restriction.add(makeQuickAccountHandleForUser("id" + i, USER_HANDLE_10));
-        }
-
-        PhoneAccount input = makeQuickAccountBuilder("id0", 0, USER_HANDLE_10)
-                .addSupportedUriScheme(PhoneAccount.SCHEME_TEL)
-                .addSupportedUriScheme(PhoneAccount.SCHEME_VOICEMAIL)
-                .setExtras(testBundle)
-                .setIsEnabled(true)
-                .setSimultaneousCallingRestriction(restriction)
-                .build();
-        byte[] xmlData = toXml(input, PhoneAccountRegistrar.sPhoneAccountXml, mContext,
-                mTelephonyFeatureFlags, mFeatureFlags);
-        // Simulate turning off the flag after reboot
-        doReturn(false).when(mTelephonyFeatureFlags).simultaneousCallingIndications();
-        PhoneAccount result = fromXml(xmlData, PhoneAccountRegistrar.sPhoneAccountXml, mContext,
-                mTelephonyFeatureFlags, mFeatureFlags);
-
-        assertNotNull(result);
-        assertFalse(result.hasSimultaneousCallingRestriction());
-    }
-
-    @MediumTest
-    @Test
-    public void testPhoneAccountParsing_simultaneousCallingRestrictionOffOnFlag() throws Exception {
-        // Start the test with the flag on
-        doReturn(false).when(mTelephonyFeatureFlags).simultaneousCallingIndications();
-        Bundle testBundle = new Bundle();
-        testBundle.putInt("EXTRA_INT_1", 1);
-        testBundle.putInt("EXTRA_INT_100", 100);
-        testBundle.putBoolean("EXTRA_BOOL_TRUE", true);
-        testBundle.putBoolean("EXTRA_BOOL_FALSE", false);
-        testBundle.putString("EXTRA_STR1", "Hello");
-        testBundle.putString("EXTRA_STR2", "There");
-
-        PhoneAccount input = makeQuickAccountBuilder("id0", 0, USER_HANDLE_10)
-                .addSupportedUriScheme(PhoneAccount.SCHEME_TEL)
-                .addSupportedUriScheme(PhoneAccount.SCHEME_VOICEMAIL)
-                .setExtras(testBundle)
-                .setIsEnabled(true)
-                .build();
-        byte[] xmlData = toXml(input, PhoneAccountRegistrar.sPhoneAccountXml, mContext,
-                mTelephonyFeatureFlags, mFeatureFlags);
-        // Simulate turning on the flag after reboot
-        doReturn(true).when(mTelephonyFeatureFlags).simultaneousCallingIndications();
-        PhoneAccount result = fromXml(xmlData, PhoneAccountRegistrar.sPhoneAccountXml, mContext,
-                mTelephonyFeatureFlags, mFeatureFlags);
 
         assertPhoneAccountEquals(input, result);
     }
@@ -1798,7 +1727,6 @@ public class PhoneAccountRegistrarTest extends TelecomTestCase {
      */
     @Test
     public void testLimitOnSimultaneousCallingRestriction_tooManyElements() throws Exception {
-        doReturn(true).when(mTelephonyFeatureFlags).simultaneousCallingIndications();
         mComponentContextFixture.addConnectionService(makeQuickConnectionServiceComponentName(),
                 Mockito.mock(IConnectionService.class));
         Set<PhoneAccountHandle> tooManyElements = new HashSet<>(11);
@@ -1824,7 +1752,6 @@ public class PhoneAccountRegistrarTest extends TelecomTestCase {
      */
     @Test
     public void testLimitOnSimultaneousCallingRestriction_InvalidPackageName() throws Exception {
-        doReturn(true).when(mTelephonyFeatureFlags).simultaneousCallingIndications();
         mComponentContextFixture.addConnectionService(makeQuickConnectionServiceComponentName(),
                 Mockito.mock(IConnectionService.class));
         Set<PhoneAccountHandle> invalidElement = new HashSet<>(1);
@@ -1849,7 +1776,6 @@ public class PhoneAccountRegistrarTest extends TelecomTestCase {
      */
     @Test
     public void testLimitOnSimultaneousCallingRestriction_InvalidClassName() throws Exception {
-        doReturn(true).when(mTelephonyFeatureFlags).simultaneousCallingIndications();
         mComponentContextFixture.addConnectionService(makeQuickConnectionServiceComponentName(),
                 Mockito.mock(IConnectionService.class));
         Set<PhoneAccountHandle> invalidElement = new HashSet<>(1);
@@ -1874,7 +1800,6 @@ public class PhoneAccountRegistrarTest extends TelecomTestCase {
      */
     @Test
     public void testLimitOnSimultaneousCallingRestriction_InvalidIdSize() throws Exception {
-        doReturn(true).when(mTelephonyFeatureFlags).simultaneousCallingIndications();
         mComponentContextFixture.addConnectionService(makeQuickConnectionServiceComponentName(),
                 Mockito.mock(IConnectionService.class));
         Set<PhoneAccountHandle> invalidIdElement = new HashSet<>(1);

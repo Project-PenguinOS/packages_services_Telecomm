@@ -1015,8 +1015,7 @@ public class TelecomServiceImpl {
                         // Validate the profile boundary of the given image URI.
                         validateAccountIconUserBoundary(account.getIcon());
 
-                        if (mTelephonyFeatureFlags.simultaneousCallingIndications()
-                                && account.hasSimultaneousCallingRestriction()) {
+                        if (account.hasSimultaneousCallingRestriction()) {
                             validateSimultaneousCallingPackageNames(
                                     account.getAccountHandle().getComponentName().getPackageName(),
                                     account.getSimultaneousCallingRestriction());

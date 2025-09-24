@@ -871,7 +871,6 @@ public class TelecomServiceImplTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testRegisterPhoneAccountSimultaneousCallingVerification() throws RemoteException {
-        doReturn(true).when(mTelephonyFeatureFlags).simultaneousCallingIndications();
         doReturn(PackageManager.PERMISSION_GRANTED)
                 .when(mContext).checkCallingOrSelfPermission(MODIFY_PHONE_STATE);
         String packageNameToUse = "com.android.officialpackage";
