@@ -65,7 +65,7 @@
     <string name="change_default_call_screening_dialog_affirmative" msgid="7162433828280058647">"设为默认"</string>
     <string name="change_default_call_screening_dialog_negative" msgid="1839266125623106342">"取消"</string>
     <string name="blocked_numbers" msgid="8322134197039865180">"已屏蔽的号码"</string>
-    <string name="blocked_numbers_msg" msgid="2797422132329662697">"您不会收到来自已屏蔽的号码的来电或短信。"</string>
+    <string name="blocked_numbers_msg" msgid="141985883563301785">"您不会收到来自已屏蔽的号码的来电或短信。拨打紧急呼叫电话时，拒绝设置会自动关闭。"</string>
     <string name="block_number" msgid="3784343046852802722">"添加电话号码"</string>
     <string name="unblock_dialog_body" msgid="2723393535797217261">"要取消屏蔽 <xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g> 吗？"</string>
     <string name="unblock_button" msgid="8732021675729981781">"取消屏蔽"</string>

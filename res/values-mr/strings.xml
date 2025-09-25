@@ -65,7 +65,7 @@
     <string name="change_default_call_screening_dialog_affirmative" msgid="7162433828280058647">"डीफॉल्ट सेट करा"</string>
     <string name="change_default_call_screening_dialog_negative" msgid="1839266125623106342">"रद्द करा"</string>
     <string name="blocked_numbers" msgid="8322134197039865180">"ब्लॉक केलेले नंबर"</string>
-    <string name="blocked_numbers_msg" msgid="2797422132329662697">"ब्लॉक केलेल्या नंबरवरुन तुम्हाला कॉल किंवा एसएमएस येणार नाहीत."</string>
+    <string name="blocked_numbers_msg" msgid="141985883563301785">"ब्लॉक केलेल्या नंबरवरून तुम्हाला कॉल किंवा एसएमएस मिळणार नाहीत. तुम्ही आणीबाणी कॉल करता, तेव्हा नाकारण्यासंबंधित सेटिंग्ज आपोआप बंद केली जातात."</string>
     <string name="block_number" msgid="3784343046852802722">"एक नंबर जोडा"</string>
     <string name="unblock_dialog_body" msgid="2723393535797217261">"<xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g> अनब्लॉक करायचा?"</string>
     <string name="unblock_button" msgid="8732021675729981781">"ब्लॉक करा"</string>
