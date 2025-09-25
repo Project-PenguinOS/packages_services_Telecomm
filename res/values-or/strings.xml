@@ -65,7 +65,8 @@
     <string name="change_default_call_screening_dialog_affirmative" msgid="7162433828280058647">"ଡିଫଲ୍ଟ ସେଟ୍ କରନ୍ତୁ"</string>
     <string name="change_default_call_screening_dialog_negative" msgid="1839266125623106342">"ବାତିଲ କରନ୍ତୁ"</string>
     <string name="blocked_numbers" msgid="8322134197039865180">"ବ୍ଲକ୍ କରାଯାଇଥିବା ନମ୍ବର୍"</string>
-    <string name="blocked_numbers_msg" msgid="2797422132329662697">"ବ୍ଲକ୍ କରାଯାଇଥିବା ନମ୍ବର୍‌ରୁ ଆପଣ କଲ୍ କିମ୍ବା ଟେକ୍ସଟ୍ ଗ୍ରହଣ କରିପାରିବେ ନାହିଁ।"</string>
+    <!-- no translation found for blocked_numbers_msg (141985883563301785) -->
+    <skip />
     <string name="block_number" msgid="3784343046852802722">"ଗୋଟିଏ ନମ୍ବର୍ ଯୋଡ଼ନ୍ତୁ"</string>
     <string name="unblock_dialog_body" msgid="2723393535797217261">"<xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g>କୁ ଅନବ୍ଲକ୍ କରିବେ?"</string>
     <string name="unblock_button" msgid="8732021675729981781">"ଅନବ୍ଲକ୍ କରନ୍ତୁ"</string>

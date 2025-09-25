@@ -492,7 +492,7 @@ public class TelecomSystem {
             mCallsManager.setIncomingCallNotifier(mIncomingCallNotifier);
 
             mRespondViaSmsManager = new RespondViaSmsManager(mCallsManager, mLock,
-                asyncTaskExecutor, featureFlags);
+                asyncTaskExecutor);
             mCallsManager.setRespondViaSmsManager(mRespondViaSmsManager);
 
             // IMPORTANT: This context must be retained or the receivers we register here will never

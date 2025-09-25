@@ -212,4 +212,19 @@ public class CallRedirectionProcessorHelper {
         }
         return null;
     }
+
+    public static Uri getUpdatedUriwithPostDial( Uri destinationUri, String postdialDigits) {
+        if (destinationUri != null) {
+            Uri destinationUriwithPostdial = destinationUri;
+            if(!TextUtils.isEmpty(postdialDigits)) {
+                destinationUriwithPostdial = new Uri.Builder()
+                         .scheme(destinationUri.getScheme())
+                         .encodedOpaquePart(destinationUri.getSchemeSpecificPart() + postdialDigits)
+                         .build();
+            }
+            return destinationUriwithPostdial;
+        }
+        return null;
+    }
+
 }

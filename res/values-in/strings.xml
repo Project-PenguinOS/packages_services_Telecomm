@@ -65,7 +65,8 @@
     <string name="change_default_call_screening_dialog_affirmative" msgid="7162433828280058647">"Setel Default"</string>
     <string name="change_default_call_screening_dialog_negative" msgid="1839266125623106342">"Batal"</string>
     <string name="blocked_numbers" msgid="8322134197039865180">"Nomor yang diblokir"</string>
-    <string name="blocked_numbers_msg" msgid="2797422132329662697">"Anda tidak akan menerima telepon atau SMS dari nomor yang diblokir."</string>
+    <!-- no translation found for blocked_numbers_msg (141985883563301785) -->
+    <skip />
     <string name="block_number" msgid="3784343046852802722">"Tambahkan nomor"</string>
     <string name="unblock_dialog_body" msgid="2723393535797217261">"Berhenti memblokir <xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g>?"</string>
     <string name="unblock_button" msgid="8732021675729981781">"Berhenti memblokir"</string>

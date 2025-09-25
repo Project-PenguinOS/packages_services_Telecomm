@@ -24,7 +24,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.res.Resources;
-import android.os.Looper;
 import android.telecom.Connection;
 import android.telecom.Log;
 import android.telecom.Logging.Session;
@@ -37,9 +36,6 @@ import android.text.SpannableString;
 import android.text.TextUtils;
 import android.widget.Toast;
 
-import com.android.server.telecom.flags.FeatureFlags;
-
-import java.text.Bidi;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -80,14 +76,12 @@ public class RespondViaSmsManager extends CallsManagerListenerBase {
     private final CallsManager mCallsManager;
     private final TelecomSystem.SyncRoot mLock;
     private final Executor mAsyncExecutor;
-    private final FeatureFlags mFeatureFlags;
 
     public RespondViaSmsManager(CallsManager callsManager, TelecomSystem.SyncRoot lock,
-        Executor asyncExecutor, FeatureFlags featureFlags) {
+        Executor asyncExecutor) {
         mCallsManager = callsManager;
         mLock = lock;
         mAsyncExecutor = asyncExecutor;
-        mFeatureFlags = featureFlags;
     }
 
     /**
@@ -103,38 +97,25 @@ public class RespondViaSmsManager extends CallsManagerListenerBase {
      */
     public void loadCannedTextMessages(final CallsManager.Response<Void, List<String>> response,
             final Context context) {
-        if (mFeatureFlags.enableRespondViaSmsManagerAsync()) {
-            CompletableFuture<List<String>> cannedTextMessages = new CompletableFuture<>();
-            Session s = Log.createSubsession();
-            mAsyncExecutor.execute(() -> {
-                try {
-                    Log.continueSession(s, "RVSM.lCTM.e");
-                    cannedTextMessages.complete(loadCannedTextMessages(context));
-                } finally {
-                    Log.endSession();
+        CompletableFuture<List<String>> cannedTextMessages = new CompletableFuture<>();
+        Session s = Log.createSubsession();
+        mAsyncExecutor.execute(() -> {
+            try {
+                Log.continueSession(s, "RVSM.lCTM.e");
+                cannedTextMessages.complete(loadCannedTextMessages(context));
+            } finally {
+                Log.endSession();
+            }
+        });
+        cannedTextMessages.whenCompleteAsync((result, exception) -> {
+                if (exception != null) {
+                    Log.e(RespondViaSmsManager.class.getSimpleName(), exception,
+                            "loadCannedTextMessages failed");
+                    response.onError(null, -1, exception.toString());
+                } else {
+                    response.onResult(null, result);
                 }
-            });
-            cannedTextMessages.whenCompleteAsync((result, exception) -> {
-                    if (exception != null) {
-                        Log.e(RespondViaSmsManager.class.getSimpleName(), exception,
-                                "loadCannedTextMessages failed");
-                        response.onError(null, -1, exception.toString());
-                    } else {
-                        response.onResult(null, result);
-                    }
-                }, new LoggedHandlerExecutor(context.getMainThreadHandler(), "RVSM.lCTM.c", mLock));
-
-        } else {
-          new Thread() {
-                @Override
-                public void run() {
-                    List<String> textMessages = loadCannedTextMessages(context);
-                    synchronized (mLock) {
-                        response.onResult(null, textMessages);
-                    }
-                }
-            }.start();
-        }
+            }, new LoggedHandlerExecutor(context.getMainThreadHandler(), "RVSM.lCTM.c", mLock));
     }
 
     private List<String> loadCannedTextMessages(final Context context) {
@@ -235,19 +216,15 @@ public class RespondViaSmsManager extends CallsManagerListenerBase {
                     subId);
             return;
         }
-        if(mFeatureFlags.enableRespondViaSmsManagerAsync()) {
-            Session s = Log.createSubsession();
-            mAsyncExecutor.execute(() -> {
-                try {
-                    Log.continueSession(s, "RVSM.rCWM.e");
-                    sendTextMessage(context, phoneNumber, textMessage, subId, contactName);
-                } finally {
-                    Log.endSession();
-                }
-            });
-        } else {
-            sendTextMessage(context, phoneNumber, textMessage, subId, contactName);
-        }
+        Session s = Log.createSubsession();
+        mAsyncExecutor.execute(() -> {
+            try {
+                Log.continueSession(s, "RVSM.rCWM.e");
+                sendTextMessage(context, phoneNumber, textMessage, subId, contactName);
+            } finally {
+                Log.endSession();
+            }
+        });
     }
 
     private void sendTextMessage(Context context, String phoneNumber, String textMessage,
