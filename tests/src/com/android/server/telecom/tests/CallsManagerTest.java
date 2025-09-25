@@ -2323,12 +2323,24 @@ public class CallsManagerTest extends TelecomTestCase {
     @Test
     public void testMakeRoomForOutgoingCallHasOutgoingCallSelectingAccount() {
         Call outgoingCall = addSpyCall(SIM_1_HANDLE, CallState.SELECT_PHONE_ACCOUNT);
+        when(mClockProxy.currentTimeMillis()).thenReturn(System.currentTimeMillis() + 1000L);
         Call newCall = createSpyCall(SIM_1_HANDLE, CallState.NEW);
 
         CompletableFuture<Boolean> result = mCallsManager.getCallSequencingAdapter()
                 .makeRoomForOutgoingCall(false, newCall);
         assertTrue(waitForFutureResult(result, false));
         verify(outgoingCall).disconnect(anyString());
+    }
+
+    @SmallTest
+    @Test
+    public void testMakeRoomForOutgoingCallHasOutgoingCallTooQuickly() {
+        Call outgoingCall = addSpyCall(SIM_1_HANDLE, CallState.SELECT_PHONE_ACCOUNT);
+        Call newCall = createSpyCall(SIM_1_HANDLE, CallState.NEW);
+
+        CompletableFuture<Boolean> result = mCallsManager.getCallSequencingAdapter()
+            .makeRoomForOutgoingCall(false, newCall);
+        assertFalse(waitForFutureResult(result, false));
     }
 
     @SmallTest

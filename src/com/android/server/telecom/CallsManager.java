@@ -1964,7 +1964,7 @@ public class CallsManager extends Call.ListenerBase
         call.startCreateConnection(mPhoneAccountRegistrar);
     }
 
-    private boolean areHandlesEqual(Uri handle1, Uri handle2) {
+    public boolean areHandlesEqual(Uri handle1, Uri handle2) {
         if (handle1 == null || handle2 == null) {
             return handle1 == handle2;
         }
