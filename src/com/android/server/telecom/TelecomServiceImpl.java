@@ -3183,8 +3183,8 @@ public class TelecomServiceImpl {
                 // registered the callback intent.
                 UserHandle userHandle = Binder.getCallingUserHandle();
                 if (!doesPackageSupportCallback(packageName, userHandle)) {
-                    throw new IllegalArgumentException("Package (%s) does not register the "
-                            + "TelecomManager.ACTION_CALL_BACK intent.");
+                    throw new IllegalArgumentException("Package" + packageName + " does not"
+                            + " registerthe TelecomManager.ACTION_CALL_BACK intent.");
                 }
 
                 Log.startSession("TSI.sVCLIE", Log.getPackageAbbreviation(callingPackage));
