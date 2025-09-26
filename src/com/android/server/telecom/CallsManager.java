@@ -58,7 +58,6 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.ServiceConnection;
 import android.content.pm.ComponentInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
@@ -121,6 +120,7 @@ import android.widget.Button;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.app.IntentForwarderActivity;
+import com.android.internal.telephony.flags.Flags;
 import com.android.internal.util.IndentingPrintWriter;
 import com.android.server.telecom.bluetooth.BluetoothDeviceManager;
 import com.android.server.telecom.bluetooth.BluetoothRouteManager;
@@ -557,6 +557,7 @@ public class CallsManager extends Call.ListenerBase
     private final IncomingCallFilterGraphProvider mIncomingCallFilterGraphProvider;
     private CallAudioWatchdog mCallAudioWatchDog;
     private CallAudioRouteAdapter mCallAudioRouteAdapter;
+    private final LowBatteryAlertListener mLowBatteryAlertListener;
     private CallLogIntegrationAdapter mCallLogIntegrationAdapter;
 
     private final ConnectionServiceFocusManager.CallsManagerRequester mRequester =
@@ -689,7 +690,8 @@ public class CallsManager extends Call.ListenerBase
             IncomingCallFilterGraphProvider incomingCallFilterGraphProvider,
             TelecomMetricsController metricsController,
             Ringer.VibratorAdapter vibratorAdapter,
-            ScheduledExecutorService scheduledExecutorService) {
+            ScheduledExecutorService scheduledExecutorService,
+            LowBatteryAlertListener lowBatteryAlertListener) {
 
         mContext = context;
         mLock = lock;
@@ -909,6 +911,13 @@ public class CallsManager extends Call.ListenerBase
         mAsyncTaskExecutor = asyncTaskExecutor;
         mUserManager = mContext.getSystemService(UserManager.class);
         mPendingAccountSelection = new HashMap<>();
+
+        mLowBatteryAlertListener = lowBatteryAlertListener;
+        if (Flags.supportLowBatteryAlert()) {
+            mLowBatteryAlertListener.registerForLowBatteryListener(playerFactory);
+            mListeners.add(mLowBatteryAlertListener);
+        }
+
         mCallLogIntegrationAdapter = new CallLogIntegrationAdapterImpl(mContext);
     }
 
