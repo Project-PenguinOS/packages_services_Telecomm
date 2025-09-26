@@ -149,8 +149,7 @@ public class TestDialerActivity extends AppCompatActivity {
         queryArgs.putInt(ContentResolver.QUERY_ARG_SORT_DIRECTION,
                 ContentResolver.QUERY_SORT_DIRECTION_DESCENDING);
         // 4. Add the selection to the bundle.
-        String selection = Calls.UUID + " IS NOT NULL AND " + Calls.PHONE_ACCOUNT_COMPONENT_NAME
-                + " LIKE '" + Utils.PKG_NAME + "%'";
+        String selection = Calls.UUID + " IS NOT NULL";
         String[] selectionArgs = null;
 
         // Filter the query by the uuids passed in from VoipAppMainActivity.
