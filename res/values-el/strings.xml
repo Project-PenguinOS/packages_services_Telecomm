@@ -65,8 +65,7 @@
     <string name="change_default_call_screening_dialog_affirmative" msgid="7162433828280058647">"Ορισμός ως προεπιλογή"</string>
     <string name="change_default_call_screening_dialog_negative" msgid="1839266125623106342">"Ακύρωση"</string>
     <string name="blocked_numbers" msgid="8322134197039865180">"Αποκλεισμένοι αριθμοί"</string>
-    <!-- no translation found for blocked_numbers_msg (141985883563301785) -->
-    <skip />
+    <string name="blocked_numbers_msg" msgid="141985883563301785">"Δεν θα λαμβάνετε κλήσεις ή μηνύματα κειμένου από αποκλεισμένους αριθμούς. Όταν πραγματοποιείτε μια κλήση έκτακτης ανάγκης, οι ρυθμίσεις απόρριψης απενεργοποιούνται αυτόματα."</string>
     <string name="block_number" msgid="3784343046852802722">"Προσθήκη αριθμού"</string>
     <string name="unblock_dialog_body" msgid="2723393535797217261">"Να καταργηθεί ο αποκλεισμός του αριθμού <xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g>;"</string>
     <string name="unblock_button" msgid="8732021675729981781">"Κατάργηση αποκλεισμού"</string>
