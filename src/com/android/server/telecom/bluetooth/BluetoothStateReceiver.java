@@ -76,7 +76,9 @@ public class BluetoothStateReceiver extends BroadcastReceiver {
             String action = intent.getAction();
             switch (action) {
                 case BluetoothHeadset.ACTION_AUDIO_STATE_CHANGED:
-                    handleAudioStateChanged(intent);
+                    // Broadcast is ignored. Telecom will listen to the audio fwk communication
+                    // device updates instead. Refer to
+                    // CallAudioRouteController#handleCommunicationDeviceChanged.
                     break;
                 case BluetoothLeAudio.ACTION_LE_AUDIO_CONNECTION_STATE_CHANGED:
                 case BluetoothHearingAid.ACTION_CONNECTION_STATE_CHANGED:
@@ -91,74 +93,6 @@ public class BluetoothStateReceiver extends BroadcastReceiver {
             }
         } finally {
             Log.endSession();
-        }
-    }
-
-    private void handleAudioStateChanged(Intent intent) {
-        int bluetoothHeadsetAudioState =
-                intent.getIntExtra(BluetoothHeadset.EXTRA_STATE,
-                        BluetoothHeadset.STATE_AUDIO_DISCONNECTED);
-        BluetoothDevice device =
-                intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice.class);
-        if (device == null) {
-            Log.w(LOG_TAG, "Got null device from broadcast. " +
-                    "Ignoring.");
-            return;
-        }
-
-        Log.i(LOG_TAG, "Device %s transitioned to audio state %d",
-                device.getAddress(), bluetoothHeadsetAudioState);
-        Session session = Log.createSubsession();
-        SomeArgs args = SomeArgs.obtain();
-        args.arg1 = session;
-        args.arg2 = device.getAddress();
-        CallAudioRouteController audioRouteController =
-                (CallAudioRouteController) mCallAudioRouteAdapter;
-        if (mFeatureFlags.ignoreBtBroadcast()) {
-            Log.w(LOG_TAG, "Ignoring BT broadcast (listening to audio fwk communication "
-                + "device updates)");
-            return;
-        }
-        switch (bluetoothHeadsetAudioState) {
-            case BluetoothHeadset.STATE_AUDIO_CONNECTED:
-                audioRouteController.setScoAudioConnectedDevice(device);
-                AudioRoute btRoute = audioRouteController.getBluetoothRoute(
-                        AudioRoute.TYPE_BLUETOOTH_SCO, device.getAddress());
-                if (audioRouteController.isPending() && Objects.equals(audioRouteController
-                        .getPendingAudioRoute().getDestRoute(), btRoute)) {
-                    mCallAudioRouteAdapter.sendMessageWithSessionInfo(BT_AUDIO_CONNECTED, 0,
-                            device);
-                } else {
-                    // It's possible that the initial BT connection fails but BT_AUDIO_CONNECTED
-                    // is sent later, indicating that SCO audio is on. We should route
-                    // appropriately in order for the UI to reflect this state.
-                    if (btRoute != null) {
-                        audioRouteController.getPendingAudioRoute().overrideDestRoute(btRoute);
-                        audioRouteController.overrideIsPending(true);
-                        audioRouteController.getPendingAudioRoute()
-                                .setCommunicationDeviceType(AudioRoute.TYPE_BLUETOOTH_SCO);
-                        mCallAudioRouteAdapter.sendMessageWithSessionInfo(
-                                CallAudioRouteAdapter.EXIT_PENDING_ROUTE);
-                    }
-                }
-                break;
-            case BluetoothHeadset.STATE_AUDIO_DISCONNECTED:
-                audioRouteController.setLastScoDisconnectedDevice(device);
-                audioRouteController.setScoAudioConnectedDevice(null);
-                if (audioRouteController.isPending()) {
-                    mCallAudioRouteAdapter.sendMessageWithSessionInfo(BT_AUDIO_DISCONNECTED, 0,
-                            device);
-                } else {
-                    // Handle case where BT stack signals SCO disconnected but Telecom isn't
-                    // processing any pending routes. This explicitly addresses cf instances
-                    // where a remote device disconnects SCO. Telecom should ensure that audio
-                    // is properly routed in the UI.
-                    audioRouteController.getPendingAudioRoute()
-                            .setCommunicationDeviceType(AudioRoute.TYPE_INVALID);
-                    mCallAudioRouteAdapter.sendMessageWithSessionInfo(SWITCH_BASELINE_ROUTE,
-                            INCLUDE_BLUETOOTH_IN_BASELINE, device.getAddress());
-                }
-                break;
         }
     }
 

@@ -332,11 +332,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                             + "device (%s), audioType (%d)", previousDevice, device, audioType);
                     // Todo: Update to account for all device types once we support audio route
                     //  centralization.
-                    if (mFeatureFlags.ignoreBtBroadcast()) {
-                        handleCommunicationDeviceChanged(audioType, device, previousDevice);
-                    } else {
-                        handleCommunicationDeviceChangedOld(audioType, device);
-                    }
+                    handleCommunicationDeviceChanged(audioType, device, previousDevice);
                 } finally {
                     Log.endSession();
                 }
@@ -707,9 +703,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         // audio fwk, then we should only reflect the route change in the UI and not try to set/
         // clear the communication device. For routing centralization, we will improve this to only
         // update the UI when the requested route change matches up.
-        boolean isDestRouteCommunicationDevice = mFeatureFlags
-                .skipPendingMsgIfCommunicationDeviceSet()
-                && isCurrentCommunicationDevice(destRoute);
+        boolean isDestRouteCommunicationDevice = isCurrentCommunicationDevice(destRoute);
         if (mIsPending) {
             if (destRoute.equals(mPendingAudioRoute.getDestRoute())
                     && (mIsActive == isDestRouteActive)) {
@@ -942,18 +936,16 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     private void handleBtAudioActive(BluetoothDevice bluetoothDevice) {
         if (mIsPending && bluetoothDevice != null) {
             Log.i(this, "handleBtAudioActive: is pending path");
-            if (mFeatureFlags.ignoreBtBroadcast()) {
-                AudioRoute btRoute = getBluetoothRoute(TYPE_BLUETOOTH_SCO,
-                        bluetoothDevice.getAddress());
-                // If the connected HFP device isn't the current communication device, then don't
-                // continue processing the message. We will wait until the audio fwk reports that
-                // the communication device has been updated accordingly instead of relying on
-                // what the BT broadcasts are telling us.
-                if (!isCurrentCommunicationDevice(btRoute)) {
-                    Log.i(this, "handleBtAudioActive: %s is not the current"
-                            + "communication device yet. Ignoring message.");
-                    return;
-                }
+            AudioRoute btRoute = getBluetoothRoute(TYPE_BLUETOOTH_SCO,
+                    bluetoothDevice.getAddress());
+            // If the connected HFP device isn't the current communication device, then don't
+            // continue processing the message. We will wait until the audio fwk reports that
+            // the communication device has been updated accordingly instead of relying on
+            // what the BT broadcasts are telling us.
+            if (!isCurrentCommunicationDevice(btRoute)) {
+                Log.i(this, "handleBtAudioActive: %s is not the current "
+                        + "communication device yet. Ignoring message.", btRoute);
+                return;
             }
             // Ensure we aren't keeping track of pending speaker off and SCO audio disconnected
             // messages  for this device if BT stack indicates that SCO audio is connected.
@@ -982,18 +974,16 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     private void handleBtAudioInactive(BluetoothDevice bluetoothDevice) {
         if (mIsPending && bluetoothDevice != null) {
             Log.i(this, "handleBtAudioInactive: is pending path");
-            if (mFeatureFlags.ignoreBtBroadcast()) {
-                AudioRoute btRoute = getBluetoothRoute(TYPE_BLUETOOTH_SCO,
-                        bluetoothDevice.getAddress());
-                // If the disconnected HFP device isn't reflected in current communication device,
-                // then don't continue processing the disconnect message. We will wait until the
-                // audio fwk reports that the communication device has changed first instead of
-                // relying on what the BT broadcasts are telling us.
-                if (isCurrentCommunicationDevice(btRoute)) {
-                    Log.i(this, "handleBtAudioInactive: %s is still the current"
-                            + "communication device. Ignoring message.");
-                    return;
-                }
+            AudioRoute btRoute = getBluetoothRoute(TYPE_BLUETOOTH_SCO,
+                    bluetoothDevice.getAddress());
+            // If the disconnected HFP device isn't reflected in current communication device,
+            // then don't continue processing the disconnect message. We will wait until the
+            // audio fwk reports that the communication device has changed first instead of
+            // relying on what the BT broadcasts are telling us.
+            if (isCurrentCommunicationDevice(btRoute)) {
+                Log.i(this, "handleBtAudioInactive: %s is still the current"
+                        + " communication device. Ignoring message.", btRoute);
+                return;
             }
             // Ensure we aren't keeping track of pending s SCO audio connected messages for this
             // device if the BT stack has indicated that SCO audio has disconnected.
@@ -1419,7 +1409,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             // Route to whatever the current communication device is as reported by the audio fwk.
             AudioRoute communicationDeviceRoute = getAudioRouteForAudioDeviceInfo(
                     getCurrentCommunicationDevice());
-            if (mFeatureFlags.ignoreBtBroadcast() && isValidRoute(communicationDeviceRoute)) {
+            if (isValidRoute(communicationDeviceRoute)) {
                 newRoute = communicationDeviceRoute;
             }
             routeTo(mIsActive, newRoute);
@@ -2152,42 +2142,6 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     }
 
     /**
-     * Old logic for the Telecom processing done in response to the communication device updates
-     * notified to us from the audio fwk. This logic only runs when
-     * {@link FeatureFlags#ignoreBtBroadcast()} is disabled.
-     */
-    private void handleCommunicationDeviceChangedOld(int audioType, AudioDeviceInfo device) {
-        if (audioType == TYPE_SPEAKER) {
-            if (mCurrentRoute.getType() != TYPE_SPEAKER) {
-                sendMessageWithSessionInfo(SPEAKER_ON);
-            }
-        } else if (mFeatureFlags.skipPendingMsgIfCommunicationDeviceSet()
-                && audioType == TYPE_BLUETOOTH_SCO
-                && mCurrentRoute.getType() != TYPE_BLUETOOTH_SCO) {
-            // Handle switch to BT if communication device was updated. It's possible
-            // that there are other communication device updates (i.e. to speaker) while
-            // switching between HFP devices and Telecom may update the audio route to
-            // speaker as a result.
-            sendMessageWithSessionInfo(SWITCH_BLUETOOTH, 0, device.getAddress());
-        } else {
-            // Only send SPEAKER_OFF if the current route is on speaker
-            if (mFeatureFlags.skipPendingMsgIfCommunicationDeviceSet()) {
-                if (mCurrentRoute.getType() == TYPE_SPEAKER) {
-                    sendMessageWithSessionInfo(SPEAKER_OFF);
-                }
-            } else {
-                sendMessageWithSessionInfo(SPEAKER_OFF);
-            }
-        }
-    }
-
-    /**
-     * Note that the old version of this method is dependent on the
-     * {@link FeatureFlags#skipPendingMsgIfCommunicationDeviceSet()} flag. This new method assumes
-     * that the latter flag will roll out much prior to the new flag
-     * ({@link FeatureFlags#ignoreBtBroadcast()}) and avoids additional flag embedding logic that
-     * would complicate this code block.
-     *
      * This method processes the communication device change updates in two steps given that the
      * new communication device either doesn't correspond to the current audio route tracked in
      * Telecom or in the case of the same BT profiles that the addresses are different.
