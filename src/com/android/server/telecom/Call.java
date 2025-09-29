@@ -2158,7 +2158,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             return false;
         }
 
-        if (!PhoneAccount.SCHEME_SIP.equals(getHandle().getScheme()) &&
+        if (!isTransactionalCall() && !PhoneAccount.SCHEME_SIP.equals(getHandle().getScheme()) &&
                 !PhoneAccount.SCHEME_TEL.equals(getHandle().getScheme())) {
             // Can't log schemes other than SIP or TEL for now.
             return false;
