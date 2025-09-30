@@ -4779,8 +4779,15 @@ public class CallsManager extends Call.ListenerBase
             Call activeCall = (Call) mConnectionSvrFocusMgr.getCurrentFocusCall();
             // It's possible that the call is answered directly without going through the in-call
             // UI (i.e. answer via ATA cmd) in which case we should ensure that the focus call is
-            // updated accordingly.
-            if (mFeatureFlags.requestFocusForSetActive() && !Objects.equals(activeCall, call)) {
+            // updated accordingly. We should only perform this for calls that are focusable (top
+            // level calls that aren't external) and that are not on hold. The latter condition is
+            // a simple catch for calls being conferenced if, for whatever reason, the conf. call
+            // hasn't been created yet. We will end up with two active "child" calls (WAI from a
+            // Telephony standpoint) and we want to skip sequencing in this case. We can also add
+            // another check to ensure the active call we would end up holding isn't a child call.
+            if (mFeatureFlags.requestFocusForSetActive() && !Objects.equals(activeCall, call)
+                    && call.isFocusable() && call.getState() != CallState.ON_HOLD
+                    && (activeCall == null || activeCall.getParentCall() == null)) {
                 mCallSequencingAdapter.markCallAsActive(call);
             } else {
                 processMarkCallAsActive(call);

@@ -305,7 +305,8 @@ public class CallSequencingController {
                 CompletableFuture<Boolean> disconnectFutureHandler = null;
 
                 boolean isSequencingRequiredHeldAndActive = false;
-                if (heldCall != null) {
+                // Make sure that the held call isn't the call we're setting active.
+                if (heldCall != null && !heldCall.equals(call)) {
                     // If the calls are from the same source or the incoming call isn't a VOIP call
                     // and the held call is a carrier call, then disconnect the held call. The
                     // idea is that if we have a held carrier call and the incoming call is a
