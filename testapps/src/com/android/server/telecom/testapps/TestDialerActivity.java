@@ -16,6 +16,7 @@ import android.os.Bundle;
 import android.os.PersistableBundle;
 import android.provider.CallLog.Calls;
 import android.provider.Settings;
+import android.telecom.Call;
 import android.telecom.PhoneAccount;
 import android.telecom.TelecomManager;
 import android.telephony.CarrierConfigManager;
@@ -39,6 +40,7 @@ public class TestDialerActivity extends Activity {
     private CheckBox mRttCheckbox;
     private CheckBox mComposerCheckbox;
     private EditText mPriorityView;
+    private EditText mTransferTargetNumberView;
 
     private static final String COMPOSER_SUBJECT = "Sample call composer subject";
     private static final Location COMPOSER_LOCATION;
@@ -92,6 +94,8 @@ public class TestDialerActivity extends Activity {
         mCallComposerView = (EditText) findViewById(R.id.set_composer_edit_text);
         mRttCheckbox = (CheckBox) findViewById(R.id.call_with_rtt_checkbox);
         mComposerCheckbox = (CheckBox) findViewById(R.id.add_composer_attachments_checkbox);
+        mTransferTargetNumberView = (EditText) findViewById(R.id.transfer_target_number);
+
         findViewById(R.id.enable_car_mode).setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -113,6 +117,13 @@ public class TestDialerActivity extends Activity {
 
         Button discoveryButton = findViewById(R.id.send_contact_discovery_button);
         discoveryButton.setOnClickListener(v -> sendContactDiscoveryIntent());
+
+        findViewById(R.id.blind_transfer_button).setOnClickListener(v -> blindTransfer());
+
+        findViewById(R.id.assured_transfer_button).setOnClickListener(v -> assuredTransfer());
+
+        findViewById(R.id.consultative_transfer_button).setOnClickListener
+                                                    (v -> consultativeTransfer());
 
         mPriorityView = findViewById(R.id.priority);
         updateMutableUi();
@@ -193,6 +204,67 @@ public class TestDialerActivity extends Activity {
 
     private void showToast(String message) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+    }
+
+     private void blindAssuredTransfer(boolean isAssured) {
+        String targetNumber = mTransferTargetNumberView.getText().toString();
+        if (targetNumber.isEmpty()) {
+            showToast("Transfer target number is empty");
+            return;
+        }
+
+        Call currentCall = TestInCallServiceImpl.getPrimaryCall();
+
+        if (currentCall == null) {
+            showToast("No active call to transfer");
+            return;
+        }
+
+        if (currentCall.getDetails().getState() != Call.STATE_ACTIVE
+                && currentCall.getDetails().getState() != Call.STATE_HOLDING) {
+            showToast("Call is not active or on hold");
+            return;
+        }
+
+        Uri targetUri = Uri.fromParts(PhoneAccount.SCHEME_TEL, targetNumber, null);
+
+        try {
+            currentCall.transfer(targetUri, isAssured);
+            showToast(isAssured?"Assured":"Blind" + " transfer initiated to " + targetNumber);
+        } catch (Exception e) {
+            Log.e(TAG, "Exception during transfer: " + e.getMessage());
+            showToast("Transfer failed: " + e.getMessage());
+        }
+    }
+
+    private void blindTransfer() {
+        blindAssuredTransfer(false);
+    }
+
+    private void assuredTransfer() {
+        blindAssuredTransfer(true);
+    }
+
+    private void consultativeTransfer() {
+        Call activeCall = TestInCallServiceImpl.getActiveCall();
+        Call holdingCall = TestInCallServiceImpl.getHoldingCall();
+
+        if (activeCall == null) {
+            showToast("No active call for transfer.");
+            return;
+        }
+        if (holdingCall == null) {
+            showToast("No holding call to transfer to.");
+            return;
+        }
+
+        try {
+            activeCall.transfer(holdingCall);
+            showToast("Consultative transfer initiated.");
+        } catch (Exception e) {
+            Log.e(TAG, "Exception during consultative transfer: " + e.getMessage());
+            showToast("Consultative Transfer failed: " + e.getMessage());
+        }
     }
 
     private void cancelMissedCallNotification() {
