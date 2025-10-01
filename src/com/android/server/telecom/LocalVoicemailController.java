@@ -365,7 +365,7 @@ public class LocalVoicemailController extends CallsManagerListenerBase implement
         if (state == CallState.RINGING) {
             Duration timeoutDuration = getLocalVoicemailTimeout(call);
 
-            if (timeoutDuration.equals(TelecomManager.LOCAL_VOICEMAIL_DISABLED)) {
+            if (timeoutDuration == null) {
                 Log.i(this, "maybeStartLocalVoicemailTimeout: local voicemail disabled for call %s",
                         call.getId());
                 return;
@@ -594,9 +594,6 @@ public class LocalVoicemailController extends CallsManagerListenerBase implement
     private Duration getLocalVoicemailTimeout(Call call) {
         Duration handleDuration = mCallsManagerAdapter.getLocalVoicemailTimeout(
                 call.getTargetPhoneAccount());
-        if (handleDuration == null) {
-            return TelecomManager.LOCAL_VOICEMAIL_DISABLED;
-        }
         return handleDuration;
     }
 }
