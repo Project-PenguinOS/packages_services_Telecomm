@@ -93,6 +93,7 @@ public class TelecomShellCommand extends BasicShellCommandHandler {
      * Command used to emit a distinct "mark" in the logs.
      */
     private static final String COMMAND_LOG_MARK = "log-mark";
+    private static final String COMMAND_SET_LOCAL_VOICEMAIL_SERVICE = "set-local-voicemail-service";
 
     private final Context mContext;
     private final ITelecomService mTelecomService;
@@ -202,6 +203,9 @@ public class TelecomShellCommand extends BasicShellCommandHandler {
                 case COMMAND_WAIT_FOR_AUDIO_ACTIVE_COMPLETION:
                     mTelecomService.waitForAudioToUpdate(true);
                     break;
+                case COMMAND_SET_LOCAL_VOICEMAIL_SERVICE:
+                    runSetLocalVoicemailService();
+                    break;
                 default:
                     return handleDefaultCommands(command);
             }
@@ -282,6 +286,8 @@ public class TelecomShellCommand extends BasicShellCommandHandler {
                 + "non-ui-InCallService in InCallController to determine if it is bound \n"
                 + "telecom set-metrics-test-enabled: Enable the metrics test mode.\n"
                 + "telecom set-metrics-test-disabled: Disable the metrics test mode.\n"
+                + "telecom set-local-voicemail-service: Override the local voicemail service to the"
+                + " specified package. To remove the override, send \"default\"\n"
         );
     }
     private void runSetPhoneAccountEnabled(boolean enabled) throws RemoteException {
@@ -471,6 +477,13 @@ public class TelecomShellCommand extends BasicShellCommandHandler {
             getOutPrintWriter().println("Success = filter set to " + packageName);
         }
 
+    }
+
+    private void runSetLocalVoicemailService() throws RemoteException {
+        String packageName = getNextArg();
+        if ("default".equals(packageName)) packageName = null;
+        mTelecomService.setTestLocalVoicemailService(packageName);
+        getOutPrintWriter().println("Success - changed local vm service to " + packageName);
     }
 
     private void runLogMark() throws RemoteException {

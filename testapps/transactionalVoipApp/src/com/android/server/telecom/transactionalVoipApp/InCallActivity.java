@@ -60,12 +60,12 @@ public class InCallActivity extends Activity {
         Bundle extras = getIntent().getExtras();
         // Copy the extras with properties like call direction into the extras so the below
         // code can access them.
-        if (extras != null && extras.containsKey(Utils.sEXTRAS_KEY)) {
-            extras.putAll(extras.getBundle(Utils.sEXTRAS_KEY));
+        if (extras != null && extras.containsKey(Utils.EXTRAS_KEY)) {
+            extras.putAll(extras.getBundle(Utils.EXTRAS_KEY));
         }
         if (extras != null) {
-            mCallDirection = extras.getInt(Utils.sCALL_DIRECTION_KEY, DIRECTION_INCOMING);
-            mCallAttributes = extras.getParcelable(Utils.sCall_ATTRIBUTE_KEY, CallAttributes.class);
+            mCallDirection = extras.getInt(Utils.CALL_DIRECTION_KEY, DIRECTION_INCOMING);
+            mCallAttributes = extras.getParcelable(Utils.CALL_ATTRIBUTE_KEY, CallAttributes.class);
         }
         if (mCallAttributes == null) {
             Toast.makeText(this, getString(R.string.call_attributes_empty_error),
@@ -131,8 +131,8 @@ public class InCallActivity extends Activity {
                 disconnectAndStopAudio();
                 // Send attributes and uuid back to main activity for referencing
                 Intent intent = new Intent();
-                intent.putExtra(Utils.sCall_UUID_EXTRA_KEY, mCallId);
-                intent.putExtra(Utils.sCall_ATTRIBUTE_KEY, mCallAttributes);
+                intent.putExtra(Utils.CALL_UUID_EXTRA_KEY, mCallId);
+                intent.putExtra(Utils.CALL_ATTRIBUTE_KEY, mCallAttributes);
                 setResult(Activity.RESULT_OK, intent);
                 finish();
             }

@@ -126,6 +126,7 @@ import com.android.server.telecom.InCallControllerFactory;
 import com.android.server.telecom.InCallTonePlayer;
 import com.android.server.telecom.InCallWakeLockController;
 import com.android.server.telecom.InCallWakeLockControllerFactory;
+import com.android.server.telecom.LowBatteryAlertListener;
 import com.android.server.telecom.MissedCallNotifier;
 import com.android.server.telecom.PhoneAccountRegistrar;
 import com.android.server.telecom.PhoneNumberUtilsAdapter;
@@ -329,6 +330,7 @@ public class CallsManagerTest extends TelecomTestCase {
     @Mock private IConnectionService mIConnectionService;
     @Mock private TelecomMetricsController mMockTelecomMetricsController;
     @Mock private Ringer.VibratorAdapter mMockVibratorAdapter;
+    @Mock private LowBatteryAlertListener mLowBatteryAlertListener;
     private CallsManager mCallsManager;
     private TestScheduledExecutorService mTestScheduledExecutorService;
 
@@ -412,7 +414,8 @@ public class CallsManagerTest extends TelecomTestCase {
                         mFeatureFlags, lock) -> mIncomingCallFilterGraph,
                 mMockTelecomMetricsController,
                 mMockVibratorAdapter,
-                mTestScheduledExecutorService);
+                mTestScheduledExecutorService,
+                mLowBatteryAlertListener);
         mCallsManager.setCallAudioWatchDog(null);
         when(mPhoneAccountRegistrar.getPhoneAccount(
                 eq(SELF_MANAGED_HANDLE), any())).thenReturn(SELF_MANAGED_ACCOUNT);
@@ -1595,6 +1598,29 @@ public class CallsManagerTest extends TelecomTestCase {
 
     @SmallTest
     @Test
+    public void testAcceptIncomingVideoCallWhenHeadsetMediaButtonShortPress() {
+        // GIVEN an incoming call with a video state
+        Call incomingCall = addSpyCall();
+        doReturn(CallState.RINGING).when(incomingCall).getState();
+        // Set a specific video state for the incoming call
+        int videoState = VideoProfile.STATE_BIDIRECTIONAL;
+        when(incomingCall.getVideoState()).thenReturn(videoState);
+
+        // WHEN media button short press
+        mCallsManager.onMediaButton(HeadsetMediaButton.SHORT_PRESS);
+
+        // THEN the incoming call is answered with the correct video state
+        ArgumentCaptor<CallsManager.RequestCallback> captor = ArgumentCaptor.forClass(
+                CallsManager.RequestCallback.class);
+        verify(mConnectionSvrFocusMgr, timeout(TEST_TIMEOUT))
+                .requestFocus(eq(incomingCall), captor.capture());
+        captor.getValue().onRequestFocusDone(incomingCall);
+        // Verify that answer is called with the videoState from the call
+        verify(incomingCall).answer(videoState);
+    }
+
+    @SmallTest
+    @Test
     public void testRejectIncomingCallWhenHeadsetMediaButtonLongPress() {
         // GIVEN an incoming call
         Call incomingCall = addSpyCall();
@@ -2300,12 +2326,24 @@ public class CallsManagerTest extends TelecomTestCase {
     @Test
     public void testMakeRoomForOutgoingCallHasOutgoingCallSelectingAccount() {
         Call outgoingCall = addSpyCall(SIM_1_HANDLE, CallState.SELECT_PHONE_ACCOUNT);
+        when(mClockProxy.currentTimeMillis()).thenReturn(System.currentTimeMillis() + 1000L);
         Call newCall = createSpyCall(SIM_1_HANDLE, CallState.NEW);
 
         CompletableFuture<Boolean> result = mCallsManager.getCallSequencingAdapter()
                 .makeRoomForOutgoingCall(false, newCall);
         assertTrue(waitForFutureResult(result, false));
         verify(outgoingCall).disconnect(anyString());
+    }
+
+    @SmallTest
+    @Test
+    public void testMakeRoomForOutgoingCallHasOutgoingCallTooQuickly() {
+        Call outgoingCall = addSpyCall(SIM_1_HANDLE, CallState.SELECT_PHONE_ACCOUNT);
+        Call newCall = createSpyCall(SIM_1_HANDLE, CallState.NEW);
+
+        CompletableFuture<Boolean> result = mCallsManager.getCallSequencingAdapter()
+            .makeRoomForOutgoingCall(false, newCall);
+        assertFalse(waitForFutureResult(result, false));
     }
 
     @SmallTest

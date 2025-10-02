@@ -194,17 +194,25 @@ public class CallSequencingController {
     }
 
     /**
-     * Handles the case of setting a self-managed call active with call sequencing support.
-     * @param call The self-managed call that's waiting to go active.
+     * Handles the case of setting a call active with call sequencing support. This applies for all
+     * self-managed calls where the CS directly sets the call active but also sometimes for managed
+     * calls if the call is not answered via the UI and the CS also sets the call active. We should
+     * ensure that the focus call is updated accordingly.
+     * @param call The call that's waiting to go active.
      */
-    public void handleSetSelfManagedCallActive(Call call) {
+    public void handleSetCallActive(Call call) {
+        boolean isSelfManaged = call.isSelfManaged();
         holdActiveCallForNewCallWithSequencing(call, CallsManager.REQUEST_ORIGIN_UNKNOWN)
                 .thenComposeAsync((result) -> {
                 if (result) {
-                    Log.i(this, "markCallAsActive: requesting focus for self managed call "
-                            + "before setting active.");
-                    mCallsManager.requestActionSetActiveCall(call,
-                            "active set explicitly for self-managed");
+                    Log.i(this, "markCallAsActive: requesting focus for call %s"
+                            + "before setting active.", call);
+                    if (isSelfManaged) {
+                        mCallsManager.requestActionSetActiveCall(call,
+                                "active set explicitly for self-managed");
+                    } else {
+                        mCallsManager.requestFocusForSetManagedActive(call);
+                    }
                 } else {
                     Log.i(this, "markCallAsActive: Unable to hold active call. "
                             + "Aborting transaction to set self managed call active.");
@@ -858,6 +866,19 @@ public class CallSequencingController {
         if (mCallsManager.hasMaximumOutgoingCalls(call)) {
             Call outgoingCall = mCallsManager.getFirstCallWithState(OUTGOING_CALL_STATES);
             if (outgoingCall.getState() == CallState.SELECT_PHONE_ACCOUNT) {
+                // Users may accidentally repeat a click on the call button quickly after attempting
+                // a call. This casuses Telecom to end the previous SELECT_PHONE_ACCOUNT call to
+                // make room for 2nd call. But InCallUI will be handling the phone account selection
+                // for the 1st call causing the 2nd call to be stuck waiting for an account to place
+                // out call. The InCall screen will not refresh before account selected, and appear
+                // stuck. This will ensure that the new request from a same number will be blocked
+                // if done too quickly.
+                if (call.getCreationTimeMillis() - outgoingCall.getCreationTimeMillis() < 1000
+                    && mCallsManager.areHandlesEqual(call.getHandle(), outgoingCall.getHandle())) {
+                    Log.i(this, "Repeat click on call button, ignore the new call request: "
+                        + call.getHandle());
+                    return CompletableFuture.completedFuture(false);
+                }
                 // If there is an orphaned call in the {@link CallState#SELECT_PHONE_ACCOUNT}
                 // state, just disconnect it since the user has explicitly started a new call.
                 call.getAnalytics().setCallIsAdditional(true);

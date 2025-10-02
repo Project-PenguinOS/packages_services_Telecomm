@@ -2130,6 +2130,22 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         assertEquals(AudioRoute.TYPE_BLUETOOTH_SCO, mController.getCurrentRoute().getType());
     }
 
+    @SmallTest
+    @Test
+    public void testBluetoothDeviceRemoveNoRerouteWithPendingRouteChange() {
+        // Setup active BT device scenario when routing is active.
+        verifyConnectBluetoothDevice(AudioRoute.TYPE_BLUETOOTH_SCO);
+        // Mimic a scenario where the user requests to switch to speaker but we're still pending
+        // the audio fwk communication device signal.
+        mController.sendMessageWithSessionInfo(USER_SWITCH_SPEAKER);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+        // Then signal a disconnect for the BT device while the route is still pending.
+        mController.sendMessageWithSessionInfo(BT_DEVICE_REMOVED, AudioRoute.TYPE_BLUETOOTH_SCO,
+                BLUETOOTH_DEVICE_1);
+        // Verify that we never rerouted and the pending audio route is still the speaker
+        assertEquals(AudioRoute.TYPE_SPEAKER, mController.getCurrentOrPendingRoute().getType());
+    }
+
     private void verifyRouteUnchangedAfterFocusSwitch(int focusType, boolean setPreferredDevice) {
         when(mFeatureFlags.preserveCallAudioRouting()).thenReturn(true);
         mController.initialize();

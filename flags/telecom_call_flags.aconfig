@@ -157,3 +157,15 @@ flag {
       purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=stevestatia TARGET=26Q2
+flag {
+  name: "conference_modify_merge_fail"
+  is_exported: true
+  namespace: "telecom"
+  description: "Reactivates the merge button after a failed merge attempt."
+  bug: "436906079"
+  metadata {
+      purpose: PURPOSE_BUGFIX
+  }
+}

@@ -102,4 +102,12 @@
 
     <!-- When true, the device is a headless dialer. -->
     <bool name="headless_dialer">false</bool>
+    <!-- When set, telecom will bind to the LocalVoicemailService with the package name specified
+         here.  This allows the OEM to provide an on-device voicemail capability. -->
+    <string name="local_voicemail_package_name" translatable="false"></string>
+
+    <!-- Determines if Call.reject(REJECT_REASON_DECLINED) will send a declined call to local
+         voicemail or not.  Some OEMs may wish to explicitly require the user to send a call to
+         local voicemail. -->
+    <bool name="decline_sends_to_local_voicemail">true</bool>
 </resources>
