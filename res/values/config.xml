@@ -102,6 +102,10 @@
 
     <!-- When true, the device is a headless dialer. -->
     <bool name="headless_dialer">false</bool>
+
+    <!-- config the dtmf volume. -->
+    <integer name="config_dtmf_tone_volume">80</integer>
+
     <!-- When set, telecom will bind to the LocalVoicemailService with the package name specified
          here.  This allows the OEM to provide an on-device voicemail capability. -->
     <string name="local_voicemail_package_name" translatable="false"></string>
