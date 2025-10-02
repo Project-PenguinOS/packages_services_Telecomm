@@ -168,6 +168,7 @@ public class InCallTonePlayer extends Thread {
     public static final int TONE_RTT_REQUEST = 15;
     public static final int TONE_IN_CALL_QUALITY_NOTIFICATION = 16;
     public static final int TONE_OUTGOING_CALL_ACCEPTED = 17;
+    public static final int TONE_LOW_BATTERY = 18;
 
     private static final int TONE_RESOURCE_ID_UNDEFINED = -1;
 
@@ -370,6 +371,12 @@ public class InCallTonePlayer extends Thread {
                     toneType = ToneGenerator.TONE_PROP_BEEP;
                     toneVolume = RELATIVE_VOLUME_HIPRI;
                     toneLengthMillis = 150;
+                    mediaResourceId = TONE_RESOURCE_ID_UNDEFINED;
+                    break;
+                case TONE_LOW_BATTERY:
+                    toneType = ToneGenerator.TONE_SUP_CONFIRM;
+                    toneVolume = RELATIVE_VOLUME_HIPRI;
+                    toneLengthMillis = 10000;
                     mediaResourceId = TONE_RESOURCE_ID_UNDEFINED;
                     break;
                 default:

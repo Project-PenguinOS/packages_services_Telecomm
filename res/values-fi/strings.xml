@@ -65,8 +65,7 @@
     <string name="change_default_call_screening_dialog_affirmative" msgid="7162433828280058647">"Määritä oletussovellus"</string>
     <string name="change_default_call_screening_dialog_negative" msgid="1839266125623106342">"Peru"</string>
     <string name="blocked_numbers" msgid="8322134197039865180">"Estetyt numerot"</string>
-    <!-- no translation found for blocked_numbers_msg (141985883563301785) -->
-    <skip />
+    <string name="blocked_numbers_msg" msgid="141985883563301785">"Et voi vastaanottaa puheluita tai tekstiviestejä estetyistä numeroista. Kun soitat hätäpuhelun, hylkäysasetukset menevät automaattisesti pois päältä."</string>
     <string name="block_number" msgid="3784343046852802722">"Lisää numero"</string>
     <string name="unblock_dialog_body" msgid="2723393535797217261">"Kumotaanko numeron <xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g> esto?"</string>
     <string name="unblock_button" msgid="8732021675729981781">"Kumoa esto"</string>

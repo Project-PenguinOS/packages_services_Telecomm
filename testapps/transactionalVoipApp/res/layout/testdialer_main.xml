@@ -29,6 +29,12 @@
         android:layout_height="wrap_content"
         android:text="@string/back_to_voip_main"/>
 
+    <Button
+        android:id="@+id/clear_voip_call_logs"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/clear_voip_call_logs"/>
+
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

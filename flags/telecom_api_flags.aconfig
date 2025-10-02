@@ -179,7 +179,6 @@ flag {
   namespace: "telecom"
   description: "Promoting the hidden extra DO_NOT_LOG call to a system API"
   bug: "427477225"
-
 }
 
 # OWNER=arunrajms TARGET=26Q2
@@ -189,6 +188,26 @@ flag {
   namespace: "telecom"
   description: "Adds an API to send the original number when placing a call."
   bug: "431102980"
+  metadata {
+      purpose: PURPOSE_FEATURE
+  }
+}
+
+# OWNER=grantmenke TARGET=26Q2
+flag {
+  name: "move_get_tty_mode_to_telephony_manager"
+  namespace: "telecom"
+  description: "Moving getTTYMode to TelephonyManager as part of Telecom mainline modularization"
+  bug: "433987834"
+}
+
+# OWNER=arunvoddu TARGET=26Q2
+flag {
+  name: "is_using_unidirectional_video_service"
+  is_exported: true
+  namespace: "telecom"
+  description: "Indicate that the call is a unidirectional video service call."
+  bug: "408116489"
   metadata {
       purpose: PURPOSE_FEATURE
   }
@@ -206,3 +225,14 @@ flag {
   }
 }
 
+# OWNER=arunvoddu TARGET=26Q2
+flag {
+  name: "hd_plus_call"
+  is_exported: true
+  namespace: "telecom"
+  description: "Add call HD+ call indicator"
+  bug: "428115434"
+  metadata {
+      purpose: PURPOSE_FEATURE
+  }
+}

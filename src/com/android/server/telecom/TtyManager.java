@@ -25,6 +25,7 @@ import android.os.UserHandle;
 import android.provider.Settings;
 import android.telecom.Log;
 import android.telecom.TelecomManager;
+import android.telephony.TelephonyManager;
 
 import com.android.internal.util.IndentingPrintWriter;
 import com.android.server.telecom.flags.FeatureFlags;
@@ -33,20 +34,19 @@ final class TtyManager implements WiredHeadsetManager.Listener {
     private final TtyBroadcastReceiver mReceiver = new TtyBroadcastReceiver();
     private final Context mContext;
     private final WiredHeadsetManager mWiredHeadsetManager;
-    private int mPreferredTtyMode = TelecomManager.TTY_MODE_OFF;
-    private int mCurrentTtyMode = TelecomManager.TTY_MODE_OFF;
-
+    private int mPreferredTtyMode = TelephonyManager.TTY_MODE_OFF;
+    private int mCurrentTtyMode = TelephonyManager.TTY_MODE_OFF;
     TtyManager(Context context,
             WiredHeadsetManager wiredHeadsetManager,
             FeatureFlags featureFlags) {
         mContext = context;
         mWiredHeadsetManager = wiredHeadsetManager;
         mWiredHeadsetManager.addListener(this);
-        if (featureFlags.resolveHiddenDependenciesTwo()) {
-            mPreferredTtyMode = Settings.Secure.getInt(
-                    mContext.getContentResolver(),
-                    Settings.Secure.PREFERRED_TTY_MODE,
-                    TelecomManager.TTY_MODE_OFF);
+        if (featureFlags.resolveHiddenDependenciesTwo()
+                && featureFlags.moveGetTtyModeToTelephonyManager()) {
+            TelephonyManager tm = (TelephonyManager)
+                    mContext.getSystemService(Context.TELEPHONY_SERVICE);
+            mPreferredTtyMode =  tm.getCurrentTtyMode();
         } else {
             mPreferredTtyMode = Settings.Secure.getIntForUser(
                     mContext.getContentResolver(),

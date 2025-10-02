@@ -66,12 +66,6 @@
         </LinearLayout>
 
         <Button
-            android:id="@+id/registerCallbackIntent"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/register_callback_intent"/>
-
-        <Button
             android:id="@+id/openDialer"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

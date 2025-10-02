@@ -65,8 +65,7 @@
     <string name="change_default_call_screening_dialog_affirmative" msgid="7162433828280058647">"ডিফল্ট হিসাবে সেট করুন"</string>
     <string name="change_default_call_screening_dialog_negative" msgid="1839266125623106342">"বাতিল করুন"</string>
     <string name="blocked_numbers" msgid="8322134197039865180">"ব্লক করা নম্বরগুলি"</string>
-    <!-- no translation found for blocked_numbers_msg (141985883563301785) -->
-    <skip />
+    <string name="blocked_numbers_msg" msgid="141985883563301785">"ব্লক করা নম্বরগুলি থেকে আপনি কল বা এসএমএস পাবেন না। আপনি কোনও জরুরি কল করার সময়, বাতিল করার সেটিংস অটোমেটিক বন্ধ হয়ে যায়।"</string>
     <string name="block_number" msgid="3784343046852802722">"একটি নম্বর যোগ করুন"</string>
     <string name="unblock_dialog_body" msgid="2723393535797217261">"<xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g> আনব্লক করবেন?"</string>
     <string name="unblock_button" msgid="8732021675729981781">"অবরোধ মুক্ত করুন"</string>

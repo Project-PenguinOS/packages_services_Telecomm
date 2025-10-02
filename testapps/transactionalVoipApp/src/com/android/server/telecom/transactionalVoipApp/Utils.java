@@ -31,6 +31,7 @@ import android.media.MediaPlayer;
 import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.OutcomeReceiver;
+import android.provider.CallLog;
 import android.telecom.CallAttributes;
 import android.telecom.CallException;
 import android.telecom.PhoneAccount;
@@ -42,10 +43,11 @@ import java.util.List;
 public class Utils {
     public static final String TAG = "TransactionalAppUtils";
     public static final String CALLER_NAME = "Sundar Pichai";
-    public static final String sEXTRAS_KEY = "ExtrasKey";
-    public static final String sCALL_DIRECTION_KEY = "CallDirectionKey";
-    public static final String sCall_UUID_EXTRA_KEY = "CallUuidExtraKey";
-    public static final String sCall_ATTRIBUTE_KEY = "CallAttributeKey";
+    public static final String EXTRAS_KEY = "ExtrasKey";
+    public static final String CALL_DIRECTION_KEY = "CallDirectionKey";
+    public static final String CALL_UUID_EXTRA_KEY = "CallUuidExtraKey";
+    public static final String CALL_ATTRIBUTE_KEY = "CallAttributeKey";
+    public static final String STORED_UUIDS_KEY = "StoredUuidsKey";
     public static final String CHANNEL_ID = "TelecomVoipAppChannelId";
     public static final String PKG_NAME = "com.android.server.telecom.transactionalVoipApp";
     public static final int CALL_NOTIFICATION_ID = 123456;
@@ -189,5 +191,23 @@ public class Utils {
 
     private static Uri createTestNumber() {
         return Uri.parse("tel:+1650" + (++TEST_NUMBER));
+    }
+
+    /**
+     * Clears all VoIP call log entries associated with this application.
+     */
+    public static void clearVoipCallLogs(Context context) {
+        final String selection = CallLog.Calls.PHONE_ACCOUNT_COMPONENT_NAME + " LIKE '"
+                + PKG_NAME + "%'";
+
+        try {
+            final int rowsDeleted = context.getContentResolver().delete(
+                    CallLog.Calls.CONTENT_URI_WITH_VOIP_CALLS, selection, null);
+            Log.d(TAG, "Deleted " + rowsDeleted + " VoIP call log entries for " + PKG_NAME);
+        } catch (SecurityException e) {
+            Log.e(TAG, "Need WRITE_CALL_LOG permission to clear VoIP call logs", e);
+        } catch (Exception e) {
+            Log.e(TAG, "Error clearing VoIP call logs", e);
+        }
     }
 }

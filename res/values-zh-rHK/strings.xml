@@ -65,8 +65,7 @@
     <string name="change_default_call_screening_dialog_affirmative" msgid="7162433828280058647">"設為預設"</string>
     <string name="change_default_call_screening_dialog_negative" msgid="1839266125623106342">"取消"</string>
     <string name="blocked_numbers" msgid="8322134197039865180">"已封鎖的號碼"</string>
-    <!-- no translation found for blocked_numbers_msg (141985883563301785) -->
-    <skip />
+    <string name="blocked_numbers_msg" msgid="141985883563301785">"你不會收到來自封鎖號碼的電話或短訊。當撥打緊急電話時，拒絕設定會自動關閉。"</string>
     <string name="block_number" msgid="3784343046852802722">"新增號碼"</string>
     <string name="unblock_dialog_body" msgid="2723393535797217261">"要解除封鎖 <xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g> 嗎？"</string>
     <string name="unblock_button" msgid="8732021675729981781">"解除封鎖"</string>

@@ -366,7 +366,8 @@ public final class CallLogManager extends CallsManagerListenerBase {
                 (call.getConnectionProperties() & Connection.PROPERTY_ASSISTED_DIALING) ==
                         Connection.PROPERTY_ASSISTED_DIALING,
                 call.wasEverRttCall(),
-                call.wasVolte()));
+                call.wasVolte(),
+                call.isHdPlus(), mFeatureFlags));
 
         if (result == null) {
             result = new CallFilteringResult.Builder()
@@ -544,10 +545,13 @@ public final class CallLogManager extends CallsManagerListenerBase {
      * @param isStoreHd {@code true} if this call was used HD.
      * @param isWifi {@code true} if this call was used wifi.
      * @param isUsingAssistedDialing {@code true} if this call used assisted dialing.
+     * @param isHdPlus {@code true} if this is call audio quality is HD+
+     * @param featureFlags Feature flags.
      * @return The call features.
      */
     private static int getCallFeatures(int videoState, boolean isPulledCall, boolean isStoreHd,
-            boolean isWifi, boolean isUsingAssistedDialing, boolean isRtt, boolean isVolte) {
+            boolean isWifi, boolean isUsingAssistedDialing, boolean isRtt, boolean isVolte,
+            boolean isHdPlus, FeatureFlags featureFlags) {
         int features = 0;
         if (VideoProfile.isVideo(videoState)) {
             features |= Calls.FEATURES_VIDEO;
@@ -570,6 +574,10 @@ public final class CallLogManager extends CallsManagerListenerBase {
         if (isVolte) {
             features |= Calls.FEATURES_VOLTE;
         }
+        if (featureFlags.hdPlusCall() && isHdPlus) {
+            features |= Calls.FEATURES_HD_PLUS_CALL;
+        }
+
         return features;
     }
 

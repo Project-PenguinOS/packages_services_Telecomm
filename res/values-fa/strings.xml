@@ -65,8 +65,7 @@
     <string name="change_default_call_screening_dialog_affirmative" msgid="7162433828280058647">"تنظیم پیش‌فرض"</string>
     <string name="change_default_call_screening_dialog_negative" msgid="1839266125623106342">"لغو"</string>
     <string name="blocked_numbers" msgid="8322134197039865180">"شماره‌های مسدود‌شده"</string>
-    <!-- no translation found for blocked_numbers_msg (141985883563301785) -->
-    <skip />
+    <string name="blocked_numbers_msg" msgid="141985883563301785">"نمی‌توانید از شماره‌های مسدود شده تماس یا پیام نوشتاری دریافت کنید. وقتی تماس اضطراری برقرار می‌کنید، تنظیمات رد تماس به‌طور خودکار غیرفعال می‌شود."</string>
     <string name="block_number" msgid="3784343046852802722">"افزودن شماره"</string>
     <string name="unblock_dialog_body" msgid="2723393535797217261">"<xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g> رفع انسداد شود؟"</string>
     <string name="unblock_button" msgid="8732021675729981781">"رفع انسداد"</string>

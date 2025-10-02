@@ -64,7 +64,6 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.ServiceConnection;
 import android.content.pm.ComponentInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
@@ -129,6 +128,7 @@ import android.widget.Button;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.app.IntentForwarderActivity;
+import com.android.internal.telephony.flags.Flags;
 import com.android.internal.util.IndentingPrintWriter;
 import com.android.server.telecom.bluetooth.BluetoothDeviceManager;
 import com.android.server.telecom.bluetooth.BluetoothRouteManager;
@@ -168,6 +168,7 @@ import com.android.server.telecom.callsequencing.TransactionManager;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -575,6 +576,7 @@ public class CallsManager extends Call.ListenerBase
     private final IncomingCallFilterGraphProvider mIncomingCallFilterGraphProvider;
     private CallAudioWatchdog mCallAudioWatchDog;
     private CallAudioRouteAdapter mCallAudioRouteAdapter;
+    private final LowBatteryAlertListener mLowBatteryAlertListener;
     private CallLogIntegrationAdapter mCallLogIntegrationAdapter;
 
     private final ConnectionServiceFocusManager.CallsManagerRequester mRequester =
@@ -722,7 +724,8 @@ public class CallsManager extends Call.ListenerBase
             IncomingCallFilterGraphProvider incomingCallFilterGraphProvider,
             TelecomMetricsController metricsController,
             Ringer.VibratorAdapter vibratorAdapter,
-            ScheduledExecutorService scheduledExecutorService) {
+            ScheduledExecutorService scheduledExecutorService,
+            LowBatteryAlertListener lowBatteryAlertListener) {
 
         mContext = context;
         mLock = lock;
@@ -912,11 +915,22 @@ public class CallsManager extends Call.ListenerBase
                         public void disconnectCall(Call call) {
                             CallsManager.this.disconnectCall(call);
                         }
+
+                        @Override
+                        public Duration getLocalVoicemailTimeout(PhoneAccountHandle handle) {
+                            try {
+                                return CallsManager.this.getPhoneAccountRegistrar()
+                                        .getLocalVoicemailTimeout(handle);
+                            } catch (IllegalArgumentException ex) {
+                                return null;
+                            }
+                        }
                     },
                     mContext,
                     scheduledExecutorService,
-                    mLock);
-            //TODO(b/394367444) consider skipping if local voicemail not enabled on device.
+                    mLock,
+                    mContext.getResources().getString(
+                            com.android.server.telecom.R.string.local_voicemail_package_name));
             mAudioModeTracker.addListener(mLocalVoicemailController);
             mListeners.add(mLocalVoicemailController);
         } else {
@@ -941,6 +955,13 @@ public class CallsManager extends Call.ListenerBase
         mAsyncTaskExecutor = asyncTaskExecutor;
         mUserManager = mContext.getSystemService(UserManager.class);
         mPendingAccountSelection = new HashMap<>();
+
+        mLowBatteryAlertListener = lowBatteryAlertListener;
+        if (Flags.supportLowBatteryAlert()) {
+            mLowBatteryAlertListener.registerForLowBatteryListener(playerFactory);
+            mListeners.add(mLowBatteryAlertListener);
+        }
+
         mCallLogIntegrationAdapter = new CallLogIntegrationAdapterImpl(mContext);
 
 // QTI_BEGIN: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
@@ -2047,7 +2068,7 @@ public class CallsManager extends Call.ListenerBase
         call.startCreateConnection(mPhoneAccountRegistrar);
     }
 
-    private boolean areHandlesEqual(Uri handle1, Uri handle2) {
+    public boolean areHandlesEqual(Uri handle1, Uri handle2) {
         if (handle1 == null || handle2 == null) {
             return handle1 == handle2;
         }
@@ -4994,25 +5015,54 @@ public class CallsManager extends Call.ListenerBase
             // to active directly. We should hold or disconnect the current active call based on the
             // holdability, and request the call focus for the self-managed call before the state
             // change.
-            mCallSequencingAdapter.markCallAsActiveSelfManagedCall(call);
+            mCallSequencingAdapter.markCallAsActive(call);
         } else {
-            if (mPendingAudioProcessingCall == call) {
-                if (mCalls.contains(call)) {
-                    setCallState(call, CallState.AUDIO_PROCESSING, "active set explicitly");
-                } else {
-                    call.setState(CallState.AUDIO_PROCESSING, "active set explicitly and adding");
-                    addCall(call);
-                }
-                // Clear mPendingAudioProcessingCall so that future attempts to mark the call as
-                // active (e.g. coming off of hold) don't put the call into audio processing instead
-                mPendingAudioProcessingCall = null;
-            } else if (call.getState() == CallState.ANSWERED_FOR_LOCAL_VOICEMAIL) {
-                setCallState(call, CallState.LOCAL_VOICEMAIL, "active");
+            Call activeCall = (Call) mConnectionSvrFocusMgr.getCurrentFocusCall();
+            // It's possible that the call is answered directly without going through the in-call
+            // UI (i.e. answer via ATA cmd) in which case we should ensure that the focus call is
+            // updated accordingly.
+            if (mFeatureFlags.requestFocusForSetActive() && !Objects.equals(activeCall, call)) {
+                mCallSequencingAdapter.markCallAsActive(call);
             } else {
-                setCallState(call, CallState.ACTIVE, "active set explicitly");
-                maybeMoveToSpeakerPhone(call);
-                ensureCallAudible();
+                processMarkCallAsActive(call);
             }
+        }
+    }
+
+    /**
+     * Ensures that focus call is updated for the managed call if it's not currently reflected in
+     * the state before the call is marked as active. See
+     * {@link CallSequencingController#handleSetCallActive(Call)}. This is invoked after sequencing
+     * has been enforced.
+     */
+    public void requestFocusForSetManagedActive(Call call) {
+        mConnectionSvrFocusMgr.requestFocus(call,
+                new RequestCallback(() -> {
+                    synchronized (mLock) {
+                        Log.d(this, "requestFocusForSetManagedActive: handle set active "
+                                + "after having updated the focus call for %s", call);
+                        processMarkCallAsActive(call);
+                    }
+                }));
+    }
+
+    private void processMarkCallAsActive(Call call) {
+        if (mPendingAudioProcessingCall == call) {
+            if (mCalls.contains(call)) {
+                setCallState(call, CallState.AUDIO_PROCESSING, "active set explicitly");
+            } else {
+                call.setState(CallState.AUDIO_PROCESSING, "active set explicitly and adding");
+                addCall(call);
+            }
+            // Clear mPendingAudioProcessingCall so that future attempts to mark the call as
+            // active (e.g. coming off of hold) don't put the call into audio processing instead
+            mPendingAudioProcessingCall = null;
+        } else if (call.getState() == CallState.ANSWERED_FOR_LOCAL_VOICEMAIL) {
+            setCallState(call, CallState.LOCAL_VOICEMAIL, "active");
+        } else {
+            setCallState(call, CallState.ACTIVE, "active set explicitly");
+            maybeMoveToSpeakerPhone(call);
+            ensureCallAudible();
         }
     }
 
@@ -5319,7 +5369,7 @@ public class CallsManager extends Call.ListenerBase
                 } else {
                     Log.addEvent(ringingCall, LogUtils.Events.INFO,
                             "media btn short press - answer call.");
-                    answerCall(ringingCall, VideoProfile.STATE_AUDIO_ONLY);
+                    answerCall(ringingCall, ringingCall.getVideoState());
                     return true;
                 }
             } else if (HeadsetMediaButton.LONG_PRESS == type) {
@@ -7939,5 +7989,9 @@ public class CallsManager extends Call.ListenerBase
             boolean isEnabled) {
         mCallLogIntegrationAdapter.setVoipPackageCallLogIntegrationEnabled(userHandle, packageName,
                 isEnabled);
+    }
+
+    public LocalVoicemailController getLocalVoicemailController() {
+        return mLocalVoicemailController;
     }
 }

@@ -230,7 +230,8 @@ public class CallSequencingTests extends TelecomTestCase {
     public void testSetSelfManagedCallActive() {
         // This will allow holdActiveCallForNewCallWithSequencing to immediately return true
         setActiveCallFocus(null);
-        mController.handleSetSelfManagedCallActive(mNewCall);
+        when(mNewCall.isSelfManaged()).thenReturn(true);
+        mController.handleSetCallActive(mNewCall);
         verify(mCallsManager, timeout(SEQUENCING_TIMEOUT_MS))
                 .requestActionSetActiveCall(eq(mNewCall), anyString());
     }
@@ -239,9 +240,29 @@ public class CallSequencingTests extends TelecomTestCase {
     @Test
     public void testSetSelfManagedCallActiveFail() {
         setupHoldActiveCallForNewCallFailMocks();
-        mController.handleSetSelfManagedCallActive(mNewCall);
+        when(mNewCall.isSelfManaged()).thenReturn(true);
+        mController.handleSetCallActive(mNewCall);
         verify(mCallsManager, timeout(SEQUENCING_TIMEOUT_MS).times(0))
                 .requestActionSetActiveCall(eq(mNewCall), anyString());
+    }
+
+    @SmallTest
+    @Test
+    public void testSetManagedCallActive() {
+        // This will allow holdActiveCallForNewCallWithSequencing to immediately return true
+        setActiveCallFocus(null);
+        mController.handleSetCallActive(mNewCall);
+        verify(mCallsManager, timeout(SEQUENCING_TIMEOUT_MS))
+                .requestFocusForSetManagedActive(eq(mNewCall));
+    }
+
+    @SmallTest
+    @Test
+    public void testSetManagedCallActiveFail() {
+        setupHoldActiveCallForNewCallFailMocks();
+        mController.handleSetCallActive(mNewCall);
+        verify(mCallsManager, timeout(SEQUENCING_TIMEOUT_MS).times(0))
+                .requestFocusForSetManagedActive(eq(mNewCall));
     }
 
     @SmallTest
