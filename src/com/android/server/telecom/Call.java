@@ -2480,6 +2480,13 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      *     calls.
      */
     public long getCreationTimeMillis() {
+        if (mCreationTimeMillis == 0) {
+            // This should never happen since the constructor always sets the call creation time,
+            // however we've seen cases where calls go to the InCallService with a 0 creation time.
+            Log.w(this, "getCreationTimeMillis: creation time not set for callId=%s; setting now",
+                    mId);
+            mCreationTimeMillis = mClockProxy.currentTimeMillis();
+        }
         return mCreationTimeMillis;
     }
 
