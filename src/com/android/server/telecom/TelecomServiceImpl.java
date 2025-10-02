@@ -2763,22 +2763,16 @@ public class TelecomServiceImpl {
          * @throws RemoteException
          */
         @Override
-        public boolean isLocalVoicemailSupported(String callingPackage) throws RemoteException {
+        public boolean isLocalVoicemailSupported(String callingPackage) {
             try {
                 Log.startSession("TSI.iLVS", Log.getPackageAbbreviation(callingPackage));
                 mContext.enforceCallingOrSelfPermission(READ_PRIVILEGED_PHONE_STATE,
                         "READ_PRIVILEGED_PHONE_STATE required.");
-
                 // NOTE: This DOES NOT sync on `mLock` since we are just getting a single
                 // value from `LocalVoicemailController`.
                 long token = Binder.clearCallingIdentity();
                 try {
-                    LocalVoicemailController localVoicemailController =
-                            mCallsManager.getLocalVoicemailController();
-                    if (localVoicemailController == null) {
-                        return false;
-                    }
-                    return localVoicemailController.getActiveLocalVoicemailService() != null;
+                    return getLocalVoicemailSupported();
                 } finally {
                     Binder.restoreCallingIdentity(token);
                 }
@@ -2787,15 +2781,26 @@ public class TelecomServiceImpl {
             }
         }
 
+        /**
+         * @see android.telecom.TelecomManager#enableLocalVoicemail
+         * @param callingPackage the calling package.
+         * @param phoneAccountHandle the phone account handle.
+         * @param timeout the timeout.
+         */
         @Override
-        public void setLocalVoicemailTimeout(String callingPackage,
+        public void enableLocalVoicemail(String callingPackage,
                 PhoneAccountHandle phoneAccountHandle, long timeout) {
+
+            Log.startSession("TSI.iLVS", Log.getPackageAbbreviation(callingPackage));
             try {
-                Log.startSession("TSI.sLVT", Log.getPackageAbbreviation(callingPackage));
+                enforceModifyPermission();
                 synchronized (mLock) {
-                    enforceModifyPermission();
                     long token = Binder.clearCallingIdentity();
                     try {
+                        if (!getLocalVoicemailSupported()) {
+                            throw new IllegalArgumentException("Local voicemail is disabled.");
+                        }
+
                         mPhoneAccountRegistrar.setLocalVoicemailTimeout(phoneAccountHandle,
                                 Duration.ofMillis(timeout));
                     } finally {
@@ -2807,18 +2812,94 @@ public class TelecomServiceImpl {
             }
         }
 
+        /**
+         * @see android.telecom.TelecomManager#disableLocalVoicemail
+         * @param callingPackage the calling package.
+         * @param phoneAccountHandle the phone account handle.
+         */
+        @Override
+        public void disableLocalVoicemail(String callingPackage,
+                PhoneAccountHandle phoneAccountHandle) {
+            try {
+                Log.startSession("TSI.dLV", Log.getPackageAbbreviation(callingPackage));
+                enforceModifyPermission();
+                synchronized (mLock) {
+                    enforceModifyPermission();
+                    long token = Binder.clearCallingIdentity();
+                    try {
+                        if (!getLocalVoicemailSupported()) {
+                            throw new IllegalArgumentException("Local voicemail is disabled.");
+                        }
+
+                        mPhoneAccountRegistrar.setLocalVoicemailTimeout(phoneAccountHandle,
+                                null);
+                    } finally {
+                        Binder.restoreCallingIdentity(token);
+                    }
+                }
+            } finally {
+                Log.endSession();
+            }
+        }
+
+        /***
+         * @see android.telecom.TelecomManager#getLocalVoicemailTimeout
+         * @param callingPackage the calling package
+         * @param phoneAccountHandle the phone account handle
+         * @return the timeout duration.
+         */
         @Override
         public long getLocalVoicemailTimeout(String callingPackage,
                 PhoneAccountHandle phoneAccountHandle) {
             try {
                 Log.startSession("TSI.gLVT", Log.getPackageAbbreviation(callingPackage));
+                mContext.enforceCallingOrSelfPermission(READ_PRIVILEGED_PHONE_STATE,
+                        "READ_PRIVILEGED_PHONE_STATE required.");
                 synchronized (mLock) {
+                    long token = Binder.clearCallingIdentity();
+                    try {
+                        if (!getLocalVoicemailSupported()) {
+                            throw new IllegalArgumentException("Local voicemail is disabled.");
+                        }
+
+                        Duration duration = mPhoneAccountRegistrar.getLocalVoicemailTimeout(
+                                phoneAccountHandle);
+                        if (duration == null) {
+                            throw new IllegalArgumentException("Local voicemail not enabled.");
+                        }
+                        return duration.toMillis();
+                    } finally {
+                        Binder.restoreCallingIdentity(token);
+                    }
+                }
+            } finally {
+                Log.endSession();
+            }
+        }
+
+        /**
+         * @see android.telecom.TelecomManager#isLocalVoicemailEnabled
+         * @param callingPackage the calling packager.
+         * @param phoneAccountHandle the phone account handle
+         * @return {@code true} if local vm is enabled, {@code false} otherwise.
+         */
+        @Override
+        public boolean isLocalVoicemailEnabled(String callingPackage,
+                PhoneAccountHandle phoneAccountHandle) {
+            try {
+                Log.startSession("TSI.iLVE", Log.getPackageAbbreviation(callingPackage));
+
+                synchronized (mLock) {
+                    if (!getLocalVoicemailSupported()) {
+                        throw new IllegalArgumentException("Local voicemail is disabled.");
+                    }
+
                     mContext.enforceCallingOrSelfPermission(READ_PRIVILEGED_PHONE_STATE,
                             "READ_PRIVILEGED_PHONE_STATE required.");
                     long token = Binder.clearCallingIdentity();
                     try {
                         return mPhoneAccountRegistrar.getLocalVoicemailTimeout(phoneAccountHandle)
-                                .toMillis();
+                                != null;
                     } finally {
                         Binder.restoreCallingIdentity(token);
                     }
@@ -3305,6 +3386,21 @@ public class TelecomServiceImpl {
             }
         }
     };
+
+    /**
+     * Determines whether the local voicemail service is supported on this device.
+     * @return {@code true} if local voicemail is supported, {@code false} otherwise.
+     */
+    private boolean getLocalVoicemailSupported() {
+
+            LocalVoicemailController localVoicemailController =
+                    mCallsManager.getLocalVoicemailController();
+            if (localVoicemailController == null) {
+                return false;
+            }
+            return localVoicemailController.getActiveLocalVoicemailService() != null;
+    }
+
     public TelecomServiceImpl(
             Context context,
             CallsManager callsManager,
