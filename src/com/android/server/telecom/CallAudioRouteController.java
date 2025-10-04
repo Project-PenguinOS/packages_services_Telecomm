@@ -771,12 +771,9 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         Log.i(this, "Evaluating BT disconnect: isScoConnected=%b, isOriginDisconnected=%b",
                 isScoDeviceAlreadyConnected, isOriginAlreadyDisconnected);
 
-        if (mFeatureFlags.avoidDiscOnBtToBtSwitch()) {
-            // Avoids sending a disconnect command if the new device is already connected
-            // or if the old device has already reported its disconnection.
-            return isScoDeviceAlreadyConnected || isOriginAlreadyDisconnected;
-        }
-        return isScoDeviceAlreadyConnected;
+        // Avoids sending a disconnect command if the new device is already connected
+        // or if the old device has already reported its disconnection.
+        return isScoDeviceAlreadyConnected || isOriginAlreadyDisconnected;
     }
 
     private boolean isCurrentCommunicationDevice(AudioRoute destRoute) {
