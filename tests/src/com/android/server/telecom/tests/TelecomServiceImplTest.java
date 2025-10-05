@@ -207,6 +207,7 @@ public class TelecomServiceImplTest extends TelecomTestCase {
     @Mock private TransactionManager mTransactionManager;
     @Mock private AnomalyReporterAdapter mAnomalyReporterAdapter;
     @Mock private FeatureFlags mFeatureFlags;
+    @Mock private android.telecom.flags.FeatureFlags mModuleFeatureFlags;
     @Mock private com.android.internal.telephony.flags.FeatureFlags mTelephonyFeatureFlags;
 
     @Mock private InCallController mInCallController;
@@ -267,6 +268,7 @@ public class TelecomServiceImplTest extends TelecomTestCase {
                 mSubscriptionManagerAdapter,
                 mSettingsSecureAdapter,
                 mFeatureFlags,
+                mModuleFeatureFlags,
                 mTelephonyFeatureFlags,
                 mLock,
                 mMockTelecomMetricsController,

@@ -199,6 +199,8 @@ public class BluetoothDeviceManager {
                             LinkedHashMap<String, BluetoothDevice> lostServiceDevices;
                             String logString;
                             if (profile == BluetoothProfile.HEADSET) {
+                                // Complete the future to avoid potential timeout.
+                                mBluetoothHeadsetFuture.complete(null);
                                 mBluetoothHeadsetFuture = new CompletableFuture<>();
                                 mBluetoothHeadset = null;
                                 lostServiceDevices = mHfpDevicesByAddress;
