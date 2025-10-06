@@ -217,7 +217,7 @@ public class PhoneAccountRegistrar {
         mLock = lock;
         mUserManager = context.getSystemService(UserManager.class);
         mDefaultDialerCache = defaultDialerCache;
-        mSubscriptionManager = SubscriptionManager.from(mContext);
+        mSubscriptionManager = mContext.getSystemService(SubscriptionManager.class);
         mTelephonyManager = (TelephonyManager) mContext.getSystemService(Context.TELEPHONY_SERVICE);
         mAppLabelProxy = appLabelProxy;
         mCurrentUserHandle = Process.myUserHandle();

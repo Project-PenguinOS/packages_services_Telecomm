@@ -600,7 +600,7 @@ public final class CallLogManager extends CallsManagerListenerBase {
         if (TextUtils.isEmpty(handleString) && (PhoneAccount.SCHEME_VOICEMAIL.equals(scheme))) {
             // This is a voicemail.Get voicemail number for this voicemail call.
             final PhoneAccountHandle accountHandle = call.getTargetPhoneAccount();
-            TelecomManager tm = TelecomManager.from(mContext);
+            TelecomManager tm = mContext.getSystemService(TelecomManager.class);
             if (tm != null) {
                 handleString = tm.getVoiceMailNumber(accountHandle);
             }
