@@ -3109,7 +3109,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         if (mCreateConnectionProcessor != null &&
                 !mCreateConnectionProcessor.isProcessingComplete()) {
             mCreateConnectionProcessor.abort();
-        } else if (mFlags.echoAbortTransactionalOutgoing() && mIsTransactionalCall) {
+        } else if (mIsTransactionalCall) {
             CompletableFuture<Boolean> wasCompleted = mTransactionalService.onDisconnect(this,
                     new DisconnectCause(DisconnectCause.CANCELED));
             Log.d(this, "abort: wasTransactionCompleted=[%b", wasCompleted);
