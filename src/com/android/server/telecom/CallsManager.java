@@ -4623,21 +4623,9 @@ public class CallsManager extends Call.ListenerBase
         int subscriptionId = mPhoneAccountRegistrar.getSubscriptionIdForPhoneAccount(handle);
         CarrierConfigManager carrierConfigManager =
                 mContext.getSystemService(CarrierConfigManager.class);
-        PersistableBundle defaultBundle = new PersistableBundle();
-        // Default to true for sim accounts. Refer to
-        // {@link CallSequencingController#shouldHoldForEmergencyCall}.
-        defaultBundle.putBoolean(CarrierConfigManager.KEY_ALLOW_HOLD_CALL_DURING_EMERGENCY_BOOL,
-                true);
-        if (carrierConfigManager == null) return defaultBundle;
+        if (carrierConfigManager == null) return new PersistableBundle();
         PersistableBundle result = carrierConfigManager.getConfigForSubId(subscriptionId);
-
-        // Keep to the existing behavior of allowing hold during ECC as the default. We should only
-        // default to false for non-sim phone accounts.
-        if (result != null && !result.containsKey(
-                CarrierConfigManager.KEY_ALLOW_HOLD_CALL_DURING_EMERGENCY_BOOL)) {
-            result.putBoolean(CarrierConfigManager.KEY_ALLOW_HOLD_CALL_DURING_EMERGENCY_BOOL, true);
-        }
-        return result == null ? defaultBundle : result;
+        return result == null ? new PersistableBundle() : result;
     }
 
     void phoneAccountSelected(Call call, PhoneAccountHandle account, boolean setDefault) {

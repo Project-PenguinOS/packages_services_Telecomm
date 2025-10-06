@@ -1114,7 +1114,7 @@ public class CallSequencingController {
      */
     private boolean shouldHoldForEmergencyCall(PhoneAccountHandle handle) {
         return mCallsManager.getCarrierConfigForPhoneAccount(handle).getBoolean(
-                CarrierConfigManager.KEY_ALLOW_HOLD_CALL_DURING_EMERGENCY_BOOL, false);
+                CarrierConfigManager.KEY_ALLOW_HOLD_CALL_DURING_EMERGENCY_BOOL, true);
     }
 
     public static boolean arePhoneAccountsSame(Call call1, Call call2) {
