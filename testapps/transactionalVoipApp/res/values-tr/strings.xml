@@ -27,8 +27,7 @@
     <string name="uuid_not_found" msgid="4758805286268179147">"Geri arama için UUID yok"</string>
     <string name="call_attributes_empty_error" msgid="6921783379546938037">"Arama özellikleri boş bırakılmamalıdır. Varsayılanlar yine de başlatılıyor."</string>
     <string name="back_to_voip_main" msgid="2500173767939494261">"VoIP ana etkinliğine dön"</string>
-    <!-- no translation found for clear_voip_call_logs (2402471290566644149) -->
-    <skip />
+    <string name="clear_voip_call_logs" msgid="2402471290566644149">"VOIP test araması kayıtlarını temizle"</string>
     <string name="call_log" msgid="2664639384522572724">"Arama Kaydı"</string>
     <string name="voip_callback" msgid="9213402996514282039">"Test geri araması"</string>
     <string name="get_call_id" msgid="5513943242738347108">"arama kimliği ayarlanmadı"</string>
