@@ -1,4 +1,0 @@
-package: "com.android.server.telecom.flags"
-container: "system"
-
-# This file intentionally left blank to avoid compilation errors due to removed flag.

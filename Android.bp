@@ -37,8 +37,8 @@ android_library {
     static_libs: [
         "androidx.annotation_annotation",
         "androidx.core_core",
-        "telecom_flags_core_java_lib",
         "modules-utils-handlerexecutor",
+        "telecom_module_flags-export-java",
     ],
     resource_dirs: ["res"],
     proto: {

@@ -175,6 +175,7 @@ public class TelecomServiceImpl {
     private final TransactionalServiceRepository mTransactionalServiceRepository;
     private final BlockedNumbersManager mBlockedNumbersManager;
     private final FeatureFlags mFeatureFlags;
+    private final android.telecom.flags.FeatureFlags mModuleFeatureFlags;
     private final com.android.internal.telephony.flags.FeatureFlags mTelephonyFeatureFlags;
     private final TelecomMetricsController mMetricsController;
     private final String mSystemUiPackageName;
@@ -2526,9 +2527,15 @@ public class TelecomServiceImpl {
                 Analytics.dump(pw);
                 pw.decreaseIndent();
 
-                pw.println("Flag Configurations: ");
+                pw.println("Flag Configurations(framework): ");
                 pw.increaseIndent();
-                reflectAndPrintFlagConfigs(pw);
+                reflectAndPrintFlagConfigs(FeatureFlags.class.getMethods(), mFeatureFlags, pw);
+                pw.decreaseIndent();
+
+                pw.println("Flag Configurations(module): ");
+                pw.increaseIndent();
+                reflectAndPrintFlagConfigs(android.telecom.flags.FeatureFlags.class.getMethods(),
+                        mModuleFeatureFlags, pw);
                 pw.decreaseIndent();
 
                 pw.println("TransactionManager: ");
@@ -2554,12 +2561,9 @@ public class TelecomServiceImpl {
         /**
          * Print all feature flag configurations that Telecom is using for debugging purposes.
          */
-        private void reflectAndPrintFlagConfigs(IndentingPrintWriter pw) {
-
+        private void reflectAndPrintFlagConfigs(Method[] methods, Object target,
+                IndentingPrintWriter pw) {
             try {
-                // Look away, a forbidden technique (reflection) is being used to allow us to get
-                // all flag configs without having to add them manually to this method.
-                Method[] methods = FeatureFlags.class.getMethods();
                 int maxLength = Arrays.stream(methods)
                         .map(Method::getName)
                         .map(String::length)
@@ -2572,8 +2576,10 @@ public class TelecomServiceImpl {
                     return;
                 }
 
+                // Look away, a forbidden technique (reflection) is being used to allow us to get
+                // all flag configs without having to add them manually to this method.
                 for (Method m : methods) {
-                    String flagEnabled = (Boolean) m.invoke(mFeatureFlags) ? "[✅]" : "[❌]";
+                    String flagEnabled = (Boolean) m.invoke(target) ? "[✅]" : "[❌]";
                     String methodName = m.getName();
                     String camelCaseName = methodName.replaceAll("([a-z])([A-Z]+)", "$1_$2")
                             .toLowerCase(Locale.US);
@@ -3313,6 +3319,7 @@ public class TelecomServiceImpl {
             SubscriptionManagerAdapter subscriptionManagerAdapter,
             SettingsSecureAdapter settingsSecureAdapter,
             FeatureFlags featureFlags,
+            android.telecom.flags.FeatureFlags moduleFeatureFlags,
             com.android.internal.telephony.flags.FeatureFlags telephonyFeatureFlags,
             TelecomSystem.SyncRoot lock, TelecomMetricsController metricsController,
             String sysUiPackageName) {
@@ -3324,6 +3331,7 @@ public class TelecomServiceImpl {
 
         mCallsManager = callsManager;
         mFeatureFlags = featureFlags;
+        mModuleFeatureFlags = moduleFeatureFlags;
         if (telephonyFeatureFlags != null) {
             mTelephonyFeatureFlags = telephonyFeatureFlags;
         } else {
