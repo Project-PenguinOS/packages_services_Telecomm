@@ -1035,7 +1035,8 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             BluetoothDevice bluetoothDevice) {
         // Clean up unavailable routes
         AudioRoute bluetoothRoute = getBluetoothRoute(type, bluetoothDevice.getAddress());
-        if (bluetoothRoute != null) {
+        if (!maybeAdjustHearingAidRoute(type, bluetoothDevice, bluetoothRoute)
+                && bluetoothRoute != null) {
             Log.i(this, "bluetooth route removed: " + bluetoothRoute);
             mBluetoothRoutes.remove(bluetoothRoute);
             updateAvailableRoutes(bluetoothRoute, false);
@@ -1723,8 +1724,16 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
 
     public AudioRoute getBluetoothRoute(@AudioRoute.AudioRouteType int audioRouteType,
             String address) {
+        // Don't proceed if the passed in address is null. Every BT route should be pointing to a
+        // valid address.
+        if (address == null) {
+            return null;
+        }
         for (AudioRoute route : mBluetoothRoutes.keySet()) {
-            if (route.getType() == audioRouteType && route.getBluetoothAddress().equals(address)) {
+            boolean checkHearingAidPair = audioRouteType == AudioRoute.TYPE_BLUETOOTH_HA
+                    && Objects.equals(address, route.getBluetoothHaPair());
+            if (route.getType() == audioRouteType && (route.getBluetoothAddress().equals(address)
+                    || checkHearingAidPair)) {
                 return route;
             }
         }
@@ -1779,10 +1788,12 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         // Traverse mBluetoothRoutes backwards as the most recently active device will be inserted
         // last.
         String existingHearingAidAddress = null;
+        AudioRoute existingHearingAidRoute = null;
         List<AudioRoute> bluetoothRoutes = mBluetoothRoutes.keySet().stream().toList();
         for (int i = bluetoothRoutes.size() - 1; i >= 0; i--) {
             AudioRoute audioRoute = bluetoothRoutes.get(i);
             if (audioRoute.getType() == AudioRoute.TYPE_BLUETOOTH_HA) {
+                existingHearingAidRoute = audioRoute;
                 existingHearingAidAddress = audioRoute.getBluetoothAddress();
                 break;
             }
@@ -1802,12 +1813,57 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                         if (address.equals(bluetoothDevice.getAddress())
                                 || address.equals(existingHearingAidAddress)) {
                             Log.i(this, "containsHearingAidPair: Detected a hearing aid "
-                                    + "pair, ignoring creating a new AudioRoute");
+                                    + "pair, ignoring creating a new AudioRoute.");
+                            // Track the pair as part of the existing HA audio route.
+                            trackHearingAidPair(existingHearingAidRoute, bluetoothDevice);
                             return true;
                         }
                     }
                 }
             }
+        }
+        return false;
+    }
+
+    private void trackHearingAidPair(AudioRoute existingHaRoute, BluetoothDevice newHaDevice) {
+        if (!mFeatureFlags.hearingAidPairFix() || newHaDevice == null || existingHaRoute == null
+                || existingHaRoute.getType() != AudioRoute.TYPE_BLUETOOTH_HA) {
+            return;
+        }
+        existingHaRoute.setBluetoothHaPair(newHaDevice.getAddress());
+        Log.i(this, "trackHearingAidPair: tracking hearing aid pair (%s) in existing route. "
+                + "New route: %s", newHaDevice.getAddress(), existingHaRoute);
+    }
+
+    private boolean maybeAdjustHearingAidRoute(@AudioRoute.AudioRouteType int type,
+            BluetoothDevice bluetoothDevice, AudioRoute existingRoute) {
+        if (!mFeatureFlags.hearingAidPairFix() || type != AudioRoute.TYPE_BLUETOOTH_HA
+                || bluetoothDevice == null || existingRoute == null) {
+            return false;
+        }
+        String removedDeviceAddress = bluetoothDevice.getAddress();
+        // The device removed is either being tracked as a route in Telecom or we are storing the
+        // address as part of AudioRoute#mBluetoothHaPair. Update the route information accordingly.
+        if (Objects.equals(existingRoute.getBluetoothAddress(), removedDeviceAddress)
+                && existingRoute.getBluetoothHaPair() != null) {
+            // If the primary route's BT address got removed, move the stored HA pair address as
+            // the primary BT address.
+            String mainHaAddress = existingRoute.getBluetoothAddress();
+            String haPairAddress = existingRoute.getBluetoothHaPair();
+            existingRoute.setBluetoothAddress(existingRoute.getBluetoothHaPair());
+            existingRoute.setBluetoothHaPair(null);
+            Log.i(this, "maybeAdjustHearingAidRoute: Replacing removed device (address: %s) with "
+                    + "the pair (address: %s). Updated route: %s",
+                    mainHaAddress, haPairAddress, existingRoute);
+            return true;
+        } else if (Objects.equals(existingRoute.getBluetoothHaPair(), removedDeviceAddress)) {
+            // If the HA pair was the device that got disconnected, all we need to do is reset
+            // the stored HA pair address.
+            String haPairAddress = existingRoute.getBluetoothHaPair();
+            existingRoute.setBluetoothHaPair(null);
+            Log.i(this, "maybeAdjustHearingAidRoute: Removing tracked HA pair (%s) from existing "
+                    + "route. Updated route: %s", haPairAddress, existingRoute);
+            return true;
         }
         return false;
     }
