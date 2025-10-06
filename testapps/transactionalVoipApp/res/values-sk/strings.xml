@@ -27,8 +27,7 @@
     <string name="uuid_not_found" msgid="4758805286268179147">"Univerzálne jedinečný identifikátor pre spätné volanie neexistuje"</string>
     <string name="call_attributes_empty_error" msgid="6921783379546938037">"Atribúty volania nesmú byť prázdne. Predvolené nastavenia sa inicializujú."</string>
     <string name="back_to_voip_main" msgid="2500173767939494261">"Späť na hlavnú aktivitu protokolu VOIP"</string>
-    <!-- no translation found for clear_voip_call_logs (2402471290566644149) -->
-    <skip />
+    <string name="clear_voip_call_logs" msgid="2402471290566644149">"Vymazať zoznamy testovacích hovorov cez VoIP"</string>
     <string name="call_log" msgid="2664639384522572724">"Zoznam hovorov"</string>
     <string name="voip_callback" msgid="9213402996514282039">"Test spätného volania"</string>
     <string name="get_call_id" msgid="5513943242738347108">"identifikátor hovoru nie je nastavený"</string>

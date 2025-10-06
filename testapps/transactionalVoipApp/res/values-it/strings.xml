@@ -27,8 +27,7 @@
     <string name="uuid_not_found" msgid="4758805286268179147">"L\'UUID per la richiamata non esiste"</string>
     <string name="call_attributes_empty_error" msgid="6921783379546938037">"Gli attributi della chiamata non devono essere vuoti. Inizializzazione delle impostazioni predefinite in corso…"</string>
     <string name="back_to_voip_main" msgid="2500173767939494261">"Torna all\'attività principale VoIP"</string>
-    <!-- no translation found for clear_voip_call_logs (2402471290566644149) -->
-    <skip />
+    <string name="clear_voip_call_logs" msgid="2402471290566644149">"Cancella i registri chiamate di prova VoIP"</string>
     <string name="call_log" msgid="2664639384522572724">"Registro chiamate"</string>
     <string name="voip_callback" msgid="9213402996514282039">"Test richiamata"</string>
     <string name="get_call_id" msgid="5513943242738347108">"id chiamata non impostato"</string>
