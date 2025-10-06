@@ -6215,6 +6215,7 @@ public class CallsManager extends Call.ListenerBase
         call.setHandle(connection.getHandle(), connection.getHandlePresentation());
         call.setCallerDisplayName(connection.getCallerDisplayName(),
                 connection.getCallerDisplayNamePresentation());
+        call.setCallerNumberVerificationStatus(connection.getCallerNumberVerificationStatus());
         // For existing connections, use the phone account user handle to determine the user
         // association with the call.
         UserHandle associatedUser = UserUtil.getAssociatedUserForCall(getPhoneAccountRegistrar(),
