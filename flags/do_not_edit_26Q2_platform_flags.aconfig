@@ -108,6 +108,7 @@ flag {
 flag {
   name: "move_get_tty_mode_to_telephony_manager"
   namespace: "telecom"
+  is_exported: true
   description: "Moving getTTYMode to TelephonyManager as part of Telecom mainline modularization"
   bug: "433987834"
 }
@@ -148,6 +149,7 @@ flag {
 flag {
   name: "integrated_call_logs_stage2"
   namespace: "telecom"
+  is_exported: true
   description: "Stage 2 of integrating call logs - add user opt-out support + call icon support"
   bug: "443306176"
 }
