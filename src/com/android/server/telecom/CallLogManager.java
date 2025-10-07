@@ -58,6 +58,7 @@ import com.android.server.telecom.callfiltering.CallFilteringResult;
 import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.flags.Flags;
 import com.android.server.telecom.util.CallLogUtils;
+import com.android.server.telecom.util.CallerInfo;
 
 import java.util.Arrays;
 import java.util.Locale;
@@ -427,7 +428,6 @@ public final class CallLogManager extends CallsManagerListenerBase {
             }
         }
 
-        paramBuilder.setCallerInfo(call.getCallerInfo());
         paramBuilder.setPostDialDigits(call.getPostDialDigits());
         paramBuilder.setPresentation(call.getHandlePresentation());
         paramBuilder.setCallType(callLogType);
@@ -453,10 +453,15 @@ public final class CallLogManager extends CallsManagerListenerBase {
             }
         }
 
+        CallerInfo callerInfo = call.getCallerInfo();
         // At this point, we have already checked to see if we should log a transactional call.
         if (mFeatureFlags.integratedCallLogs() && call.isTransactionalCall()) {
             paramBuilder.setUuid(call.getId());
+            if (call.getCallerDisplayName() != null && !call.getCallerDisplayName().isEmpty()) {
+                callerInfo.setName(call.getCallerDisplayName());
+            }
         }
+        paramBuilder.setCallerInfo(callerInfo);
 
         sendAddCallBroadcast(callLogType, call.getAgeMillis());
 
@@ -710,8 +715,7 @@ public final class CallLogManager extends CallsManagerListenerBase {
         mAnomalyReporterAdapter = anomalyReporterAdapter;
     }
 
-    @VisibleForTesting
-    public boolean shouldLogVoipCall(Call call) {
+    public static boolean shouldLogVoipCall(Call call) {
         boolean shouldLogVoipCall = call.isLoggedSelfManaged() || call.isLoggedTransactional();
         return (call.isManaged() || (shouldLogVoipCall))
                 && (call.getHandoverState() == HandoverState.HANDOVER_NONE

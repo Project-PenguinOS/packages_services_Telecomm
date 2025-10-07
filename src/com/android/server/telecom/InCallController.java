@@ -339,9 +339,11 @@ public class InCallController extends CallsManagerListenerBase implements
 
                     // Notify this new added call
                     if (mInCallServiceInfo.getType() == IN_CALL_SERVICE_TYPE_BLUETOOTH) {
-                        if (mBTInCallServices.containsKey(userFromCall)) {
-                            sendCallToService(call, mInCallServiceInfo, mBTInCallServices
-                                    .get(userFromCall).second);
+                        synchronized (mLock) {
+                            if (mBTInCallServices.containsKey(userFromCall)) {
+                                sendCallToService(call, mInCallServiceInfo, mBTInCallServices
+                                        .get(userFromCall).second);
+                            }
                         }
                     } else {
                         sendCallToService(call, mInCallServiceInfo,
@@ -1250,6 +1252,7 @@ public class InCallController extends CallsManagerListenerBase implements
     private final Collection<Call> mBtIcsCallTracker = new ArraySet<>();
 
     private final Context mContext;
+    private Context mAllUsersContext;
     private final AppOpsManager mAppOpsManager;
     private final PermissionManager mPermissionManager;
     private final SensorPrivacyManager mSensorPrivacyManager;
@@ -1398,7 +1401,7 @@ public class InCallController extends CallsManagerListenerBase implements
                 try {
                     if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
                         uid = UserUtil.getPackageManagerFromUserHandler(mContext,
-                                user).getPackageUidAsUser(pkg, user.getIdentifier());
+                                user).getPackageUid(pkg, 0/*flags*/);
                     } else {
                         uid = pkgManager.getPackageUidAsUser(pkg, user.getIdentifier());
                     }
@@ -1584,10 +1587,50 @@ public class InCallController extends CallsManagerListenerBase implements
     }
 
     public void maybeScheduleBtUnbind(Call call) {
-        mBtIcsCallTracker.remove(call);
+        synchronized (mLock) {
+            mBtIcsCallTracker.remove(call);
+            UserHandle userHandle = getUserFromCall(call);
+            // If we should stay bound because of another call, don't unbind.
+            if (isBtIcsAlreadyBoundForAnotherCall(userHandle)) {
+                return;
+            }
+
+            if (mBTInCallServiceConnections.containsKey(userHandle)) {
+                Log.i(this, "scheduleBtUnbind: Schedule unbind BT service");
+                final InCallServiceBindingConnection connection =
+                        mBTInCallServiceConnections.get(userHandle);
+                // Similar to in onCallRemoved when we unbind from the other ICS, we need to
+                // delay unbinding from the BT ICS because we need to give the ICS a
+                // moment to finish the onCallRemoved signal it got just prior.
+                mHandler.postDelayed(new Runnable("ICC.sBU", mLock) {
+                    @Override
+                    public void loggedRun() {
+                        Log.i(this, "onDisconnectedTonePlaying: unbinding from BT ICS.");
+                        // Prevent unbinding in the case that this is run while another call
+                        // has been placed/received. Otherwise, we will early unbind from
+                        // the BT ICS and not be able to properly relay call state updates.
+                        if (!isBtIcsAlreadyBoundForAnotherCall(userHandle)) {
+                            // The disconnect call below will ensure we clean up the
+                            // corresponding mBtInCallServices reference as well if we're
+                            // connected.
+                            connection.disconnect();
+                            // Clean up the ICSBC reference.
+                            mBTInCallServiceConnections.remove(userHandle);
+                        } else {
+                            Log.i(this, "onDisconnectedTonePlaying: Refraining from "
+                                    + "unbinding BT ICS. Another call is ongoing.");
+                        }
+                    }
+                }.prepare(), mTimeoutsAdapter.getCallRemoveUnbindInCallServicesDelay(
+                        mContext, mFeatureFlags));
+            }
+        }
+    }
+
+    private boolean isBtIcsAlreadyBoundForAnotherCall(UserHandle userToCheck) {
         // Track the current calls that are being tracked by the BT ICS and determine the
-        // associated users of those calls as well as the users which have been used to bind to the
-        // ICS.
+        // associated users of those calls as well as the users which have been used to bind to
+        // the ICS.
         Set<UserHandle> usersFromOngoingCalls = new ArraySet<>();
         Set<UserHandle> usersCurrentlyBound = new ArraySet<>();
         for (Call pendingCall : mBtIcsCallTracker) {
@@ -1600,59 +1643,34 @@ public class InCallController extends CallsManagerListenerBase implements
             }
         }
 
-        UserHandle userHandle = getUserFromCall(call);
-        // Refrain from unbinding ICS and clearing the ICS mapping if there's an ongoing call under
-        // the same associated user. Make sure we keep the internal mappings so that they aren't
-        // cleared until that call is disconnected. Note here that if the associated users are the
-        // same, the user used for the binding will also be the same.
-        if (usersFromOngoingCalls.contains(userHandle)) {
-            Log.i(this, "scheduleBtUnbind: Refraining from unbinding BT service due to an ongoing "
-                    + "call detected under the same user (%s).", userHandle);
-            return;
+        // Refrain from unbinding ICS and clearing the ICS mapping if there's an ongoing call
+        // under the same associated user. Make sure we keep the internal mappings so that they
+        // aren't cleared until that call is disconnected. Note here that if the associated
+        // users are the same, the user used for the binding will also be the same.
+        if (usersFromOngoingCalls.contains(userToCheck)) {
+            Log.i(this,
+                    "scheduleBtUnbind: Refraining from unbinding BT service due to an ongoing "
+                            + "call detected under the same user (%s).", userToCheck);
+            return true;
         }
 
-        if (mBTInCallServiceConnections.containsKey(userHandle)) {
-            Log.i(this, "scheduleBtUnbind: Schedule unbind BT service");
-            final InCallServiceBindingConnection connection =
-                    mBTInCallServiceConnections.get(userHandle);
-            // The user that was used for binding may be different than the user from call
-            // (associated user), which is what we use to reference the BT ICS bindings. For
-            // example, consider the work profile scenario where the BT ICS is only available under
-            // User 0: in this case, the user to bind to will be User 0 whereas we store the
-            // references to this connection and BT ICS under the work user. This logic ensures
-            // that we prevent unbinding the BT ICS if there is a personal (associatedUser: 0) call
-            // + work call (associatedUser: 10) and one of them gets disconnected.
-            if (usersCurrentlyBound.contains(connection.mUserHandleToUseForBinding)) {
-                Log.i(this, "scheduleBtUnbind: Refraining from unbinding BT service to an "
-                        + "ongoing call detected which is bound to the same user (%s).",
-                        connection.mUserHandleToUseForBinding);
-            } else {
-                // Similar to in onCallRemoved when we unbind from the other ICS, we need to
-                // delay unbinding from the BT ICS because we need to give the ICS a
-                // moment to finish the onCallRemoved signal it got just prior.
-                mHandler.postDelayed(new Runnable("ICC.sBU", mLock) {
-                    @Override
-                    public void loggedRun() {
-                        Log.i(this, "onDisconnectedTonePlaying: unbinding from BT ICS.");
-                        // Prevent unbinding in the case that this is run while another call
-                        // has been placed/received. Otherwise, we will early unbind from
-                        // the BT ICS and not be able to properly relay call state updates.
-                        if (!mBTInCallServiceConnections.containsKey(userHandle)) {
-                            connection.disconnect();
-                        } else {
-                            Log.i(this, "onDisconnectedTonePlaying: Refraining from "
-                                    + "unbinding BT ICS. Another call is ongoing.");
-                        }
-                    }
-                }.prepare(), mTimeoutsAdapter.getCallRemoveUnbindInCallServicesDelay(
-                        mContext, mFeatureFlags));
-            }
-            mBTInCallServiceConnections.remove(userHandle);
+        // The user that was used for binding may be different than the user from call
+        // (associated user), which is what we use to reference the BT ICS bindings. For
+        // example, consider the work profile scenario where the BT ICS is only available
+        // under User 0: in this case, the user to bind to will be User 0 whereas we store
+        // the references to this connection and BT ICS under the work user. This logic
+        // ensures that we prevent unbinding the BT ICS if there is a personal
+        // (associatedUser: 0) call + work call (associatedUser: 10) and one of them gets
+        // disconnected.
+        InCallServiceBindingConnection connection = mBTInCallServiceConnections.get(userToCheck);
+        if (connection != null && usersCurrentlyBound
+                .contains(connection.mUserHandleToUseForBinding)) {
+            Log.i(this, "scheduleBtUnbind: Refraining from unbinding BT service to an "
+                            + "ongoing call detected which is bound to the same user (%s).",
+                    connection.mUserHandleToUseForBinding);
+            return true;
         }
-        // Ensure that BT ICS instance is cleaned up
-        if (mBTInCallServices.remove(userHandle) != null) {
-            updateCombinedInCallServiceMap(userHandle);
-        }
+        return false;
     }
 
     @Override
@@ -1751,6 +1769,11 @@ public class InCallController extends CallsManagerListenerBase implements
         Log.i(this, "onCallStateChanged: Call state changed for TC@%s: %s -> %s", call.getId(),
                 CallState.toString(oldState), CallState.toString(newState));
         maybeTrackMicrophoneUse(isMuted());
+
+        // TODO(b/394367444): If a call moves to local voicemail state, we can remove it from the
+        // InCallServices listening to it.  Handle there here; for now in development it'll show up
+        // as an active call in the dialer, which is not the final desired state.
+        // This will take the same general shape as the logic above in onExternalCallChanged.
         updateCall(call);
     }
 
@@ -2149,42 +2172,49 @@ public class InCallController extends CallsManagerListenerBase implements
      * @param call The newly added call that triggered the binding to the in-call services.
      */
     public void bindToBTService(Call call, UserHandle userHandle) {
-        Log.i(this, "bindToBtService");
-        UserHandle userToBind = userHandle == null
-                ? getUserFromCall(call)
-                : userHandle;
-        UserManager um = mContext.getSystemService(UserManager.class);
-        UserHandle parentUser = um.getProfileParent(userToBind);
-
-        // Track the call if we don't already know about it.
-        addCall(call);
-        List<InCallServiceInfo> infos = getInCallServiceComponents(userToBind,
-                IN_CALL_SERVICE_TYPE_BLUETOOTH);
-        boolean serviceUnavailableForUser = false;
-        if (infos.size() == 0 || infos.get(0) == null) {
-            Log.i(this, "No available BT ICS for user (%s). Trying with parent instead.",
-                    userToBind);
-            serviceUnavailableForUser = true;
-            // Check if the service is available under the parent user instead.
-            if (parentUser != null) {
-                infos = getInCallServiceComponents(parentUser, IN_CALL_SERVICE_TYPE_BLUETOOTH);
-            }
-            if (infos.size() == 0 || infos.get(0) == null) {
-                Log.w(this, "No available BT ICS to bind to for user %s or its parent %s.",
-                        userToBind, parentUser);
-                mBtBindingFuture.put(userToBind, CompletableFuture.completedFuture(false));
+        synchronized (mLock) {
+            UserHandle userToBind = userHandle == null
+                    ? getUserFromCall(call)
+                    : userHandle;
+            // If we're already connected, then refrain from binding again.
+            if (isBoundAndConnectedToBTService(userToBind)) {
                 return;
             }
-        }
 
-        mBtBindingFuture.put(userToBind, new CompletableFuture<Boolean>().completeOnTimeout(false,
-                mTimeoutsAdapter.getCallBindBluetoothInCallServicesDelay(
-                        mContext, mFeatureFlags), TimeUnit.MILLISECONDS));
-        InCallServiceBindingConnection btIcsBindingConnection =
-                new InCallServiceBindingConnection(infos.get(0),
-                        serviceUnavailableForUser ? parentUser : userToBind);
-        mBTInCallServiceConnections.put(userToBind, btIcsBindingConnection);
-        btIcsBindingConnection.connect(call);
+            UserManager um = mContext.getSystemService(UserManager.class);
+            UserHandle parentUser = um.getProfileParent(userToBind);
+            Log.i(this, "bindToBtService, userToBind:%s  parent:%s", userToBind, parentUser);
+
+            // Track the call if we don't already know about it.
+            addCall(call);
+            List<InCallServiceInfo> infos = getInCallServiceComponents(userToBind,
+                    IN_CALL_SERVICE_TYPE_BLUETOOTH);
+            boolean serviceUnavailableForUser = false;
+            if (infos.size() == 0 || infos.get(0) == null) {
+                Log.i(this, "No available BT ICS for user (%s). Trying with parent instead.",
+                        userToBind);
+                serviceUnavailableForUser = true;
+                // Check if the service is available under the parent user instead.
+                if (parentUser != null) {
+                    infos = getInCallServiceComponents(parentUser, IN_CALL_SERVICE_TYPE_BLUETOOTH);
+                }
+                if (infos.size() == 0 || infos.get(0) == null) {
+                    Log.w(this, "No available BT ICS to bind to for user %s or its parent %s.",
+                            userToBind, parentUser);
+                    mBtBindingFuture.put(userToBind, CompletableFuture.completedFuture(false));
+                    return;
+                }
+            }
+
+            mBtBindingFuture.put(userToBind, new CompletableFuture<Boolean>().completeOnTimeout(
+                    false, mTimeoutsAdapter.getCallBindBluetoothInCallServicesDelay(
+                            mContext, mFeatureFlags), TimeUnit.MILLISECONDS));
+            InCallServiceBindingConnection btIcsBindingConnection =
+                    new InCallServiceBindingConnection(infos.get(0),
+                            serviceUnavailableForUser ? parentUser : userToBind);
+            mBTInCallServiceConnections.put(userToBind, btIcsBindingConnection);
+            btIcsBindingConnection.connect(call);
+        }
     }
 
     /**
@@ -2249,13 +2279,19 @@ public class InCallController extends CallsManagerListenerBase implements
                 mInCallServiceConnections.get(userFromCall);
         inCallServiceConnection.chooseInitialInCallService(shouldUseCarModeUI());
 
-        // Actually try binding to the UI InCallService.
-        if (inCallServiceConnection.connect(call) ==
-                InCallServiceConnection.CONNECTION_SUCCEEDED || (call != null
-                && call.isSelfManaged())) {
+        final boolean isHeadlessDevice = mContext.getResources().getBoolean(R.bool.headless_dialer);
+        final boolean isSelfManagedCall = call != null && call.isSelfManaged();
+        final boolean uiServiceConnected =
+                !isHeadlessDevice
+                        && inCallServiceConnection.connect(call)
+                                == InCallServiceConnection.CONNECTION_SUCCEEDED;
+        final boolean allowNonUiBinding =
+                uiServiceConnected || isSelfManagedCall || isHeadlessDevice;
+
+        if (allowNonUiBinding) {
             // Only connect to the non-ui InCallServices if we actually connected to the main UI
-            // one, or if the call is self-managed (in which case we'd still want to keep Wear, BT,
-            // etc. informed.
+            // one, or if the call is self-managed or headless(in which case we'd still want to keep
+            // Wear, BT, etc. informed.
             connectToNonUiInCallServices(call);
             mBindingFuture = new CompletableFuture<Boolean>().completeOnTimeout(false,
                     mTimeoutsAdapter.getCallRemoveUnbindInCallServicesDelay(
@@ -2267,9 +2303,11 @@ public class InCallController extends CallsManagerListenerBase implements
 
         IntentFilter packageChangedFilter = new IntentFilter(Intent.ACTION_PACKAGE_CHANGED);
         packageChangedFilter.addDataScheme("package");
-        Context userContext = mContext.createContextAsUser(UserHandle.ALL, 0);
+        // Important: Context must be retained or the receivers won't fire when the context is
+        // garbage collected.
+        mAllUsersContext = mContext.createContextAsUser(UserHandle.ALL, 0);
         if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            userContext.registerReceiver(mPackageChangedReceiver, packageChangedFilter,
+            mAllUsersContext.registerReceiver(mPackageChangedReceiver, packageChangedFilter,
                     null, null);
         } else {
             mContext.registerReceiverAsUser(mPackageChangedReceiver, UserHandle.ALL,
@@ -2465,10 +2503,9 @@ public class InCallController extends CallsManagerListenerBase implements
 
         List<ResolveInfo> entries;
         if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            entries = userPackageManager.queryIntentServicesAsUser(
+            entries = userPackageManager.queryIntentServices(
                     serviceIntent,
-                    PackageManager.GET_META_DATA | PackageManager.MATCH_DISABLED_COMPONENTS,
-                    userHandle.getIdentifier());
+                    PackageManager.GET_META_DATA | PackageManager.MATCH_DISABLED_COMPONENTS);
         } else {
             entries = packageManager.queryIntentServicesAsUser(
                     serviceIntent,
@@ -2654,20 +2691,22 @@ public class InCallController extends CallsManagerListenerBase implements
             trackCallingUserInterfaceStarted(info);
         }
         IInCallService inCallService = IInCallService.Stub.asInterface(service);
-        if (info.getType() == IN_CALL_SERVICE_TYPE_BLUETOOTH) {
-            if (!mBtBindingFuture.containsKey(userHandle)
-                    || (mBtBindingFuture.get(userHandle).isDone() && !mBtBindingFuture
-                    .get(userHandle).getNow(false))) {
-                Log.i(this, "onConnected: BT binding future timed out.");
-                // Binding completed after the timeout. Clean up this binding
-                return false;
+        synchronized (mLock) {
+            if (info.getType() == IN_CALL_SERVICE_TYPE_BLUETOOTH) {
+                if (!mBtBindingFuture.containsKey(userHandle)
+                        || (mBtBindingFuture.get(userHandle).isDone() && !mBtBindingFuture
+                        .get(userHandle).getNow(false))) {
+                    Log.i(this, "onConnected: BT binding future timed out.");
+                    // Binding completed after the timeout. Clean up this binding
+                    return false;
+                } else {
+                    mBtBindingFuture.get(userHandle).complete(true);
+                }
+                mBTInCallServices.put(userHandle, new Pair<>(info, inCallService));
             } else {
-                mBtBindingFuture.get(userHandle).complete(true);
+                mInCallServices.putIfAbsent(userHandle, new ArrayMap<>());
+                mInCallServices.get(userHandle).put(info, inCallService);
             }
-            mBTInCallServices.put(userHandle, new Pair<>(info, inCallService));
-        } else {
-            mInCallServices.putIfAbsent(userHandle, new ArrayMap<>());
-            mInCallServices.get(userHandle).put(info, inCallService);
         }
 
         updateCombinedInCallServiceMap(userHandle);
@@ -2794,9 +2833,11 @@ public class InCallController extends CallsManagerListenerBase implements
         if (mInCallServices.containsKey(userHandle)) {
             mInCallServices.get(userHandle).remove(disconnectedInfo);
         }
-        if (disconnectedInfo.getType() == IN_CALL_SERVICE_TYPE_BLUETOOTH) {
-            mBTInCallServices.remove(userHandle);
-            updateCombinedInCallServiceMap(userHandle);
+        synchronized (mLock) {
+            if (disconnectedInfo.getType() == IN_CALL_SERVICE_TYPE_BLUETOOTH) {
+                mBTInCallServices.remove(userHandle);
+                updateCombinedInCallServiceMap(userHandle);
+            }
         }
     }
 
@@ -2964,10 +3005,12 @@ public class InCallController extends CallsManagerListenerBase implements
 
     @VisibleForTesting
     public boolean isBoundAndConnectedToBTService(UserHandle userHandle) {
-        if (!mBTInCallServiceConnections.containsKey(userHandle)) {
-            return false;
+        synchronized (mLock) {
+            if (!mBTInCallServiceConnections.containsKey(userHandle)) {
+                return false;
+            }
+            return mBTInCallServiceConnections.get(userHandle).isConnected();
         }
-        return mBTInCallServiceConnections.get(userHandle).isConnected();
     }
 
     /**
@@ -3069,9 +3112,8 @@ public class InCallController extends CallsManagerListenerBase implements
         List<ResolveInfo> entries;
         if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
             entries = UserUtil.getPackageManagerFromUserHandler(mContext,
-                    userHandle).queryIntentServicesAsUser(
-                    intent, PackageManager.GET_META_DATA,
-                    userHandle.getIdentifier());
+                    userHandle).queryIntentServices(
+                    intent, PackageManager.GET_META_DATA);
         } else {
             entries = mContext.getPackageManager().queryIntentServicesAsUser(
                     intent, PackageManager.GET_META_DATA,
@@ -3338,9 +3380,16 @@ public class InCallController extends CallsManagerListenerBase implements
         UserHandle user = mCallsManager.getCurrentUserHandle();
 
         try {
-            PackageManager pkgManager = mContext.getPackageManager();
-            return pkgManager.getPackageUidAsUser(mContext.getOpPackageName(),
-                    user.getIdentifier());
+            int uid;
+            if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
+                uid = UserUtil.getPackageManagerFromUserHandler(mContext,
+                        user).getPackageUid(mContext.getOpPackageName(), 0/*flags*/);
+            } else {
+                PackageManager pkgManager = mContext.getPackageManager();
+                uid = pkgManager.getPackageUidAsUser(mContext.getOpPackageName(),
+                        user.getIdentifier());
+            }
+            return uid;
         } catch (PackageManager.NameNotFoundException e) {
             Log.e(this, e, "getPackageForAssociatedUser: could not find package %s"
                     + " for user %s", mContext.getOpPackageName(), user);
@@ -3450,13 +3499,18 @@ public class InCallController extends CallsManagerListenerBase implements
             return mCallsManager.getCurrentUserHandle();
         } else {
             UserHandle userFromCall = call.getAssociatedUser();
+
+            UserHandle currentUser = mCallsManager.getCurrentUserHandle() != null
+                ? mCallsManager.getCurrentUserHandle() : UserHandle.CURRENT;
+
             UserManager userManager = mFeatureFlags.telecomResolveHiddenDependencies()
-                    ? mContext.createContextAsUser(mCallsManager.getCurrentUserHandle(), 0)
+                    ? mContext.createContextAsUser(currentUser, 0)
                             .getSystemService(UserManager.class)
                     : mContext.getSystemService(UserManager.class);
             boolean isCurrentUserAdmin = mFeatureFlags.telecomResolveHiddenDependencies()
                     ? userManager.isAdminUser()
-                    : userManager.isUserAdmin(mCallsManager.getCurrentUserHandle().getIdentifier());
+                    : userManager.isUserAdmin(currentUser.getIdentifier());
+
             // Emergency call should never be blocked, so if the user associated with the target
             // phone account handle user is in quiet mode, use the current user for the ecall.
             // Note, that this only applies to incoming calls that are received on assigned
@@ -3493,7 +3547,9 @@ public class InCallController extends CallsManagerListenerBase implements
         }
         // If early binding for BT ICS is enabled, ensure that it is included into consideration as
         // a bound non-UI ICS.
-        return !mBTInCallServices.isEmpty() && isBluetoothPackage(packageName);
+        synchronized (mLock) {
+            return !mBTInCallServices.isEmpty() && isBluetoothPackage(packageName);
+        }
     }
 
     private void updateCombinedInCallServiceMap(UserHandle user) {

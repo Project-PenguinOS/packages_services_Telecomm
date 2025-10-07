@@ -260,6 +260,22 @@ public class PhoneAccountRegistrar {
     }
 
     /**
+     * Checks if the subscription ID is active.
+     * An active subscription ID is a valid and usable subscription ID.
+     *
+     * @param subId The value of the subscription id to be checked.
+     * @return {@code true} if the supplied phone account handle has an active subscription ID,
+     * {@code false} oterwise.
+     */
+    public boolean isSubscriptionIdActive(int subId) {
+        try {
+            return mSubscriptionManager.isActiveSubscriptionId(subId);
+        } catch (UnsupportedOperationException ignored) {
+            return false;
+        }
+    }
+
+    /**
      * Retrieves the default outgoing phone account supporting the specified uriScheme. Note that if
      * {@link #mCurrentUserHandle} does not have visibility into the current default, {@code null}
      * will be returned.
@@ -808,26 +824,35 @@ public class PhoneAccountRegistrar {
     }
 
     private List<ResolveInfo> resolveComponent(ComponentName componentName,
-            UserHandle userHandle) {
-        PackageManager pm;
-        if (mTelecomFeatureFlags.resolveHiddenDependenciesTwo()) {
-            pm = UserUtil.getPackageManagerFromUserHandler(mContext, userHandle);
-        } else {
-            pm = mContext.getPackageManager();
-        }
+                                               UserHandle userHandle) {
         Intent intent = new Intent(ConnectionService.SERVICE_INTERFACE);
         intent.setComponent(componentName);
         try {
             if (userHandle != null) {
-                return pm.queryIntentServicesAsUser(intent, 0, userHandle.getIdentifier());
+                List<ResolveInfo> info;
+                if (mTelecomFeatureFlags.resolveHiddenDependenciesTwo()) {
+                    try {
+                        info = UserUtil.getPackageManagerFromUserHandler(mContext, userHandle)
+                                .queryIntentServices(intent, 0);
+                    } catch (Exception e) {
+                        Log.e(this, e, "encountered an exception while" +
+                                        "resolving the component=[%s] under userHandle=[%s]",
+                                componentName, userHandle);
+                        AnomalyReporter.reportAnomaly(
+                                EXCEPTION_COMPONENT_IS_NOT_VISIBLE_FOR_USER_UUID,
+                                EXCEPTION_COMPONENT_IS_NOT_VISIBLE_FOR_USER_MSG);
+                        return Collections.EMPTY_LIST;
+                    }
+                } else {
+                    PackageManager pm = mContext.getPackageManager();
+                    info = pm.queryIntentServicesAsUser(intent, 0, userHandle.getIdentifier());
+                }
+                return info;
             } else {
-                return pm.queryIntentServices(intent, 0);
+                return mContext.getPackageManager().queryIntentServices(intent, 0);
             }
         } catch (SecurityException e) {
             Log.e(this, e, "%s is not visible for the calling user", componentName);
-            AnomalyReporter.reportAnomaly(
-                    EXCEPTION_COMPONENT_IS_NOT_VISIBLE_FOR_USER_UUID,
-                    EXCEPTION_COMPONENT_IS_NOT_VISIBLE_FOR_USER_MSG);
             return Collections.EMPTY_LIST;
         }
     }
@@ -2952,11 +2977,7 @@ public class PhoneAccountRegistrar {
                     // Handle the SIP connection service.
                     // Check the system settings to see if it also should handle "tel" calls.
                     if (accountHandle.getComponentName().equals(sipComponentName)) {
-                        boolean useSipForPstn = useSipForPstnCalls(context, telecomFeatureFlags);
                         supportedUriSchemes.add(PhoneAccount.SCHEME_SIP);
-                        if (useSipForPstn) {
-                            supportedUriSchemes.add(PhoneAccount.SCHEME_TEL);
-                        }
                     } else {
                         supportedUriSchemes.add(PhoneAccount.SCHEME_TEL);
                         supportedUriSchemes.add(PhoneAccount.SCHEME_VOICEMAIL);
@@ -3026,22 +3047,6 @@ public class PhoneAccountRegistrar {
                 return builder.build();
             }
             return null;
-        }
-
-        /**
-         * Determines if the SIP call settings specify to use SIP for all calls, including PSTN
-         * calls.
-         *
-         * @param context The context.
-         * @return {@code True} if SIP should be used for all calls.
-         */
-        private boolean useSipForPstnCalls(Context context,
-                com.android.server.telecom.flags.FeatureFlags telecomFeatureFlags) {
-            String option = Settings.System.getStringForUser(context.getContentResolver(),
-                    Settings.System.SIP_CALL_OPTIONS, UserUtil.getUserIdFromContext(context,
-                            telecomFeatureFlags));
-            option = (option != null) ? option : Settings.System.SIP_ADDRESS_ONLY;
-            return option.equals(Settings.System.SIP_ALWAYS);
         }
     };
 

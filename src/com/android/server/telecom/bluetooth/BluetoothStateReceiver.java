@@ -123,6 +123,11 @@ public class BluetoothStateReceiver extends BroadcastReceiver {
         args.arg2 = device.getAddress();
         CallAudioRouteController audioRouteController =
                 (CallAudioRouteController) mCallAudioRouteAdapter;
+        if (mFeatureFlags.ignoreBtBroadcast()) {
+            Log.w(LOG_TAG, "Ignoring BT broadcast (listening to audio fwk communication "
+                + "device updates)");
+            return;
+        }
         switch (bluetoothHeadsetAudioState) {
             case BluetoothHeadset.STATE_AUDIO_CONNECTED:
                 audioRouteController.setScoAudioConnectedDevice(device);
@@ -147,6 +152,7 @@ public class BluetoothStateReceiver extends BroadcastReceiver {
                 }
                 break;
             case BluetoothHeadset.STATE_AUDIO_DISCONNECTED:
+                audioRouteController.setLastScoDisconnectedDevice(device);
                 audioRouteController.setScoAudioConnectedDevice(null);
                 if (audioRouteController.isPending()) {
                     mCallAudioRouteAdapter.sendMessageWithSessionInfo(BT_AUDIO_DISCONNECTED, 0,
@@ -215,7 +221,7 @@ public class BluetoothStateReceiver extends BroadcastReceiver {
 
     private void handleActiveDeviceChanged(Intent intent) {
         BluetoothDevice device =
-                intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice.class);
+            intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice.class);
 
         int deviceType;
         @AudioRoute.AudioRouteType int audioRouteType;
@@ -226,6 +232,9 @@ public class BluetoothStateReceiver extends BroadcastReceiver {
             deviceType = BluetoothDeviceManager.DEVICE_TYPE_HEARING_AID;
             audioRouteType = AudioRoute.TYPE_BLUETOOTH_HA;
         } else if (BluetoothHeadset.ACTION_ACTIVE_DEVICE_CHANGED.equals(intent.getAction())) {
+            if (mIsScoManagedByAudio) {
+                Log.i(LOG_TAG, "Ignore the broadcast intent for SCO");
+            }
             deviceType = BluetoothDeviceManager.DEVICE_TYPE_HEADSET;
             audioRouteType = AudioRoute.TYPE_BLUETOOTH_SCO;
         } else {
@@ -235,10 +244,13 @@ public class BluetoothStateReceiver extends BroadcastReceiver {
 
         Log.i(LOG_TAG, "Device %s is now the preferred BT device for %s", device,
                 BluetoothDeviceManager.getDeviceTypeString(deviceType));
+        handleActiveDeviceChanged(audioRouteType, device == null ? null : device.getAddress());
+    }
 
+    public void handleActiveDeviceChanged(int audioRouteType, String address) {
         CallAudioRouteController audioRouteController = (CallAudioRouteController)
                 mCallAudioRouteAdapter;
-        if (device == null) {
+        if (address == null) {
             // Update the active device cache immediately.
             audioRouteController.updateActiveBluetoothDevice(new Pair(audioRouteType, null));
             mCallAudioRouteAdapter.sendMessageWithSessionInfo(BT_ACTIVE_DEVICE_GONE,
@@ -246,20 +258,19 @@ public class BluetoothStateReceiver extends BroadcastReceiver {
         } else {
             // Update the active device cache immediately.
             audioRouteController.updateActiveBluetoothDevice(
-                    new Pair(audioRouteType, device.getAddress()));
+                    new Pair(audioRouteType, address));
             mCallAudioRouteAdapter.sendMessageWithSessionInfo(BT_ACTIVE_DEVICE_PRESENT,
-                    audioRouteType, device.getAddress());
-            if (deviceType == BluetoothDeviceManager.DEVICE_TYPE_HEARING_AID
-                    || deviceType == BluetoothDeviceManager.DEVICE_TYPE_LE_AUDIO
+                    audioRouteType, address);
+            if (audioRouteType == AudioRoute.TYPE_BLUETOOTH_HA
+                    || audioRouteType ==  AudioRoute.TYPE_BLUETOOTH_LE
                     || mIsScoManagedByAudio) {
                 if (!mIsInCall) {
                     Log.i(LOG_TAG, "Ignoring audio on since we're not in a call");
                     return;
                 }
-                if (!mBluetoothDeviceManager.setCommunicationDeviceForAddress(
-                        device.getAddress())) {
+                if (!mBluetoothDeviceManager.setCommunicationDeviceForAddress(address)) {
                     Log.i(this, "handleActiveDeviceChanged: Failed to set "
-                            + "communication device for %s.", device);
+                            + "communication device for %s.", address);
                 }
             }
         }

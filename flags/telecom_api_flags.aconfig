@@ -46,6 +46,15 @@ flag {
   bug: "317132586"
 }
 
+# OWNER=con TARGET=26Q2
+flag {
+  name: "is_in_external_call"
+  is_exported: true
+  namespace: "telecom"
+  description: "Clients can check if an external call is in progress."
+  bug: "433774385"
+}
+
 # OWNER=tjstuart TARGET=24Q3
 flag {
   name: "transactional_video_state"
@@ -83,6 +92,18 @@ flag {
   bug: "353579043"
 }
 
+# OWNER=ntmyren TARGET=26Q2
+flag {
+  name: "call_details_get_associated_user_api"
+  is_exported: true
+  namespace: "telecom"
+  description: "Adds a UserHandle to the Call Details"
+  bug: "408470449"
+  metadata {
+      purpose: PURPOSE_BUGFIX
+  }
+}
+
 # OWNER=grantmenke TARGET=25Q4
 flag {
   name: "reuse_original_conn_remote_conf_api"
@@ -118,3 +139,44 @@ flag {
       purpose: PURPOSE_FEATURE
   }
 }
+
+# OWNER=pengfeix TARGET=26Q1
+flag {
+  name: "is_using_video_ringback"
+  is_exported: true
+  namespace: "telecom"
+  description: "Indicate that the call is a video color ring back tone call."
+  bug: "408116489"
+}
+
+# OWNER=tgunn TARGET=26Q2
+flag {
+  name: "remotely_hosted_property"
+  is_exported: true
+  namespace: "telecom"
+  description: "Add PROPERTY_REMOTELY_HOSTED to call to mirror what is in Connection."
+  bug: "430293079"
+}
+
+# OWNER=tgunn TARGET=26Q2
+flag {
+  name: "local_voicemail"
+  is_exported: true
+  namespace: "telecom"
+  description: "Support for local voicemail."
+  bug: "394367444"
+  metadata {
+      purpose: PURPOSE_FEATURE
+  }
+}
+
+# OWNER=tjstuart TARGET=26Q2
+flag {
+  name: "promote_extra_do_not_log_call_to_system_api"
+  is_exported: true
+  namespace: "telecom"
+  description: "Promoting the hidden extra DO_NOT_LOG call to a system API"
+  bug: "427477225"
+
+}
+

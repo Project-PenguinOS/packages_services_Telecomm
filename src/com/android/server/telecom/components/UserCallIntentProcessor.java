@@ -16,23 +16,22 @@
 
 package com.android.server.telecom.components;
 
+import static android.provider.CallLog.Calls.CONTENT_URI;
+import static android.provider.CallLog.Calls.PHONE_ACCOUNT_COMPONENT_NAME;
 import static android.provider.CallLog.Calls.UUID;
 
-import android.app.admin.DevicePolicyManager;
+import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.UserHandle;
-import android.os.UserManager;
-import android.provider.CallLog;
 import android.telecom.Log;
 import android.telecom.PhoneAccount;
 import android.telecom.TelecomManager;
 import android.telecom.VideoProfile;
 import android.telephony.PhoneNumberUtils;
-import android.telephony.TelephonyManager;
 
 import com.android.server.telecom.CallIntentProcessor;
 import com.android.server.telecom.R;
@@ -134,7 +133,7 @@ public class UserCallIntentProcessor {
         // See if this is an action callback from the default dialer to initiate a VOIP call from
         // the call log. If so, don't continue processing this call in Telecom. The corresponding
         // VOIP app will initiate the call themselves via {@link TelecomManager#addCall}.
-        if (isProcessingCallbackAction(handle, callingPackageName)) {
+        if (isProcessingCallbackAction(handle)) {
             return;
         }
 
@@ -184,23 +183,47 @@ public class UserCallIntentProcessor {
      * @return {@code true} if the call log entry was able to be located and the intent sent to the
      *         calling package.
      */
-    private boolean isProcessingCallbackAction(Uri handle, String callingPackageName) {
+    private boolean isProcessingCallbackAction(Uri handle) {
         if (mFeatureFlags.integratedCallLogs()) {
+            String authority = handle != null ? handle.getAuthority() : null;
+            // Check to see if the provided handle's authority corresponds to the call log content
+            // URI authority.
+            if (handle == null || !CONTENT_URI.getAuthority().equals(authority)) {
+                Log.i(this, "Passed in handle's authority doesn't match up with call log "
+                        + "content uri authority: %s.", authority);
+                return false;
+            }
+
             ContentResolver resolver = mContext.getContentResolver();
             Cursor c = null;
             try {
-                Log.i(this, "Attempting to query call log entry with handle{%s} from %s.",
-                        handle, callingPackageName);
-                c = resolver.query(handle, new String[]{UUID}, null, null, null);
-                if (c != null) {
-                    String uuid = c.getString(0);
-                    Log.i(this, "Found call log entry with uuid %s.", uuid);
-                    Intent actionCallbackIntent = new Intent().setPackage(callingPackageName)
-                            .setAction(TelecomManager.ACTION_CALL_BACK);
-                    actionCallbackIntent.putExtra(TelecomManager.EXTRA_UUID, uuid);
-                    mContext.startActivity(actionCallbackIntent);
-                    return true;
+                Log.i(this, "Attempting to query call log entry with handle{%s}.",
+                        handle);
+                c = resolver.query(handle, new String[]{UUID, PHONE_ACCOUNT_COMPONENT_NAME},
+                        null, null, null);
+                // Moves cursor to first row found
+                if (c != null && c.moveToFirst()) {
+                    int uuidIndex = c.getColumnIndex(UUID);
+                    String uuid = c.getString(uuidIndex);
+                    int componentNameIndex = c.getColumnIndex(PHONE_ACCOUNT_COMPONENT_NAME);
+                    String componentName = c.getString(componentNameIndex);
+                    ComponentName unflattenedComponentName = componentName != null
+                            ? ComponentName.unflattenFromString(componentName) : null;
+                    String pkgName = unflattenedComponentName != null
+                            ? unflattenedComponentName.getPackageName() : null;
+                    if (uuid != null && !uuid.isEmpty() && pkgName != null) {
+                        Log.i(this, "Found call log entry with uuid %s for %s.", uuid, pkgName);
+                        Intent actionCallbackIntent = new Intent().setPackage(pkgName)
+                                .setAction(TelecomManager.ACTION_CALL_BACK);
+                        actionCallbackIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        actionCallbackIntent.putExtra(TelecomManager.EXTRA_UUID, uuid);
+                        mContext.startActivity(actionCallbackIntent);
+                        return true;
+                    }
                 }
+            } catch (Exception e) {
+                // Handle any exception due to incorrect URI formatting
+                Log.e(this, e, "Unable to query the provided content URI:");
             } finally {
                 if (c != null) {
                     c.close();

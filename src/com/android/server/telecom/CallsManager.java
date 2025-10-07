@@ -64,6 +64,8 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
+import android.content.pm.ComponentInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.pm.PackageManager.ResolveInfoFlags;
@@ -187,6 +189,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -219,10 +222,17 @@ public class CallsManager extends Call.ListenerBase
     public static final int REQUEST_ORIGIN_TELECOM_DISAMBIGUATION = 1;
 
     /**
+     * The request originated from the {@link LocalVoicemailController} to answer a call for local
+     * voicemail processing.
+     */
+    public static final int REQUEST_ORIGIN_TELECOM_LOCAL_VOICEMAIL = 2;
+
+    /**
      * @hide
      */
     @IntDef(prefix = { "REQUEST_ORIGIN_" },
-            value = {REQUEST_ORIGIN_UNKNOWN, REQUEST_ORIGIN_TELECOM_DISAMBIGUATION})
+            value = {REQUEST_ORIGIN_UNKNOWN, REQUEST_ORIGIN_TELECOM_DISAMBIGUATION,
+                    REQUEST_ORIGIN_TELECOM_LOCAL_VOICEMAIL})
     @Retention(RetentionPolicy.SOURCE)
     public @interface RequestOrigin {}
 
@@ -315,12 +325,22 @@ public class CallsManager extends Call.ListenerBase
     /**
      * Call filter specifier used with
      * {@link #getNumCallsWithState(int, Call, PhoneAccountHandle, int...)} to indicate both managed
-     * and self-managed calls should be included.
+     * and self-managed calls should be included.  External calls are still excluded.
      */
     public static final int CALL_FILTER_ALL = 3;
 
+    /**
+     * Call filter specifier used with
+     * {@link #getNumCallsWithState(int, Call, PhoneAccountHandle, int...)} to indicate only
+     * external calls should be included.
+     */
+    public static final int CALL_FILTER_EXTERNAL = 4;
+
     private static final String PERMISSION_PROCESS_PHONE_ACCOUNT_REGISTRATION =
             "android.permission.PROCESS_PHONE_ACCOUNT_REGISTRATION";
+
+    private static final String FORWARD_INTENT_TO_MANAGED_PROFILE =
+            "com.android.internal.app.ForwardIntentToManagedProfile";
 
     private static final int HANDLER_WAIT_TIMEOUT = 10000;
     private static final int MAXIMUM_LIVE_CALLS = 1;
@@ -649,6 +669,8 @@ public class CallsManager extends Call.ListenerBase
     };
 
     private final CallConnectedIndicatorSettings mCallConnectedIndicatorSettings;
+    private final AudioModeTracker mAudioModeTracker;
+    private final LocalVoicemailController mLocalVoicemailController;
 
     /**
      * Initializes the required Telecom components.
@@ -700,7 +722,8 @@ public class CallsManager extends Call.ListenerBase
             com.android.internal.telephony.flags.FeatureFlags telephonyFlags,
             IncomingCallFilterGraphProvider incomingCallFilterGraphProvider,
             TelecomMetricsController metricsController,
-            Ringer.VibratorAdapter vibratorAdapter) {
+            Ringer.VibratorAdapter vibratorAdapter,
+            ScheduledExecutorService scheduledExecutorService) {
 
         mContext = context;
         mLock = lock;
@@ -809,7 +832,8 @@ public class CallsManager extends Call.ListenerBase
                 (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE),
                 featureFlags, communicationDeviceTracker),
                 playerFactory, mRinger, new RingbackPlayer(playerFactory),
-                bluetoothStateReceiver, mDtmfLocalTonePlayer, featureFlags);
+                bluetoothStateReceiver, mDtmfLocalTonePlayer, featureFlags,
+                mCallConnectedIndicatorSettings);
 
         mConnectionSvrFocusMgr = connectionServiceFocusManagerFactory.create(mRequester);
         mHeadsetMediaButton = headsetMediaButtonFactory.create(context, this, mLock);
@@ -870,6 +894,39 @@ public class CallsManager extends Call.ListenerBase
 
         mVoipCallMonitor.registerNotificationListener();
         mListeners.add(mVoipCallMonitor);
+
+        // Note this needs to be after mCallAudioManager so that the audio mode changes as needed
+        // before we try to bind.
+        if (mFeatureFlags.localVoicemail()) {
+            mAudioModeTracker = new AudioModeTracker(audioManager, asyncCallAudioTaskExecutor,
+                    mLock);
+            mLocalVoicemailController = new LocalVoicemailController(
+                    new LocalVoicemailController.CallsManagerAdapter() {
+                        @Override
+                        public void startLocalVoicemail(Call call) {
+                            CallsManager.this.startLocalVoicemail(call);
+                        }
+
+                        @Override
+                        public UserHandle getCurrentUserHandle() {
+                            return CallsManager.this.getCurrentUserHandle();
+                        }
+
+                        @Override
+                        public void disconnectCall(Call call) {
+                            CallsManager.this.disconnectCall(call);
+                        }
+                    },
+                    mContext,
+                    scheduledExecutorService,
+                    mLock);
+            //TODO(b/394367444) consider skipping if local voicemail not enabled on device.
+            mAudioModeTracker.addListener(mLocalVoicemailController);
+            mListeners.add(mLocalVoicemailController);
+        } else {
+            mAudioModeTracker = null;
+            mLocalVoicemailController = null;
+        }
 
         // There is no USER_SWITCHED broadcast for user 0, handle it here explicitly.
         final UserManager userManager = mContext.getSystemService(UserManager.class);
@@ -1631,8 +1688,9 @@ public class CallsManager extends Call.ListenerBase
 // QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
                     && !call.isVideoCrbtForVoLteCall()
                     && !call.isVideoCrsForVoLteCall()
-                    && !call.isVisualizedVoiceCall()) {
+                    && !call.isVisualizedVoiceCall()
 // QTI_END: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
+                    && !call.isVideoCrbtForVoLteCall()) {
                 return true;
             }
         }
@@ -1876,8 +1934,7 @@ public class CallsManager extends Call.ListenerBase
             // In this case, we should allow the new call to go through instead of failing it and
             // logging it. We are refraining from doing a phone number check as it's possible that
             // Fi is using shadow numbers.
-            if (mFeatureFlags.allowCallOnSameConnectionMgr() && ringingCall != null
-                    && connectionMgr != null && Objects.equals(connectionMgr,
+            if (ringingCall != null && connectionMgr != null && Objects.equals(connectionMgr,
                     ringingCall.getConnectionManagerPhoneAccount())) {
                 ignoreIncomingCallFailureOnSameNumber = true;
             }
@@ -2667,7 +2724,8 @@ public class CallsManager extends Call.ListenerBase
                     setIntentExtrasAndStartTime(callToUse, extras);
                     setCallSourceToAnalytics(callToUse, originalIntent);
 
-                    if (mMmiUtils.isPotentialMMICode(handle) && !isSelfManaged) {
+                    if ((mMmiUtils.isPotentialMMICode(handle) || (mMmiUtils
+                            .isPotentialInCallMMICode(handle))) && !isSelfManaged) {
                         // Do not add the call if it is a potential MMI code.
                         callToUse.addListener(this);
                     } else if (!mCalls.contains(callToUse) && mPendingMOEmerCall == null) {
@@ -2893,6 +2951,12 @@ public class CallsManager extends Call.ListenerBase
 
                     // Make sure we set the PhoneAccount before making room
                     callToPlace.setTargetPhoneAccount(callHandle);
+
+                    // Directly place call for incall MMI codes and reused calls
+                    if (isReusedCall || (mMmiUtils.isPotentialInCallMMICode(handle) &&
+                            !isSelfManaged)) {
+                        return CompletableFuture.completedFuture(new Pair<>(callHandle, true));
+                    }
 
                     return mCallSequencingAdapter.makeRoomForOutgoingCall(
                                     callToPlace.isEmergencyCall(), callToPlace)
@@ -3137,10 +3201,64 @@ public class CallsManager extends Call.ListenerBase
         Log.i(
                 this,
                 "Work profile telephony: show forwarding call to managed profile dialog");
-        return maybeRedirectToIntentForwarder(callUri, initiatingUser);
+
+        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
+            return maybeRedirectToIntentForwarder(callUri, initiatingUser);
+        } else {
+            return maybeRedirectToIntentForwarderLegacy(callUri, initiatingUser);
+        }
     }
 
     private boolean maybeRedirectToIntentForwarder(
+            Uri callUri,
+            UserHandle initiatingUser) {
+        // Note: This intent is selected to match the CALL_MANAGED_PROFILE filter in
+        // DefaultCrossProfileIntentFiltersUtils. This ensures that it is redirected to
+        // IntentForwarderActivity.
+        Intent forwardCallIntent = new Intent(Intent.ACTION_CALL, callUri);
+        forwardCallIntent.addCategory(Intent.CATEGORY_DEFAULT);
+        Context userContext = mContext.createContextAsUser(initiatingUser, 0);
+        PackageManager userPackageManager = userContext.getPackageManager();
+        ResolveInfo resolveInfos = userPackageManager.resolveActivity(
+                forwardCallIntent, ResolveInfoFlags.of(0));
+
+        // Check that the intent will actually open the resolver rather than looping to the personal
+        // profile. This should not happen due to the cross profile intent filters.
+        if (resolveInfos == null || getComponentInfo(resolveInfos) == null) {
+            Log.w(
+                    this,
+                    "Work profile telephony: Intent could not be resolved or no activity info.");
+            return false;
+        }
+        ComponentInfo componentInfo = getComponentInfo(resolveInfos);
+        ComponentName componentName = new ComponentName(componentInfo.packageName,
+                componentInfo.name);
+        if (!componentName.getShortClassName()
+                .equals(FORWARD_INTENT_TO_MANAGED_PROFILE)) {
+            Log.w(
+                    this,
+                    "Work profile telephony: Intent would not resolve to forwarder activity."
+                            + " Resolved to: " + componentName.flattenToShortString());
+            return false;
+        }
+
+        try {
+            userContext.startActivity(forwardCallIntent);
+            return true;
+        } catch (ActivityNotFoundException e) {
+            Log.e(this, e, "Unable to start call intent for work telephony");
+            return false;
+        }
+    }
+
+    private ComponentInfo getComponentInfo(ResolveInfo resolveInfo) {
+        if (resolveInfo.activityInfo != null) return resolveInfo.activityInfo;
+        if (resolveInfo.serviceInfo != null) return resolveInfo.serviceInfo;
+        if (resolveInfo.providerInfo != null) return resolveInfo.providerInfo;
+        throw new IllegalStateException("Missing ComponentInfo!");
+    }
+
+    private boolean maybeRedirectToIntentForwarderLegacy(
             Uri callUri,
             UserHandle initiatingUser) {
         // Note: This intent is selected to match the CALL_MANAGED_PROFILE filter in
@@ -3189,12 +3307,22 @@ public class CallsManager extends Call.ListenerBase
         showErrorIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         showErrorIntent.putExtra(
                 TelecomManager.EXTRA_MANAGED_PROFILE_USER_ID, managedProfileUserId);
-        if (mContext.getPackageManager()
-                .queryIntentActivitiesAsUser(
-                        showErrorIntent,
-                        ResolveInfoFlags.of(0),
-                        initiatingUser)
-                .isEmpty()) {
+
+        List<ResolveInfo> info;
+        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
+            info = UserUtil.getPackageManagerFromUserHandler(mContext, initiatingUser)
+                    .queryIntentActivities(
+                            showErrorIntent,
+                            ResolveInfoFlags.of(0));
+        } else {
+            info = mContext.getPackageManager()
+                    .queryIntentActivitiesAsUser(
+                            showErrorIntent,
+                            ResolveInfoFlags.of(0),
+                            initiatingUser);
+        }
+
+        if (info.isEmpty()) {
             return false;
         }
         try {
@@ -3884,6 +4012,35 @@ public class CallsManager extends Call.ListenerBase
     }
 
     /**
+     * Answers a ringing call and starts local voicemail processing.
+     *
+     * @param call
+     */
+    public void startLocalVoicemail(Call call) {
+        if (!mCalls.contains(call)) {
+            Log.w(this, "startLocalVoicemail: Trying to start local voicemail on untracked call");
+            return;
+        }
+
+        Call liveCall = getFirstCallWithLiveState(call);
+        if (liveCall != null && liveCall != call) {
+            Log.w(this, "startLocalVoicemail: Ignoring voicemail request as another call is in a"
+                    + " live state.");
+            return;
+        }
+
+        if (call.getState() == CallState.RINGING) {
+            // If the call is ringing, we need to issue a request to answer the call; this is going
+            // to be handled in
+            Log.addEvent(call, LogUtils.Events.START_LOCAL_VOICEMAIL);
+            answerCall(call, VideoProfile.STATE_AUDIO_ONLY, REQUEST_ORIGIN_TELECOM_LOCAL_VOICEMAIL);
+        } else if (call.getState() == CallState.ACTIVE) {
+            // TODO(b/394367444): Handle transition from audio processing to local voicemail so that
+            // we can go from audio call screening to voicemail.
+        }
+    }
+
+    /**
      * Instructs Telecom to bring a call into the AUDIO_PROCESSING state.
      *
      * Used by the background audio call screener (also the default dialer) to signal that
@@ -4248,9 +4405,10 @@ public class CallsManager extends Call.ListenerBase
                 new RequestCallback(new ActionSetCallState(call, CallState.ACTIVE, tag)));
     }
 
-    public void requestFocusActionAnswerCall(Call call, int videoState) {
+    public void requestFocusActionAnswerCall(Call call, int videoState,
+            @RequestOrigin int requestOrigin) {
         mConnectionSvrFocusMgr.requestFocus(call, new CallsManager.RequestCallback(
-                new ActionAnswerCall(call, videoState)));
+                new ActionAnswerCall(call, videoState, requestOrigin)));
     }
 
     @Override
@@ -4574,19 +4732,15 @@ public class CallsManager extends Call.ListenerBase
     }
 
     private boolean isRttSettingOn(PhoneAccountHandle handle) {
-        int userId = UserUtil.getUserIdFromContext(mContext, mFeatureFlags);
-// QTI_BEGIN: 2020-01-20: Telephony: IMS: Support for MSIM RTT
-        int phoneId = SubscriptionManager.getPhoneId(
-// QTI_END: 2020-01-20: Telephony: IMS: Support for MSIM RTT
-          mPhoneAccountRegistrar.getSubscriptionIdForPhoneAccount(handle));
-// QTI_BEGIN: 2020-01-20: Telephony: IMS: Support for MSIM RTT
-        if (!SubscriptionManager.isValidPhoneId(phoneId)) {
-            Log.w(this, "isRttSettingOn: Invalid phone id = " + phoneId);
-            return false;
+        boolean isRttModeSettingOn;
+        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
+            isRttModeSettingOn = Settings.Secure.getInt(mContext.getContentResolver(),
+                    Settings.Secure.RTT_CALLING_MODE, 0) != 0;
+        } else {
+            int userId = UserUtil.getUserIdFromContext(mContext, mFeatureFlags);
+            isRttModeSettingOn = Settings.Secure.getIntForUser(mContext.getContentResolver(),
+                    Settings.Secure.RTT_CALLING_MODE, 0, userId) != 0;
         }
-// QTI_END: 2020-01-20: Telephony: IMS: Support for MSIM RTT
-        boolean isRttModeSettingOn = Settings.Secure.getIntForUser(mContext.getContentResolver(),
-                Settings.Secure.RTT_CALLING_MODE, 0, userId) != 0;
         // If the carrier config says that we should ignore the RTT mode setting from the user,
         // assume that it's off (i.e. only make an RTT call if it's requested through the extra).
         boolean shouldIgnoreRttModeSetting = getCarrierConfigForPhoneAccount(handle)
@@ -4594,12 +4748,6 @@ public class CallsManager extends Call.ListenerBase
         return isRttModeSettingOn && !shouldIgnoreRttModeSetting;
     }
 
-// QTI_BEGIN: 2020-01-20: Telephony: IMS: Support for MSIM RTT
-    private static String convertRttPhoneId(int phoneId) {
-        return phoneId != 0 ? Integer.toString(phoneId) : "";
-    }
-
-// QTI_END: 2020-01-20: Telephony: IMS: Support for MSIM RTT
     public PersistableBundle getCarrierConfigForPhoneAccount(PhoneAccountHandle handle) {
         int subscriptionId = mPhoneAccountRegistrar.getSubscriptionIdForPhoneAccount(handle);
         CarrierConfigManager carrierConfigManager =
@@ -4830,11 +4978,13 @@ public class CallsManager extends Call.ListenerBase
                 // Clear mPendingAudioProcessingCall so that future attempts to mark the call as
                 // active (e.g. coming off of hold) don't put the call into audio processing instead
                 mPendingAudioProcessingCall = null;
-                return;
+            } else if (call.getState() == CallState.ANSWERED_FOR_LOCAL_VOICEMAIL) {
+                setCallState(call, CallState.LOCAL_VOICEMAIL, "active");
+            } else {
+                setCallState(call, CallState.ACTIVE, "active set explicitly");
+                maybeMoveToSpeakerPhone(call);
+                ensureCallAudible();
             }
-            setCallState(call, CallState.ACTIVE, "active set explicitly");
-            maybeMoveToSpeakerPhone(call);
-            ensureCallAudible();
         }
     }
 
@@ -5611,12 +5761,6 @@ public class CallsManager extends Call.ListenerBase
             if (newState == CallState.ON_HOLD && call.isDtmfTonePlaying()) {
                 stopDtmfTone(call);
             }
-// QTI_BEGIN: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
-            // Maybe start a vibration for MO call.
-            if (newState == CallState.ACTIVE && !call.isIncoming() && !call.isUnknown()) {
-                mRinger.startVibratingForOutgoingCallActive();
-            }
-// QTI_END: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
 
             // Maybe start vibrating for MO call.
             if (newState == CallState.ACTIVE && !call.isIncoming() && !call.isUnknown()) {
@@ -5635,7 +5779,10 @@ public class CallsManager extends Call.ListenerBase
                         (newState == CallState.DISCONNECTED)) {
                     maybeSendPostCallScreenIntent(call);
                 }
-                int disconnectCode = call.getDisconnectCause().getCode();
+                int disconnectCode = DisconnectCause.UNKNOWN;
+                if (call.getDisconnectCause() != null) {
+                    disconnectCode = call.getDisconnectCause().getCode();
+                }
                 if ((newState == CallState.ABORTED || newState == CallState.DISCONNECTED)
                         && ((disconnectCode != DisconnectCause.MISSED)
                         && (disconnectCode != DisconnectCause.CANCELED))) {
@@ -5861,7 +6008,11 @@ public class CallsManager extends Call.ListenerBase
 
         Stream<Call> callsStream = mCalls.stream()
                 .filter(call -> desiredStates.contains(call.getState()) &&
-                        call.getParentCall() == null && !call.isExternalCall());
+                        call.getParentCall() == null)
+                // Unless specifically filtering for external calls, exclude external calls
+                // by default for all other call filters.
+                .filter(call -> callFilter == CALL_FILTER_EXTERNAL ?
+                            call.isExternalCall() : !call.isExternalCall());
 
         if (callFilter == CALL_FILTER_MANAGED) {
             callsStream = callsStream.filter(call -> !call.isSelfManaged());
@@ -5885,7 +6036,8 @@ public class CallsManager extends Call.ListenerBase
      *
      * @param callFilter indicates whether to include just managed calls
      *                   ({@link #CALL_FILTER_MANAGED}), self-managed calls
-     *                   ({@link #CALL_FILTER_SELF_MANAGED}), or all calls
+     *                   ({@link #CALL_FILTER_SELF_MANAGED}), just external calls
+     *                   ({@link #CALL_FILTER_EXTERNAL}), or all calls
      *                   ({@link #CALL_FILTER_ALL}).
      * @param excludeCall Where {@code non-null}, this call is excluded from the count.
      * @param callingUser Where {@code non-null}, call visibility is scoped to this
@@ -5905,7 +6057,11 @@ public class CallsManager extends Call.ListenerBase
 
         Stream<Call> callsStream = mCalls.stream()
                 .filter(call -> desiredStates.contains(call.getState()) &&
-                        call.getParentCall() == null && !call.isExternalCall());
+                        call.getParentCall() == null)
+                // Unless specifically filtering for external calls, exclude external calls
+                // by default for all other call filters.
+                .filter(call -> callFilter == CALL_FILTER_EXTERNAL ?
+                            call.isExternalCall() : !call.isExternalCall());
 
         if (callFilter == CALL_FILTER_MANAGED) {
             callsStream = callsStream.filter(call -> !call.isSelfManaged());
@@ -6082,6 +6238,20 @@ public class CallsManager extends Call.ListenerBase
         return mContext.getString(R.string.hfp_client_connection).equals(
                    phoneAccount == null ? null :
                    phoneAccount.getComponentName().getClassName());
+    }
+
+    /**
+     * Determines if there are any ongoing external calls.
+     * @param callingUser The user to scope the calls to.
+     * @param hasCrossUserAccess indicates if user has the INTERACT_ACROSS_USERS permission.
+     * @return {@code true} if there are ongoing external calls, {@code false} otherwise.
+     */
+    public boolean hasOngoingExternalCalls(UserHandle callingUser, boolean hasCrossUserAccess) {
+        return getNumCallsWithState(
+                CALL_FILTER_EXTERNAL, null /* excludeCall */,
+                callingUser, hasCrossUserAccess,
+                null /* phoneAccountHandle */,
+                ONGOING_CALL_STATES) > 0;
     }
 
     /**
@@ -6339,6 +6509,7 @@ public class CallsManager extends Call.ListenerBase
      */
     @VisibleForTesting
     public void onUserSwitch(UserHandle userHandle) {
+        Log.i(this, "onUserSwitch: userHandle=%s", userHandle);
         mCurrentUserHandle = userHandle;
         mMissedCallNotifier.setCurrentUserHandle(userHandle);
         mRoleManagerAdapter.setCurrentUserHandle(userHandle);
@@ -6383,6 +6554,7 @@ public class CallsManager extends Call.ListenerBase
     }
 
     private void reloadMissedCallsOfUser(UserHandle userHandle) {
+        Log.i(this, "reloadMissedCallsOfUser: userHandle=%s", userHandle);
         mMissedCallNotifier.reloadFromDatabase(mCallerInfoLookupHelper,
                 new MissedCallNotifier.CallInfoFactory(), userHandle);
     }
@@ -6689,6 +6861,20 @@ public class CallsManager extends Call.ListenerBase
             pw.println("mCallDiagnosticServiceController:");
             pw.increaseIndent();
             mCallDiagnosticServiceController.dump(pw);
+            pw.decreaseIndent();
+        }
+
+        if (mAudioModeTracker != null) {
+            pw.println("mAudioModeTracker:");
+            pw.increaseIndent();
+            mAudioModeTracker.dump(pw);
+            pw.decreaseIndent();
+        }
+
+        if (mLocalVoicemailController != null) {
+            pw.println("mLocalVoicemailController:");
+            pw.increaseIndent();
+            mLocalVoicemailController.dump(pw);
             pw.decreaseIndent();
         }
 
@@ -7266,10 +7452,18 @@ public class CallsManager extends Call.ListenerBase
     private final class ActionAnswerCall implements PendingAction {
         private final Call mCall;
         private final int mVideoState;
+        private final @RequestOrigin int mRequestOrigin;
 
         ActionAnswerCall(Call call, int videoState) {
             mCall = call;
             mVideoState = videoState;
+            mRequestOrigin = REQUEST_ORIGIN_UNKNOWN;
+        }
+
+        ActionAnswerCall(Call call, int videoState, @RequestOrigin int requestOrigin) {
+            mCall = call;
+            mVideoState = videoState;
+            mRequestOrigin = requestOrigin;
         }
 
         @Override
@@ -7285,7 +7479,15 @@ public class CallsManager extends Call.ListenerBase
                 // {@link #markCallAsActive}.
                 if (mCall.getState() == CallState.RINGING) {
                     answerCallFuture = mCall.answer(mVideoState);
-                    setCallState(mCall, CallState.ANSWERED, "answered");
+                    // If the origin of this answer request was a local voicemail initiation, we
+                    // will put the call into a special ANSWERED_FOR_LOCAL_VOICEMAIL state so that
+                    // we know to expect to go to local voicemail once the call goes active.
+                    if (mRequestOrigin == REQUEST_ORIGIN_TELECOM_LOCAL_VOICEMAIL) {
+                        setCallState(mCall, CallState.ANSWERED_FOR_LOCAL_VOICEMAIL,
+                                "startLocalVoicemail");
+                    } else {
+                        setCallState(mCall, CallState.ANSWERED, "answered");
+                    }
                 } else if (mCall.getState() == CallState.SIMULATED_RINGING) {
                     // If the call's in simulated ringing, we don't have to wait for the CS --
                     // we can just declare it active.
@@ -7500,12 +7702,19 @@ public class CallsManager extends Call.ListenerBase
         if (call == null) {
             return false;
         }
-        return (call.getAssociatedUser() != null &&
-                call.getAssociatedUser().equals(userHandle))
-                || (call.getPhoneAccountFromHandle() != null &&
-                call.getPhoneAccountFromHandle()
-                .hasCapabilities(PhoneAccount.CAPABILITY_MULTI_USER));
+        if  (call.getAssociatedUser() != null &&
+               call.getAssociatedUser().equals(userHandle)) {
+                return true;
+        }
 // QTI_END: 2024-02-21: Telephony: Fix issue for phone process crash.
+        PhoneAccount phoneAccount = call.getPhoneAccountFromHandle();
+        // May get null targetPhoneAccount such as at select phone account stage
+        if (phoneAccount == null) {
+            Log.i(this, "isCallVisibleForUser false, null phoneAccount");
+            return false;
+        } else {
+            return phoneAccount.hasCapabilities(PhoneAccount.CAPABILITY_MULTI_USER);
+        }
     }
 
     /**

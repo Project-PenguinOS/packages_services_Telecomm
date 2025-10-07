@@ -1542,6 +1542,9 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 case CallState.SIMULATED_RINGING:
                     event = LogUtils.Events.SET_SIMULATED_RINGING;
                     break;
+                case CallState.LOCAL_VOICEMAIL:
+                    event = LogUtils.Events.SET_LOCAL_VOICEMAIL;
+                    break;
             }
             if (event != null) {
                 // The string data should be just the tag.
@@ -1596,6 +1599,18 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
     public boolean isSilentRingingRequested() {
         return mSilentRingingRequested;
+    }
+
+    public boolean isVideoCrbtForVoLteCall() {
+        if (getExtras() == null) {
+            return false;
+        }
+        // filter out the extra if the PhoneAccount doesn't have
+        // PhoneAccount.CAPABILITY_SIM_SUBSCRIPTION, limit the ability to use this functionality
+        // to just telephony phone accounts permission.
+        return mIsSimCall &&
+            (getExtras().getBoolean(android.telecom.Call.EXTRA_IS_USING_VIDEO_RINGBACK)
+            || getExtras().getBoolean(QtiCallConstants.EXTRA_IS_CRBT_CALL, false));
     }
 
     public void setCallIsSuppressedByDoNotDisturb(boolean isCallSuppressed) {
@@ -2067,6 +2082,14 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         boolean pkgSupportsIntent = !mContext.getPackageManager().queryIntentActivities(intent,
                 PackageManager.MATCH_ALL).isEmpty();
 
+        boolean shouldLogTransactionalCall = isTransactionalCall() && pkgSupportsIntent
+                && !isTransactionalLogExcluded();
+        if (!shouldLogTransactionalCall) {
+            Log.i(this, "isLoggedTransactional: isTransactionalCall: %b, pkg(%s) supports "
+                            + "intent: %b, is log excluded: %b", isTransactionalCall(),
+                    handle.getComponentName().getPackageName(), pkgSupportsIntent,
+                    isTransactionalLogExcluded());
+        }
         return isTransactionalCall() && pkgSupportsIntent && !isTransactionalLogExcluded();
     }
 
@@ -3508,10 +3531,9 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         }
 
         // If mExtra shows that the call using Volte, record it with mWasVolte
-        if (mExtras.containsKey(TelecomManager.EXTRA_CALL_NETWORK_TYPE) &&
-            mExtras.get(TelecomManager.EXTRA_CALL_NETWORK_TYPE)
-                    .equals(TelephonyManager.NETWORK_TYPE_LTE)) {
-            mWasVolte = true;
+        if (mExtras.containsKey(TelecomManager.EXTRA_CALL_NETWORK_TYPE)) {
+            mWasVolte = mExtras.get(TelecomManager.EXTRA_CALL_NETWORK_TYPE)
+                    .equals(TelephonyManager.NETWORK_TYPE_LTE);
         }
 
         if (extras.containsKey(Connection.EXTRA_ORIGINAL_CONNECTION_ID)) {
@@ -4838,15 +4860,11 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             }
 // QTI_END: 2023-03-28: Telephony: IMS: Show incorrect video icon in call history after answering
 // QTI_BEGIN: 2023-06-05: Telephony: IMS: Fix incorrect video icon in call history after disconnecting
-        } else if (((oldState == CallState.DIALING && newState == CallState.DISCONNECTED)
-                || (oldState == CallState.RINGING && newState == CallState.DISCONNECTED))
+        } else if ((oldState == CallState.RINGING && newState == CallState.DISCONNECTED)
 // QTI_END: 2023-06-05: Telephony: IMS: Fix incorrect video icon in call history after disconnecting
-// QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
-                && (isVideoCrbtForVoLteCall()
-// QTI_END: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
 // QTI_BEGIN: 2023-06-05: Telephony: IMS: Fix incorrect video icon in call history after disconnecting
-                || isVideoCrsForVoLteCall())) {
-            // For disconnecting Video CRBT/CRS for VoLTE call by APM or other abnormal scenarios
+                && isVideoCrsForVoLteCall()) {
+            // For disconnecting Video CRS for VoLTE call by APM or other abnormal scenarios
             mVideoStateHistory = VideoProfile.STATE_AUDIO_ONLY;
             return;
 // QTI_END: 2023-06-05: Telephony: IMS: Fix incorrect video icon in call history after disconnecting
@@ -4862,13 +4880,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
 // QTI_END: 2023-03-28: Telephony: IMS: Show incorrect video icon in call history after answering
 // QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
-    public boolean isVideoCrbtForVoLteCall() {
-        if (mExtras == null) {
-            return false;
-        }
-        return mExtras.getBoolean(QtiCallConstants.EXTRA_IS_CRBT_CALL, false);
-    }
-
     public boolean isVisualizedVoiceCall() {
         if (mExtras == null) {
             return false;

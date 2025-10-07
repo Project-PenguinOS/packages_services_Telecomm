@@ -494,6 +494,16 @@ public class ParcelableCallUtils {
                         ? android.telecom.Call.STATE_ACTIVE
                         : android.telecom.Call.STATE_RINGING;
                 break;
+            case CallState.ANSWERED_FOR_LOCAL_VOICEMAIL:
+                // TODO(b/394367444): this needs to be handled properly in the future since we won't
+                // be communicating this to an ICS.
+                state = android.telecom.Call.STATE_ACTIVE;
+                break;
+            case CallState.LOCAL_VOICEMAIL:
+                // TODO(b/394367444): this needs to be handled properly in the future since we won't
+                // be communicating this to an ICS.
+                state = android.telecom.Call.STATE_ACTIVE;
+                break;
         }
 
         return state;
@@ -627,7 +637,10 @@ public class ParcelableCallUtils {
         android.telecom.Call.Details.PROPERTY_IS_ADHOC_CONFERENCE,
 
         Connection.PROPERTY_CROSS_SIM,
-        android.telecom.Call.Details.PROPERTY_CROSS_SIM
+        android.telecom.Call.Details.PROPERTY_CROSS_SIM,
+
+        Connection.PROPERTY_REMOTELY_HOSTED,
+        android.telecom.Call.Details.PROPERTY_REMOTELY_HOSTED
     };
 
     private static int convertConnectionToCallProperties(int connectionProperties) {

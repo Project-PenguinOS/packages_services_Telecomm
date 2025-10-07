@@ -49,6 +49,7 @@ import android.content.pm.ParceledListSlice;
 import android.content.pm.ResolveInfo;
 import android.graphics.drawable.Icon;
 import android.net.Uri;
+import android.os.BadParcelableException;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
@@ -97,6 +98,7 @@ import com.android.server.telecom.callsequencing.TransactionManager;
 import com.android.server.telecom.callsequencing.CallTransaction;
 import com.android.server.telecom.callsequencing.CallTransactionResult;
 import com.android.server.telecom.PackageRemovedReceiver;
+import com.android.server.telecom.util.TelecomBundleUtils;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -1193,6 +1195,8 @@ public class TelecomServiceImpl {
                         subId = mPhoneAccountRegistrar.getSubscriptionIdForPhoneAccount(
                                 accountHandle);
                     }
+                    if (!mPhoneAccountRegistrar.isSubscriptionIdActive(subId))
+                        return null;
                     event.setResult(ApiStats.RESULT_NORMAL);
                     return getTelephonyManager(subId).getLine1Number();
                 } catch (UnsupportedOperationException ignored) {
@@ -1375,6 +1379,27 @@ public class TelecomServiceImpl {
                 }
             } finally {
                 logEvent(event);
+                Log.endSession();
+            }
+        }
+
+        /**
+         * @see android.telecom.TelecomManager#isInCall
+         */
+        @Override
+        public boolean isInExternalCall(String callingPackage, String callingFeatureId) {
+            // TODO(b/435261628): Add API stats collection for this interface
+            try {
+                Log.startSession("TSI.iIC", Log.getPackageAbbreviation(callingPackage));
+                if (!canReadPhoneState(callingPackage, callingFeatureId, "isInExternalCall")) {
+                    throw new SecurityException("Only the default dialer or caller with " +
+                            "READ_PHONE_STATE permission can use this method.");
+                }
+                synchronized (mLock) {
+                    return mCallsManager.hasOngoingExternalCalls(Binder.getCallingUserHandle(),
+                            hasInAppCrossUserPermission());
+                }
+            } finally {
                 Log.endSession();
             }
         }
@@ -1971,7 +1996,11 @@ public class TelecomServiceImpl {
                                     phoneAccountHandle);
                             intent.putExtra(CallIntentProcessor.KEY_IS_INCOMING_CALL, true);
                             if (extras != null) {
-                                extras.setDefusable(true);
+                                if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
+                                    extras = TelecomBundleUtils.defuse(extras);
+                                } else {
+                                    extras.setDefusable(true);
+                                }
                                 intent.putExtra(TelecomManager.EXTRA_INCOMING_CALL_EXTRAS, extras);
                             }
                             mCallIntentProcessorAdapter.processIncomingCallIntent(
@@ -2159,7 +2188,11 @@ public class TelecomServiceImpl {
                         try {
                             Intent intent = new Intent(TelecomManager.ACTION_NEW_UNKNOWN_CALL);
                             if (extras != null) {
-                                extras.setDefusable(true);
+                                if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
+                                    extras = TelecomBundleUtils.defuse(extras);
+                                } else {
+                                    extras.setDefusable(true);
+                                }
                                 intent.putExtras(extras);
                             }
                             intent.putExtra(CallIntentProcessor.KEY_IS_UNKNOWN_CALL, true);
@@ -2313,7 +2346,11 @@ public class TelecomServiceImpl {
                         final Intent intent = new Intent(hasCallPrivilegedPermission ?
                                 Intent.ACTION_CALL_PRIVILEGED : Intent.ACTION_CALL, handle);
                         if (extras != null) {
-                            extras.setDefusable(true);
+                            if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
+                                extras = TelecomBundleUtils.defuse(extras);
+                            } else {
+                                extras.setDefusable(true);
+                            }
                             intent.putExtras(extras);
                         }
                         mUserCallIntentProcessorFactory.create(mContext, userHandle)
@@ -2566,10 +2603,15 @@ public class TelecomServiceImpl {
                     com.android.internal.R.string.config_emergency_dialer_package);
             Intent intent = new Intent(Intent.ACTION_DIAL_EMERGENCY)
                     .setPackage(packageName);
-            ResolveInfo resolveInfo = mPackageManager.resolveActivity(intent, 0 /* flags*/);
-            if (resolveInfo == null) {
-                // No matching activity from config, fallback to default platform implementation
-                intent.setPackage(null);
+            long token = Binder.clearCallingIdentity();
+            try {
+                ResolveInfo resolveInfo = mPackageManager.resolveActivity(intent, 0 /* flags*/);
+                if (resolveInfo == null) {
+                    // No matching activity from config, fallback to default platform implementation
+                    intent.setPackage(null);
+                }
+            } finally {
+                Binder.restoreCallingIdentity(token);
             }
             if (!TextUtils.isEmpty(number) && TextUtils.isDigitsOnly(number)) {
                 intent.setData(Uri.parse("tel:" + number));

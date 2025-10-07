@@ -72,11 +72,17 @@ public class CallAudioManager extends CallsManagerListenerBase {
     private final LinkedHashSet<Call> mRingingCalls;
     private final LinkedHashSet<Call> mHoldingCalls;
     private final LinkedHashSet<Call> mAudioProcessingCalls;
+    /**
+     * Realistically there can only be one, but for consistency we'll track using a hash set like
+     * the other states do.
+     */
+    private final LinkedHashSet<Call> mLocalVoicemailCalls;
     private final Set<Call> mCalls;
     private final SparseArray<LinkedHashSet<Call>> mCallStateToCalls;
 
     private final CallAudioRouteAdapter mCallAudioRouteAdapter;
     private final CallAudioModeStateMachine mCallAudioModeStateMachine;
+    private final CallConnectedIndicatorSettings mCallConnectedIndicatorSettings;
     private final BluetoothStateReceiver mBluetoothStateReceiver;
     private final CallsManager mCallsManager;
     private final InCallTonePlayer.Factory mPlayerFactory;
@@ -113,11 +119,13 @@ public class CallAudioManager extends CallsManagerListenerBase {
             RingbackPlayer ringbackPlayer,
             BluetoothStateReceiver bluetoothStateReceiver,
             DtmfLocalTonePlayer dtmfLocalTonePlayer,
-            FeatureFlags featureFlags) {
+            FeatureFlags featureFlags,
+            CallConnectedIndicatorSettings callConnectedIndicator) {
         mActiveDialingOrConnectingCalls = new LinkedHashSet<>(1);
         mRingingCalls = new LinkedHashSet<>(1);
         mHoldingCalls = new LinkedHashSet<>(1);
         mAudioProcessingCalls = new LinkedHashSet<>(1);
+        mLocalVoicemailCalls = new LinkedHashSet<>(1);
         mStreamingCall = null;
         mCalls = new HashSet<>();
         mCallStateToCalls = new SparseArray<LinkedHashSet<Call>>() {{
@@ -129,6 +137,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
             put(CallState.ON_HOLD, mHoldingCalls);
             put(CallState.SIMULATED_RINGING, mRingingCalls);
             put(CallState.AUDIO_PROCESSING, mAudioProcessingCalls);
+            put(CallState.LOCAL_VOICEMAIL, mLocalVoicemailCalls);
         }};
 
         mCallAudioRouteAdapter = callAudioRouteAdapter;
@@ -153,6 +162,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
         mPlayerFactory.setCallAudioManager(this);
         mCallAudioModeStateMachine.setCallAudioManager(this);
         mCallAudioRouteAdapter.setCallAudioManager(this);
+        mCallConnectedIndicatorSettings = callConnectedIndicator;
     }
 
     @Override
@@ -186,11 +196,10 @@ public class CallAudioManager extends CallsManagerListenerBase {
             }
         }
 
-// QTI_BEGIN: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
         if (newState == CallState.ACTIVE && oldState == CallState.DIALING) {
             playToneAfterCallConnected(call);
         }
-// QTI_END: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
+
 // QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
         //reset CRS mode once call state changed.
 // QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
@@ -832,6 +841,10 @@ public class CallAudioManager extends CallsManagerListenerBase {
         }
     }
 
+    public BluetoothStateReceiver getBluetoothStateReceiver() {
+        return mBluetoothStateReceiver;
+    }
+
     private void onCallLeavingState(Call call, int state) {
         switch (state) {
             case CallState.ACTIVE:
@@ -855,6 +868,9 @@ public class CallAudioManager extends CallsManagerListenerBase {
                 break;
             case CallState.AUDIO_PROCESSING:
                 onCallLeavingAudioProcessing();
+                break;
+            case CallState.LOCAL_VOICEMAIL:
+                onCallLeavingLocalVoicemail();
                 break;
         }
     }
@@ -901,6 +917,25 @@ public class CallAudioManager extends CallsManagerListenerBase {
             case CallState.AUDIO_PROCESSING:
                 onCallEnteringAudioProcessing();
                 break;
+            case CallState.LOCAL_VOICEMAIL:
+                onCallEnteringLocalVoicemail();
+                break;
+        }
+    }
+
+    private void onCallLeavingLocalVoicemail() {
+        if (mLocalVoicemailCalls.size() == 0) {
+            mCallAudioModeStateMachine.sendMessageWithArgs(
+                    CallAudioModeStateMachine.NO_MORE_LOCAL_VOICEMAIL_CALLS,
+                    makeArgsForModeStateMachine());
+        }
+    }
+
+    private void onCallEnteringLocalVoicemail() {
+        if (mLocalVoicemailCalls.size() == 1) {
+            mCallAudioModeStateMachine.sendMessageWithArgs(
+                    CallAudioModeStateMachine.NEW_LOCAL_VOICEMAIL_CALL,
+                    makeArgsForModeStateMachine());
         }
     }
 
@@ -976,22 +1011,35 @@ public class CallAudioManager extends CallsManagerListenerBase {
 
     private void onCallEnteringRinging() {
         if (mRingingCalls.size() == 1) {
+            Call ringingCall = mRingingCalls.getFirst();
             Log.i(this, "onCallEnteringRinging: mRingingCalls.getFirst().getBtIcsFuture() = %s",
-                    mRingingCalls.getFirst().getBtIcsFuture());
-            if (mRingingCalls.getFirst().getBtIcsFuture() != null) {
-                mCallRingingFuture  = mRingingCalls.getFirst().getBtIcsFuture()
-                        .thenComposeAsync((completed) -> {
+                    ringingCall.getBtIcsFuture());
+            if (ringingCall.getBtIcsFuture() != null) {
+                mCallRingingFuture = mFeatureFlags.sendNewRingingCallSync()
+                        ? ringingCall.getBtIcsFuture().thenCompose((completed) -> {
+                            // Do a performative check to see if the call is still ringing before
+                            // sending the msg forward to the CallAudioModeStateMachine.
+                            if (ringingCall.getState() == CallState.RINGING
+                                    || ringingCall.getState() == CallState.SIMULATED_RINGING) {
+                                mCallAudioModeStateMachine.sendMessageWithArgs(
+                                        CallAudioModeStateMachine.NEW_RINGING_CALL,
+                                        makeArgsForModeStateMachine());
+                            }
+                            return CompletableFuture.completedFuture(completed);})
+                        : ringingCall.getBtIcsFuture().thenComposeAsync((completed) -> {
                             mCallAudioModeStateMachine.sendMessageWithArgs(
                                     CallAudioModeStateMachine.NEW_RINGING_CALL,
                                     makeArgsForModeStateMachine());
                             return CompletableFuture.completedFuture(completed);
-                        }, new LoggedHandlerExecutor(mHandler, "CAM.oCER", mCallsManager.getLock()))
-                        .exceptionally((throwable) -> {
-                            Log.e(this, throwable, "Error while executing BT ICS future");
-                            // Fallback on performing computation on a separate thread.
-                            handleBtBindingWaitFallback();
-                            return null;
-                        });
+                            }, new LoggedHandlerExecutor(mHandler, "CAM.oCER",
+                                mCallsManager.getLock()));
+
+                mCallRingingFuture = mCallRingingFuture.exceptionally((throwable) -> {
+                    Log.e(this, throwable, "Error while executing BT ICS future");
+                    // Fallback on performing computation on a separate thread.
+                    handleBtBindingWaitFallback();
+                    return null;
+                });
             } else {
                 mCallAudioModeStateMachine.sendMessageWithArgs(
                         CallAudioModeStateMachine.NEW_RINGING_CALL,
@@ -1127,7 +1175,8 @@ public class CallAudioManager extends CallsManagerListenerBase {
                 .setHasActiveOrDialingCalls(mActiveDialingOrConnectingCalls.size() > 0)
                 .setHasRingingCalls(mRingingCalls.size() > 0)
                 .setHasHoldingCalls(mHoldingCalls.size() > 0)
-                .setHasAudioProcessingCalls(mAudioProcessingCalls.size() > 0)
+                .setHasAudioProcessingCalls(mAudioProcessingCalls.size() > 0
+                        || mLocalVoicemailCalls.size() > 0)
                 .setIsTonePlaying(mIsTonePlaying)
                 .setIsStreaming((mStreamingCall != null) && (!mStreamingCall.isDisconnected()))
                 .setForegroundCallIsVoip(
@@ -1179,24 +1228,26 @@ public class CallAudioManager extends CallsManagerListenerBase {
         }
     }
 
-// QTI_BEGIN: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
     private void playToneAfterCallConnected(Call call) {
-        final Context context = call.getContext();
-        ToneGenerator toneGenerator = new ToneGenerator(AudioManager.STREAM_MUSIC, 90);
+        /*if (!mFeatureFlags.callConnectedIndicatorPreference()) {
+            Log.i(LOG_TAG, "Call connected indicator of playing tone is disabled.");
+            return;
+        }*/
+        boolean isPlayingToneEnabled = false;
         try {
-            if (Settings.System.getInt(context.getContentResolver(),
-                        Settings.System.CALL_CONNECTED_TONE_ENABLED) == 1) {
-                if (toneGenerator != null) {
-                    Log.i(LOG_TAG, "playing tone");
-                    toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP, 150);
-                }
-            }
+            isPlayingToneEnabled = Settings.System.getInt(call.getContext().getContentResolver(),
+                    Settings.System.CALL_CONNECTED_TONE_ENABLED) == 1;
         } catch (SettingNotFoundException e) {
             Log.e(this, e, "Settings exception when reading playing tone config");
         }
+
+        if (mCallConnectedIndicatorSettings != null &&
+                (mCallConnectedIndicatorSettings.isCallConnectedToneEnabled()
+                || isPlayingToneEnabled)) {
+            mPlayerFactory.createPlayer(call, InCallTonePlayer.TONE_OUTGOING_CALL_ACCEPTED).startTone();
+        }
     }
 
-// QTI_END: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
     private void playToneForDisconnectedCall(Call call) {
         // If this call is being disconnected as a result of being handed over to another call,
         // we will not play a disconnect tone.
