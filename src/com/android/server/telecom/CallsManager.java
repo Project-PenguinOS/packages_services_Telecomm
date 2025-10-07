@@ -3605,7 +3605,7 @@ public class CallsManager extends Call.ListenerBase
      */
     private void showRedirectionDialog(@NonNull String callId, @NonNull CharSequence appName) {
         AlertDialog confirmDialog = (new AlertDialog.Builder(mContext)).create();
-        LayoutInflater layoutInflater = LayoutInflater.from(mContext);
+        LayoutInflater layoutInflater = mContext.getSystemService(LayoutInflater.class);
         View dialogView = layoutInflater.inflate(R.layout.call_redirection_confirm_dialog, null);
 
         Button buttonFirstLine = (Button) dialogView.findViewById(R.id.buttonFirstLine);

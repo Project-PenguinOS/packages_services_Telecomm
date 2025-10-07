@@ -67,7 +67,7 @@ public class VoicemailAdapter extends RecyclerView.Adapter<VoicemailAdapter.Voic
     @NonNull
     @java.lang.Override
     public VoicemailViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext())
+        View view = parent.getContext().getSystemService(LayoutInflater.class)
                 .inflate(R.layout.voicemail_list_item, parent, false);
         return new VoicemailViewHolder(view);
     }
