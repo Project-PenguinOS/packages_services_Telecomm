@@ -39,6 +39,7 @@ import static com.android.server.telecom.CallAudioRouteAdapter.SWITCH_BASELINE_R
 import static com.android.server.telecom.CallAudioRouteAdapter.SWITCH_BLUETOOTH;
 import static com.android.server.telecom.CallAudioRouteAdapter.SWITCH_FOCUS;
 import static com.android.server.telecom.CallAudioRouteAdapter.TOGGLE_MUTE;
+import static com.android.server.telecom.CallAudioRouteAdapter.UPDATE_SYSTEM_AUDIO_ROUTE;
 import static com.android.server.telecom.CallAudioRouteAdapter.USER_SWITCH_BASELINE_ROUTE;
 import static com.android.server.telecom.CallAudioRouteAdapter.USER_SWITCH_BLUETOOTH;
 import static com.android.server.telecom.CallAudioRouteAdapter.USER_SWITCH_EARPIECE;
@@ -444,6 +445,7 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         when(mCall.getVideoState()).thenReturn(VideoProfile.STATE_BIDIRECTIONAL);
         when(mCall.isActiveFocus()).thenReturn(true);
         mController.initialize();
+        mController.sendMessageWithSessionInfo(UPDATE_SYSTEM_AUDIO_ROUTE);
         mController.sendMessageWithSessionInfo(SWITCH_FOCUS, ACTIVE_FOCUS, 0);
         // Verify that pending audio destination route is set to speaker. This will trigger pending
         // message to wait for SPEAKER_ON message once communication device is set before routing.
@@ -599,7 +601,6 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testDisconnectDockWhenTranslatedToSpeakerType() {
-        when(mFeatureFlags.preserveCallAudioRouting()).thenReturn(true);
         // Route to speaker instead and then try disconnecting dock to emulate speaker representing
         // dock type
         verifyConnectDisconnectDock(false /* connectDock */);
@@ -1215,6 +1216,7 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         verify(mCallsManager, timeout(TEST_TIMEOUT)).onCallAudioStateChanged(
                 any(CallAudioState.class), eq(expectedState));
 
+        mController.sendMessageWithSessionInfo(UPDATE_SYSTEM_AUDIO_ROUTE);
         mController.sendMessageWithSessionInfo(SWITCH_FOCUS, ACTIVE_FOCUS, 0);
         // Mimic behavior of controller processing BT_AUDIO_DISCONNECTED
         mController.sendMessageWithSessionInfo(SWITCH_BASELINE_ROUTE,
@@ -1443,6 +1445,8 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         // then BT_ACTIVE_DEVICE_PRESENT will be sent to the controller to be processed.
         mController.updateActiveBluetoothDevice(
                 new Pair<>(AudioRoute.TYPE_BLUETOOTH_SCO, watchDevice.getAddress()));
+        mController.sendMessageWithSessionInfo(BT_ACTIVE_DEVICE_PRESENT,
+                AudioRoute.TYPE_BLUETOOTH_SCO, scoDeviceAddress);
         // Emulate scenario with call answered on watch. Ensure at this point that audio was routed
         // into watch
         mController.sendMessageWithSessionInfo(SWITCH_FOCUS, ACTIVE_FOCUS, 0);
@@ -1789,6 +1793,7 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         when(mCallAudioManager.getForegroundCall()).thenReturn(mockCall);
 
         // Verify audio routing defaulted to speaker
+        mController.sendMessageWithSessionInfo(UPDATE_SYSTEM_AUDIO_ROUTE);
         mController.sendMessageWithSessionInfo(SWITCH_FOCUS, ACTIVE_FOCUS, 0);
         waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
         mController.sendMessageWithSessionInfo(SPEAKER_ON);
@@ -1995,7 +2000,6 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
     @Test
     @SmallTest
     public void testRouteToEarpieceOnNewCallDuringVideoCall() {
-        when(mFeatureFlags.preserveCallAudioRouting()).thenReturn(true);
         // Setup: Initialize controller and simulate an active video call.
         when(mCall.getVideoState()).thenReturn(VideoProfile.STATE_BIDIRECTIONAL);
         when(mCall.isActiveFocus()).thenReturn(true);
@@ -2115,6 +2119,7 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         mController.setActive(false);
 
         // Start the call by switching to active focus.
+        mController.sendMessageWithSessionInfo(UPDATE_SYSTEM_AUDIO_ROUTE);
         mController.sendMessageWithSessionInfo(SWITCH_FOCUS, ACTIVE_FOCUS, 0);
         waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
         // Verify setCommunicationDevice is still called because we are moving to active routing.
@@ -2185,7 +2190,6 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
     }
 
     private void verifyRouteUnchangedAfterFocusSwitch(int focusType, boolean setPreferredDevice) {
-        when(mFeatureFlags.preserveCallAudioRouting()).thenReturn(true);
         mController.initialize();
         // Switch to speaker before switching to ringing focus
         mController.sendMessageWithSessionInfo(USER_SWITCH_SPEAKER);
