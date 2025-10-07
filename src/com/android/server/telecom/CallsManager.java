@@ -4888,6 +4888,12 @@ public class CallsManager extends Call.ListenerBase
             // If the remote end hangs up while in SIMULATED_RINGING, the call should
             // be marked as missed.
             call.setOverrideDisconnectCauseCode(new DisconnectCause(DisconnectCause.MISSED));
+        } else if (oldState == CallState.LOCAL_VOICEMAIL) {
+            // Local VM calls should be considered missed.
+            Log.i(this, "markCallAsDisconnected: callid=%s; was local voicemail; marking missed.",
+                    call.getId());
+            call.setOverrideDisconnectCauseCode(new DisconnectCause(DisconnectCause.MISSED));
+            call.setMissedReason(USER_MISSED_NO_ANSWER);
         }
         if (call.getState() == CallState.NEW
                 && disconnectCause.getCode() == DisconnectCause.MISSED) {
@@ -5575,8 +5581,9 @@ public class CallsManager extends Call.ListenerBase
             return;
         }
         int oldState = call.getState();
-        Log.i(this, "setCallState %s -> %s, call: %s",
+        Log.i(this, "setCallState %s(%s) -> %s, call: %s",
                 CallState.toString(call.getParcelableCallState()),
+                CallState.toString(call.getState()),
                 CallState.toString(newState), call);
         if (newState != oldState) {
             // If the call switches to held state while a DTMF tone is playing, stop the tone to

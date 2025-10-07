@@ -2116,8 +2116,7 @@ public class PhoneAccountRegistrar {
             pw.println("localVoicemailTimeouts:");
             pw.increaseIndent();
             mState.localVoicemailTimeout.forEach((pa, d) -> pw.println(
-                    pa + " -> " + (d.equals(TelecomManager.LOCAL_VOICEMAIL_DISABLED) ? "disabled"
-                            : d)));
+                    pa + " -> " + d));
             pw.decreaseIndent();
         }
     }
