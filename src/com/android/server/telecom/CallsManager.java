@@ -875,7 +875,7 @@ public class CallsManager extends Call.ListenerBase
 
         // Note this needs to be after mCallAudioManager so that the audio mode changes as needed
         // before we try to bind.
-        if (mFeatureFlags.localVoicemail()) {
+        if (android.telecom.flags.Flags.localVoicemail()) {
             mAudioModeTracker = new AudioModeTracker(audioManager, asyncCallAudioTaskExecutor,
                     mLock);
             mLocalVoicemailController = new LocalVoicemailController(

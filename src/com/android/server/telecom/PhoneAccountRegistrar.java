@@ -2760,7 +2760,7 @@ public class PhoneAccountRegistrar {
                 serializer.endTag(null, ACCOUNTS);
 
                 // Lets write out the local voicemail timeouts!
-                if (telecomFeatureFlags.localVoicemail()) {
+                if (android.telecom.flags.Flags.localVoicemail()) {
                     serializer.startTag(null, LOCAL_VOICEMAIL_TIMEOUT);
                     o.localVoicemailTimeout.forEach((x, y) -> {
                         try {

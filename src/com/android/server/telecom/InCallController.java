@@ -1807,7 +1807,7 @@ public class InCallController extends CallsManagerListenerBase implements
         // Handle transition to and from local voicemail.  If we start local voicemail for a call,
         // remove it from InCallService tracking.  If we stop local voicemail and go active again,
         // add it back tp the InCallService (ie this is the "pickup voicemail call" usecase).
-        if (mFeatureFlags.localVoicemail()) {
+        if (android.telecom.flags.Flags.localVoicemail()) {
             if (oldState == CallState.ANSWERED_FOR_LOCAL_VOICEMAIL
                     && newState == CallState.LOCAL_VOICEMAIL) {
                 UserHandle userFromCall = getUserFromCall(call);
