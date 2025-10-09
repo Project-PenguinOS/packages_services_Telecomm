@@ -50,7 +50,6 @@ flag {
 # OWNER=tgunn TARGET=26Q2
 flag {
   name: "remotely_hosted_property"
-  is_exported: true
   namespace: "telecom"
   description: "Add PROPERTY_REMOTELY_HOSTED to call to mirror what is in Connection."
   bug: "430293079"
