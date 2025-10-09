@@ -117,4 +117,19 @@
 
     <string name="oem_call_screening_service_component" translatable="false"></string>
     <string name="config_audio_parameter_key_crs_volume" translatable="false"></string>
+
+    <!-- Indicating if ringtone vibration settings supported or not.
+         Duplicated from frameworks/base/core/res/res/values/config.xml
+         to eliminate dependency on com.android.internal.R. See b/413433414. -->
+    <bool name="config_ringtoneVibrationSettingsSupported">false</bool>
+
+    <!-- Package name that provides Emergency Dialer
+         Duplicated from frameworks/base/core/res/res/values/config.xml
+         to eliminate dependency on com.android.internal.R. See b/413433414. -->
+    <string name="config_emergency_dialer_package" translatable="false">com.android.phone</string>
+
+    <!-- The name of the package that will hold the dialer role by default.
+         Duplicated from frameworks/base/core/res/res/values/config.xml
+         to eliminate dependency on com.android.internal.R. See b/413433414. -->
+    <string name="config_defaultDialer" translatable="false">com.android.dialer</string>
 </resources>
