@@ -156,6 +156,7 @@ import com.android.server.telecom.ui.CallStreamingNotification;
 import com.android.server.telecom.ui.ConfirmCallDialogActivity;
 import com.android.server.telecom.ui.DisconnectedCallNotifier;
 import com.android.server.telecom.ui.IncomingCallNotifier;
+import com.android.server.telecom.ui.LocalVoicemailNotification;
 import com.android.server.telecom.ui.ToastFactory;
 import com.android.server.telecom.util.CallerInfo;
 import com.android.server.telecom.callsequencing.voip.VoipCallMonitor;
@@ -648,6 +649,7 @@ public class CallsManager extends Call.ListenerBase
     private final CallConnectedIndicatorSettings mCallConnectedIndicatorSettings;
     private final AudioModeTracker mAudioModeTracker;
     private final LocalVoicemailController mLocalVoicemailController;
+    private final LocalVoicemailNotification mLocalVoicemailNotification;
 
     /**
      * Initializes the required Telecom components.
@@ -908,11 +910,17 @@ public class CallsManager extends Call.ListenerBase
                     mLock,
                     mContext.getResources().getString(
                             com.android.server.telecom.R.string.local_voicemail_package_name));
+            mLocalVoicemailNotification = new LocalVoicemailNotification(mContext,
+                    (packageName, userHandle) -> AppLabelProxy.Util.getAppLabel(mContext,
+                    userHandle, packageName, mFeatureFlags), asyncTaskExecutor,
+                    featureFlags, mLocalVoicemailController);
             mAudioModeTracker.addListener(mLocalVoicemailController);
             mListeners.add(mLocalVoicemailController);
+            mListeners.add(mLocalVoicemailNotification);
         } else {
             mAudioModeTracker = null;
             mLocalVoicemailController = null;
+            mLocalVoicemailNotification = null;
         }
 
         // There is no USER_SWITCHED broadcast for user 0, handle it here explicitly.
