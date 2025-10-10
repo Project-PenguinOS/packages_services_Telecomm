@@ -31,6 +31,7 @@ android_library {
         "androidx.annotation_annotation",
         "androidx.core_core",
         "modules-utils-handlerexecutor",
+        "modules-utils-list-slice",
         "telecom_module_flags-export-java",
     ],
     resource_dirs: ["res"],
