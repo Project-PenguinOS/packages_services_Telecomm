@@ -621,8 +621,13 @@ public class Ringer {
         if (ringtoneUri != null) {
             return Utils.hasVibrationParameter(ringtoneUri);
         }
-        return Utils.hasVibrationParameter(RingtoneManager.getActualDefaultRingtoneUri(
-                mContext, RingtoneManager.TYPE_RINGTONE));
+        if (Flags.supportPerPhoneAccountRingtone()){
+            return Utils.hasVibrationParameter(RingtoneManager.getRingtoneUriForPhoneAccountHandle(
+                    mContext, foregroundCall.getTargetPhoneAccount()));
+        } else {
+            return Utils.hasVibrationParameter(RingtoneManager.getActualDefaultRingtoneUri(
+                    mContext, RingtoneManager.TYPE_RINGTONE));
+        }
     }
 
     /**
