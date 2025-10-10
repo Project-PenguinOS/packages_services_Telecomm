@@ -137,7 +137,14 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     private Set<AudioRoute> mStreamingRoutes;
     private Map<AudioRoute, BluetoothDevice> mBluetoothRoutes;
     private Pair<Integer, String> mActiveBluetoothDevice;
-    private Map<Integer, String> mActiveDeviceCache;
+    /**
+     * Caches the previously and currently active Bluetooth device addresses for each
+     * {@link AudioRoute.AudioRouteType}. The key is the {@link AudioRoute.AudioRouteType} (e.g.,
+     * TYPE_BLUETOOTH_SCO, TYPE_BLUETOOTH_HA, TYPE_BLUETOOTH_LE), and the value is a
+     * {@link Pair<String, String>} where the first element is the address of the previously active
+     * device and the second element is the address of the currently active device for that type.
+     */
+    private Map<Integer, Pair<String, String>> mActiveDeviceCache;
     private String mBluetoothAddressForRinging;
     private Map<Integer, AudioRoute> mTypeRoutes;
     private PendingAudioRoute mPendingAudioRoute;
@@ -1084,7 +1091,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     private void handleBtActiveDeviceGone(@AudioRoute.AudioRouteType int type) {
         // Determine what the active device for the BT audio type was so that we can exclude this
         // device from being used when calculating the base route.
-        String previouslyActiveDeviceAddress = mActiveDeviceCache.get(type);
+        String previouslyActiveDeviceAddress = getPreviouslyActiveBtDeviceAddress(type);
         // It's possible that the dest route hasn't been set yet when the controller is first
         // initialized.
         boolean pendingRouteNeedsUpdate = mPendingAudioRoute.getDestRoute() != null
@@ -1963,7 +1970,14 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
      */
     public void updateActiveBluetoothDevice(Pair<Integer, String> device) {
         synchronized (mLock) {
-            mActiveDeviceCache.put(device.first, device.second);
+            // Get what's currently stored in the active device cache accessing the device's audio
+            // route type (device.first).
+            Pair<String, String> prevAndCurrentDevices = mActiveDeviceCache
+                    .computeIfAbsent(device.first, k -> new Pair<>(null, null));
+            // Store the old current active device as the previous device. The new active device is
+            // stored in the passed device (device.second).
+            String previousDevice = prevAndCurrentDevices.second;
+            mActiveDeviceCache.put(device.first, new Pair<>(previousDevice, device.second));
             // Update most recently active device if address isn't null (meaning
             // some device is active).
             if (device.second != null) {
@@ -1972,14 +1986,17 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                 // If a device was removed, check to ensure that no other device is
                 //still considered active.
                 boolean hasActiveDevice = false;
-                List<Map.Entry<Integer, String>> activeBtDevices =
+                List<Map.Entry<Integer, Pair<String, String>>> activeBtDevices =
                         new ArrayList<>(mActiveDeviceCache.entrySet());
-                for (Map.Entry<Integer, String> activeDevice : activeBtDevices) {
-                    Integer btAudioType = activeDevice.getKey();
-                    String address = activeDevice.getValue();
-                    if (address != null) {
+                for (Map.Entry<Integer, Pair<String, String>> activeDeviceInfo : activeBtDevices) {
+                    Integer btAudioType = activeDeviceInfo.getKey();
+                    prevAndCurrentDevices = activeDeviceInfo.getValue();
+                    // This is the new active device for the specified audio route type.
+                    String activeDeviceAddress = prevAndCurrentDevices != null
+                            ? prevAndCurrentDevices.second : null;
+                    if (activeDeviceAddress != null) {
                         hasActiveDevice = true;
-                        mActiveBluetoothDevice = new Pair<>(btAudioType, address);
+                        mActiveBluetoothDevice = new Pair<>(btAudioType, activeDeviceAddress);
                         break;
                     }
                 }
@@ -1987,6 +2004,14 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                     mActiveBluetoothDevice = null;
                 }
             }
+        }
+    }
+
+    private String getPreviouslyActiveBtDeviceAddress(int audioRouteType) {
+        synchronized (mLock) {
+            Pair<String, String> prevAndCurrentDevices = mActiveDeviceCache
+                    .computeIfAbsent(audioRouteType, k -> new Pair<>(null, null));
+            return prevAndCurrentDevices.first;
         }
     }
 
