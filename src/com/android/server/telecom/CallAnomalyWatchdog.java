@@ -28,10 +28,10 @@ import android.telecom.ConnectionService;
 import android.telecom.DisconnectCause;
 import android.telecom.Log;
 import android.telecom.PhoneAccountHandle;
+import android.util.IndentingPrintWriter;
 import android.util.LocalLog;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.util.IndentingPrintWriter;
 import com.android.server.telecom.metrics.TelecomMetricsController;
 import com.android.server.telecom.stats.CallStateChangedAtomWriter;
 import com.android.server.telecom.flags.FeatureFlags;

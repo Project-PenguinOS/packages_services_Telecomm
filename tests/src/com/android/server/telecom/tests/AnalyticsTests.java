@@ -47,12 +47,12 @@ import android.telecom.VideoProfile;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.util.Base64;
+import android.util.IndentingPrintWriter;
 
 import androidx.test.filters.FlakyTest;
 import androidx.test.filters.MediumTest;
 import androidx.test.filters.SmallTest;
 
-import com.android.internal.util.IndentingPrintWriter;
 import com.android.server.telecom.Analytics;
 import com.android.server.telecom.LogUtils;
 import com.android.server.telecom.flags.FeatureFlags;

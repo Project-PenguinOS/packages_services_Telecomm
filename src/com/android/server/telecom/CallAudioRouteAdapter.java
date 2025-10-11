@@ -3,9 +3,8 @@ package com.android.server.telecom;
 import android.bluetooth.BluetoothDevice;
 import android.os.Handler;
 import android.telecom.CallAudioState;
+import android.util.IndentingPrintWriter;
 import android.util.SparseArray;
-
-import com.android.internal.util.IndentingPrintWriter;
 
 public interface CallAudioRouteAdapter {
     /** Valid values for msg.what */

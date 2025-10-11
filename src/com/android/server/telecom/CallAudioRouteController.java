@@ -46,13 +46,13 @@ import android.telecom.Log;
 import android.telecom.Logging.Session;
 import android.telecom.VideoProfile;
 import android.util.ArrayMap;
+import android.util.IndentingPrintWriter;
 import android.util.Pair;
 
 import androidx.annotation.NonNull;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.os.SomeArgs;
-import com.android.internal.util.IndentingPrintWriter;
 import com.android.server.telecom.bluetooth.BluetoothRouteManager;
 import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.metrics.ErrorStats;
