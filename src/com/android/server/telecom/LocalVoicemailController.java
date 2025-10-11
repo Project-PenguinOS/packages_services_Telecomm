@@ -29,6 +29,7 @@ import android.os.Binder;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.UserHandle;
+import android.telecom.DisconnectCause;
 import android.telecom.LocalVoicemailService;
 import android.telecom.Log;
 import android.telecom.PhoneAccountHandle;
@@ -248,7 +249,9 @@ public class LocalVoicemailController extends CallsManagerListenerBase implement
             // Only start local voicemail timeout if there are no other calls.
             maybeStartLocalVoicemailTimeout(call, call.getState());
         } else {
-            Log.i(this, "onCallAdded: skipping %s as there are other calls");
+            Log.i(this, "onCallAdded: skipping %s as there are other calls: %s", call.getId(),
+                    mCalls.stream().map(c -> c.getId() + "/" + CallState.toString(c.getState()))
+                    .collect(Collectors.joining(", ")));
         }
     }
 
@@ -282,12 +285,12 @@ public class LocalVoicemailController extends CallsManagerListenerBase implement
      */
     @Override
     public void onCallStateChanged(Call call, int oldState, int newState) {
-        if (getActiveLocalVoicemailService() == null) {
+        if (getActiveLocalVoicemailService() == null || oldState == newState) {
             return;
         }
-        if (newState == CallState.RINGING) {
+        if (mCall == null && newState == CallState.RINGING) {
             maybeStartLocalVoicemailTimeout(call, newState);
-        } else if (newState == CallState.LOCAL_VOICEMAIL) {
+        } else if (mCall == call && newState == CallState.LOCAL_VOICEMAIL) {
             Log.i(this, "onCallStateChanged: call %s is local voicemail", mCall.getId());
         } else if ((call == mCall) && (newState == CallState.DISCONNECTED)) {
             Log.i(this, "onCallStateChanged: call %s disconnected; stopping local VM.",
@@ -316,16 +319,24 @@ public class LocalVoicemailController extends CallsManagerListenerBase implement
      * calls.
      */
     private void performLocalVoicemailCorrectnessCheck() {
-        if (mCall != null && mCalls.contains(mCall) && mCalls.size() > 1) {
-            // We are in a state where local voicemail is processing but there is another call
-            // present; we will terminate local voicemail.
-            Log.i(this, "performLocalVoicemailCorrectnessCheck: multiple calls are present (%s) - "
-                    + "stopping local voicemail",
-                    mCalls.stream()
-                            .map(c -> c.getId())
-                            .collect(Collectors.joining(",")));
-            stopLocalVoicemail();
+        if (mCall != null) {
+            return;
         }
+        boolean hasOtherActiveCall = mCalls.contains(mCall)
+                && mCalls.stream().anyMatch(c -> c != mCall && c.isActiveFocus());
+        if (!hasOtherActiveCall) {
+            // We will allow there to be a call in ringing state, but if something else shows up
+            // that is active, dialing, etc we will stop local voicemail.
+            return;
+        }
+        // We are in a state where local voicemail is processing but there is another call
+        // present; we will terminate local voicemail.
+        Log.i(this, "performLocalVoicemailCorrectnessCheck: multiple calls are present (%s) - "
+                + "stopping local voicemail",
+                mCalls.stream()
+                        .map(c -> c.getId())
+                        .collect(Collectors.joining(",")));
+        stopLocalVoicemail();
     }
 
     /**
@@ -365,7 +376,7 @@ public class LocalVoicemailController extends CallsManagerListenerBase implement
         if (state == CallState.RINGING) {
             Duration timeoutDuration = getLocalVoicemailTimeout(call);
 
-            if (timeoutDuration.equals(TelecomManager.LOCAL_VOICEMAIL_DISABLED)) {
+            if (timeoutDuration == null) {
                 Log.i(this, "maybeStartLocalVoicemailTimeout: local voicemail disabled for call %s",
                         call.getId());
                 return;
@@ -496,16 +507,42 @@ public class LocalVoicemailController extends CallsManagerListenerBase implement
      */
     private void handleServiceConnected(ILocalVoicemailService service) {
         mAdapter = new LocalVoicemailServiceAdapter(getActiveLocalVoicemailService());
+
+        if (mCall == null) {
+            Log.i(this, "handleServiceConnected: no longer in local VM; stop!");
+            stopLocalVoicemail();
+            return;
+        }
         try {
             Log.i(this, "handleServiceConnected: handleServiceConnected");
             // Add adapter for communication back from the local voicemail service to Telecom.
             service.setAdapter(mAdapter);
-            Log.i(this, "handleServiceConnected: adapter set");
             service.startLocalVoicemail(
-                    ParcelableCallUtils.toParcelableCallForScreening(mCall, false, true));
-            Log.i(this, "handleServiceConnected: started");
+                    ParcelableCallUtils.toParcelableCallForScreening(mCall,
+                            false /* includeRestrictedExtras */, true /* include phone account*/));
         } catch (RemoteException e) {
             Log.w(this, "handleServiceConnected: error=%s", e);
+        }
+    }
+
+    /**
+     * Notifies the local voicemail service that local voicemail has stopped, either due to a call
+     * disconnection or due to the call becoming active again.
+     */
+    private void notifyLocalVoicemailStopped() {
+        Call theCall = mCall;
+        if (mILocalVoicemailService == null || theCall == null) {
+            return;
+        }
+
+        try {
+            Log.i(this, "notifyLocalVoicemailStopped");
+            mILocalVoicemailService.stopLocalVoicemail(
+                    ParcelableCallUtils.toParcelableCallForScreening(theCall,
+                            false /* includeRestrictedExtras */,
+                            true /* include phone account*/));
+        } catch (RemoteException e) {
+            Log.w(this, "notifyLocalVoicemailStopped: error=%s", e);
         }
     }
 
@@ -514,6 +551,8 @@ public class LocalVoicemailController extends CallsManagerListenerBase implement
      */
     private void maybeUnbindLocalVoicemailService() {
         if (mConnection != null) {
+            notifyLocalVoicemailStopped();
+
             Log.i(this, "maybeUnbindLocalVoicemailService - unbinding from %s",
                     getActiveLocalVoicemailService());
             try {
@@ -535,6 +574,8 @@ public class LocalVoicemailController extends CallsManagerListenerBase implement
      */
     private void disconnectLocalVmCall() {
         if (mCall != null) {
+            mCall.setOverrideDisconnectCauseCode(
+                    new DisconnectCause(DisconnectCause.MISSED));
             mCallsManagerAdapter.disconnectCall(mCall);
             maybeCleanupCall(mCall);
         }
@@ -583,6 +624,7 @@ public class LocalVoicemailController extends CallsManagerListenerBase implement
      */
     public void setTestLocalVoicemailService(String packageName) {
         mLocalLog.log("setTestLocalVoicemailService: " + packageName);
+        Log.i(this, "setTestLocalVoicemailService: pkg=%s", packageName);
         mTestLocalVoicemailService = packageName;
     }
 
@@ -594,9 +636,6 @@ public class LocalVoicemailController extends CallsManagerListenerBase implement
     private Duration getLocalVoicemailTimeout(Call call) {
         Duration handleDuration = mCallsManagerAdapter.getLocalVoicemailTimeout(
                 call.getTargetPhoneAccount());
-        if (handleDuration == null) {
-            return TelecomManager.LOCAL_VOICEMAIL_DISABLED;
-        }
         return handleDuration;
     }
 }

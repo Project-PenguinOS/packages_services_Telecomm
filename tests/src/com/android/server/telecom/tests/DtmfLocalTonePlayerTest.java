@@ -39,6 +39,7 @@ import org.mockito.Mock;
 @RunWith(JUnit4.class)
 public class DtmfLocalTonePlayerTest extends TelecomTestCase {
     private static final int TIMEOUT = 2000;
+    private static final int CUSTOM_VOLUME = 120;
     @Mock DtmfLocalTonePlayer.ToneGeneratorProxy mToneProxy;
     @Mock Call mCall;
 
@@ -66,7 +67,25 @@ public class DtmfLocalTonePlayerTest extends TelecomTestCase {
         when(mToneProxy.isPresent()).thenReturn(true);
         mPlayer.onForegroundCallChanged(null, mCall);
         waitForHandlerAction(mPlayer.getHandler(), TIMEOUT);
-        verify(mToneProxy).create();
+        verify(mToneProxy).create(DtmfLocalTonePlayer.DEFAULT_VOLUME);
+    }
+
+    @SmallTest
+    @Test
+    public void testSupportedStartWithCustomVolume() {
+        when(mContext.getResources().getBoolean(R.bool.allow_local_dtmf_tones)).thenReturn(true);
+        when(mToneProxy.isPresent()).thenReturn(true);
+        when(mContext.getResources().getInteger(R.integer.config_dtmf_tone_volume))
+                .thenReturn(CUSTOM_VOLUME);
+
+        DtmfLocalTonePlayer playerWithCustomVolume =
+                new DtmfLocalTonePlayer(mToneProxy, CUSTOM_VOLUME, mFeatureFlags);
+
+        playerWithCustomVolume.onForegroundCallChanged(null, mCall);
+        waitForHandlerAction(playerWithCustomVolume.getHandler(), TIMEOUT);
+
+        // Verify with the custom volume
+        verify(mToneProxy).create(CUSTOM_VOLUME);
     }
 
     @SmallTest

@@ -27,8 +27,7 @@
     <string name="uuid_not_found" msgid="4758805286268179147">"কলবেকৰ বাবে UUID নাই"</string>
     <string name="call_attributes_empty_error" msgid="6921783379546938037">"কলৰ এট্ৰিবিউট খালী হ’ব নালাগে। যি হ’লেও ডিফ’ল্ট আৰম্ভ কৰি থকা হৈছে।"</string>
     <string name="back_to_voip_main" msgid="2500173767939494261">"VOIPৰ মুখ্য কাৰ্যকলাপলৈ উভতি যাওক"</string>
-    <!-- no translation found for clear_voip_call_logs (2402471290566644149) -->
-    <skip />
+    <string name="clear_voip_call_logs" msgid="2402471290566644149">"VOIP পৰীক্ষণৰ কল লগ মচক"</string>
     <string name="call_log" msgid="2664639384522572724">"কল লগ"</string>
     <string name="voip_callback" msgid="9213402996514282039">"পৰীক্ষামূলক কলবেক"</string>
     <string name="get_call_id" msgid="5513943242738347108">"কলৰ আইডিটো ছেট কৰা হোৱা নাই"</string>

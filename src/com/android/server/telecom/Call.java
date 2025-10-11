@@ -2075,7 +2075,10 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             }
             configureCallAttributes();
 // QTI_BEGIN: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
-            notifyPhoneAccountChanged();
+            if (this.getState() != CallState.NEW) {
+                // Don't send event when call object is created
+                notifyPhoneAccountChanged();
+            }
 // QTI_END: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
         }
         checkIfVideoCapable();
@@ -2109,7 +2112,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         return phoneAccount;
     }
 
-// QTI_BEGIN: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
     public void handlePhoneAccountChanged(PhoneAccount phoneAccount) {
         Log.i(this, "handlePhoneAccountChanged");
         boolean isVideoCapable = phoneAccount != null &&
@@ -2120,10 +2122,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     }
 
     private void notifyPhoneAccountChanged() {
-        onConnectionEvent(EVENT_PHONE_ACCOUNT_CHANGED, null);
+        onConnectionEvent(android.telecom.Call.EVENT_PHONE_ACCOUNT_CHANGED, null);
     }
-
-// QTI_END: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
     public CharSequence getTargetPhoneAccountLabel() {
         if (getTargetPhoneAccount() == null) {
             return null;
@@ -2529,6 +2529,13 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      *     calls.
      */
     public long getCreationTimeMillis() {
+        if (mCreationTimeMillis == 0) {
+            // This should never happen since the constructor always sets the call creation time,
+            // however we've seen cases where calls go to the InCallService with a 0 creation time.
+            Log.w(this, "getCreationTimeMillis: creation time not set for callId=%s; setting now",
+                    mId);
+            mCreationTimeMillis = mClockProxy.currentTimeMillis();
+        }
         return mCreationTimeMillis;
     }
 
@@ -3194,7 +3201,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             // {@link ConnectionServiceAdapter#setActive} and other set* methods.
             if (mConnectionService != null) {
                 answerCallFuture = awaitCallStateChangeAndMaybeDisconnectCall(
-                        false /* shouldDisconnectUponTimeout */, "answer", CallState.ACTIVE);
+                        false /* shouldDisconnectUponTimeout */, "answer", CallState.ACTIVE,
+                        CallState.LOCAL_VOICEMAIL);
                 mConnectionService.answer(this, videoState);
             } else if (mTransactionalService != null) {
                 return mTransactionalService.onAnswer(this, videoState);

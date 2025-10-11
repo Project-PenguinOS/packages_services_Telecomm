@@ -217,7 +217,7 @@ public class PhoneAccountRegistrar {
         mLock = lock;
         mUserManager = context.getSystemService(UserManager.class);
         mDefaultDialerCache = defaultDialerCache;
-        mSubscriptionManager = SubscriptionManager.from(mContext);
+        mSubscriptionManager = mContext.getSystemService(SubscriptionManager.class);
         mTelephonyManager = (TelephonyManager) mContext.getSystemService(Context.TELEPHONY_SERVICE);
         mAppLabelProxy = appLabelProxy;
         mCurrentUserHandle = Process.myUserHandle();
@@ -241,13 +241,13 @@ public class PhoneAccountRegistrar {
 
     /**
      * Gets the local voicemail timeout duration for a given {@link PhoneAccountHandle}, or
-     * default to {@link TelecomManager#LOCAL_VOICEMAIL_DISABLED} if none set.
+     * default to {@code null} if none set.  Here we assume null is "disabled".
      * @param handle the handle to check.
-     * @return the local voicemail timeout.
+     * @return the local voicemail timeout, or {@code null} if disabled.
      * @throws IllegalArgumentException If the provided phone account does not exist.
      */
     // Note: Using throws to ensure that callers ALWAYS check for the exception.
-    public @NonNull Duration getLocalVoicemailTimeout(@NonNull PhoneAccountHandle handle)
+    public @Nullable Duration getLocalVoicemailTimeout(@NonNull PhoneAccountHandle handle)
             throws IllegalArgumentException {
         // Ensure the phone account exists.
         PhoneAccount phoneAccount = getPhoneAccountUnchecked(handle);
@@ -255,20 +255,19 @@ public class PhoneAccountRegistrar {
             throw new IllegalArgumentException("Illegal phone account");
         }
 
-        return mState.localVoicemailTimeout.getOrDefault(handle,
-                TelecomManager.LOCAL_VOICEMAIL_DISABLED);
+        return mState.localVoicemailTimeout.getOrDefault(handle, null);
     }
 
     /**
      * Sets the timeout {@link Duration} for local voicemail to be triggered for a given
      * {@link PhoneAccountHandle}.
      * @param handle the handle
-     * @param timeout the timeout
+     * @param timeout the timeout, or null if disabled.
      * @throws IllegalArgumentException if the phone account isn't found, or if the timeout
      * specified does not fall within the range specified in the {@link PhoneAccount}'s extras.
      */
     public void setLocalVoicemailTimeout(@NonNull PhoneAccountHandle handle,
-            @NonNull Duration timeout) throws IllegalArgumentException {
+            @Nullable Duration timeout) throws IllegalArgumentException {
         // Ensure the phone account exists.
         Log.i(this, "setLocalVoicemailTimeout: handle=%s, duration=%s", handle, timeout);
         PhoneAccount phoneAccount = getPhoneAccountUnchecked(handle);
@@ -287,12 +286,18 @@ public class PhoneAccountRegistrar {
         Duration upperBound = Duration.ofMillis(upperBoundMillis);
 
         // Ensure timeout is in the range specified by the phone account.
-        if (!TelecomManager.LOCAL_VOICEMAIL_DISABLED.equals(timeout) && (
+        if (timeout != null && (
                 timeout.compareTo(lowerBound) < 0 || timeout.compareTo(upperBound) > 0)) {
             throw new IllegalArgumentException("Illegal timeout");
         }
 
-        mState.localVoicemailTimeout.put(handle, timeout);
+        if (timeout == null) {
+            // Timeout is now null meaning disabled.
+            mState.localVoicemailTimeout.remove(handle);
+        } else {
+            // Time is not null, so local vm is enabled.
+            mState.localVoicemailTimeout.put(handle, timeout);
+        }
         write();
     }
 
@@ -2121,8 +2126,7 @@ public class PhoneAccountRegistrar {
             pw.println("localVoicemailTimeouts:");
             pw.increaseIndent();
             mState.localVoicemailTimeout.forEach((pa, d) -> pw.println(
-                    pa + " -> " + (d.equals(TelecomManager.LOCAL_VOICEMAIL_DISABLED) ? "disabled"
-                            : d)));
+                    pa + " -> " + d));
             pw.decreaseIndent();
         }
     }
@@ -2960,7 +2964,12 @@ public class PhoneAccountRegistrar {
                     sPhoneAccountHandleXml.writeToXml(o.phoneAccountHandle, serializer,
                             context, telephonyFeatureFlags, telecomFeatureFlags);
                     serializer.endTag(null, ACCOUNT_HANDLE);
-                    writeLong(DURATION_MILLIS, o.timeout.toMillis(), serializer);
+                    if (o.timeout == null) {
+                        // empty string seems to be the way.
+                        writeTextIfNonNull(DURATION_MILLIS, "", serializer);
+                    } else {
+                        writeLong(DURATION_MILLIS, o.timeout.toMillis(), serializer);
+                    }
                     serializer.endTag(null, LOCAL_VOICEMAIL_TIMEOUT);
                 }
 
@@ -2984,13 +2993,15 @@ public class PhoneAccountRegistrar {
                             }
                         }
 
-                        Duration timeoutDuration = TelecomManager.LOCAL_VOICEMAIL_DISABLED;
+                        Duration timeoutDuration;
                         if (timeoutMillis != null) {
                             try {
                                 timeoutDuration = Duration.ofMillis(Long.parseLong(timeoutMillis));
                             } catch (NumberFormatException nfe) {
-                                timeoutDuration = TelecomManager.LOCAL_VOICEMAIL_DISABLED;
+                                timeoutDuration = null;
                             }
+                        } else {
+                            timeoutDuration = null;
                         }
                         if (accountHandle != null && timeoutDuration != null) {
                             return new LocalVoicemailTimeout(accountHandle, timeoutDuration);

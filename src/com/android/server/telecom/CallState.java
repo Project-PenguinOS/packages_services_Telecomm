@@ -218,6 +218,10 @@ public final class CallState {
                 return "AUDIO_PROCESSING";
             case SIMULATED_RINGING:
                 return "SIMULATED_RINGING";
+            case LOCAL_VOICEMAIL:
+                return "LOCAL_VOICEMAIL";
+            case ANSWERED_FOR_LOCAL_VOICEMAIL:
+                return "ANSWERED_FOR_LOCAL_VOICEMAIL";
             default:
                 return "UNKNOWN";
         }
