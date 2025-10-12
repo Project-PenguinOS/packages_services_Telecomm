@@ -138,6 +138,7 @@ public class AudioRoute {
 
     private @AudioRouteType int mAudioRouteType;
     private String mBluetoothAddress;
+    private String mBluetoothHaPair;
     private AudioDeviceInfo mInfo;
     private boolean mIsDestRouteForWatch;
     private boolean mIsScoManagedByAudio;
@@ -250,8 +251,20 @@ public class AudioRoute {
         return mIsDestRouteForWatch;
     }
 
-    String getBluetoothAddress() {
+    public void setBluetoothAddress(String address) {
+        mBluetoothAddress = address;
+    }
+
+    public String getBluetoothAddress() {
         return mBluetoothAddress;
+    }
+
+    public void setBluetoothHaPair(String address) {
+        mBluetoothHaPair = address;
+    }
+
+    public String getBluetoothHaPair() {
+        return mBluetoothHaPair;
     }
 
     // Invoked when entered pending route whose dest route is this route
@@ -303,8 +316,12 @@ public class AudioRoute {
                                         && mAudioRouteType
                                         == DEVICE_INFO_TYPE_TO_AUDIO_ROUTE_TYPE.getOrDefault(
                                         deviceInfo.getType(), TYPE_INVALID));
-                if (BT_AUDIO_ROUTE_TYPES.contains(mAudioRouteType) && mBluetoothAddress
-                        .equals(deviceInfo.getAddress())
+                boolean isHearingAidPairConnected =
+                        pendingAudioRoute.getFeatureFlags().hearingAidPairFix()
+                        && Objects.equals(deviceInfo.getAddress(), mBluetoothHaPair);
+                if (BT_AUDIO_ROUTE_TYPES.contains(mAudioRouteType)
+                        && (mBluetoothAddress.equals(deviceInfo.getAddress())
+                        || isHearingAidPairConnected)
                         && isSameDeviceType) {
                     mInfo = deviceInfo;
                 }
@@ -382,8 +399,9 @@ public class AudioRoute {
         if (mAudioRouteType != otherRoute.getType()) {
             return false;
         }
-        return !BT_AUDIO_ROUTE_TYPES.contains(mAudioRouteType) || mBluetoothAddress.equals(
-                otherRoute.getBluetoothAddress());
+        return !BT_AUDIO_ROUTE_TYPES.contains(mAudioRouteType) || (mBluetoothAddress.equals(
+                otherRoute.getBluetoothAddress())
+                && Objects.equals(mBluetoothHaPair, otherRoute.getBluetoothHaPair()));
     }
 
     @Override

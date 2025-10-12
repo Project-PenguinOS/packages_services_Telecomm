@@ -27,8 +27,7 @@
     <string name="uuid_not_found" msgid="4758805286268179147">"UUID për kthimin e telefonatës nuk ekziston"</string>
     <string name="call_attributes_empty_error" msgid="6921783379546938037">"Atributet e telefonatave nuk duhet të jenë bosh. Po nisen parazgjedhjet gjithsesi."</string>
     <string name="back_to_voip_main" msgid="2500173767939494261">"Kthehu prapa tek aktiviteti kryesor për VOIP"</string>
-    <!-- no translation found for clear_voip_call_logs (2402471290566644149) -->
-    <skip />
+    <string name="clear_voip_call_logs" msgid="2402471290566644149">"Pastro evidencat e telefonatave të testit të VOIP"</string>
     <string name="call_log" msgid="2664639384522572724">"Evidenca e telefonatave"</string>
     <string name="voip_callback" msgid="9213402996514282039">"Testo kthimin e telefonatës"</string>
     <string name="get_call_id" msgid="5513943242738347108">"ID-ja e telefonatës nuk është caktuar"</string>

@@ -156,6 +156,10 @@ public final class CallLogManager extends CallsManagerListenerBase {
         }
 
         if (shouldLogDisconnectedCall(call, oldState, isCallCanceled)) {
+            Log.i(this, "onCallStateChanged: call=%s, newState=%s, disconnectCause=%s",
+                    call.getId(),
+                    CallState.toString(newState),
+                    DisconnectCause.disconnectCodeToString(disconnectCause));
             int type;
             if (!call.isIncoming()) {
                 type = Calls.OUTGOING_TYPE;
@@ -168,6 +172,7 @@ public final class CallLogManager extends CallsManagerListenerBase {
             } else {
                 type = Calls.INCOMING_TYPE;
             }
+
             // Always show the notification for managed calls. For self-managed calls, it is up to
             // the app to show the notification, so suppress the notification when logging the call.
             boolean showNotification = call.isManaged();
@@ -490,7 +495,9 @@ public final class CallLogManager extends CallsManagerListenerBase {
                     logCallCompletedListener, call);
             Log.addEvent(call, LogUtils.Events.LOG_CALL, "number=" + Log.piiHandle(logNumber)
                     + ",postDial=" + Log.piiHandle(call.getPostDialDigits()) + ",pres="
-                    + call.getHandlePresentation());
+                    + call.getHandlePresentation()
+                    + ",code=" + DisconnectCause.disconnectCodeToString(
+                            call.getDisconnectCause().getCode()));
             logCallAsync(args);
         } else {
             Log.addEvent(call, LogUtils.Events.SKIP_CALL_LOG);
@@ -601,7 +608,7 @@ public final class CallLogManager extends CallsManagerListenerBase {
         if (TextUtils.isEmpty(handleString) && (PhoneAccount.SCHEME_VOICEMAIL.equals(scheme))) {
             // This is a voicemail.Get voicemail number for this voicemail call.
             final PhoneAccountHandle accountHandle = call.getTargetPhoneAccount();
-            TelecomManager tm = TelecomManager.from(mContext);
+            TelecomManager tm = mContext.getSystemService(TelecomManager.class);
             if (tm != null) {
                 handleString = tm.getVoiceMailNumber(accountHandle);
             }

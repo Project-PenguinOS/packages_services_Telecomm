@@ -27,8 +27,7 @@
     <string name="uuid_not_found" msgid="4758805286268179147">"কলব্যাকের জন্য UUID উপলভ্য নেই"</string>
     <string name="call_attributes_empty_error" msgid="6921783379546938037">"কল অ্যাট্রিবিউট খালি রাখা যাবে না। এখনও ডিফল্ট দিয়ে শুরু হচ্ছে।"</string>
     <string name="back_to_voip_main" msgid="2500173767939494261">"VOIP-এর মূল অ্যাক্টিভিটিতে ফিরে যান"</string>
-    <!-- no translation found for clear_voip_call_logs (2402471290566644149) -->
-    <skip />
+    <string name="clear_voip_call_logs" msgid="2402471290566644149">"VOIP টেস্ট কল লগ মুছে দিন"</string>
     <string name="call_log" msgid="2664639384522572724">"কল লগ"</string>
     <string name="voip_callback" msgid="9213402996514282039">"কলব্যাক পরীক্ষা করুন"</string>
     <string name="get_call_id" msgid="5513943242738347108">"কলার আইডি সেট করা নেই"</string>

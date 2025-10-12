@@ -260,7 +260,7 @@ public class TestDialerActivity extends AppCompatActivity {
         @NonNull
         @Override
         public CallLogViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            View view = LayoutInflater.from(parent.getContext())
+            View view = parent.getContext().getSystemService(LayoutInflater.class)
                     .inflate(R.layout.call_log_item, parent, false);
             return new CallLogViewHolder(view, mContext);
         }

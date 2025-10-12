@@ -14,7 +14,6 @@ import static org.mockito.Mockito.when;
 import android.content.ComponentName;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Parcel;
 import android.os.SystemClock;
 import android.os.UserHandle;
 import android.telecom.Connection;
@@ -200,7 +199,7 @@ public class ParcelableCallUtilsTest extends TelecomTestCase {
         ParcelableCall call = ParcelableCallUtils.toParcelableCall(mCall,
                 false /* includeVideoProvider */, null /* phoneAccountRegistrar */,
                 false /* supportsExternalCalls */, -1 /* overrideState */,
-                false /* includeRttCall */, false /* isForSystemInCallService */,
+                null, false /* includeRttCall */, false /* isForSystemInCallService */,
                 true /* isBluetoothInCallService */);
         // Verify that setting call state to ANSWERED is processed as ACTIVE from telecom fwk
         assertEquals(call.getState(), android.telecom.Call.STATE_ACTIVE);
@@ -209,7 +208,7 @@ public class ParcelableCallUtilsTest extends TelecomTestCase {
         ParcelableCall call2 = ParcelableCallUtils.toParcelableCall(mCall,
                 false /* includeVideoProvider */, null /* phoneAccountRegistrar */,
                 false /* supportsExternalCalls */, -1 /* overrideState */,
-                false /* includeRttCall */, false /* isForSystemInCallService */,
+                null, false /* includeRttCall */, false /* isForSystemInCallService */,
                 false /* isBluetoothInCallService */);
         // Verify that setting call state to ANSWERED is processed as RINGING from telecom fwk
         assertEquals(call2.getState(), android.telecom.Call.STATE_RINGING);
