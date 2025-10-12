@@ -114,7 +114,6 @@ flag {
 # OWNER=grantmenke TARGET=26Q2
 flag {
   name: "multi_party_anchor_conf"
-  is_exported: true
   namespace: "telecom"
   description: "This flag guards the behavioral and API changes required to add support for multi-party anchor conference calling"
   bug: "400811824"
