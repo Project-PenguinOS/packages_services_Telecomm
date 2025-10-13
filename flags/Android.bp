@@ -41,10 +41,8 @@ filegroup {
         "telecom_metrics_flags.aconfig",
         "telecom_integrated_call_log.aconfig",
         "telecom_platform_flags.aconfig",
-    ] + select(release_flag("RELEASE_TELECOM_MAINLINE_MODULE"), {
-        true: [],
-        false: ["do_not_edit_26Q2_platform_flags.aconfig"],
-    }),
+        "do_not_edit_26Q2_platform_flags.aconfig",
+    ],
 }
 
 aconfig_declarations {

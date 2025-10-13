@@ -332,6 +332,17 @@
          control a call taking place on their phone. -->
     <string name="notification_channel_call_streaming">Call streaming</string>
 
+    <!-- Notification title for a notification that is posted when a voicemail message is being
+         taken on the device. -->
+    <string name="notification_local_voicemail_title">Voicemail</string>
+    <!-- Notification content for a notification that is posted when a voicemail from the caller
+         whose name or phone number is `caller_name` is being recorded by the app named
+         `app_name`. -->
+    <string name="notification_local_voicemail_details">Voicemail is being recorded by <xliff:g id="app_name">%1$s</xliff:g> for call from <xliff:g id="caller_name">%2$s</xliff:g>.</string>
+    <!-- Notification content for a notification that is posted when a voicemail from an
+         unknown caller is being recorded by the app named`app_name`. -->
+    <string name="notification_local_voicemail_unknown_details">Voicemail is being recorded by <xliff:g id="app_name">%1$s</xliff:g> for call from an unknown caller.</string>
+
     <!-- Alert dialog content used to inform the user that placing a new outgoing call will end the
          ongoing call in the app "other_app". -->
     <string name="alert_outgoing_call">Placing this call will end your <xliff:g id="other_app">%1$s</xliff:g> call.</string>

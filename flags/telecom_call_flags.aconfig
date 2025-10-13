@@ -42,6 +42,7 @@ flag {
 flag {
   name: "call_sequencing_call_resume_failed"
   namespace: "telecom"
+  is_exported: true
   description: "Connection event received when a call resume fails"
   bug: "390116261"
 }
@@ -49,6 +50,7 @@ flag {
 flag {
   name: "revert_disconnecting_during_merge"
   namespace: "telecom"
+  is_exported: true
   description: "When a user tries hanging up a call during a call merge, the hangup will be ignore but the call will be stuck in disconnecting. We prevent the call state from being placed into disconnecting."
   bug: "409455144"
 }
