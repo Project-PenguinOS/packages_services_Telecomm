@@ -24,11 +24,11 @@ import android.provider.DeviceConfig;
 import android.telecom.DisconnectCause;
 import android.telecom.Log;
 import android.telephony.TelephonyManager;
+import android.util.IndentingPrintWriter;
 import android.util.LocalLog;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.flags.Flags;
-import com.android.internal.util.IndentingPrintWriter;
 
 import java.util.ArrayList;
 import java.util.Arrays;

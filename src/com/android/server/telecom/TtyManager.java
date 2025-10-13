@@ -26,8 +26,8 @@ import android.provider.Settings;
 import android.telecom.Log;
 import android.telecom.TelecomManager;
 import android.telephony.TelephonyManager;
+import android.util.IndentingPrintWriter;
 
-import com.android.internal.util.IndentingPrintWriter;
 import com.android.server.telecom.flags.FeatureFlags;
 
 final class TtyManager implements WiredHeadsetManager.Listener {

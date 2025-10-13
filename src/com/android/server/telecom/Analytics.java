@@ -30,10 +30,10 @@ import android.telecom.TelecomManager;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.util.Base64;
+import android.util.IndentingPrintWriter;
 import android.telecom.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.util.IndentingPrintWriter;
 import com.android.server.telecom.nano.TelecomLogClass;
 
 import java.io.PrintWriter;

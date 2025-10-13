@@ -21,9 +21,8 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.UiModeManager;
 import android.telecom.Log;
+import android.util.IndentingPrintWriter;
 import android.util.LocalLog;
-
-import com.android.internal.util.IndentingPrintWriter;
 
 import java.util.Comparator;
 import java.util.List;
