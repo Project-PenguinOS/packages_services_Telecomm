@@ -85,7 +85,7 @@
     <string name="notification_incoming_call" msgid="1233481138362230894">"<xliff:g id="CALL_VIA">%1$s</xliff:g> ጥሪ ከ<xliff:g id="CALL_FROM">%2$s</xliff:g>"</string>
     <string name="notification_incoming_video_call" msgid="5795968314037063900">"<xliff:g id="CALL_VIA">%1$s</xliff:g> የቪዲዮ ጥሪ ከ<xliff:g id="CALL_FROM">%2$s</xliff:g>"</string>
     <string name="answering_ends_other_call" msgid="8653544281903986641">"መመለስ የ<xliff:g id="CALL_VIA">%1$s</xliff:g> ጥሪዎን ይጨርሳል"</string>
-    <string name="answering_ends_other_calls" msgid="3702302838456922535">"መመለስ የ<xliff:g id="CALL_VIA">%1$s</xliff:g> ጥሪዎችዎን ይጨርሳል"</string>
+    <string name="answering_ends_other_calls" msgid="3702302838456922535">"መመለስ የ<xliff:g id="CALL_VIA">%1$s</xliff:g> ጥሪዎችዎን ያበቃል"</string>
     <string name="answering_ends_other_video_call" msgid="8572022039304239958">"መመለስ የ<xliff:g id="CALL_VIA">%1$s</xliff:g> የቪዲዮ ጥሪዎን ይጨርሳል"</string>
     <string name="answering_ends_other_managed_call" msgid="4031778317409881805">"መመለስ በመካሄድ ላይ ያለ ጥሪዎን ይጨርሳል"</string>
     <string name="answering_ends_other_managed_calls" msgid="3974069768615307659">"መመለስ እየተካሄዱ ያሉ ጥሪዎችዎን ይጨርሳል"</string>
@@ -103,12 +103,9 @@
     <string name="notification_channel_disconnected_calls" msgid="8228636543997645757">"የተቋረጡ ጥሪዎች"</string>
     <string name="notification_channel_in_call_service_crash" msgid="7313237519166984267">"የተበላሹ የስልክ መተግበሪያዎች"</string>
     <string name="notification_channel_call_streaming" msgid="5100510699787538991">"የጥሪ ዥረት"</string>
-    <!-- no translation found for notification_local_voicemail_title (7886943892975348066) -->
-    <skip />
-    <!-- no translation found for notification_local_voicemail_details (8462904524686541516) -->
-    <skip />
-    <!-- no translation found for notification_local_voicemail_unknown_details (7688396653463660224) -->
-    <skip />
+    <string name="notification_local_voicemail_title" msgid="7886943892975348066">"የድምፅ መልዕክት"</string>
+    <string name="notification_local_voicemail_details" msgid="8462904524686541516">"የድምፅ መልዕክት ከ<xliff:g id="CALLER_NAME">%2$s</xliff:g> ለሚደረግ ጥሪ በ<xliff:g id="APP_NAME">%1$s</xliff:g> እየተቀዳ ነው።"</string>
+    <string name="notification_local_voicemail_unknown_details" msgid="7688396653463660224">"የድምፅ መልዕክት ካልታወቀ ደዋይ ለሚመጣ ጥሪ በ<xliff:g id="APP_NAME">%1$s</xliff:g> እየተቀዳ ነው።"</string>
     <string name="alert_outgoing_call" msgid="5319895109298927431">"ይህን ጥሪ ማድረግ የ<xliff:g id="OTHER_APP">%1$s</xliff:g> ጥሪዎን ያቋርጣል።"</string>
     <string name="alert_redirect_outgoing_call_or_not" msgid="665409645789521636">"ይህን ጥሪ እንዴት እንደሚያደርጉ ይምረጡ"</string>
     <string name="alert_place_outgoing_call_with_redirection" msgid="5221065030959024121">"<xliff:g id="OTHER_APP">%1$s</xliff:g>ን በመጠቀም አዘዋውር"</string>
