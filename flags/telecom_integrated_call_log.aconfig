@@ -5,6 +5,7 @@ container: "system"
 flag {
   name: "integrated_call_logs"
   namespace: "telecom"
+  is_exported: true
   description: "Support integrated call logs"
   bug: "420711866"
 }
