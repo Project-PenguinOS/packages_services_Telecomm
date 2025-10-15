@@ -173,6 +173,8 @@ public class CallAudioModeStateMachine extends StateMachine {
 
     public static final int RINGER_MODE_CHANGE = 5001;
 
+    public static final int CRS_FALLBACK_TO_LOCAL_RINGING = 5002;
+
     // Used to indicate that Telecom is done doing things to the AudioManager and that it's safe
     // to release focus for other apps to take over.
     public static final int AUDIO_OPERATIONS_COMPLETE = 6001;
@@ -206,6 +208,8 @@ public class CallAudioModeStateMachine extends StateMachine {
         put(STOP_CALL_STREAMING, "STOP_CALL_STREAMING");
         put(NEW_LOCAL_VOICEMAIL_CALL, "START_LOCAL_VOICEMAIL");
         put(NO_MORE_LOCAL_VOICEMAIL_CALLS, "STOP_LOCAL_VOICEMAIL");
+        put(CRS_FALLBACK_TO_LOCAL_RINGING, "CRS_FALLBACK_TO_LOCAL_RINGING");
+
         put(RUN_RUNNABLE, "RUN_RUNNABLE");
     }};
 
@@ -431,15 +435,20 @@ public class CallAudioModeStateMachine extends StateMachine {
                 // this trips up the audio system.
                 if (mAudioManager.getMode() != AudioManager.MODE_CALL_SCREENING) {
                     Log.i(this, "enter: AudioManager#setMode(MODE_RINGTONE)");
-                    mAudioManager.setMode(AudioManager.MODE_RINGTONE);
-                    mLocalLog.log("Mode MODE_RINGTONE");
+                    if (android.telecom.flags.Flags.isUsingCrs()
+                            && mCallAudioManager.isCrsInCallMode()) {
+                        mAudioManager.setMode(AudioManager.MODE_IN_CALL);
+                        mLocalLog.log("Mode MODE_IN_CALL , It is CRS CALL");
+                    } else {
+                        mAudioManager.setMode(AudioManager.MODE_RINGTONE);
+                        mLocalLog.log("Mode MODE_RINGTONE");
+                    }
                 }
                 mCallAudioManager.setCallAudioRouteFocusState(
                         CallAudioRouteController.RINGING_FOCUS);
                 mHasFocus = true;
             } else {
-                Log.i(
-                    LOG_TAG, "RINGING state, try start ringing but not acquiring audio focus");
+                Log.i(LOG_TAG, "RINGING state, try start ringing but not acquiring audio focus");
             }
         }
 
@@ -508,6 +517,12 @@ public class CallAudioModeStateMachine extends StateMachine {
                 case AUDIO_OPERATIONS_COMPLETE:
                     Log.w(LOG_TAG, "Should not be seeing AUDIO_OPERATIONS_COMPLETE in a focused"
                             + " state");
+                    return HANDLED;
+                case CRS_FALLBACK_TO_LOCAL_RINGING:
+                    Log.i(LOG_TAG, "RINGING state, received CRS_FALLBACK_TO_LOCAL_RINGING");
+                    //Ringing call changed, so stop current ring first.
+                    mCallAudioManager.stopRinging();
+                    tryStartRinging();
                     return HANDLED;
                 default:
                     // The forced focus switch commands are handled by BaseState.

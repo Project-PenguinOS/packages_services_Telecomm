@@ -87,7 +87,6 @@ import com.android.server.telecom.util.CallerInfo;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -153,6 +152,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      */
     private static final float MIN_BITRATE_FOR_HD_PLUS = 24.4f;
 
+    public static final int RINGTONE_TYPE_MEDIA = 0;
+    public static final int RINGTONE_TYPE_CRS = 1;
     /**
      * Listener for CallState changes which can be leveraged by a Transaction.
      */
@@ -3518,6 +3519,24 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     @VisibleForTesting
     public Bundle getExtras() {
         return mExtras;
+    }
+
+    public int getCrsMode() {
+        if (mExtras == null) {
+            return android.telecom.Call.CRS_MODE_IN_CALL;
+        }
+        return mExtras.getInt(android.telecom.Call.EXTRA_CRS_AUDIO_MODE,
+                android.telecom.Call.CRS_MODE_IN_CALL);
+    }
+
+    public boolean isCrsCall() {
+        if (mExtras == null) {
+            return false;
+        }
+        int crsMediaType = mExtras.getInt(
+                android.telecom.Call.EXTRA_CRS_MEDIA_TYPE,
+                android.telecom.Call.CRS_MEDIA_TYPE_NONE);
+        return mIsSimCall && ((crsMediaType & android.telecom.Call.CRS_MEDIA_TYPE_AUDIO) != 0);
     }
 
     /**

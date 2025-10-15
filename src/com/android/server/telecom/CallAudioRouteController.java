@@ -263,6 +263,8 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                     if (streamType == AudioManager.STREAM_RING && !isStreamMuted
                             && mCallAudioManager != null) {
                         Log.i(this, "Ring stream was un-muted.");
+                        //clear the silenced calls if device is un-muted
+                        mCallAudioManager.clearSilencedCalls();
                         mCallAudioManager.onRingerModeChange();
                     }
                 } else {

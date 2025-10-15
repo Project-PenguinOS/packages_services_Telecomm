@@ -264,6 +264,7 @@ public class CallsManager extends Call.ListenerBase
         void onConferenceStateChanged(Call call, boolean isConference);
         void onCdmaConferenceSwap(Call call);
         void onSetCamera(Call call, String cameraId);
+        void onCrsFallbackLocalRinging(Call call);
     }
 
     /** Interface used to define the action which is executed delay under some condition. */
@@ -566,6 +567,8 @@ public class CallsManager extends Call.ListenerBase
     private CallAudioRouteAdapter mCallAudioRouteAdapter;
     private final LowBatteryAlertListener mLowBatteryAlertListener;
     private CallLogIntegrationAdapter mCallLogIntegrationAdapter;
+
+    private String mCrsCallId = null;
 
     private final ConnectionServiceFocusManager.CallsManagerRequester mRequester =
             new ConnectionServiceFocusManager.CallsManagerRequester() {
@@ -4337,6 +4340,33 @@ public class CallsManager extends Call.ListenerBase
         handleCallTechnologyChange(c);
         handleChildAddressChange(c);
         updateCanAddCall();
+        maybeUpdateVideoCrsCall(c);
+    }
+
+     /**
+     * Updates video CRS information if it is a CRS call and handling fallback
+     * to play local ringing when CRS audio/video RTP timeout from network.
+     */
+    private void maybeUpdateVideoCrsCall(Call c) {
+        if (c == null || (c.getState() != CallState.RINGING)) {
+            return;
+        }
+        boolean isCrs = c.isCrsCall();
+        String callId = c.getId();
+        if (isCrs) {
+            mCrsCallId = callId;
+            return;
+        }
+
+        Log.v(this, "maybeUpdateVideoCrsCall : isCrs = %b, CrsCallId =%s,"
+                + "currentCallId=%s", isCrs, mCrsCallId, callId);
+        if(!callId.equals(mCrsCallId)) {
+            return;
+        }
+        mCrsCallId = null;
+        for (CallsManagerListener listener : mListeners) {
+            listener.onCrsFallbackLocalRinging(c);
+        }
     }
 
     @Override
@@ -5533,6 +5563,7 @@ public class CallsManager extends Call.ListenerBase
         updateCanAddCall();
         updateHasActiveRttCall();
         updateExternalCallCanPullSupport();
+        maybeUpdateVideoCrsCall(call);
         // onCallAdded for calls which immediately take the foreground (like the first call).
         for (CallsManagerListener listener : mListeners) {
             listener.onCallAdded(call);
