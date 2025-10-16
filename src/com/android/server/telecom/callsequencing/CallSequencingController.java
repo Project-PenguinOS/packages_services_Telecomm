@@ -369,7 +369,8 @@ public class CallSequencingController {
                     // purposely completing the future with false so that the call isn't
                     // answered.
                     if (isSequencingRequiredActiveAndCall && isVoipCall(call)
-                            && isManagedCall(activeCall)) {
+                            && isManagedCall(activeCall) && requestOrigin
+                            != CallsManager.REQUEST_ORIGIN_TELECOM_DISAMBIGUATION) {
                         Log.w(this, "holdActiveCallForNewCallWithSequencing: ignore "
                                 + "disconnecting carrier call for making VOIP call active");
                         return CompletableFuture.completedFuture(false);
