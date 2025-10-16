@@ -39,7 +39,7 @@
     <string name="accessibility_speakerphone_enabled" msgid="555386652061614267">"የስልክ ድምፅ ማጉያ ነቅቷል።"</string>
     <string name="respond_via_sms_canned_response_1" msgid="6332561460870382561">"አሁን ማውራት አልችልም። ሰላም ነው?"</string>
     <string name="respond_via_sms_canned_response_2" msgid="2052951316129952406">"ወዲያው መልሼ እደውላለሁ።"</string>
-    <string name="respond_via_sms_canned_response_3" msgid="6656147963478092035">"ኋላ እደውላለሁ።"</string>
+    <string name="respond_via_sms_canned_response_3" msgid="6656147963478092035">"ኋላ እደውልሎታለሁ።"</string>
     <string name="respond_via_sms_canned_response_4" msgid="9141132488345561047">"አሁን ማውራት አልችልም። ትንሽ ቆይተው ይደውሉ?"</string>
     <string name="respond_via_sms_setting_title" msgid="4762275482898830160">"ፈጣን ምላሾች"</string>
     <string name="respond_via_sms_setting_title_2" msgid="4914853536609553457">"ፈጣን ምላሾች አርትዕ"</string>
@@ -103,6 +103,12 @@
     <string name="notification_channel_disconnected_calls" msgid="8228636543997645757">"የተቋረጡ ጥሪዎች"</string>
     <string name="notification_channel_in_call_service_crash" msgid="7313237519166984267">"የተበላሹ የስልክ መተግበሪያዎች"</string>
     <string name="notification_channel_call_streaming" msgid="5100510699787538991">"የጥሪ ዥረት"</string>
+    <!-- no translation found for notification_local_voicemail_title (7886943892975348066) -->
+    <skip />
+    <!-- no translation found for notification_local_voicemail_details (8462904524686541516) -->
+    <skip />
+    <!-- no translation found for notification_local_voicemail_unknown_details (7688396653463660224) -->
+    <skip />
     <string name="alert_outgoing_call" msgid="5319895109298927431">"ይህን ጥሪ ማድረግ የ<xliff:g id="OTHER_APP">%1$s</xliff:g> ጥሪዎን ያቋርጣል።"</string>
     <string name="alert_redirect_outgoing_call_or_not" msgid="665409645789521636">"ይህን ጥሪ እንዴት እንደሚያደርጉ ይምረጡ"</string>
     <string name="alert_place_outgoing_call_with_redirection" msgid="5221065030959024121">"<xliff:g id="OTHER_APP">%1$s</xliff:g>ን በመጠቀም አዘዋውር"</string>
@@ -110,7 +116,7 @@
     <string name="alert_redirect_outgoing_call_timeout" msgid="5568101425637373060">"ጥሪ በ <xliff:g id="OTHER_APP">%1$s</xliff:g> መደረግ አይችልም። ሌላ የጥሪ አቅጣጫ ማስቀየሪያ መተግበሪያ ለመጠቀም ወይም አልሚውን እገዛ ለመጠየቅ ይሞክሩ።"</string>
     <string name="phone_settings_call_blocking_txt" msgid="7311523114822507178">"ጥሪን ማገድ"</string>
     <string name="phone_settings_number_not_in_contact_txt" msgid="2602249106007265757">"ቁጥሮች በእውቂያዎች ውስጥ የሉም"</string>
-    <string name="phone_settings_number_not_in_contact_summary_txt" msgid="963327038085718969">"በእውቂያዎችዎ ውስጥ ያልተዘረዘሩ ቁጥሮችን አግድ"</string>
+    <string name="phone_settings_number_not_in_contact_summary_txt" msgid="963327038085718969">"በእውቂያዎችዎ ውስጥ ያልተዘረዘሩ ቁጥሮችን ያግዱ"</string>
     <string name="phone_settings_private_num_txt" msgid="6339272760338475619">"የግል"</string>
     <string name="phone_settings_private_num_summary_txt" msgid="6755758240544021037">"ቁጥራቸውን የማይገልጹ ደዋዮችን አግድ"</string>
     <string name="phone_settings_payphone_txt" msgid="5003987966052543965">"የክፍያ ስልክ"</string>

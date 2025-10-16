@@ -103,6 +103,9 @@
     <string name="notification_channel_disconnected_calls" msgid="8228636543997645757">"డిస్‌కనెక్ట్ చేసిన కాల్స్"</string>
     <string name="notification_channel_in_call_service_crash" msgid="7313237519166984267">"క్రాష్ అయిన ఫోన్ యాప్స్"</string>
     <string name="notification_channel_call_streaming" msgid="5100510699787538991">"కాల్ స్ట్రీమింగ్"</string>
+    <string name="notification_local_voicemail_title" msgid="7886943892975348066">"వాయిస్ మెయిల్"</string>
+    <string name="notification_local_voicemail_details" msgid="8462904524686541516">"<xliff:g id="CALLER_NAME">%2$s</xliff:g> నుండి వచ్చిన కాల్ కోసం <xliff:g id="APP_NAME">%1$s</xliff:g> వాయిస్ మెయిల్‌ను రికార్డ్ చేస్తోంది."</string>
+    <string name="notification_local_voicemail_unknown_details" msgid="7688396653463660224">"తెలియని కాలర్ నుండి వచ్చిన కాల్ కోసం <xliff:g id="APP_NAME">%1$s</xliff:g> వాయిస్ మెయిల్‌ను రికార్డ్ చేస్తోంది."</string>
     <string name="alert_outgoing_call" msgid="5319895109298927431">"ఈ కాల్ చేయడం వలన మీ <xliff:g id="OTHER_APP">%1$s</xliff:g> కాల్ ముగుస్తుంది."</string>
     <string name="alert_redirect_outgoing_call_or_not" msgid="665409645789521636">"ఈ కాల్ ఎలా చేయాలో ఎంచుకోండి"</string>
     <string name="alert_place_outgoing_call_with_redirection" msgid="5221065030959024121">"<xliff:g id="OTHER_APP">%1$s</xliff:g> ఉపయోగించి కాల్ మళ్లించు"</string>
