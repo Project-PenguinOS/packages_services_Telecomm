@@ -18,6 +18,7 @@ package com.android.server.telecom;
 
 import android.annotation.NonNull;
 import android.content.Context;
+import android.media.AudioManager;
 import android.media.IAudioService;
 import android.media.ToneGenerator;
 import android.os.Handler;
@@ -765,7 +766,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
                 break;
             case CallState.RINGING:
                 mIsCrsInCallMode = (call != null &&
-                        call.getCrsMode() == android.telecom.Call.CRS_MODE_IN_CALL &&
+                        call.getCrsMode() == AudioManager.MODE_IN_CALL &&
                         call.isCrsCall());
             case CallState.SIMULATED_RINGING:
                 onCallEnteringRinging();
