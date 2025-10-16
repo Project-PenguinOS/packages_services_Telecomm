@@ -54,13 +54,13 @@ import android.telecom.Log;
 import android.telecom.Logging.Session;
 import android.telecom.VideoProfile;
 import android.util.ArrayMap;
+import android.util.IndentingPrintWriter;
 import android.util.Pair;
 
 import androidx.annotation.NonNull;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.os.SomeArgs;
-import com.android.internal.util.IndentingPrintWriter;
 import com.android.server.telecom.bluetooth.BluetoothRouteManager;
 import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.metrics.ErrorStats;
@@ -783,12 +783,9 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         Log.i(this, "Evaluating BT disconnect: isScoConnected=%b, isOriginDisconnected=%b",
                 isScoDeviceAlreadyConnected, isOriginAlreadyDisconnected);
 
-        if (mFeatureFlags.avoidDiscOnBtToBtSwitch()) {
-            // Avoids sending a disconnect command if the new device is already connected
-            // or if the old device has already reported its disconnection.
-            return isScoDeviceAlreadyConnected || isOriginAlreadyDisconnected;
-        }
-        return isScoDeviceAlreadyConnected;
+        // Avoids sending a disconnect command if the new device is already connected
+        // or if the old device has already reported its disconnection.
+        return isScoDeviceAlreadyConnected || isOriginAlreadyDisconnected;
     }
 
     private boolean isCurrentCommunicationDevice(AudioRoute destRoute) {

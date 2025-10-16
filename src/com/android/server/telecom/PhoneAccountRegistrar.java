@@ -57,11 +57,11 @@ import android.text.TextUtils;
 import android.util.AtomicFile;
 import android.util.Base64;
 import android.util.EventLog;
+import android.util.IndentingPrintWriter;
 import android.util.Xml;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.flags.FeatureFlags;
-import com.android.internal.util.IndentingPrintWriter;
 import com.android.internal.util.XmlUtils;
 import com.android.modules.utils.ModifiedUtf8;
 import com.android.server.telecom.flags.Flags;

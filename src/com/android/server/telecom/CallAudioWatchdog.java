@@ -34,10 +34,10 @@ import android.telecom.Logging.EventManager;
 import android.telecom.PhoneAccountHandle;
 import android.util.ArrayMap;
 import android.util.ArraySet;
+import android.util.IndentingPrintWriter;
 import android.util.LocalLog;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.util.IndentingPrintWriter;
 import com.android.server.telecom.metrics.TelecomMetricsController;
 
 import java.lang.annotation.Retention;

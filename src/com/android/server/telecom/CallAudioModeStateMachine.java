@@ -25,10 +25,11 @@ import android.os.Message;
 import android.telecom.Log;
 import android.telecom.Logging.Runnable;
 import android.telecom.Logging.Session;
+import android.util.IndentingPrintWriter;
 import android.util.LocalLog;
 import android.util.SparseArray;
+
 import com.android.internal.util.IState;
-import com.android.internal.util.IndentingPrintWriter;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
 import com.android.server.telecom.flags.FeatureFlags;

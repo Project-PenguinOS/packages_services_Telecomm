@@ -44,10 +44,10 @@ import android.os.UserHandle;
 import android.telecom.CallAudioState;
 import android.telecom.Log;
 import android.telecom.VideoProfile;
+import android.util.IndentingPrintWriter;
 import android.util.SparseArray;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.util.IndentingPrintWriter;
 import com.android.server.telecom.CallAudioModeStateMachine.MessageArgs.Builder;
 import com.android.server.telecom.bluetooth.BluetoothStateReceiver;
 import com.android.server.telecom.flags.FeatureFlags;

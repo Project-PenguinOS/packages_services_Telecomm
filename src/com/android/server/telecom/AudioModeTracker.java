@@ -18,9 +18,8 @@ package com.android.server.telecom;
 
 import android.media.AudioManager;
 import android.telecom.Log;
+import android.util.IndentingPrintWriter;
 import android.util.LocalLog;
-
-import com.android.internal.util.IndentingPrintWriter;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
