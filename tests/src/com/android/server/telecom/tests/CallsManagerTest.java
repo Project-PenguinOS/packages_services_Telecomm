@@ -2105,7 +2105,6 @@ public class CallsManagerTest extends TelecomTestCase {
         connectingCall.setIsTransactionalCall(true);
 
         // WHEN
-        when(mFeatureFlags.echoAbortTransactionalOutgoing()).thenReturn(true);
         doReturn(true).when(connectingCall).can(Connection.CAPABILITY_HOLD);
         connectingCall.disconnect(0, abortCause.getReason());
 

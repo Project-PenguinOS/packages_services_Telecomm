@@ -42,9 +42,9 @@ import android.telecom.ParcelableCall;
 import android.telephony.CallQuality;
 import android.telephony.ims.ImsReasonInfo;
 import android.text.TextUtils;
+import android.util.IndentingPrintWriter;
 
 import com.android.internal.telecom.ICallDiagnosticService;
-import com.android.internal.util.IndentingPrintWriter;
 
 import java.util.List;
 

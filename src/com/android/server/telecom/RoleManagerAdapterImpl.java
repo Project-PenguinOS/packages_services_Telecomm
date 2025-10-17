@@ -23,8 +23,7 @@ import android.content.pm.PackageManager;
 import android.os.Binder;
 import android.os.UserHandle;
 import android.telecom.Log;
-
-import com.android.internal.util.IndentingPrintWriter;
+import android.util.IndentingPrintWriter;
 
 import java.util.ArrayList;
 import java.util.List;

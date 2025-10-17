@@ -41,7 +41,6 @@ public class LowBatteryAlertListener extends CallsManagerListenerBase {
     private BroadcastReceiver mBatteryListener = null;
     private Call mCall;
     private ScheduledFuture<?> mToneFuture = null;
-    private static final int INVALID_VAL = -1;
 
     public LowBatteryAlertListener(Context context,
             ScheduledExecutorService scheduledExecutorService) {
@@ -189,7 +188,8 @@ public class LowBatteryAlertListener extends CallsManagerListenerBase {
         int lowBatteryLevel = getLowBatteryLevel(extras);
         int alertInterval = getLowBatteryAlertInterval(extras);
 
-        if (lowBatteryLevel != INVALID_VAL && alertInterval != INVALID_VAL) {
+        if (lowBatteryLevel != PhoneAccount.LOW_BATTERY_ALERT_DISABLED
+                && alertInterval != PhoneAccount.LOW_BATTERY_ALERT_DISABLED) {
             mBatteryLevelThreshold = lowBatteryLevel;
             mAlterInterval = alertInterval;
             Log.i(this, "Low battery alert enabled. Threshold: " + mBatteryLevelThreshold +
@@ -201,7 +201,7 @@ public class LowBatteryAlertListener extends CallsManagerListenerBase {
     }
 
     private boolean isBatteryLow(Intent intent) {
-        if(intent == null) {
+        if (intent == null) {
             return false;
         }
         int level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
@@ -211,14 +211,14 @@ public class LowBatteryAlertListener extends CallsManagerListenerBase {
 
     private int getLowBatteryLevel(Bundle extras) {
         int lowBatteryLevel = extras.getInt(PhoneAccount.EXTRA_LOW_BATTERY_ALERT_LEVEL_THRESHOLD,
-                INVALID_VAL);
+                PhoneAccount.LOW_BATTERY_ALERT_DISABLED);
         Log.i(this, "lowBatteryLevel = " + lowBatteryLevel);
         return lowBatteryLevel;
     }
 
     private int getLowBatteryAlertInterval(Bundle extras) {
         int alertInterval = extras.getInt(PhoneAccount.EXTRA_LOW_BATTERY_ALERT_INTERVAL_SECONDS,
-                INVALID_VAL);
+                PhoneAccount.LOW_BATTERY_ALERT_DISABLED);
         Log.i(this, "alertInterval = " + alertInterval);
         return alertInterval;
     }
