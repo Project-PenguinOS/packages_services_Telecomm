@@ -93,7 +93,6 @@ flag {
 # OWNER=tgunn TARGET=26Q2
 flag {
   name: "get_last_known_cell_identity"
-  is_exported: true
   namespace: "telecom"
   description: "Formalizes the getLastKnownCellIdentity API that Telecom reliees on as a system api"
   bug: "327454165"
