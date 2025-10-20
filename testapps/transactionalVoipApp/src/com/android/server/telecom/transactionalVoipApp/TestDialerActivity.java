@@ -26,8 +26,8 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.CallLog.Calls;
-import android.telecom.Log;
 import android.telecom.TelecomManager;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -47,6 +47,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -67,6 +68,7 @@ public class TestDialerActivity extends AppCompatActivity {
     private CallLogAdapter mCallLogAdapter;
     private final Map<CallLogItem, Uri> mCallLogUriMap = new HashMap<>();
     private final ExecutorService mExecutor = Executors.newSingleThreadExecutor();
+    private String [] mUuids;
 
     // Read call log permission handling
     private final ActivityResultLauncher<String> mRequestPermissionLauncher =
@@ -89,8 +91,14 @@ public class TestDialerActivity extends AppCompatActivity {
         setContentView(R.layout.testdialer_main);
 
         findViewById(R.id.back_to_voip_main).setOnClickListener(v -> startVoipMainActivity());
+        findViewById(R.id.clear_voip_call_logs).setOnClickListener(v -> clearVoipCallLogs());
         // Set up call log UI
         setupCallLogRecyclerView();
+        if (getIntent().hasExtra(Utils.STORED_UUIDS_KEY)) {
+            mUuids = getIntent().getStringArrayExtra(Utils.STORED_UUIDS_KEY);
+        } else {
+            mUuids = new String[0];
+        }
         checkAndLoadCallLog();
     }
 
@@ -141,9 +149,21 @@ public class TestDialerActivity extends AppCompatActivity {
         queryArgs.putInt(ContentResolver.QUERY_ARG_SORT_DIRECTION,
                 ContentResolver.QUERY_SORT_DIRECTION_DESCENDING);
         // 4. Add the selection to the bundle.
-        final String selection = "uuid IS NOT NULL AND " + Calls.PHONE_ACCOUNT_COMPONENT_NAME
-                + " like '" + Utils.PKG_NAME + "%'";
+        String selection = Calls.UUID + " IS NOT NULL";
+        String[] selectionArgs = null;
+
+        // Filter the query by the uuids passed in from VoipAppMainActivity.
+        if (mUuids != null && mUuids.length > 0) {
+            String uuidPlaceholders = String.join(",", Collections.nCopies(mUuids.length, "?"));
+            String uuidSelection = Calls.UUID + " IN (" + uuidPlaceholders + ")";
+            selection += (" AND " + uuidSelection);
+            selectionArgs = mUuids;
+        }
+
         queryArgs.putString(ContentResolver.QUERY_ARG_SQL_SELECTION, selection);
+        if (selectionArgs != null) {
+            queryArgs.putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, selectionArgs);
+        }
         // Only query the voip calls for the purpose of this test app
         try (Cursor cursor = resolver.query(
                 Calls.CONTENT_URI_WITH_VOIP_CALLS,
@@ -175,7 +195,7 @@ public class TestDialerActivity extends AppCompatActivity {
                 }
             }
         } catch (Exception e) {
-            Log.e(TAG, e, "Error querying call log");
+            Log.e(TAG,"Error querying call log", e);
         }
         return callLogItems;
     }
@@ -183,6 +203,13 @@ public class TestDialerActivity extends AppCompatActivity {
     private void startVoipMainActivity() {
         Intent intent = new Intent(getApplicationContext(), VoipAppMainActivity.class);
         startActivity(intent);
+    }
+
+    private void clearVoipCallLogs() {
+        Utils.clearVoipCallLogs(getApplicationContext());
+        // Reload the call log to show the update.
+        loadCallLog();
+        Toast.makeText(this, "VoIP call logs cleared", Toast.LENGTH_SHORT).show();
     }
 
     /* Set up dependencies for RecyclerView */
@@ -233,7 +260,7 @@ public class TestDialerActivity extends AppCompatActivity {
         @NonNull
         @Override
         public CallLogViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            View view = LayoutInflater.from(parent.getContext())
+            View view = parent.getContext().getSystemService(LayoutInflater.class)
                     .inflate(R.layout.call_log_item, parent, false);
             return new CallLogViewHolder(view, mContext);
         }

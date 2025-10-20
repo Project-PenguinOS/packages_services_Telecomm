@@ -179,7 +179,7 @@
     <!-- Blocked numbers -->
     <string name="blocked_numbers">Blocked numbers</string>
     <!-- Text shown at the beginning of the blocked numbers screen to explain what the screen is about. -->
-    <string name="blocked_numbers_msg">You won\'t receive calls or texts from blocked numbers.</string>
+    <string name="blocked_numbers_msg">You won\'t receive calls or texts from blocked numbers. When you make an emergency call, rejection settings are automatically turned off.</string>
     <!-- Button to add a blocked number. -->
     <string name="block_number">Add a number</string>
     <!-- Body of dialog to confirm unblocking a number. -->
@@ -331,6 +331,17 @@
          Call streaming is a feature where an app can use another device like a tablet to see and
          control a call taking place on their phone. -->
     <string name="notification_channel_call_streaming">Call streaming</string>
+
+    <!-- Notification title for a notification that is posted when a voicemail message is being
+         taken on the device. -->
+    <string name="notification_local_voicemail_title">Voicemail</string>
+    <!-- Notification content for a notification that is posted when a voicemail from the caller
+         whose name or phone number is `caller_name` is being recorded by the app named
+         `app_name`. -->
+    <string name="notification_local_voicemail_details">Voicemail is being recorded by <xliff:g id="app_name">%1$s</xliff:g> for call from <xliff:g id="caller_name">%2$s</xliff:g>.</string>
+    <!-- Notification content for a notification that is posted when a voicemail from an
+         unknown caller is being recorded by the app named`app_name`. -->
+    <string name="notification_local_voicemail_unknown_details">Voicemail is being recorded by <xliff:g id="app_name">%1$s</xliff:g> for call from an unknown caller.</string>
 
     <!-- Alert dialog content used to inform the user that placing a new outgoing call will end the
          ongoing call in the app "other_app". -->

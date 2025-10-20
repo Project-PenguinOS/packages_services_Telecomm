@@ -45,7 +45,7 @@ import com.android.internal.telecom.ITelecomLoader;
 import com.android.internal.telecom.ITelecomService;
 import com.android.server.telecom.AsyncRingtonePlayer;
 import com.android.server.telecom.CallAudioModeStateMachine;
-import com.android.server.telecom.CallAudioRouteStateMachine;
+import com.android.server.telecom.CallAudioRouteController;
 import com.android.server.telecom.CallerInfoAsyncQueryFactory;
 import com.android.server.telecom.CallsManager;
 import com.android.server.telecom.ClockProxy;
@@ -243,8 +243,12 @@ public class TelecomService extends Service implements TelecomSystem.Component {
                             new CallAudioManager.AudioServiceFactory() {
                                 @Override
                                 public IAudioService getAudioService() {
-                                    return IAudioService.Stub.asInterface(
-                                            ServiceManager.getService(Context.AUDIO_SERVICE));
+                                    if (featureFlags.resolveHiddenDependenciesTwo()) {
+                                        return null;
+                                    } else {
+                                        return IAudioService.Stub.asInterface(
+                                                ServiceManager.getService(Context.AUDIO_SERVICE));
+                                    }
                                 }
                             },
                             ConnectionServiceFocusManager::new,
@@ -253,7 +257,7 @@ public class TelecomService extends Service implements TelecomSystem.Component {
                             new PhoneNumberUtilsAdapterImpl(),
                             new IncomingCallNotifier(context, featureFlags),
                             ToneGenerator::new,
-                            new CallAudioRouteStateMachine.Factory(),
+                            new CallAudioRouteController.Factory(),
                             new CallAudioModeStateMachine.Factory(),
                             new ClockProxy() {
                                 @Override
@@ -307,6 +311,7 @@ public class TelecomService extends Service implements TelecomSystem.Component {
                                 }
                             },
                             featureFlags,
+                            new android.telecom.flags.FeatureFlagsImpl(),
                             new com.android.internal.telephony.flags.FeatureFlagsImpl(),
                             handlerThread.getLooper(),
                             vibratorAdapter));

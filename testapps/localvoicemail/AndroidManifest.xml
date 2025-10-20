@@ -36,7 +36,8 @@
 
 
         <service android:name="com.android.server.telecom.testapps.localvoicemail.TestLocalVoicemailService"
-            android:exported="true">
+            android:exported="true"
+            android:permission="android.permission.BIND_LOCAL_VOICEMAIL_SERVICE">
             <intent-filter>
                 <action android:name="android.telecom.LocalVoicemailService"/>
             </intent-filter>

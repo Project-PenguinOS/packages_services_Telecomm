@@ -21,6 +21,9 @@ import android.telecom.Call;
 import android.telecom.CallAudioState;
 import android.telecom.InCallService;
 import android.telecom.Phone;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 import android.util.Log;
 
 /**
@@ -32,6 +35,56 @@ public class TestInCallServiceImpl extends InCallService {
     public static TestInCallServiceImpl sInstance;
 
     private Phone mPhone;
+    private static Call sPrimaryCall;
+    private static final List<Call> sCalls = new ArrayList<>();
+
+    public static Call getPrimaryCall() {
+        return sPrimaryCall;
+    }
+
+    public static Call getActiveCall() {
+        for (Call call : sCalls) {
+            if (call.getDetails().getState() == Call.STATE_ACTIVE) {
+                return call;
+            }
+        }
+        return null;
+    }
+
+    public static Call getHoldingCall() {
+        for (Call call : sCalls) {
+            if (call.getDetails().getState() == Call.STATE_HOLDING) {
+                return call;
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public void onCallAdded(Call call) {
+        super.onCallAdded(call);
+        // Track the added call, e.g., set it as the primary call
+        sPrimaryCall = call;
+        sCalls.add(call);
+        call.registerCallback(mCallCallback);
+    }
+
+    @Override
+    public void onCallRemoved(Call call) {
+        super.onCallRemoved(call);
+        if (sPrimaryCall == call) {
+            sPrimaryCall = null;
+            sCalls.remove(call);
+        }
+        call.unregisterCallback(mCallCallback);
+    }
+
+    private final Call.Callback mCallCallback = new Call.Callback() {
+        @Override
+        public void onStateChanged(Call call, int state) {
+            // No-op needed at this moment.
+        }
+    };
 
     private Phone.Listener mPhoneListener = new Phone.Listener() {
         @Override

@@ -37,14 +37,21 @@ import com.android.server.telecom.flags.FeatureFlags;
  * changes.
  */
 public class DtmfLocalTonePlayer {
+    @VisibleForTesting
+    public static final int DEFAULT_VOLUME = 80;
     public static class ToneGeneratorProxy {
         /** Generator used to actually play the tone. */
         private ToneGenerator mToneGenerator;
 
         public void create() {
+            create(DEFAULT_VOLUME);
+        }
+
+        public void create(int volume) {
             if (mToneGenerator == null) {
                 try {
-                    mToneGenerator = new ToneGenerator(AudioManager.STREAM_DTMF, 80);
+                    Log.d(this, "Init ToneGenerator volume：" + volume);
+                    mToneGenerator = new ToneGenerator(AudioManager.STREAM_DTMF, volume);
                 } catch (RuntimeException e) {
                     Log.e(this, e, "Error creating local tone generator.");
                     mToneGenerator = null;
@@ -91,7 +98,7 @@ public class DtmfLocalTonePlayer {
 
                 switch (msg.what) {
                     case EVENT_START_SESSION:
-                        mToneGeneratorProxy.create();
+                        mToneGeneratorProxy.create(mVolume);
                         break;
                     case EVENT_END_SESSION:
                         mToneGeneratorProxy.release();
@@ -144,6 +151,11 @@ public class DtmfLocalTonePlayer {
     public DtmfLocalTonePlayer(ToneGeneratorProxy toneGeneratorProxy, FeatureFlags f) {
         mToneGeneratorProxy = toneGeneratorProxy;
         mFeatureFlags = f;
+    }
+    private int mVolume = DEFAULT_VOLUME;
+    public DtmfLocalTonePlayer(ToneGeneratorProxy toneGeneratorProxy, int volume, FeatureFlags f) {
+        this(toneGeneratorProxy,f);
+        mVolume = volume;
     }
 
     public void onForegroundCallChanged(Call oldForegroundCall, Call newForegroundCall) {

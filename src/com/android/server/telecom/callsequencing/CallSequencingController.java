@@ -194,17 +194,25 @@ public class CallSequencingController {
     }
 
     /**
-     * Handles the case of setting a self-managed call active with call sequencing support.
-     * @param call The self-managed call that's waiting to go active.
+     * Handles the case of setting a call active with call sequencing support. This applies for all
+     * self-managed calls where the CS directly sets the call active but also sometimes for managed
+     * calls if the call is not answered via the UI and the CS also sets the call active. We should
+     * ensure that the focus call is updated accordingly.
+     * @param call The call that's waiting to go active.
      */
-    public void handleSetSelfManagedCallActive(Call call) {
+    public void handleSetCallActive(Call call) {
+        boolean isSelfManaged = call.isSelfManaged();
         holdActiveCallForNewCallWithSequencing(call, CallsManager.REQUEST_ORIGIN_UNKNOWN)
                 .thenComposeAsync((result) -> {
                 if (result) {
-                    Log.i(this, "markCallAsActive: requesting focus for self managed call "
-                            + "before setting active.");
-                    mCallsManager.requestActionSetActiveCall(call,
-                            "active set explicitly for self-managed");
+                    Log.i(this, "markCallAsActive: requesting focus for call %s"
+                            + "before setting active.", call);
+                    if (isSelfManaged) {
+                        mCallsManager.requestActionSetActiveCall(call,
+                                "active set explicitly for self-managed");
+                    } else {
+                        mCallsManager.requestFocusForSetManagedActive(call);
+                    }
                 } else {
                     Log.i(this, "markCallAsActive: Unable to hold active call. "
                             + "Aborting transaction to set self managed call active.");
@@ -297,7 +305,8 @@ public class CallSequencingController {
                 CompletableFuture<Boolean> disconnectFutureHandler = null;
 
                 boolean isSequencingRequiredHeldAndActive = false;
-                if (heldCall != null) {
+                // Make sure that the held call isn't the call we're setting active.
+                if (heldCall != null && !heldCall.equals(call)) {
                     // If the calls are from the same source or the incoming call isn't a VOIP call
                     // and the held call is a carrier call, then disconnect the held call. The
                     // idea is that if we have a held carrier call and the incoming call is a
@@ -658,28 +667,22 @@ public class CallSequencingController {
                 // easier to do, rather than disconnecting a held call and holding the active call.
                 // We'll wait up to 1s for the disconnect to complete before placing the emergency
                 // call regardless of the result.
-                if (mFeatureFlags.eccWaitForLiveCallDisconnect()) {
-                    CompletableFuture<Boolean> finalTransactionFuture = transactionFuture;
-                    return disconnectOngoingCallForEmergencyCall(transactionFuture, liveCall,
-                            disconnectReason).orTimeout(1000, TimeUnit.MILLISECONDS)
-                            .exceptionally(ex -> {
-                                if (ex instanceof TimeoutException) {
-                                    Log.i(this, "makeRoomForOutgoingEmergencyCall: Disconnect for "
-                                            + "%s didn't complete after 1s. Attempting to place "
-                                            + "emergency call anyway.", liveCall);
-                                    return true;
-                                } else {
-                                    Log.e(this, ex, "makeRoomForOutgoingEmergencyCall: Disconnect "
-                                            + "for %s failed with exception %s.", liveCall);
-                                    // Propagate the exception to the chain.
-                                    throw new RuntimeException(ex);
-                                }
-                            }).thenCompose(result -> finalTransactionFuture);
-                } else {
-                    disconnectOngoingCallForEmergencyCall(transactionFuture, liveCall,
-                            disconnectReason);
-                    return transactionFuture;
-                }
+                CompletableFuture<Boolean> finalTransactionFuture = transactionFuture;
+                return disconnectOngoingCallForEmergencyCall(transactionFuture, liveCall,
+                        disconnectReason).orTimeout(1000, TimeUnit.MILLISECONDS)
+                        .exceptionally(ex -> {
+                            if (ex instanceof TimeoutException) {
+                                Log.i(this, "makeRoomForOutgoingEmergencyCall: Disconnect for "
+                                        + "%s didn't complete after 1s. Attempting to place "
+                                        + "emergency call anyway.", liveCall);
+                                return true;
+                            } else {
+                                Log.e(this, ex, "makeRoomForOutgoingEmergencyCall: Disconnect "
+                                        + "for %s failed with exception %s.", liveCall);
+                                // Propagate the exception to the chain.
+                                throw new RuntimeException(ex);
+                            }
+                        }).thenCompose(result -> finalTransactionFuture);
             } else if (heldCall != null) { // Dual sim case
                 // Note at this point, we should always have a held call then that should
                 // be disconnected (over the active call) but still enforce with a null check and
@@ -731,7 +734,7 @@ public class CallSequencingController {
         // By default, for telephony, it will try to hold the existing call before placing the new
         // emergency call except for if the carrier does not support holding calls for emergency.
         // In this case, telephony will disconnect the call.
-        if (mFeatureFlags.bypassHoldForEccDial() && PhoneAccountHandle.areFromSamePackage(
+        if (PhoneAccountHandle.areFromSamePackage(
                 liveCallPhoneAccount, emergencyCall.getTargetPhoneAccount())) {
             Log.i(this, "makeRoomForOutgoingEmergencyCall: phoneAccount matches.");
             emergencyCall.getAnalytics().setCallIsAdditional(true);
@@ -820,6 +823,19 @@ public class CallSequencingController {
         if (mCallsManager.hasMaximumOutgoingCalls(call)) {
             Call outgoingCall = mCallsManager.getFirstCallWithState(OUTGOING_CALL_STATES);
             if (outgoingCall.getState() == CallState.SELECT_PHONE_ACCOUNT) {
+                // Users may accidentally repeat a click on the call button quickly after attempting
+                // a call. This casuses Telecom to end the previous SELECT_PHONE_ACCOUNT call to
+                // make room for 2nd call. But InCallUI will be handling the phone account selection
+                // for the 1st call causing the 2nd call to be stuck waiting for an account to place
+                // out call. The InCall screen will not refresh before account selected, and appear
+                // stuck. This will ensure that the new request from a same number will be blocked
+                // if done too quickly.
+                if (call.getCreationTimeMillis() - outgoingCall.getCreationTimeMillis() < 1000
+                    && mCallsManager.areHandlesEqual(call.getHandle(), outgoingCall.getHandle())) {
+                    Log.i(this, "Repeat click on call button, ignore the new call request: "
+                        + call.getHandle());
+                    return CompletableFuture.completedFuture(false);
+                }
                 // If there is an orphaned call in the {@link CallState#SELECT_PHONE_ACCOUNT}
                 // state, just disconnect it since the user has explicitly started a new call.
                 call.getAnalytics().setCallIsAdditional(true);
@@ -1098,7 +1114,7 @@ public class CallSequencingController {
      */
     private boolean shouldHoldForEmergencyCall(PhoneAccountHandle handle) {
         return mCallsManager.getCarrierConfigForPhoneAccount(handle).getBoolean(
-                CarrierConfigManager.KEY_ALLOW_HOLD_CALL_DURING_EMERGENCY_BOOL, true);
+                CarrierConfigManager.KEY_ALLOW_HOLD_CALL_DURING_EMERGENCY_BOOL, false);
     }
 
     public static boolean arePhoneAccountsSame(Call call1, Call call2) {
@@ -1182,8 +1198,7 @@ public class CallSequencingController {
             return;
         }
         // Let Telephony handle calls on the same phone account.
-        if (mFeatureFlags.addDropsFgExtraDiffAccounts()
-                && arePhoneAccountsSame(activeCall, incomingCall)) {
+        if (arePhoneAccountsSame(activeCall, incomingCall)) {
             return;
         }
         // Check if the active call doesn't support hold. If it doesn't we should indicate to the

@@ -10,7 +10,7 @@ flag {
     bug: "323414215"
 }
 
-# OWNER=tgunn TARGET=26Q2
+# OWNER=tgunn TARGET=26Q1
 flag {
   name: "resolve_hidden_dependencies_two"
   namespace: "telecom"
@@ -19,13 +19,4 @@ flag {
   metadata {
     purpose: PURPOSE_FEATURE
   }
-}
-
-flag {
-    name: "telecom_mainline_blocked_numbers_manager"
-    namespace: "telecom"
-    description: "Fixed read only flag used for setting up BlockedNumbersManager to be retrieved via context"
-    bug: "325049252"
-    is_fixed_read_only: true
-    is_exported: true
 }

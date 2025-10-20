@@ -163,6 +163,11 @@ public class TestLocalVoicemailService extends LocalVoicemailService {
 
     }
 
+    @Override
+    public void onVoicemailStopped(@NonNull Call.Details call) {
+        Log.i(TAG, "onVoicemailStopped: callid=" + call.getId());
+    }
+
     /**
      * Returns the current date and time as a formatted string.
      * <p>

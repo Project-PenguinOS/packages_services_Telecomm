@@ -21,9 +21,9 @@ import android.media.AudioDeviceCallback;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.telecom.Log;
+import android.util.IndentingPrintWriter;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.util.IndentingPrintWriter;
 
 import java.util.Collections;
 import java.util.Set;
@@ -110,6 +110,7 @@ public class WiredHeadsetManager {
                 case AudioDeviceInfo.TYPE_WIRED_HEADSET:
                 case AudioDeviceInfo.TYPE_USB_HEADSET:
                 case AudioDeviceInfo.TYPE_USB_DEVICE:
+                case AudioDeviceInfo.TYPE_LINE_ANALOG:
                     isPluggedIn = true;
             }
             if (isPluggedIn) {

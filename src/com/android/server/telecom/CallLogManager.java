@@ -52,6 +52,7 @@ import android.telephony.CarrierConfigManager;
 import android.telephony.PhoneNumberUtils;
 import android.telephony.SubscriptionManager;
 import android.util.Pair;
+import android.text.TextUtils;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.telecom.callfiltering.CallFilteringResult;
@@ -155,6 +156,10 @@ public final class CallLogManager extends CallsManagerListenerBase {
         }
 
         if (shouldLogDisconnectedCall(call, oldState, isCallCanceled)) {
+            Log.i(this, "onCallStateChanged: call=%s, newState=%s, disconnectCause=%s",
+                    call.getId(),
+                    CallState.toString(newState),
+                    DisconnectCause.disconnectCodeToString(disconnectCause));
             int type;
             if (!call.isIncoming()) {
                 type = Calls.OUTGOING_TYPE;
@@ -167,6 +172,7 @@ public final class CallLogManager extends CallsManagerListenerBase {
             } else {
                 type = Calls.INCOMING_TYPE;
             }
+
             // Always show the notification for managed calls. For self-managed calls, it is up to
             // the app to show the notification, so suppress the notification when logging the call.
             boolean showNotification = call.isManaged();
@@ -181,12 +187,8 @@ public final class CallLogManager extends CallsManagerListenerBase {
     void logCallIfNotSelfManaged (Call call, int type, boolean showNotificationForMissedCall,
             CallFilteringResult result) {
         boolean shouldCallSelfManagedLogged = shouldLogVoipCall(call);
-        if (!mFeatureFlags.preventSelfManagedCallLogging() || call.isManaged() ||
-                shouldCallSelfManagedLogged) {
+        if (call.isManaged() || shouldCallSelfManagedLogged) {
             logCall(call, type, showNotificationForMissedCall, result);
-        } else {
-            Log.d(TAG, "logCallIfNotSelfManaged: skipping call logging due to self managed "
-                    + "for call = " + call);
         }
     }
 
@@ -317,9 +319,15 @@ public final class CallLogManager extends CallsManagerListenerBase {
      * @param result is generated when call type is
      *     {@link android.provider.CallLog.Calls#BLOCKED_TYPE}.
      */
-    void logCall(Call call, int callLogType,
+    @VisibleForTesting
+    public void logCall(Call call, int callLogType,
             @Nullable LogCallCompletedListener logCallCompletedListener, CallFilteringResult result) {
-
+        // If the call has already been logged, do not log it again. This is an atomic check-and-set
+        // to prevent race conditions from multiple disconnect events.
+        if (mFeatureFlags.avoidLoggingMoreThanOnce() && call.getAndSetHasBeenLogged()) {
+            Log.i(TAG, "LogCall: skipping already-logged call: %s", call.getId());
+            return;
+        }
         CallLogUtils.AddCallParams.AddCallParametersBuilder paramBuilder =
                 new CallLogUtils.AddCallParams.AddCallParametersBuilder();
         if (call.getConnectTimeMillis() != 0
@@ -362,7 +370,8 @@ public final class CallLogManager extends CallsManagerListenerBase {
                 (call.getConnectionProperties() & Connection.PROPERTY_ASSISTED_DIALING) ==
                         Connection.PROPERTY_ASSISTED_DIALING,
                 call.wasEverRttCall(),
-                call.wasVolte()));
+                call.wasVolte(),
+                call.isHdPlus(), mFeatureFlags));
 
         if (result == null) {
             result = new CallFilteringResult.Builder()
@@ -453,12 +462,26 @@ public final class CallLogManager extends CallsManagerListenerBase {
         }
 
         CallerInfo callerInfo = call.getCallerInfo();
+        boolean isCallerDisplayPresent = call.getCallerDisplayName() != null
+                && !call.getCallerDisplayName().isEmpty();
         // At this point, we have already checked to see if we should log a transactional call.
         if (mFeatureFlags.integratedCallLogs() && call.isTransactionalCall()) {
             paramBuilder.setUuid(call.getId());
-            if (call.getCallerDisplayName() != null && !call.getCallerDisplayName().isEmpty()) {
+            if (isCallerDisplayPresent) {
                 callerInfo.setName(call.getCallerDisplayName());
             }
+        }
+        // A little different from the above logic to set the caller info name to the caller display
+        // name as that field is used for populating the CACHED_NAME column in the call log, which
+        // may be overwritten if a contact exists.
+        if (mFeatureFlags.supportDisplayNameCallLog()) {
+            String preferredName = isCallerDisplayPresent
+                    ? call.getCallerDisplayName()
+                    : (callerInfo != null ? callerInfo.cnapName : "");
+            paramBuilder.setPreferredDisplayName(preferredName);
+            String name = callerInfo != null ? callerInfo.getName() : "";
+            Log.w(TAG, "Call display name details - [display name: %s, preferred display name: %s]",
+                    Log.pii(name), Log.pii(preferredName));
         }
         paramBuilder.setCallerInfo(callerInfo);
 
@@ -471,7 +494,9 @@ public final class CallLogManager extends CallsManagerListenerBase {
                     logCallCompletedListener, call);
             Log.addEvent(call, LogUtils.Events.LOG_CALL, "number=" + Log.piiHandle(logNumber)
                     + ",postDial=" + Log.piiHandle(call.getPostDialDigits()) + ",pres="
-                    + call.getHandlePresentation());
+                    + call.getHandlePresentation()
+                    + ",code=" + DisconnectCause.disconnectCodeToString(
+                            call.getDisconnectCause().getCode()));
             logCallAsync(args);
         } else {
             Log.addEvent(call, LogUtils.Events.SKIP_CALL_LOG);
@@ -526,10 +551,13 @@ public final class CallLogManager extends CallsManagerListenerBase {
      * @param isStoreHd {@code true} if this call was used HD.
      * @param isWifi {@code true} if this call was used wifi.
      * @param isUsingAssistedDialing {@code true} if this call used assisted dialing.
+     * @param isHdPlus {@code true} if this is call audio quality is HD+
+     * @param featureFlags Feature flags.
      * @return The call features.
      */
     private static int getCallFeatures(int videoState, boolean isPulledCall, boolean isStoreHd,
-            boolean isWifi, boolean isUsingAssistedDialing, boolean isRtt, boolean isVolte) {
+            boolean isWifi, boolean isUsingAssistedDialing, boolean isRtt, boolean isVolte,
+            boolean isHdPlus, FeatureFlags featureFlags) {
         int features = 0;
         if (VideoProfile.isVideo(videoState)) {
             features |= Calls.FEATURES_VIDEO;
@@ -552,6 +580,10 @@ public final class CallLogManager extends CallsManagerListenerBase {
         if (isVolte) {
             features |= Calls.FEATURES_VOLTE;
         }
+        if (featureFlags.hdPlusCall() && isHdPlus) {
+            features |= Calls.FEATURES_HD_PLUS_CALL;
+        }
+
         return features;
     }
 
@@ -570,6 +602,17 @@ public final class CallLogManager extends CallsManagerListenerBase {
         }
 
         String handleString = handle.getSchemeSpecificPart();
+        String scheme = handle.getScheme();
+
+        if (TextUtils.isEmpty(handleString) && (PhoneAccount.SCHEME_VOICEMAIL.equals(scheme))) {
+            // This is a voicemail.Get voicemail number for this voicemail call.
+            final PhoneAccountHandle accountHandle = call.getTargetPhoneAccount();
+            TelecomManager tm = mContext.getSystemService(TelecomManager.class);
+            if (tm != null) {
+                handleString = tm.getVoiceMailNumber(accountHandle);
+            }
+        }
+
         if (!PhoneNumberUtils.isUriNumber(handleString)) {
             handleString = PhoneNumberUtils.stripSeparators(handleString);
         }

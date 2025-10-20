@@ -113,7 +113,7 @@ public class ParcelableCallUtils {
             boolean isBluetoothInCallService) {
         return toParcelableCall(call, includeVideoProvider, phoneAccountRegistrar,
                 supportsExternalCalls, CALL_STATE_OVERRIDE_NONE /* overrideState */,
-                includeRttCall, isForSystemInCallService, isBluetoothInCallService);
+                null, includeRttCall, isForSystemInCallService, isBluetoothInCallService);
     }
 
     /**
@@ -143,32 +143,42 @@ public class ParcelableCallUtils {
             boolean isForSystemInCallService) {
         return toParcelableCall(call, includeVideoProvider, phoneAccountRegistrar,
                 supportsExternalCalls, CALL_STATE_OVERRIDE_NONE /* overrideState */,
-                includeRttCall, isForSystemInCallService, false /* isBluetoothInCallService */);
+                null, includeRttCall, isForSystemInCallService, false /* isBluetoothInCallService */);
     }
 
     /**
      * Parcels all information for a {@link Call} into a new {@link ParcelableCall} instance.
      *
-     * @param call The {@link Call} to parcel.
-     * @param includeVideoProvider {@code true} if the video provider should be parcelled with the
-     *      {@link Call}, {@code false} otherwise.  Since the {@link ParcelableCall#getVideoCall()}
-     *      method creates a {@link VideoCallImpl} instance on access it is important for the
-     *      recipient of the {@link ParcelableCall} to know if the video provider changed.
-     * @param phoneAccountRegistrar The {@link PhoneAccountRegistrar}.
-     * @param supportsExternalCalls Indicates whether the call should be parcelled for an
-     *      {@link InCallService} which supports external calls or not.
-     * @param overrideState When not {@link #CALL_STATE_OVERRIDE_NONE}, use the provided state as an
-     *      override to whatever is defined in the call.
-     * @param isForSystemInCallService {@code true} if this call is being parcelled for the system incallservice,
-     *      {@code false} otherwise.  When parceling for the system incallservice, the entire call extras
-     *      is included.  When parceling for anything other than the system incallservice, some extra key
-     *      values will be stripped for privacy sake.
+     * @param call                     The {@link Call} to parcel.
+     * @param includeVideoProvider     {@code true} if the video provider should be parcelled with
+     *                                 the
+     *                                 {@link Call}, {@code false} otherwise.  Since the
+     *                                 {@link ParcelableCall#getVideoCall()}
+     *                                 method creates a {@link VideoCallImpl} instance on access it
+     *                                 is important for the
+     *                                 recipient of the {@link ParcelableCall} to know if the video
+     *                                 provider changed.
+     * @param phoneAccountRegistrar    The {@link PhoneAccountRegistrar}.
+     * @param supportsExternalCalls    Indicates whether the call should be parcelled for an
+     *                                 {@link InCallService} which supports external calls or not.
+     * @param overrideState            When not {@link #CALL_STATE_OVERRIDE_NONE}, use the provided
+     *                                 state as an
+     *                                 override to whatever is defined in the call.
+     * @param isForSystemInCallService {@code true} if this call is being parcelled for the system
+     *                                 incallservice,
+     *                                 {@code false} otherwise.  When parceling for the system
+     *                                 incallservice, the entire call extras
+     *                                 is included.  When parceling for anything other than the
+     *                                 system incallservice, some extra key
+     *                                 values will be stripped for privacy sake.
      * @param isBluetoothInCallService {@code true} if this call is being parcelled for the BT ICS.
-     *      {@code false} otherwise. When we receive an ANSWERING call state, we will translate it
-     *      to {@link android.telecom.Call#STATE_ACTIVE}. If it's not the BT ICS, we will continue
-     *      to translate it to {@link android.telecom.Call#STATE_RINGING} to preserve backwards
-     *      compatibility.
-     *
+     *                                 {@code false} otherwise. When we receive an ANSWERING call
+     *                                 state, we will translate it
+     *                                 to {@link android.telecom.Call#STATE_ACTIVE}. If it's not the
+     *                                 BT ICS, we will continue
+     *                                 to translate it to {@link android.telecom.Call#STATE_RINGING}
+     *                                 to preserve backwards
+     *                                 compatibility.
      * @return The {@link ParcelableCall} containing all call information from the {@link Call}.
      */
     public static ParcelableCall toParcelableCall(
@@ -177,7 +187,7 @@ public class ParcelableCallUtils {
             PhoneAccountRegistrar phoneAccountRegistrar,
             boolean supportsExternalCalls,
             int overrideState,
-            boolean includeRttCall,
+            DisconnectCause overrideDisconnectCause, boolean includeRttCall,
             boolean isForSystemInCallService,
             boolean isBluetoothInCallService) {
         int state;
@@ -206,10 +216,7 @@ public class ParcelableCallUtils {
             properties |= android.telecom.Call.Details.PROPERTY_IS_TRANSACTIONAL;
         }
 
-        // If this is a single-SIM device, the "default SIM" will always be the only SIM.
-        boolean isDefaultSmsAccount = phoneAccountRegistrar != null &&
-                phoneAccountRegistrar.isUserSelectedSmsPhoneAccount(call.getTargetPhoneAccount());
-        if (call.isRespondViaSmsCapable() && isDefaultSmsAccount) {
+        if (call.isRespondViaSmsCapable() ) {
             capabilities |= android.telecom.Call.Details.CAPABILITY_RESPOND_VIA_TEXT;
         }
 
@@ -277,7 +284,11 @@ public class ParcelableCallUtils {
         return new ParcelableCall.ParcelableCallBuilder()
                 .setId(call.getId())
                 .setState(state)
-                .setDisconnectCause(call.getDisconnectCause())
+                // If the caller overrode the call state to disconnected, we may also take an
+                // override disconnect cause if one was provided.
+                .setDisconnectCause((overrideState == android.telecom.Call.STATE_DISCONNECTED
+                        && overrideDisconnectCause != null) ?
+                        overrideDisconnectCause : call.getDisconnectCause())
                 .setCannedSmsResponses(call.getCannedSmsResponses())
                 .setCapabilities(capabilities)
                 .setProperties(properties)

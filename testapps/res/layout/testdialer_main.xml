@@ -29,6 +29,26 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/placeCallButton" />
+    <EditText
+        android:id="@+id/transfer_target_number"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Transfer Target Number"/>
+    <Button
+        android:id="@+id/blind_transfer_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/blindTransferButton" />
+    <Button
+        android:id="@+id/assured_transfer_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/assuredTransferButton"/>
+    <Button
+        android:id="@+id/consultative_transfer_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/consultativeTransferButton"/>
     <Button
         android:id="@+id/report_nuisance_button"
         android:layout_width="wrap_content"

@@ -40,6 +40,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.telephony.flags.Flags;
 import com.android.server.telecom.CallAudioManager.AudioServiceFactory;
 import com.android.server.telecom.DefaultDialerCache.DefaultDialerManagerAdapter;
 import com.android.server.telecom.bluetooth.BluetoothDeviceManager;
@@ -148,6 +149,8 @@ public class TelecomSystem {
 
     private boolean mIsBootComplete = false;
 
+    private TelecomMetricsController mMetricsController;
+
     private final BroadcastReceiver mUserSwitchedReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -238,7 +241,7 @@ public class TelecomSystem {
             PhoneNumberUtilsAdapter phoneNumberUtilsAdapter,
             IncomingCallNotifier incomingCallNotifier,
             InCallTonePlayer.ToneGeneratorFactory toneGeneratorFactory,
-            CallAudioRouteStateMachine.Factory callAudioRouteStateMachineFactory,
+            CallAudioRouteController.Factory callAudioRouteControllerFactory,
             CallAudioModeStateMachine.Factory callAudioModeStateMachineFactory,
             ClockProxy clockProxy,
             RoleManagerAdapter roleManagerAdapter,
@@ -250,6 +253,7 @@ public class TelecomSystem {
             Executor asyncCallAudioTaskExecutor,
             BlockedNumbersAdapter blockedNumbersAdapter,
             FeatureFlags featureFlags,
+            android.telecom.flags.FeatureFlags moduleFeatureFlags,
             com.android.internal.telephony.flags.FeatureFlags telephonyFlags,
             Looper looper,
             Ringer.VibratorAdapter vibratorAdapter) {
@@ -279,19 +283,14 @@ public class TelecomSystem {
                             return context.getContentResolver().openInputStream(uri);
                         }
                     });
-            CallAudioCommunicationDeviceTracker communicationDeviceTracker = new
-                    CallAudioCommunicationDeviceTracker(mContext);
             BluetoothDeviceManager bluetoothDeviceManager = new BluetoothDeviceManager(mContext,
                     mContext.getSystemService(BluetoothManager.class).getAdapter(),
-                    communicationDeviceTracker, featureFlags);
-            BluetoothRouteManager bluetoothRouteManager = new BluetoothRouteManager(mContext, mLock,
-                    bluetoothDeviceManager, new Timeouts.Adapter(),
-                    communicationDeviceTracker, featureFlags, looper);
+                    featureFlags);
+            BluetoothRouteManager bluetoothRouteManager = new BluetoothRouteManager(
+                    bluetoothDeviceManager);
             BluetoothStateReceiver bluetoothStateReceiver = new BluetoothStateReceiver(
-                    bluetoothDeviceManager, bluetoothRouteManager,
-                    communicationDeviceTracker, featureFlags);
+                    bluetoothDeviceManager, featureFlags);
             mContext.registerReceiver(bluetoothStateReceiver, BluetoothStateReceiver.INTENT_FILTER);
-            communicationDeviceTracker.setBluetoothRouteManager(bluetoothRouteManager);
 
             WiredHeadsetManager wiredHeadsetManager = new WiredHeadsetManager(mContext);
             SystemStateHelper systemStateHelper = new SystemStateHelper(mContext, mLock);
@@ -406,7 +405,7 @@ public class TelecomSystem {
                                     com.android.server.telecom.R.bool
                                             .enable_logcat_collection_for_all_emergency_calls));
 
-            TelecomMetricsController metricsController = featureFlags.telecomMetricsSupport()
+            mMetricsController = featureFlags.telecomMetricsSupport()
                     ? TelecomMetricsController.make(mContext) : null;
 
             ScheduledExecutorService scheduledExecutorService =
@@ -414,7 +413,7 @@ public class TelecomSystem {
             CallAnomalyWatchdog callAnomalyWatchdog = new CallAnomalyWatchdog(
                     scheduledExecutorService,
                     mLock, mFeatureFlags, timeoutsAdapter, clockProxy,
-                    emergencyCallDiagnosticLogger, metricsController);
+                    emergencyCallDiagnosticLogger, mMetricsController);
 
             TransactionManager transactionManager = TransactionManager.getInstance();
 
@@ -423,8 +422,10 @@ public class TelecomSystem {
                             (packageName, userHandle) -> AppLabelProxy.Util.getAppLabel(mContext,
                                     userHandle, packageName, mFeatureFlags), asyncTaskExecutor,
                             mFeatureFlags);
-            CallAudioRouteController.Factory audioRouteControllerFactory =
-                    new CallAudioRouteController.Factory();
+
+            LowBatteryAlertListener lowBatteryAlertListener =
+                    Flags.supportLowBatteryAlert() ? new LowBatteryAlertListener(mContext,
+                            scheduledExecutorService) : null;
 
             mCallsManager = new CallsManager(
                     mContext,
@@ -450,7 +451,7 @@ public class TelecomSystem {
                     clockProxy,
                     audioProcessingNotification,
                     bluetoothStateReceiver,
-                    audioRouteControllerFactory,
+                    callAudioRouteControllerFactory,
                     callAudioModeStateMachineFactory,
                     inCallControllerFactory,
                     callDiagnosticServiceController,
@@ -464,15 +465,15 @@ public class TelecomSystem {
                     blockedNumbersAdapter,
                     transactionManager,
                     emergencyCallDiagnosticLogger,
-                    communicationDeviceTracker,
                     callStreamingNotification,
                     bluetoothDeviceManager,
                     featureFlags,
                     telephonyFlags,
                     IncomingCallFilterGraph::new,
-                    metricsController,
+                    mMetricsController,
                     vibratorAdapter,
-                    scheduledExecutorService);
+                    scheduledExecutorService,
+                    lowBatteryAlertListener);
             bluetoothDeviceManager.setCallsManager(mCallsManager);
             mIncomingCallNotifier = incomingCallNotifier;
             incomingCallNotifier.setCallsManagerProxy(new IncomingCallNotifier.CallsManagerProxy() {
@@ -498,7 +499,7 @@ public class TelecomSystem {
             mCallsManager.setIncomingCallNotifier(mIncomingCallNotifier);
 
             mRespondViaSmsManager = new RespondViaSmsManager(mCallsManager, mLock,
-                asyncTaskExecutor, featureFlags);
+                asyncTaskExecutor);
             mCallsManager.setRespondViaSmsManager(mRespondViaSmsManager);
 
             // IMPORTANT: This context must be retained or the receivers we register here will never
@@ -553,9 +554,10 @@ public class TelecomSystem {
                     new TelecomServiceImpl.SubscriptionManagerAdapterImpl(),
                     new TelecomServiceImpl.SettingsSecureAdapterImpl(),
                     featureFlags,
+                    moduleFeatureFlags,
                     null,
                     mLock,
-                    metricsController,
+                    mMetricsController,
                     sysUiPackageName);
         } finally {
             Log.endSession();
@@ -594,5 +596,9 @@ public class TelecomSystem {
 
     public FeatureFlags getFeatureFlags() {
         return mFeatureFlags;
+    }
+
+    public TelecomMetricsController getMetricsController() {
+        return mMetricsController;
     }
 }

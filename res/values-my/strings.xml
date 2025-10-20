@@ -65,7 +65,7 @@
     <string name="change_default_call_screening_dialog_affirmative" msgid="7162433828280058647">"မူရင်းအဖြစ် သတ်မှတ်မည်"</string>
     <string name="change_default_call_screening_dialog_negative" msgid="1839266125623106342">"မလုပ်တော့"</string>
     <string name="blocked_numbers" msgid="8322134197039865180">"ပိတ်ထားသည့် နံပါတ်များ"</string>
-    <string name="blocked_numbers_msg" msgid="2797422132329662697">"ပိတ်ထားသော နံပါတ်များမှ ဖုန်းခေါ်ခြင်း (သို့) စာသားပို့ခြင်းတို့ကို သင်လက်ခံရရှိမည် မဟုတ်ပါ။"</string>
+    <string name="blocked_numbers_msg" msgid="141985883563301785">"သင်သည် ပိတ်ထားသော နံပါတ်များမှ ဖုန်းခေါ်မှုများ၊ စာတိုများကို ရရှိမည်မဟုတ်ပါ။ အရေးပေါ်ဖုန်းခေါ်ခြင်း ပြုလုပ်သည့်အခါ ငြင်းပယ်ခြင်း ဆက်တင်များကို အလိုအလျောက် ပိတ်ထားသည်။"</string>
     <string name="block_number" msgid="3784343046852802722">"နံပါတ်တစ်ခု ထည့်ပါ"</string>
     <string name="unblock_dialog_body" msgid="2723393535797217261">"<xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g> ကို ပြန်ဖွင့်မလား။"</string>
     <string name="unblock_button" msgid="8732021675729981781">"ပြန်ဖွင့်ရန်"</string>
@@ -103,6 +103,12 @@
     <string name="notification_channel_disconnected_calls" msgid="8228636543997645757">"ပြတ်တောက်သွားသည့် ခေါ်ဆိုမှုများ"</string>
     <string name="notification_channel_in_call_service_crash" msgid="7313237519166984267">"ရပ်တန့်သွားသော ဖုန်းအက်ပ်များ"</string>
     <string name="notification_channel_call_streaming" msgid="5100510699787538991">"ခေါ်ဆိုမှု တိုက်ရိုက်လွှင့်ခြင်း"</string>
+    <!-- no translation found for notification_local_voicemail_title (7886943892975348066) -->
+    <skip />
+    <!-- no translation found for notification_local_voicemail_details (8462904524686541516) -->
+    <skip />
+    <!-- no translation found for notification_local_voicemail_unknown_details (7688396653463660224) -->
+    <skip />
     <string name="alert_outgoing_call" msgid="5319895109298927431">"ဤခေါ်ဆိုမှု ပြုလုပ်ပါက <xliff:g id="OTHER_APP">%1$s</xliff:g> သုံးပြီးပြောနေခြင်းကို ဖြတ်ပစ်ပါမည်။"</string>
     <string name="alert_redirect_outgoing_call_or_not" msgid="665409645789521636">"ဤခေါ်ဆိုမှု ပြုလုပ်ပုံကို ရွေးချယ်ပါ"</string>
     <string name="alert_place_outgoing_call_with_redirection" msgid="5221065030959024121">"ခေါ်ဆိုမှုကို <xliff:g id="OTHER_APP">%1$s</xliff:g> ဖြင့် တစ်ဆင့်ပြန်ညွှန်ရန်"</string>

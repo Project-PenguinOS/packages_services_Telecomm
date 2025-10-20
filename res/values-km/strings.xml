@@ -65,7 +65,7 @@
     <string name="change_default_call_screening_dialog_affirmative" msgid="7162433828280058647">"កំណត់​លំនាំដើម"</string>
     <string name="change_default_call_screening_dialog_negative" msgid="1839266125623106342">"បោះបង់"</string>
     <string name="blocked_numbers" msgid="8322134197039865180">"លេខដែល​បានទប់ស្កាត់"</string>
-    <string name="blocked_numbers_msg" msgid="2797422132329662697">"អ្នក​នឹង​មិន​ទទួល​បាន​ការ​ហៅទូរសព្ទ ឬ​សារ​​ពី​លេខ​ដែល​បានទប់ស្កាត់ឡើយ។"</string>
+    <string name="blocked_numbers_msg" msgid="141985883563301785">"អ្នក​នឹង​មិន​ទទួល​បាន​ការហៅទូរសព្ទ ឬ​សារ​ជា​អក្សរ​ពី​លេខ​ដែល​បាន​ទប់ស្កាត់​ឡើយ។ នៅពេល​អ្នកហៅទៅលេខសង្គ្រោះបន្ទាន់ ការកំណត់​ការបដិសេធ​ត្រូវបាន​បិទ​ដោយស្វ័យប្រវត្តិ។"</string>
     <string name="block_number" msgid="3784343046852802722">"បញ្ចូល​លេខ"</string>
     <string name="unblock_dialog_body" msgid="2723393535797217261">"ឈប់ទប់ស្កាត់ <xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g> ឬ?"</string>
     <string name="unblock_button" msgid="8732021675729981781">"ឈប់ទប់ស្កាត់"</string>
@@ -103,6 +103,12 @@
     <string name="notification_channel_disconnected_calls" msgid="8228636543997645757">"ការហៅ​ទូរសព្ទដែលបាន​ផ្ដាច់"</string>
     <string name="notification_channel_in_call_service_crash" msgid="7313237519166984267">"កម្មវិធី​ទូរសព្ទ​គាំង"</string>
     <string name="notification_channel_call_streaming" msgid="5100510699787538991">"មុខងារផ្សាយ​ការហៅទូរសព្ទ"</string>
+    <!-- no translation found for notification_local_voicemail_title (7886943892975348066) -->
+    <skip />
+    <!-- no translation found for notification_local_voicemail_details (8462904524686541516) -->
+    <skip />
+    <!-- no translation found for notification_local_voicemail_unknown_details (7688396653463660224) -->
+    <skip />
     <string name="alert_outgoing_call" msgid="5319895109298927431">"ការ​ហៅ​ទូរសព្ទ​នេះ នឹង​បញ្ចប់​ការហៅ <xliff:g id="OTHER_APP">%1$s</xliff:g> របស់​អ្នក។"</string>
     <string name="alert_redirect_outgoing_call_or_not" msgid="665409645789521636">"ជ្រើសរើស​របៀប​ធ្វើ​ការហៅ​ទូរសព្ទ​នេះ"</string>
     <string name="alert_place_outgoing_call_with_redirection" msgid="5221065030959024121">"បញ្ជូន​ការហៅ​ទូរសព្ទ​បន្ត​ដោយ​ប្រើប្រាស់ <xliff:g id="OTHER_APP">%1$s</xliff:g>"</string>

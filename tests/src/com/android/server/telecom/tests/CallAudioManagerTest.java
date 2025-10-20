@@ -49,7 +49,7 @@ import com.android.server.telecom.CallAudioManager;
 import com.android.server.telecom.CallAudioModeStateMachine;
 import com.android.server.telecom.CallAudioModeStateMachine.MessageArgs;
 import com.android.server.telecom.CallAudioModeStateMachine.MessageArgs.Builder;
-import com.android.server.telecom.CallAudioRouteStateMachine;
+import com.android.server.telecom.CallAudioRouteController;
 import com.android.server.telecom.CallConnectedIndicatorSettings;
 import com.android.server.telecom.CallState;
 import com.android.server.telecom.CallsManager;
@@ -78,7 +78,7 @@ import java.util.stream.Collectors;
 
 @RunWith(JUnit4.class)
 public class CallAudioManagerTest extends TelecomTestCase {
-    @Mock private CallAudioRouteStateMachine mCallAudioRouteStateMachine;
+    @Mock private CallAudioRouteController mCallAudioRouteController;
     @Mock private InCallController mInCallController;
     @Mock private CallsManager mCallsManager;
     @Mock private CallAudioModeStateMachine mCallAudioModeStateMachine;
@@ -108,11 +108,10 @@ public class CallAudioManagerTest extends TelecomTestCase {
         }).when(mPlayerFactory).createPlayer(any(Call.class), anyInt());
         when(mCallsManager.getLock()).thenReturn(mLock);
         when(mCallsManager.getInCallController()).thenReturn(mInCallController);
-        when(mInCallController.getBtBindingFuture(any(Call.class))).thenReturn(null);
         when(mFlags.ensureAudioModeUpdatesOnForegroundCallChange()).thenReturn(true);
         when(mCallConnectedIndicatorSettings.isCallConnectedToneEnabled()).thenReturn(false);
         mCallAudioManager = new CallAudioManager(
-                mCallAudioRouteStateMachine,
+                mCallAudioRouteController,
                 mCallsManager,
                 mCallAudioModeStateMachine,
                 mPlayerFactory,
@@ -178,20 +177,20 @@ public class CallAudioManagerTest extends TelecomTestCase {
         // Capture the calls to sendMessageWithSessionInfo; we want to look for mute on and off
         // messages and make sure that there was a mute on before the mute off.
         ArgumentCaptor<Integer> muteCaptor = ArgumentCaptor.forClass(Integer.class);
-        verify(mCallAudioRouteStateMachine, atLeastOnce())
+        verify(mCallAudioRouteController, atLeastOnce())
                 .sendMessageWithSessionInfo(muteCaptor.capture());
         List<Integer> values = muteCaptor.getAllValues();
         values = values.stream()
-                .filter(value -> value == CallAudioRouteStateMachine.MUTE_ON ||
-                        value == CallAudioRouteStateMachine.MUTE_OFF)
+                .filter(value -> value == CallAudioRouteController.MUTE_ON ||
+                        value == CallAudioRouteController.MUTE_OFF)
                 .collect(Collectors.toList());
 
         // Make sure we got a mute on and a mute off.
-        assertTrue(values.contains(CallAudioRouteStateMachine.MUTE_ON));
-        assertTrue(values.contains(CallAudioRouteStateMachine.MUTE_OFF));
+        assertTrue(values.contains(CallAudioRouteController.MUTE_ON));
+        assertTrue(values.contains(CallAudioRouteController.MUTE_OFF));
         // And that the mute on happened before the off.
-        assertTrue(values.indexOf(CallAudioRouteStateMachine.MUTE_ON) < values
-                .lastIndexOf(CallAudioRouteStateMachine.MUTE_OFF));
+        assertTrue(values.indexOf(CallAudioRouteController.MUTE_ON) < values
+                .lastIndexOf(CallAudioRouteController.MUTE_OFF));
     }
 
     @MediumTest
@@ -276,8 +275,8 @@ public class CallAudioManagerTest extends TelecomTestCase {
 
         mCallAudioManager.onCallAdded(call);
         assertEquals(call, mCallAudioManager.getForegroundCall());
-        verify(mCallAudioRouteStateMachine).sendMessageWithSessionInfo(
-                CallAudioRouteStateMachine.UPDATE_SYSTEM_AUDIO_ROUTE);
+        verify(mCallAudioRouteController).sendMessageWithSessionInfo(
+                CallAudioRouteController.UPDATE_SYSTEM_AUDIO_ROUTE);
         verify(mCallAudioModeStateMachine).sendMessageWithArgs(
                 eq(CallAudioModeStateMachine.NEW_ACTIVE_OR_DIALING_CALL), captor.capture());
         CallAudioModeStateMachine.MessageArgs expectedArgs =
@@ -325,6 +324,84 @@ public class CallAudioManagerTest extends TelecomTestCase {
         verifyProperCleanup();
     }
 
+    @MediumTest
+    @Test
+    public void testOutgoingCall_SwitchFocus_WaitForBtIcs() {
+        when(mFlags.delayFocusSwitchForBtIcs()).thenReturn(true);
+        Call call = mock(Call.class);
+        when(call.getState()).thenReturn(CallState.CONNECTING);
+        CompletableFuture<Boolean> btIcsFuture = new CompletableFuture<>();
+        when(call.getBtIcsFuture()).thenReturn(btIcsFuture);
+
+        // Add new call in connecting state
+        mCallAudioManager.onCallAdded(call);
+        assertEquals(call, mCallAudioManager.getForegroundCall());
+        verify(mCallAudioRouteController).sendMessageWithSessionInfo(
+                CallAudioRouteController.UPDATE_SYSTEM_AUDIO_ROUTE);
+        // Verify that we don't send the update to the mode state machine yet if the BT ICS future
+        // hasn't completed yet.
+        verify(mCallAudioModeStateMachine, never()).sendMessageWithArgs(
+                eq(CallAudioModeStateMachine.NEW_ACTIVE_OR_DIALING_CALL),
+                any(CallAudioModeStateMachine.MessageArgs.class));
+        // Complete the future and verify the update was sent.
+        btIcsFuture.complete(true);
+        verify(mCallAudioModeStateMachine).sendMessageWithArgs(
+                eq(CallAudioModeStateMachine.NEW_ACTIVE_OR_DIALING_CALL),
+                any(CallAudioModeStateMachine.MessageArgs.class));
+
+        // Cleanup steps
+        disconnectCall(call);
+        stopTone(call);
+        mCallAudioManager.onCallRemoved(call);
+        verifyProperCleanup();
+    }
+
+    @MediumTest
+    @Test
+    public void testOutgoingCall_SwitchFocus_WaitForBtIcs_OnlyOnce() {
+        when(mFlags.delayFocusSwitchForBtIcs()).thenReturn(true);
+        when(mFlags.sendNewRingingCallSync()).thenReturn(true);
+        Call call = mock(Call.class);
+        // When the call is ringing
+        when(call.getState()).thenReturn(CallState.RINGING);
+        CompletableFuture<Boolean> btIcsFuture = new CompletableFuture<>();
+        when(call.getBtIcsFuture()).thenReturn(btIcsFuture);
+
+        // Verify that we wait for the BT ICS to send the NEW_RINGING_CALL update to the call audio
+        // mode state machine.
+        mCallAudioManager.onCallAdded(call);
+        assertEquals(call, mCallAudioManager.getForegroundCall());
+        verify(mCallAudioRouteController).sendMessageWithSessionInfo(
+                CallAudioRouteController.UPDATE_SYSTEM_AUDIO_ROUTE);
+        // Verify that we don't send the update to the mode state machine yet if the BT ICS future
+        // hasn't completed yet.
+        verify(mCallAudioModeStateMachine, never()).sendMessageWithArgs(
+                eq(CallAudioModeStateMachine.NEW_RINGING_CALL),
+                any(CallAudioModeStateMachine.MessageArgs.class));
+        // Complete the future and verify the update was sent.
+        btIcsFuture.complete(true);
+        verify(mCallAudioModeStateMachine).sendMessageWithArgs(
+                eq(CallAudioModeStateMachine.NEW_RINGING_CALL),
+                any(CallAudioModeStateMachine.MessageArgs.class));
+
+        // Simulate the call becoming active and initiating the switch for sending active focus.
+        // Verify that we sent the NEW_ACTIVE_OR_DIALING_CALL msg update to the mode state machine.
+        when(call.getState()).thenReturn(CallState.ACTIVE);
+        mCallAudioManager.onCallStateChanged(call, CallState.RINGING, CallState.ACTIVE);
+        verify(mCallAudioModeStateMachine).sendMessageWithArgs(
+                eq(CallAudioModeStateMachine.NEW_ACTIVE_OR_DIALING_CALL),
+                any(CallAudioModeStateMachine.MessageArgs.class));
+        // Also assert that we did not initialize the future (this is only used for test purposes)
+        // so a null value is okay.
+        assertNull(mCallAudioManager.getCallDialingActiveOrConnectingFuture());
+
+        // Cleanup steps
+        disconnectCall(call);
+        stopTone(call);
+        mCallAudioManager.onCallRemoved(call);
+        verifyProperCleanup();
+    }
+
     @Test
     public void testSingleOutgoingCallWithoutAudioModeUpdateOnForegroundCallChange() {
         when(mFlags.ensureAudioModeUpdatesOnForegroundCallChange()).thenReturn(false);
@@ -341,8 +418,8 @@ public class CallAudioManagerTest extends TelecomTestCase {
 
         mCallAudioManager.onCallAdded(call);
         assertEquals(call, mCallAudioManager.getForegroundCall());
-        verify(mCallAudioRouteStateMachine).sendMessageWithSessionInfo(
-                CallAudioRouteStateMachine.UPDATE_SYSTEM_AUDIO_ROUTE);
+        verify(mCallAudioRouteController).sendMessageWithSessionInfo(
+                CallAudioRouteController.UPDATE_SYSTEM_AUDIO_ROUTE);
         verify(mCallAudioModeStateMachine).sendMessageWithArgs(
                 eq(CallAudioModeStateMachine.NEW_ACTIVE_OR_DIALING_CALL), captor.capture());
         CallAudioModeStateMachine.MessageArgs expectedArgs =
@@ -407,7 +484,7 @@ public class CallAudioManagerTest extends TelecomTestCase {
         // Make sure nothing happens when we add the NEW call
         mCallAudioManager.onCallAdded(call);
 
-        verify(mCallAudioRouteStateMachine, never()).sendMessageWithSessionInfo(anyInt());
+        verify(mCallAudioRouteController, never()).sendMessageWithSessionInfo(anyInt());
         verify(mCallAudioModeStateMachine, never()).sendMessageWithArgs(
                 anyInt(), nullable(MessageArgs.class));
 
@@ -444,8 +521,8 @@ public class CallAudioManagerTest extends TelecomTestCase {
         waitForHandlerAction(new Handler(Looper.getMainLooper()), TEST_TIMEOUT);
 
         assertEquals(call, mCallAudioManager.getForegroundCall());
-        verify(mCallAudioRouteStateMachine).sendMessageWithSessionInfo(
-                CallAudioRouteStateMachine.UPDATE_SYSTEM_AUDIO_ROUTE);
+        verify(mCallAudioRouteController).sendMessageWithSessionInfo(
+                CallAudioRouteController.UPDATE_SYSTEM_AUDIO_ROUTE);
         verify(mCallAudioModeStateMachine).sendMessageWithArgs(
                 eq(CallAudioModeStateMachine.NEW_RINGING_CALL), captor.capture());
         CallAudioModeStateMachine.MessageArgs expectedArgs =
@@ -494,8 +571,8 @@ public class CallAudioManagerTest extends TelecomTestCase {
         mCallAudioManager.onCallAdded(call);
 
         assertEquals(call, mCallAudioManager.getForegroundCall());
-        verify(mCallAudioRouteStateMachine).sendMessageWithSessionInfo(
-                CallAudioRouteStateMachine.UPDATE_SYSTEM_AUDIO_ROUTE);
+        verify(mCallAudioRouteController).sendMessageWithSessionInfo(
+                CallAudioRouteController.UPDATE_SYSTEM_AUDIO_ROUTE);
         verify(mCallAudioModeStateMachine).sendMessageWithArgs(
                 eq(CallAudioModeStateMachine.NEW_ACTIVE_OR_DIALING_CALL), captor.capture());
         CallAudioModeStateMachine.MessageArgs expectedArgs =
@@ -666,8 +743,8 @@ public class CallAudioManagerTest extends TelecomTestCase {
 
         assertNull(mCallAudioManager.getForegroundCall());
 
-        verify(mCallAudioRouteStateMachine, never()).sendMessageWithSessionInfo(
-                CallAudioRouteStateMachine.UPDATE_SYSTEM_AUDIO_ROUTE);
+        verify(mCallAudioRouteController, never()).sendMessageWithSessionInfo(
+                CallAudioRouteController.UPDATE_SYSTEM_AUDIO_ROUTE);
         verify(mCallAudioModeStateMachine).sendMessageWithArgs(
                 eq(CallAudioModeStateMachine.NEW_AUDIO_PROCESSING_CALL), captor.capture());
         CallAudioModeStateMachine.MessageArgs expectedArgs =
@@ -839,8 +916,8 @@ public class CallAudioManagerTest extends TelecomTestCase {
 
         assertEquals(call, mCallAudioManager.getForegroundCall());
 
-        verify(mCallAudioRouteStateMachine).sendMessageWithSessionInfo(
-                CallAudioRouteStateMachine.UPDATE_SYSTEM_AUDIO_ROUTE);
+        verify(mCallAudioRouteController).sendMessageWithSessionInfo(
+                CallAudioRouteController.UPDATE_SYSTEM_AUDIO_ROUTE);
         verify(mCallAudioModeStateMachine).sendMessageWithArgs(
                 eq(CallAudioModeStateMachine.NEW_RINGING_CALL), captor.capture());
         CallAudioModeStateMachine.MessageArgs expectedArgs =
@@ -869,8 +946,8 @@ public class CallAudioManagerTest extends TelecomTestCase {
         assertEquals(call, mCallAudioManager.getForegroundCall());
         ArgumentCaptor<CallAudioModeStateMachine.MessageArgs> captor =
                 ArgumentCaptor.forClass(CallAudioModeStateMachine.MessageArgs.class);
-        verify(mCallAudioRouteStateMachine).sendMessageWithSessionInfo(
-                CallAudioRouteStateMachine.UPDATE_SYSTEM_AUDIO_ROUTE);
+        verify(mCallAudioRouteController).sendMessageWithSessionInfo(
+                CallAudioRouteController.UPDATE_SYSTEM_AUDIO_ROUTE);
         verify(mCallAudioModeStateMachine).sendMessageWithArgs(
                 eq(CallAudioModeStateMachine.NEW_RINGING_CALL), captor.capture());
         assertMessageArgEquality(new Builder()
