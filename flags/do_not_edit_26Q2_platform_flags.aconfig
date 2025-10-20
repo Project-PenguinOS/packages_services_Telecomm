@@ -28,7 +28,6 @@ flag {
 # OWNER=arunvoddu TARGET=26Q2
 flag {
   name: "is_using_unidirectional_video_service"
-  is_exported: true
   namespace: "telecom"
   description: "Indicate that the call is a unidirectional video service call."
   bug: "408116489"
