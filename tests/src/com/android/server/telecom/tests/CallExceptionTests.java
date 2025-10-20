@@ -36,8 +36,6 @@ import org.mockito.MockitoAnnotations;
 
 public class CallExceptionTests extends TelecomTestCase {
 
-    @Mock private Parcel mParcel;
-
     @Override
     @Before
     public void setUp() throws Exception {
@@ -71,12 +69,15 @@ public class CallExceptionTests extends TelecomTestCase {
         // GIVEN
         String message = "test message";
         CallException exception = new CallException(message, CODE_ERROR_UNKNOWN);
+        Parcel parcel = Parcel.obtain();
 
         // WHEN
-        exception.writeToParcel(mParcel, 0);
+        exception.writeToParcel(parcel, 0);
+        parcel.setDataPosition(0);
+        CallException result = CallException.CREATOR.createFromParcel(parcel);
 
         // THEN
-        verify(mParcel, times(1)).writeString8(isA(String.class));
-        verify(mParcel, times(1)).writeInt(isA(Integer.class));
+        assertEquals(exception.getMessage(), result.getMessage());
+        assertEquals(exception.getCode(), result.getCode());
     }
 }
