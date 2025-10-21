@@ -528,9 +528,6 @@ public class BluetoothDeviceManager {
         synchronized (mLock) {
             LinkedHashMap<String, BluetoothDevice> targetDeviceMap;
             if (deviceType == DEVICE_TYPE_LE_AUDIO) {
-// QTI_BEGIN: 2023-08-15: Telephony: Update cache when LE device is disconnected
-                mGroupsByDevice.remove(device);
-// QTI_END: 2023-08-15: Telephony: Update cache when LE device is disconnected
                 targetDeviceMap = mLeAudioDevicesByAddress;
             } else if (deviceType == DEVICE_TYPE_HEARING_AID) {
                 mHearingAidDeviceSyncIds.remove(device);
