@@ -40,7 +40,6 @@ public class CallAttributesTests extends TelecomTestCase {
             new ComponentName("foo", "bar"), "1");
     private static final String TEST_NAME = "Larry Page";
     private static final Uri TEST_URI = Uri.fromParts("tel", "abc", "123");
-    @Mock private Parcel mParcel;
 
     @Override
     @Before
@@ -105,6 +104,7 @@ public class CallAttributesTests extends TelecomTestCase {
 
     @Test
     public void testWriteToParcel() {
+        Parcel parcel = Parcel.obtain();
         // GIVEN
         CallAttributes callAttributes = new CallAttributes.Builder(mHandle,
                 CallAttributes.DIRECTION_OUTGOING, TEST_NAME, TEST_URI)
@@ -113,14 +113,11 @@ public class CallAttributesTests extends TelecomTestCase {
                 .build();
 
         // WHEN
-        callAttributes.writeToParcel(mParcel, 0);
+        callAttributes.writeToParcel(parcel, 0);
+        parcel.setDataPosition(0);
+        CallAttributes result = CallAttributes.CREATOR.createFromParcel(parcel);
 
         // THEN
-        verify(mParcel, times(1))
-                .writeParcelable(isA(PhoneAccountHandle.class), isA(Integer.class));
-        verify(mParcel, times(1)).writeCharSequence(isA(CharSequence.class));
-        verify(mParcel, times(1))
-                .writeParcelable(isA(Uri.class), isA(Integer.class));
-        verify(mParcel, times(3)).writeInt(isA(Integer.class));
+        assertEquals(callAttributes, result);
     }
 }
