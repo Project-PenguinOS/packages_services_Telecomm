@@ -43,6 +43,8 @@ import static android.provider.CallLog.Calls.PHONE_ACCOUNT_ID;
 import static android.provider.CallLog.Calls.POST_DIAL_DIGITS;
 import static android.provider.CallLog.Calls.PREFERRED_DISPLAY_NAME;
 import static android.provider.CallLog.Calls.PRESENTATION_ALLOWED;
+import static android.provider.CallLog.Calls.PRESENTATION_RESTRICTED;
+import static android.provider.CallLog.Calls.PRESENTATION_PAYPHONE;
 import static android.provider.CallLog.Calls.PRESENTATION_UNAVAILABLE;
 import static android.provider.CallLog.Calls.PRESENTATION_UNKNOWN;
 import static android.provider.CallLog.Calls.PRIORITY;
@@ -280,7 +282,8 @@ public class CallLogUtils {
 
         int numberPresentation = getLogNumberPresentation(params.mNumber, params.mPresentation);
         String name = (params.mCallerInfo != null) ? params.mCallerInfo.getName() : "";
-        if (numberPresentation != PRESENTATION_ALLOWED) {
+        // Clear the number and name if the presentation is restricted
+        if (numberPresentation == PRESENTATION_RESTRICTED) {
             params.mNumber = "";
             if (params.mCallerInfo != null) {
                 name = "";
@@ -662,11 +665,11 @@ public class CallLogUtils {
      */
     private static int getLogNumberPresentation(String number, int presentation) {
         if (presentation == TelecomManager.PRESENTATION_RESTRICTED) {
-            return presentation;
+            return PRESENTATION_RESTRICTED;
         }
 
         if (presentation == TelecomManager.PRESENTATION_PAYPHONE) {
-            return presentation;
+            return PRESENTATION_PAYPHONE;
         }
 
         if (presentation == TelecomManager.PRESENTATION_UNAVAILABLE) {
