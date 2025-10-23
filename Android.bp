@@ -57,6 +57,9 @@ android_library {
         output_params: ["optional_field_style=accessors"],
     },
     platform_apis: true,
+    lint: {
+        baseline_filename: "lint-baseline.xml",
+    },
 }
 
 // Build the Telecom service.
