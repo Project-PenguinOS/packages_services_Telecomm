@@ -234,8 +234,8 @@ public class CallStreamingNotification extends CallsManagerListenerBase implemen
         // Apply a span to the string to colorize it using the "answer" color.
         Spannable spannable = new SpannableString(
                 mContext.getString(R.string.call_streaming_notification_action_switch_here));
-        spannable.setSpan(new ForegroundColorSpan(
-                com.android.internal.R.color.call_notification_answer_color), 0, spannable.length(),
+        spannable.setSpan(new ForegroundColorSpan(R.color.call_notification_answer_color), 0,
+                spannable.length(),
                 Spannable.SPAN_INCLUSIVE_EXCLUSIVE);
 
         // Use the "phone link" icon per mock.

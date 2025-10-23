@@ -32,4 +32,7 @@
     <color name="call_redirection_dialog_text_color">#212121</color>
     <color name="call_redirection_dialog_view_divider_color">#B8B8B8</color>
 
+    <!-- The color of the Answer action on a CallStyle notification -->
+    <color name="call_notification_answer_color">#1d873b</color>
+
 </resources>
