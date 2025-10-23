@@ -997,7 +997,7 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         // The second MAC should now be the primary BT address and the BT HA pair address field
         // should be null.
         assertEquals(HEARING_AID_PAIR_ADDRESS, hearingAidRoute.getBluetoothAddress());
-        assertNull(hearingAidRoute.getBluetoothHaPair());
+        assertNull(hearingAidRoute.getBluetoothHaPairDevice());
     }
 
     @SmallTest
@@ -1016,7 +1016,7 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
                 BT_ADDRESS_1);
         // The bluetooth HA pair address should be null now but the primary MAC address unchanged.
         assertEquals(BT_ADDRESS_1, hearingAidRoute.getBluetoothAddress());
-        assertNull(hearingAidRoute.getBluetoothHaPair());
+        assertNull(hearingAidRoute.getBluetoothHaPairDevice());
     }
 
     @SmallTest
@@ -2248,7 +2248,8 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
                 // A new route will not be added. Instead, the existing route will be updated to
                 // track the new hearing aid pair. Verify the details from the existing route.
                 assertEquals(BT_ADDRESS_1, hearingAidRoute.getBluetoothAddress());
-                assertEquals(HEARING_AID_PAIR_ADDRESS, hearingAidRoute.getBluetoothHaPair());
+                assertEquals(HEARING_AID_PAIR_ADDRESS, hearingAidRoute.getBluetoothHaPairDevice()
+                        .getAddress());
             } else {
                 // Verify no new route was added
                 assertNull(hearingAidRoute);
