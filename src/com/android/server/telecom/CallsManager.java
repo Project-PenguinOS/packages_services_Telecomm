@@ -4571,6 +4571,11 @@ public class CallsManager extends Call.ListenerBase
         mCallEndpointController.requestCallEndpointChange(endpoint, callback);
     }
 
+    public void onCallEndpointRequested(String requestingPackageName, CallEndpoint callEndpoint) {
+        mInCallController.onCallEndpointRequested(requestingPackageName, callEndpoint,
+                getForegroundCall());
+    }
+
     /**
      * Called when a call's video state has changed to see if an audio route
      * update is warranted (e.g., switching from earpiece to speaker).

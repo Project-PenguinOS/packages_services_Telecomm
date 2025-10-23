@@ -2931,6 +2931,46 @@ public class InCallController extends CallsManagerListenerBase implements
         }
     }
 
+    public void onCallEndpointRequested(String requestingPackageName, CallEndpoint callEndpoint,
+            Call call) {
+        UserHandle userFromCall = getUserFromCall(call);
+        Map<UserHandle, Map<InCallController.InCallServiceInfo, IInCallService>> serviceMap =
+                getCombinedInCallServiceMap();
+        if (serviceMap.containsKey(userFromCall)) {
+            for (Map.Entry<InCallServiceInfo, IInCallService> entry : serviceMap.
+                    get(userFromCall).entrySet()) {
+                InCallServiceInfo info = entry.getKey();
+                ComponentName componentName = info.getComponentName();
+
+                // If specified, skip ICS if it matches the package name.  Used for cases where on
+                // ICS requests the audio route and we want to skip notifying the same ICS that
+                // requested the audio route.
+                if (requestingPackageName != null
+                        && componentName.getPackageName().equals(requestingPackageName)) {
+                    Log.i(this, "skipping requestingPackageName: %s",
+                            requestingPackageName);
+                    continue;
+                }
+
+                IInCallService inCallService = entry.getValue();
+                onCallEndpointRequestedToIcs(inCallService, callEndpoint, componentName);
+            }
+        } else {
+            Log.i(this, "Unable to propagate onCallEndpointRequested. "
+                    + "InCallService not found for user: %s", userFromCall);
+        }
+    }
+
+    private void onCallEndpointRequestedToIcs(IInCallService inCallService,
+            CallEndpoint callEndpoint, ComponentName componentName) {
+        try {
+            inCallService.onCallEndpointRequested(callEndpoint);
+        } catch (RemoteException exception) {
+            Log.w(this, "Call status update did not send to: "
+                    + componentName + " successfully with error " + exception);
+        }
+    }
+
     /**
      * Informs all {@link InCallService} instances of the updated call information.
      *
