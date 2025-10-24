@@ -702,28 +702,22 @@ public class CallSequencingController {
                 // easier to do, rather than disconnecting a held call and holding the active call.
                 // We'll wait up to 1s for the disconnect to complete before placing the emergency
                 // call regardless of the result.
-                if (mFeatureFlags.eccWaitForLiveCallDisconnect()) {
-                    CompletableFuture<Boolean> finalTransactionFuture = transactionFuture;
-                    return disconnectOngoingCallForEmergencyCall(transactionFuture, liveCall,
-                            disconnectReason).orTimeout(1000, TimeUnit.MILLISECONDS)
-                            .exceptionally(ex -> {
-                                if (ex instanceof TimeoutException) {
-                                    Log.i(this, "makeRoomForOutgoingEmergencyCall: Disconnect for "
-                                            + "%s didn't complete after 1s. Attempting to place "
-                                            + "emergency call anyway.", liveCall);
-                                    return true;
-                                } else {
-                                    Log.e(this, ex, "makeRoomForOutgoingEmergencyCall: Disconnect "
-                                            + "for %s failed with exception %s.", liveCall);
-                                    // Propagate the exception to the chain.
-                                    throw new RuntimeException(ex);
-                                }
-                            }).thenCompose(result -> finalTransactionFuture);
-                } else {
-                    disconnectOngoingCallForEmergencyCall(transactionFuture, liveCall,
-                            disconnectReason);
-                    return transactionFuture;
-                }
+                CompletableFuture<Boolean> finalTransactionFuture = transactionFuture;
+                return disconnectOngoingCallForEmergencyCall(transactionFuture, liveCall,
+                        disconnectReason).orTimeout(1000, TimeUnit.MILLISECONDS)
+                        .exceptionally(ex -> {
+                            if (ex instanceof TimeoutException) {
+                                Log.i(this, "makeRoomForOutgoingEmergencyCall: Disconnect for "
+                                        + "%s didn't complete after 1s. Attempting to place "
+                                        + "emergency call anyway.", liveCall);
+                                return true;
+                            } else {
+                                Log.e(this, ex, "makeRoomForOutgoingEmergencyCall: Disconnect "
+                                        + "for %s failed with exception %s.", liveCall);
+                                // Propagate the exception to the chain.
+                                throw new RuntimeException(ex);
+                            }
+                        }).thenCompose(result -> finalTransactionFuture);
             } else if (heldCall != null) { // Dual sim case
                 // Note at this point, we should always have a held call then that should
                 // be disconnected (over the active call) but still enforce with a null check and
@@ -775,7 +769,7 @@ public class CallSequencingController {
         // By default, for telephony, it will try to hold the existing call before placing the new
         // emergency call except for if the carrier does not support holding calls for emergency.
         // In this case, telephony will disconnect the call.
-        if (mFeatureFlags.bypassHoldForEccDial() && PhoneAccountHandle.areFromSamePackage(
+        if (PhoneAccountHandle.areFromSamePackage(
                 liveCallPhoneAccount, emergencyCall.getTargetPhoneAccount())) {
             Log.i(this, "makeRoomForOutgoingEmergencyCall: phoneAccount matches.");
             emergencyCall.getAnalytics().setCallIsAdditional(true);
@@ -1226,8 +1220,7 @@ public class CallSequencingController {
             return;
         }
         // Let Telephony handle calls on the same phone account.
-        if (mFeatureFlags.addDropsFgExtraDiffAccounts()
-                && arePhoneAccountsSame(activeCall, incomingCall)) {
+        if (arePhoneAccountsSame(activeCall, incomingCall)) {
             return;
         }
         // Check if the active call doesn't support hold. If it doesn't we should indicate to the

@@ -71,7 +71,6 @@ flag {
   namespace: "telecom"
   description: "Enables enriched calling features (e.g. Business name will show for a call)"
   bug: "311688497"
-  is_exported: true
 }
 
 # OWNER=tgunn TARGET=25Q3
@@ -156,6 +155,9 @@ flag {
   namespace: "telecom"
   description: "Add PROPERTY_REMOTELY_HOSTED to call to mirror what is in Connection."
   bug: "430293079"
+  metadata {
+    purpose: PURPOSE_FEATURE
+  }
 }
 
 # OWNER=tgunn TARGET=26Q2
@@ -178,5 +180,17 @@ flag {
   description: "Promoting the hidden extra DO_NOT_LOG call to a system API"
   bug: "427477225"
 
+}
+
+# OWNER=arunrajms TARGET=26Q2
+flag {
+  name: "send_original_number_on_place_call"
+  is_exported: true
+  namespace: "telecom"
+  description: "Adds an API to send the original number when placing a call."
+  bug: "431102980"
+  metadata {
+      purpose: PURPOSE_FEATURE
+  }
 }
 

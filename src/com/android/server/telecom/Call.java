@@ -108,6 +108,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 // QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
@@ -452,6 +453,9 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     /** The use case for audio processing when the call is in STATE_AUDIO_PROCESSING */
     private int mAudioProcessingUseCase = android.telecom.Call.AUDIO_PROCESSING_USE_CASE_UNKNOWN;
 
+    /** flag to signal when the audio processing is properly exited */
+    private boolean mIsProperlyExitingAudioProcessing = false;
+
     /**
      * Determines whether the {@link ConnectionService} has responded to the initial request to
      * create the connection.
@@ -679,6 +683,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     private CallingPackageIdentity mCallingPackageIdentity = new CallingPackageIdentity();
     private boolean mSkipAutoUnhold = false;
     private boolean mIsTransactionalLogExcluded = false;
+    private int mLastCallStateBeforeDisconnect = CallState.DISCONNECTED;
 
     /**
      * CallingPackageIdentity is responsible for storing properties about the calling package that
@@ -912,6 +917,21 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      * out.
      */
     private CompletableFuture<Boolean> mBtIcsFuture;
+
+    /**
+     * Tracks whether this call has been logged to the call log to prevent duplicate entries.
+     */
+    private final AtomicBoolean mHasBeenLogged = new AtomicBoolean(false);
+
+    /**
+     * Atomically checks if the call has been logged and sets the logged status to true.
+     *
+     * @return {@code true} if the call had ALREADY been logged, {@code false} if it had not been
+     * logged and was just now marked as such.
+     */
+    public boolean getAndSetHasBeenLogged() {
+        return mHasBeenLogged.getAndSet(true);
+    }
 
     /**
      * Map of CachedCallbacks that are pending to be executed when the *ServiceWrapper connects
@@ -1454,9 +1474,20 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      * else it is failed, and the call is still in its original state.
      */
     public boolean setState(int newState, String tag) {
+        if (isIllegalAudioProcessingTransition(newState)) {
+            handleIllegalAudioProcessingTransition(newState);
+            return false; // Reject the state transition
+        }
         if (mState != newState) {
             Log.v(this, "setState %s -> %s", CallState.toString(mState),
                     CallState.toString(newState));
+
+            // Save the previous call state to figure out if the call failed during setup or while
+            // the call was still ongoing. Used to determine if we should auto-unhold the bg call
+            // when this call has been disconnected due to an error.
+            if (newState == CallState.DISCONNECTED || newState == CallState.ABORTED) {
+                mLastCallStateBeforeDisconnect = mState;
+            }
 
             if (newState == CallState.DISCONNECTED && shouldContinueProcessingAfterDisconnect()) {
                 Log.w(this, "continuing processing disconnected call with another service");
@@ -1578,6 +1609,63 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         mAudioProcessingUseCase = useCase;
     }
 
+    /**
+     * Determines if an attempted state transition out of AUDIO_PROCESSING is illegal.
+     * <p>
+     * An illegal transition occurs if the call is in the audio processing state but the exit
+     * was not initiated by the sanctioned {@code exitBackgroundAudioProcessing} API.
+     * The only universally permitted transition is to {@code DISCONNECTED}.
+     *
+     * @param newState The state the call is attempting to transition to.
+     * @return {@code true} if the transition is illegal, {@code false} otherwise.
+     */
+    private boolean isIllegalAudioProcessingTransition(int newState) {
+        if (!mFlags.preventIllegalAudioProcessingExit()) {
+            return false;
+        }
+        // This is the core guard condition. A transition is considered an "unauthorized attempt"
+        // if the call is currently in the AUDIO_PROCESSING state, but the exit was NOT initiated
+        // via the sanctioned CallsManager#exitBackgroundAudioProcessing API (which is tracked
+        // by the transient mIsExitingAudioProcessing flag).
+        boolean isAttemptingUnauthorizedExit = (mState == CallState.AUDIO_PROCESSING)
+                && !mIsProperlyExitingAudioProcessing;
+        // The ASK_TO_HOLD use case is explicitly exempt from this strict check. Its worst-case
+        // failure is a transition to an active call instead of a held call, which is a
+        // recoverable inconvenience for the user, not a critical failure like a silent call.
+        // All other use cases (like CALL_SCREENING) must be strictly protected.
+        boolean useCaseRequiresStrictExitCheck = getAudioProcessingUseCase()
+                != android.telecom.Call.AUDIO_PROCESSING_USE_CASE_ASK_TO_HOLD;
+        // An unauthorized exit is illegal if it's not simply disconnecting.
+        boolean isIllegalDestinationState = newState != CallState.DISCONNECTED;
+        // disconnect call if all conditions met
+        return isAttemptingUnauthorizedExit && useCaseRequiresStrictExitCheck
+                && isIllegalDestinationState;
+    }
+
+    /**
+     * Handles an illegal state transition by logging the event and disconnecting the call
+     * with an error cause.
+     *
+     * @param illegalState The state that was improperly requested.
+     */
+    private void handleIllegalAudioProcessingTransition(int illegalState) {
+        Log.w(this, "Illegal state transition from AUDIO_PROCESSING to %s for"
+                        + " use case %d. Disconnecting.",
+                CallState.toString(illegalState), getAudioProcessingUseCase());
+        setLocallyDisconnecting(true);
+        setOverrideDisconnectCauseCode(new DisconnectCause(DisconnectCause.ERROR,
+                "Illegal audio processing state transition"));
+        disconnect("Illegal state transition from audio processing");
+    }
+
+    /**
+     * Sets a transient flag indicating a legitimate exit from audio processing is underway.
+     * This should only be set by CallsManager.
+     */
+    public void setIsProperlyExitingAudioProcessing(boolean isExiting) {
+        mIsProperlyExitingAudioProcessing = isExiting;
+    }
+
     void setRingbackRequested(boolean ringbackRequested) {
         mRingbackRequested = ringbackRequested;
         for (Listener l : mListeners) {
@@ -1599,18 +1687,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
     public boolean isSilentRingingRequested() {
         return mSilentRingingRequested;
-    }
-
-    public boolean isVideoCrbtForVoLteCall() {
-        if (getExtras() == null) {
-            return false;
-        }
-        // filter out the extra if the PhoneAccount doesn't have
-        // PhoneAccount.CAPABILITY_SIM_SUBSCRIPTION, limit the ability to use this functionality
-        // to just telephony phone accounts permission.
-        return mIsSimCall &&
-            (getExtras().getBoolean(android.telecom.Call.EXTRA_IS_USING_VIDEO_RINGBACK)
-            || getExtras().getBoolean(QtiCallConstants.EXTRA_IS_CRBT_CALL, false));
     }
 
     public void setCallIsSuppressedByDoNotDisturb(boolean isCallSuppressed) {
@@ -4454,6 +4530,16 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             }
         }
 
+        if (mFlags.maybeRerouteAudioOnVideoStateChange()) {
+            boolean becameVideo = VideoProfile.isVideo(mVideoState)
+                    && !VideoProfile.isVideo(previousVideoState);
+            // If it became a video call while it was already active/connecting,
+            // it's possible the initial audio route was earpiece. We need to re-evaluate.
+            if (becameVideo && isActiveFocus()) {
+                mCallsManager.rerouteAudioForVideoUpgrade(this);
+            }
+        }
+
         if (mFlags.transactionalVideoState() && mIsTransactionalCall) {
             int transactionalVS = VideoProfileStateToTransactionalVideoState(mVideoState);
             if (mTransactionalService != null) {
@@ -5311,5 +5397,9 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
     public boolean isTransactionalLogExcluded() {
         return mIsTransactionalLogExcluded;
+    }
+
+    public int getLastCallStateBeforeDisconnect() {
+        return mLastCallStateBeforeDisconnect;
     }
 }

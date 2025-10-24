@@ -78,7 +78,6 @@ import android.media.AudioSystem;
 import android.media.MediaPlayer;
 import android.media.ToneGenerator;
 import android.net.Uri;
-import android.os.Binder;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -715,7 +714,6 @@ public class CallsManager extends Call.ListenerBase
             BlockedNumbersAdapter blockedNumbersAdapter,
             TransactionManager transactionManager,
             EmergencyCallDiagnosticLogger emergencyCallDiagnosticLogger,
-            CallAudioCommunicationDeviceTracker communicationDeviceTracker,
             CallStreamingNotification callStreamingNotification,
             BluetoothDeviceManager bluetoothDeviceManager,
             FeatureFlags featureFlags,
@@ -775,7 +773,7 @@ public class CallsManager extends Call.ListenerBase
         mCallAudioRouteAdapter = audioRouteControllerFactory.create(context, this,
                 audioServiceFactory, new AudioRoute.Factory(), wiredHeadsetManager,
                 mBluetoothRouteManager, statusBarNotifier, featureFlags, metricsController,
-                mAnomalyReporter);
+                asyncRingtonePlayer, mAnomalyReporter);
         mCallAudioRouteAdapter.initialize();
         bluetoothStateReceiver.setCallAudioRouteAdapter(mCallAudioRouteAdapter);
         bluetoothDeviceManager.setCallAudioRouteAdapter(mCallAudioRouteAdapter);
@@ -783,10 +781,8 @@ public class CallsManager extends Call.ListenerBase
         CallAudioRoutePeripheralAdapter callAudioRoutePeripheralAdapter =
                 new CallAudioRoutePeripheralAdapter(
                         mCallAudioRouteAdapter,
-                        bluetoothManager,
                         wiredHeadsetManager,
-                        mDockManager,
-                        asyncRingtonePlayer);
+                        mDockManager);
         AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
         InCallTonePlayer.MediaPlayerFactory mediaPlayerFactory = (resourceId, attributes) -> {
           MediaPlayer mediaPlayer;
@@ -799,8 +795,8 @@ public class CallsManager extends Call.ListenerBase
           }
           return new InCallTonePlayer.MediaPlayerAdapterImpl(mediaPlayer);
         };
-        InCallTonePlayer.Factory playerFactory = new InCallTonePlayer.Factory(
-                callAudioRoutePeripheralAdapter, lock, toneGeneratorFactory, mediaPlayerFactory,
+        InCallTonePlayer.Factory playerFactory = new InCallTonePlayer.Factory(lock,
+                toneGeneratorFactory, mediaPlayerFactory,
                 () -> audioManager.getStreamVolume(AudioManager.STREAM_RING) > 0, featureFlags,
                 Looper.getMainLooper());
 
@@ -830,8 +826,7 @@ public class CallsManager extends Call.ListenerBase
         mCallAudioManager = new CallAudioManager(mCallAudioRouteAdapter,
                 this, callAudioModeStateMachineFactory.create(systemStateHelper,
                 (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE),
-                featureFlags, communicationDeviceTracker),
-                playerFactory, mRinger, new RingbackPlayer(playerFactory),
+                featureFlags), playerFactory, mRinger, new RingbackPlayer(playerFactory),
                 bluetoothStateReceiver, mDtmfLocalTonePlayer, featureFlags,
                 mCallConnectedIndicatorSettings);
 
@@ -1686,11 +1681,9 @@ public class CallsManager extends Call.ListenerBase
             if (VideoProfile.isVideo(call.getVideoState())
 // QTI_END: 2023-07-06: Telephony: IMS: Fix CRBT is playing by speaker when plug out headset/BT
 // QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
-                    && !call.isVideoCrbtForVoLteCall()
                     && !call.isVideoCrsForVoLteCall()
-                    && !call.isVisualizedVoiceCall()
+                    && !call.isVisualizedVoiceCall()) {
 // QTI_END: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
-                    && !call.isVideoCrbtForVoLteCall()) {
                 return true;
             }
         }
@@ -4107,11 +4100,15 @@ public class CallsManager extends Call.ListenerBase
             disconnectCall(call);
             return;
         }
-
-        if (shouldRing) {
-            setCallState(call, CallState.SIMULATED_RINGING, "exitBackgroundAudioProcessing");
-        } else {
-            setCallState(call, CallState.ACTIVE, "exitBackgroundAudioProcessing");
+        try {
+            call.setIsProperlyExitingAudioProcessing(true);
+            if (shouldRing) {
+                setCallState(call, CallState.SIMULATED_RINGING, "exitBackgroundAudioProcessing");
+            } else {
+                setCallState(call, CallState.ACTIVE, "exitBackgroundAudioProcessing");
+            }
+        } finally {
+            call.setIsProperlyExitingAudioProcessing(false);
         }
     }
 
@@ -4138,11 +4135,8 @@ public class CallsManager extends Call.ListenerBase
      * @return {@code true} if the speakerphone should be enabled.
      */
     public boolean isSpeakerphoneAutoEnabledForVideoCalls(int videoState) {
-// QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
-        return !isVideoCrbtVoLteCall() &&
-// QTI_END: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
 // QTI_BEGIN: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
-            VideoProfile.isVideo(videoState) &&
+        return VideoProfile.isVideo(videoState) &&
 // QTI_END: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
             !mWiredHeadsetManager.isPluggedIn() &&
             !mBluetoothRouteManager.isBluetoothAvailable() &&
@@ -4308,6 +4302,9 @@ public class CallsManager extends Call.ListenerBase
 
         if (!mCalls.contains(call)) {
             Log.w(this, "Unknown call (%s) asked to disconnect", call);
+        } else if (call != null && call.getState() == CallState.DISCONNECTED) {
+            //Check the call state
+            Log.w(this, "Disconnected call asked to disconnect, skip");
         } else {
             mLocallyDisconnectingCalls.add(call);
             mCallSequencingAdapter.disconnectCall(call);
@@ -4717,6 +4714,26 @@ public class CallsManager extends Call.ListenerBase
         mCallEndpointController.requestCallEndpointChange(endpoint, callback);
     }
 
+    /**
+     * Called when a call's video state has changed to see if an audio route
+     * update is warranted (e.g., switching from earpiece to speaker).
+     *
+     * @param call The call that was upgraded.
+     */
+    public void rerouteAudioForVideoUpgrade(Call call) {
+        // Only act if the foreground call is the one that was upgraded.
+        if (call != getForegroundCall()) {
+            return;
+        }
+        CallAudioState audioState = mCallAudioRouteAdapter.getCurrentCallAudioState();
+        // If the call was upgraded to video but is still on the earpiece,
+        // force the audio route to SPEAKER
+        if (audioState.getRoute() == CallAudioState.ROUTE_EARPIECE) {
+            Log.i(this, "Rerouting audio for video upgrade for call: %s", call.getId());
+            setAudioRoute(CallAudioState.ROUTE_SPEAKER, null);
+        }
+    }
+
     /** Called by the in-call UI to turn the proximity sensor on. */
     void turnOnProximitySensor() {
         mProximitySensorManager.turnOn();
@@ -4749,6 +4766,11 @@ public class CallsManager extends Call.ListenerBase
     }
 
     public PersistableBundle getCarrierConfigForPhoneAccount(PhoneAccountHandle handle) {
+        // If the phone account isn't for a sim subscription, then carrier config does not apply
+        // so return an empty bundle.
+        if (!mPhoneAccountRegistrar.isCapabilitySimPhoneAccount(handle)) {
+            return new PersistableBundle();
+        }
         int subscriptionId = mPhoneAccountRegistrar.getSubscriptionIdForPhoneAccount(handle);
         CarrierConfigManager carrierConfigManager =
                 mContext.getSystemService(CarrierConfigManager.class);
@@ -4867,7 +4889,12 @@ public class CallsManager extends Call.ListenerBase
 
     @VisibleForTesting
     public void markCallAsSimulatedRinging(Call call) {
-        setCallState(call, CallState.SIMULATED_RINGING, "simulated ringing set explicitly");
+        try {
+            call.setIsProperlyExitingAudioProcessing(true);
+            setCallState(call, CallState.SIMULATED_RINGING, "simulated ringing set explicitly");
+        } finally {
+            call.setIsProperlyExitingAudioProcessing(false);
+        }
     }
 
     /**
@@ -6563,20 +6590,6 @@ public class CallsManager extends Call.ListenerBase
         mMissedCallNotifier.reloadAfterBootComplete(mCallerInfoLookupHelper,
                 new MissedCallNotifier.CallInfoFactory());
     }
-
-// QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
-    public boolean isVideoCrbtVoLteCall() {
-// QTI_END: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
-// QTI_BEGIN: 2023-03-28: Telephony: IMS: Fix conflict with LKG
-        Call call = getDialingCall();
-        if (call == null) {
-            return false;
-        }
-// QTI_END: 2023-03-28: Telephony: IMS: Fix conflict with LKG
-// QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
-        return call.isVideoCrbtForVoLteCall();
-    }
-
 
     public boolean isVisualizedVoiceCall() {
         Call call = getDialingOrActiveCall();
