@@ -63,6 +63,21 @@ import java.util.concurrent.Executors;
 public class TestDialerActivity extends AppCompatActivity {
     private static final String TAG = TestDialerActivity.class.getSimpleName();
     private static final int REQUEST_CODE_SET_DEFAULT_DIALER = 1;
+    private static final Map<Integer, String> CALL_TYPES_MAP = Map.of(
+            Calls.INCOMING_TYPE, "Incoming",
+            Calls.OUTGOING_TYPE, "Outgoing",
+            Calls.MISSED_TYPE, "Missed",
+            Calls.VOICEMAIL_TYPE, "Voicemail",
+            Calls.REJECTED_TYPE, "Rejected",
+            Calls.BLOCKED_TYPE, "Blocked",
+            Calls.ANSWERED_EXTERNALLY_TYPE, "Answered Externally"
+    );
+    private static final String UNKNOWN_CALL_TYPE = "Unknown call type";
+    private static final Map<String, String> SUPPORTED_VOIP_APPS_MAP = Map.of(
+            Utils.PKG_NAME, "Transactional Test App",
+            "whatsapp", "WhatsApp",
+            "tachyon", "Meet"
+    );
 
     private RecyclerView mCallLogRecyclerView;
     private CallLogAdapter mCallLogAdapter;
@@ -92,6 +107,7 @@ public class TestDialerActivity extends AppCompatActivity {
 
         findViewById(R.id.back_to_voip_main).setOnClickListener(v -> startVoipMainActivity());
         findViewById(R.id.clear_voip_call_logs).setOnClickListener(v -> clearVoipCallLogs());
+        findViewById(R.id.refresh_call_logs).setOnClickListener(v -> loadCallLog());
         // Set up call log UI
         setupCallLogRecyclerView();
         if (getIntent().hasExtra(Utils.STORED_UUIDS_KEY)) {
@@ -124,7 +140,9 @@ public class TestDialerActivity extends AppCompatActivity {
         // Run the query on a background thread and post the result back to the main thread.
         mExecutor.execute(() -> {
             List<CallLogItem> callLogItems = queryCallLog();
-            runOnUiThread(() -> mCallLogAdapter.submitList(callLogItems));
+            runOnUiThread(() -> mCallLogAdapter.submitList(callLogItems, () -> {
+                mCallLogRecyclerView.scrollToPosition(0);
+            }));
         });
     }
 
@@ -133,9 +151,12 @@ public class TestDialerActivity extends AppCompatActivity {
         String[] projection = new String[]{
                 Calls._ID,
                 Calls.CACHED_NAME,
+                Calls.PHONE_ACCOUNT_COMPONENT_NAME,
                 Calls.NUMBER,
                 Calls.UUID,
-                Calls.DATE
+                Calls.TYPE,
+                Calls.FEATURES,
+                Calls.DATE,
         };
 
         ContentResolver resolver = getContentResolver();
@@ -154,10 +175,20 @@ public class TestDialerActivity extends AppCompatActivity {
 
         // Filter the query by the uuids passed in from VoipAppMainActivity.
         if (mUuids != null && mUuids.length > 0) {
+            // Build first part of selection to only include the available uuids.
             String uuidPlaceholders = String.join(",", Collections.nCopies(mUuids.length, "?"));
-            String uuidSelection = Calls.UUID + " IN (" + uuidPlaceholders + ")";
-            selection += (" AND " + uuidSelection);
-            selectionArgs = mUuids;
+            String uuidInClause = Calls.UUID + " IN (" + uuidPlaceholders + ")";
+            // (The component name is NOT our app) OR (the UUID is in our list of known UUIDs)
+            String uuidSelection = String.format("(%s NOT LIKE ? OR %s)",
+                    Calls.PHONE_ACCOUNT_COMPONENT_NAME, uuidInClause);
+
+            selection += " AND " + uuidSelection;
+
+            // The first argument is for the 'NOT LIKE ?' clause for the phone account component
+            // name and the rest hold the mUuids.
+            selectionArgs = new String[mUuids.length + 1];
+            selectionArgs[0] = "%" + Utils.PKG_NAME + "%";
+            System.arraycopy(mUuids, 0, selectionArgs, 1, mUuids.length);
         }
 
         queryArgs.putString(ContentResolver.QUERY_ARG_SQL_SELECTION, selection);
@@ -177,16 +208,28 @@ public class TestDialerActivity extends AppCompatActivity {
                 int numberColumn = cursor.getColumnIndexOrThrow(Calls.NUMBER);
                 int dateColumn = cursor.getColumnIndexOrThrow(Calls.DATE);
                 int uuidColumn = cursor.getColumnIndexOrThrow(Calls.UUID);
+                int typeColumn = cursor.getColumnIndexOrThrow(Calls.TYPE);
+                int phoneAccountCmptNameColumn = cursor.getColumnIndexOrThrow(
+                        Calls.PHONE_ACCOUNT_COMPONENT_NAME);
+                int featuresColumn = cursor.getColumnIndexOrThrow(Calls.FEATURES);
 
                 while (cursor.moveToNext()) {
                     int callIdIndex = cursor.getInt(idColumnIndex);
                     String name = cursor.getString(nameColumn);
                     String number = cursor.getString(numberColumn);
+                    int type = cursor.getInt(typeColumn);
+                    String convertedType = CALL_TYPES_MAP.getOrDefault(type, UNKNOWN_CALL_TYPE);
                     String uuid = cursor.getString(uuidColumn);
                     String displayName = (name == null || name.isEmpty()) ? uuid : name;
+                    String phoneAccountCmptName =
+                            getAppName(cursor.getString(phoneAccountCmptNameColumn));
+                    int features = cursor.getInt(featuresColumn);
+                    // Check if this was a video call
+                    boolean hasVideoFeature = (features & Calls.FEATURES_VIDEO)
+                            == Calls.FEATURES_VIDEO;
 
-                    CallLogItem callLogItem = new CallLogItem(displayName, number,
-                            cursor.getLong(dateColumn));
+                    CallLogItem callLogItem = new CallLogItem(displayName, number, convertedType,
+                            cursor.getLong(dateColumn), phoneAccountCmptName, hasVideoFeature);
                     // Store the uri mapping to the appropriate call log entry
                     Uri uri = ContentUris.withAppendedId(Calls.CONTENT_URI_WITH_VOIP_CALLS,
                             callIdIndex);
@@ -218,12 +261,19 @@ public class TestDialerActivity extends AppCompatActivity {
     public static class CallLogItem {
         public final String mDisplayName;
         public final String mNumber;
+        public final String mType;
+        public final String mPhoneAccountCmptName;
         public final long mDate;
+        public final boolean mIsVideo;
 
-        public CallLogItem(String displayName, String number, long date) {
+        public CallLogItem(String displayName, String number, String type, long date,
+                String phoneAccountCmptName, boolean isVideo) {
             this.mDisplayName = displayName;
             this.mNumber = number;
             this.mDate = date;
+            this.mType = type;
+            this.mPhoneAccountCmptName = phoneAccountCmptName;
+            this.mIsVideo = isVideo;
         }
 
         @Override
@@ -235,13 +285,17 @@ public class TestDialerActivity extends AppCompatActivity {
                 return false;
             }
             CallLogItem that = (CallLogItem) o;
-            return mDate == that.mDate && Objects.equals(mNumber, that.mNumber) &&
-                    Objects.equals(mDisplayName, that.mDisplayName);
+            return mDate == that.mDate && Objects.equals(mNumber, that.mNumber)
+                    && mIsVideo == that.mIsVideo
+                    && Objects.equals(mDisplayName, that.mDisplayName)
+                    && Objects.equals(mType, that.mType)
+                    && Objects.equals(mPhoneAccountCmptName, that.mPhoneAccountCmptName);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(mDisplayName, mNumber, mDate);
+            return Objects.hash(mDisplayName, mIsVideo, mNumber, mType, mDate,
+                    mPhoneAccountCmptName);
         }
     }
 
@@ -279,7 +333,8 @@ public class TestDialerActivity extends AppCompatActivity {
             private final Context mContext;
             private final TextView idTextView;
             private final TextView numberTextView;
-            private final TextView dateTextView;
+            private final TextView appNameAndDateTextView;
+            private final TextView callTypeTextView;
             private final Button callbackButton;
 
             public CallLogViewHolder(@NonNull View itemView, Context context) {
@@ -287,17 +342,21 @@ public class TestDialerActivity extends AppCompatActivity {
                 mContext = context;
                 idTextView = itemView.findViewById(R.id.call_log_id);
                 numberTextView = itemView.findViewById(R.id.call_log_number);
-                dateTextView = itemView.findViewById(R.id.call_log_date);
+                appNameAndDateTextView = itemView.findViewById(R.id.call_log_app_name_and_date);
                 callbackButton = itemView.findViewById(R.id.callback_button);
+                callTypeTextView = itemView.findViewById(R.id.call_log_type);
             }
 
             public void bind(Uri uri, CallLogItem item) {
                 idTextView.setText(item.mDisplayName != null ? item.mDisplayName : "Unknown");
                 numberTextView.setText(item.mNumber);
+                callTypeTextView.setText(item.mType);
 
                 String date = new SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
                         .format(new Date(item.mDate));
-                dateTextView.setText(date);
+                String videoText = item.mIsVideo ? "Video" : "Audio";
+                appNameAndDateTextView.setText(item.mPhoneAccountCmptName + ", " + videoText
+                        + " - " + date);
                 callbackButton.setOnClickListener(v -> placeCall(uri));
             }
             private void placeCall(Uri uri) {
@@ -315,9 +374,11 @@ public class TestDialerActivity extends AppCompatActivity {
     public static class CallLogDiffCallback extends DiffUtil.ItemCallback<CallLogItem> {
         @Override
         public boolean areItemsTheSame(@NonNull CallLogItem oldItem, @NonNull CallLogItem newItem) {
-            return oldItem.mDate == newItem.mDate
-                    && oldItem.mDisplayName.equals(newItem.mDisplayName)
-                    && oldItem.mNumber.equals(newItem.mNumber);
+            return oldItem.mDate == newItem.mDate && oldItem.mIsVideo == newItem.mIsVideo
+                    && Objects.equals(oldItem.mDisplayName, newItem.mDisplayName)
+                    && Objects.equals(oldItem.mNumber, newItem.mNumber)
+                    && Objects.equals(oldItem.mType, newItem.mType)
+                    && Objects.equals(oldItem.mPhoneAccountCmptName, newItem.mPhoneAccountCmptName);
         }
 
         @Override
@@ -325,5 +386,26 @@ public class TestDialerActivity extends AppCompatActivity {
                 @NonNull CallLogItem newItem) {
             return oldItem.equals(newItem);
         }
+    }
+
+    @Override
+    protected void onResume() {
+        Log.i(TAG, "onResume: When the activity enters the Resumed state,"
+                + " it comes to the foreground");
+        super.onResume();
+        loadCallLog();
+    }
+
+    // Get the abbreviated app name from the phone account component name
+    private String getAppName(String phoneAccountCmptName) {
+        if (phoneAccountCmptName == null) {
+            return null;
+        }
+        for (String appPhrase: SUPPORTED_VOIP_APPS_MAP.keySet()) {
+            if (phoneAccountCmptName.contains(appPhrase)) {
+                return SUPPORTED_VOIP_APPS_MAP.get(appPhrase);
+            }
+        }
+        return phoneAccountCmptName;
     }
 }
