@@ -20,7 +20,7 @@ import android.annotation.IntDef;
 import android.net.Uri;
 import android.provider.CallLog;
 import android.provider.CallLog.Calls;
-import android.telecom.CallScreeningService;
+import android.telecom.ParcelableCallResponse;
 import android.text.TextUtils;
 
 import java.lang.annotation.Retention;
@@ -66,7 +66,7 @@ public class CallFilteringResult {
         private int mCallBlockReason = Calls.BLOCK_REASON_NOT_BLOCKED;
         private CharSequence mCallScreeningAppName = null;
         private String mCallScreeningComponentName = null;
-        private CallScreeningService.ParcelableCallResponse mCallScreeningResponse = null;
+        private ParcelableCallResponse mCallScreeningResponse = null;
         private boolean mIsResponseFromSystemDialer = false;
 
         public Builder setShouldAllowCall(boolean shouldAllowCall) {
@@ -130,7 +130,7 @@ public class CallFilteringResult {
         }
 
         public Builder setCallScreeningResponse(
-                CallScreeningService.ParcelableCallResponse response, boolean isFromSystemDialer) {
+                ParcelableCallResponse response, boolean isFromSystemDialer) {
             mCallScreeningResponse = response;
             mIsResponseFromSystemDialer = isFromSystemDialer;
             return this;
@@ -179,7 +179,7 @@ public class CallFilteringResult {
     public int mCallBlockReason;
     public CharSequence mCallScreeningAppName;
     public String mCallScreeningComponentName;
-    public CallScreeningService.ParcelableCallResponse mCallScreeningResponse;
+    public ParcelableCallResponse mCallScreeningResponse;
     public boolean mIsResponseFromSystemDialer;
     public boolean contactExists;
 
@@ -187,7 +187,7 @@ public class CallFilteringResult {
             shouldSilence, boolean shouldAddToCallLog, boolean shouldShowNotification, boolean
             shouldSuppress, @DndSuppressionStatus int dndSuppressionStatus, int callBlockReason,
             CharSequence callScreeningAppName, String callScreeningComponentName,
-            CallScreeningService.ParcelableCallResponse callScreeningResponse,
+            ParcelableCallResponse callScreeningResponse,
             boolean isResponseFromSystemDialer,
             boolean shouldScreenViaAudio, boolean contactExists) {
         this.shouldAllowCall = shouldAllowCall;

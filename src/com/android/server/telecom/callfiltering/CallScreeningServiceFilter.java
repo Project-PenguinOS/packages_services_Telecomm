@@ -25,8 +25,8 @@ import android.os.Binder;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.provider.CallLog;
-import android.telecom.CallScreeningService;
 import android.telecom.Log;
+import android.telecom.ParcelableCallResponse;
 import android.telecom.TelecomManager;
 
 import com.android.internal.telecom.ICallScreeningAdapter;
@@ -68,7 +68,7 @@ public class CallScreeningServiceFilter extends CallFilter {
 
         @Override
         public void onScreeningResponse(String callId, ComponentName componentName,
-                CallScreeningService.ParcelableCallResponse callResponse) {
+                ParcelableCallResponse callResponse) {
             if (callResponse == null) {
                 Log.w(this, "Null responses are only supposed to happen for outgoing calls");
                 return;
@@ -85,7 +85,7 @@ public class CallScreeningServiceFilter extends CallFilter {
         }
 
         public void allowCall(String callId, ComponentName componentName,
-                CallScreeningService.ParcelableCallResponse response) {
+                ParcelableCallResponse response) {
             long token = Binder.clearCallingIdentity();
             Log.startSession("NCSSF.aC");
             try {
@@ -113,7 +113,7 @@ public class CallScreeningServiceFilter extends CallFilter {
         }
 
         public void disallowCall(String callId, ComponentName componentName,
-                CallScreeningService.ParcelableCallResponse response) {
+                ParcelableCallResponse response) {
             long token = Binder.clearCallingIdentity();
             Log.startSession("NCSSF.dC");
             try {
@@ -145,7 +145,7 @@ public class CallScreeningServiceFilter extends CallFilter {
         }
 
         public void silenceCall(String callId, ComponentName componentName,
-                CallScreeningService.ParcelableCallResponse response) {
+                ParcelableCallResponse response) {
             long token = Binder.clearCallingIdentity();
             Log.startSession("NCSSF.sC");
             try {
@@ -175,7 +175,7 @@ public class CallScreeningServiceFilter extends CallFilter {
         }
 
         public void screenCallFurther(String callId, ComponentName componentName,
-                CallScreeningService.ParcelableCallResponse response) {
+                ParcelableCallResponse response) {
             if (mPackageType != PACKAGE_TYPE_DEFAULT_DIALER) {
                 throw new SecurityException("Only the default/system dialer may request screen via"
                     + "background call audio");
