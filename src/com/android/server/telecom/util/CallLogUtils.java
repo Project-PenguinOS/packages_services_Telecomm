@@ -24,6 +24,7 @@ import static android.provider.CallLog.Calls.CALL_SCREENING_APP_NAME;
 import static android.provider.CallLog.Calls.CALL_SCREENING_COMPONENT_NAME;
 import static android.provider.CallLog.Calls.COMPOSER_PHOTO_URI;
 import static android.provider.CallLog.Calls.CONTENT_URI;
+import static android.provider.CallLog.Calls.CONTENT_VOIP_URI;
 import static android.provider.CallLog.Calls.DATA_USAGE;
 import static android.provider.CallLog.Calls.DATE;
 import static android.provider.CallLog.Calls.DEFAULT_SORT_ORDER;
@@ -530,9 +531,13 @@ public class CallLogUtils {
 
         // Since we're doing this operation on behalf of an app, we only
         // want to use the actual "unlocked" state.
-        final Uri uri = ContentProvider.maybeAddUserId(
-            userManager.isUserUnlocked(user) ? CONTENT_URI : SHADOW_CONTENT_URI,
-            user.getIdentifier());
+        final String uuid = values.containsKey(UUID) ? values.getAsString(UUID) : null;
+        // Adjust the URI depending on if we're adding a VOIP call log entry.
+        boolean handlingVoipEntry = uuid != null;
+        final Uri uri = ContentProvider.maybeAddUserId(userManager.isUserUnlocked(user)
+                        ? (handlingVoipEntry ? CONTENT_VOIP_URI : CONTENT_URI)
+                        : SHADOW_CONTENT_URI,
+                user.getIdentifier());
 
         Log.i(LOG_TAG, String.format(Locale.getDefault(),
             "addEntryAndRemoveExpiredEntries: provider uri=%s", uri));
