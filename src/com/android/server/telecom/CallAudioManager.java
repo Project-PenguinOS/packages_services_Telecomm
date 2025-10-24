@@ -106,11 +106,10 @@ public class CallAudioManager extends CallsManagerListenerBase {
 // QTI_BEGIN: 2023-04-03: Telephony: IMS: Support video CRS in RINGTONE
     private boolean mIsCrsSupportedFromAudioHal = false;
 // QTI_END: 2023-04-03: Telephony: IMS: Support video CRS in RINGTONE
-// QTI_BEGIN: 2024-03-28: Telephony: Skip startRinging for silenced ringing call
-    private final Set<Call> mSilencedCalls;
-// QTI_END: 2024-03-28: Telephony: Skip startRinging for silenced ringing call
     private final HandlerThread mHandlerThread;
     private final Handler mHandler;
+    private final Set<Call> mSilencedCalls;
+    private boolean mIsCrsInCallMode = false;
 
     public CallAudioManager(CallAudioRouteAdapter callAudioRouteAdapter,
             CallsManager callsManager,
@@ -153,12 +152,10 @@ public class CallAudioManager extends CallsManagerListenerBase {
 // QTI_BEGIN: 2023-04-03: Telephony: IMS: Support video CRS in RINGTONE
         mIsCrsSupportedFromAudioHal = isCrsSupportedFromAudioHal();
 // QTI_END: 2023-04-03: Telephony: IMS: Support video CRS in RINGTONE
-// QTI_BEGIN: 2024-03-28: Telephony: Skip startRinging for silenced ringing call
-        mSilencedCalls = new HashSet<>();
-// QTI_END: 2024-03-28: Telephony: Skip startRinging for silenced ringing call
         mHandlerThread = new HandlerThread(this.getClass().getSimpleName());
         mHandlerThread.start();
         mHandler = new Handler(mHandlerThread.getLooper());
+        mSilencedCalls = new HashSet<>();
 
         mPlayerFactory.setCallAudioManager(this);
         mCallAudioModeStateMachine.setCallAudioManager(this);
@@ -196,9 +193,17 @@ public class CallAudioManager extends CallsManagerListenerBase {
                 completeDisconnectToneFuture(call);
             }
         }
+        if (mSilencedCalls.contains(call) && newState != CallState.RINGING) {
+            mSilencedCalls.remove(call);
+        }
 
         if (newState == CallState.ACTIVE && oldState == CallState.DIALING) {
             playToneAfterCallConnected(call);
+        }
+
+        if (mIsCrsInCallMode && (newState != CallState.RINGING)
+                &&  (call == mForegroundCall)) {
+            mIsCrsInCallMode = false;
         }
 
 // QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
@@ -232,16 +237,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
             }
             mOriginalCallType = Call.CALL_TYPE_UNKNOWN;
 // QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-// QTI_BEGIN: 2024-03-28: Telephony: Skip startRinging for silenced ringing call
         }
-        if (mSilencedCalls.contains(call) && newState != CallState.RINGING) {
-            mSilencedCalls.remove(call);
-// QTI_END: 2024-03-28: Telephony: Skip startRinging for silenced ringing call
-// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-        }
-// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-
-// QTI_BEGIN: 2020-03-27: Telephony: Ims: Clean-up old ConfURI implementation
         onCallLeavingState(call, oldState);
         onCallEnteringState(call, newState);
 // QTI_END: 2020-03-27: Telephony: Ims: Clean-up old ConfURI implementation
@@ -259,6 +255,9 @@ public class CallAudioManager extends CallsManagerListenerBase {
         }
         Log.i(LOG_TAG, "onCrsFallbackLocalRinging :: Switch to play local ringing");
         mIsInCrsMode = false;
+        mCallAudioModeStateMachine.sendMessageWithArgs(
+                CallAudioModeStateMachine.CRS_FALLBACK_TO_LOCAL_RINGING,
+                makeArgsForModeStateMachine());
         onRingingCallChanged();
     }
 
@@ -328,6 +327,13 @@ public class CallAudioManager extends CallsManagerListenerBase {
         // We're in a call if there are calls in mCalls that are not in mAudioProcessingCalls.
         boolean isInCall = !mAudioProcessingCalls.containsAll(mCalls);
         mBluetoothStateReceiver.setIsInCall(isInCall);
+    }
+
+    public void clearSilencedCalls() {
+        Log.i(this, "clearSilencedCalls");
+        for (Call call : mRingingCalls) {
+            mSilencedCalls.remove(call);
+        }
     }
 
     /**
@@ -612,15 +618,6 @@ public class CallAudioManager extends CallsManagerListenerBase {
         }
     }
 
-// QTI_BEGIN: 2024-03-28: Telephony: Skip startRinging for silenced ringing call
-    public void clearSilencedCalls() {
-        Log.i(this, "clearSilencedCalls");
-        for (Call call : mRingingCalls) {
-            mSilencedCalls.remove(call);
-        }
-    }
-
-// QTI_END: 2024-03-28: Telephony: Skip startRinging for silenced ringing call
     /**
      * Switch call audio routing to the baseline route, including bluetooth headsets if there are
      * any connected.
@@ -682,13 +679,11 @@ public class CallAudioManager extends CallsManagerListenerBase {
     public boolean startRinging() {
         synchronized (mCallsManager.getLock()) {
             Call localForegroundCall = mForegroundCall;
-// QTI_BEGIN: 2024-03-28: Telephony: Skip startRinging for silenced ringing call
-            if (mSilencedCalls.contains(localForegroundCall)) {
+            if (localForegroundCall != null && localForegroundCall.isCrsCall()
+                    && mSilencedCalls.contains(localForegroundCall)) {
                 Log.v(this, "Skip startRinging for silenced ringing call");
                 return false;
             }
-
-// QTI_END: 2024-03-28: Telephony: Skip startRinging for silenced ringing call
             boolean result = mRinger.startRinging(localForegroundCall,
                     mCallAudioRouteAdapter.isHfpDeviceAvailable());
             if (result) {
@@ -883,6 +878,9 @@ public class CallAudioManager extends CallsManagerListenerBase {
                 onCallEnteringActiveDialingOrConnecting();
                 break;
             case CallState.RINGING:
+                mIsCrsInCallMode = (call != null &&
+                        call.getCrsMode() == android.telecom.Call.CRS_MODE_IN_CALL &&
+                        call.isCrsCall());
             case CallState.SIMULATED_RINGING:
 // QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
                 mIsInCrsMode = call.isCrsCall();
@@ -1511,5 +1509,9 @@ public class CallAudioManager extends CallsManagerListenerBase {
     @VisibleForTesting
     public CompletableFuture<Boolean> getCallDialingActiveOrConnectingFuture() {
         return mCallDialingActiveOrConnectingFuture;
+    }
+
+    public boolean isCrsInCallMode() {
+        return mIsCrsInCallMode;
     }
 }
