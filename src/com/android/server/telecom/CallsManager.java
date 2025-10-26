@@ -585,6 +585,8 @@ public class CallsManager extends Call.ListenerBase
     private final LowBatteryAlertListener mLowBatteryAlertListener;
     private CallLogIntegrationAdapter mCallLogIntegrationAdapter;
 
+    private String mCrsCallId = null;
+
     private final ConnectionServiceFocusManager.CallsManagerRequester mRequester =
             new ConnectionServiceFocusManager.CallsManagerRequester() {
                 @Override
@@ -636,9 +638,6 @@ public class CallsManager extends Call.ListenerBase
     private Call mDisconnectingCall = null;
 
 // QTI_END: 2018-04-09: Telephony: Emergency Call when there is no room left for new Call.
-// QTI_BEGIN: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
-    private String mCrsCallId = null;
-// QTI_END: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
 
     /**
      * Listener to PhoneAccountRegistrar events.
@@ -4477,20 +4476,12 @@ public class CallsManager extends Call.ListenerBase
 // QTI_END: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
     }
 
-    @Override
-    public void onRemoteRttRequest(Call call, int requestId) {
-        Log.i(this, "onRemoteRttRequest: call %s", call.getId());
-        playRttUpgradeToneForCall(call);
-    }
-
-// QTI_BEGIN: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
-    /**
+     /**
      * Updates video CRS information if it is a CRS call and handling fallback
      * to play local ringing when CRS audio/video RTP timeout from network.
      */
     private void maybeUpdateVideoCrsCall(Call c) {
-        if (c == null || (c.getState() != CallState.RINGING
-                    && c.getState() != CallState.SIMULATED_RINGING)) {
+        if (c == null || (c.getState() != CallState.RINGING)) {
             return;
         }
         boolean isCrs = c.isCrsCall();
@@ -4511,7 +4502,12 @@ public class CallsManager extends Call.ListenerBase
         }
     }
 
-// QTI_END: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
+    @Override
+    public void onRemoteRttRequest(Call call, int requestId) {
+        Log.i(this, "onRemoteRttRequest: call %s", call.getId());
+        playRttUpgradeToneForCall(call);
+    }
+
     public void playRttUpgradeToneForCall(Call call) {
         mCallAudioManager.playRttUpgradeTone(call);
     }

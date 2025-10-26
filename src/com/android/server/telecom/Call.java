@@ -93,7 +93,6 @@ import com.android.server.telecom.util.CallerInfo;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -166,6 +165,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      */
     private static final float MIN_BITRATE_FOR_HD_PLUS = 24.4f;
 
+    public static final int RINGTONE_TYPE_MEDIA = 0;
+    public static final int RINGTONE_TYPE_CRS = 1;
     /**
      * Listener for CallState changes which can be leveraged by a Transaction.
      */
@@ -3555,17 +3556,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     }
 
 // QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-    public boolean isCrsCall() {
-        if (mExtras == null) {
-            return false;
-        }
-        int crsType = mExtras.getInt(QtiCallConstants.EXTRA_CRS_TYPE,
-                QtiCallConstants.CRS_TYPE_INVALID);
-        return (crsType == (QtiCallConstants.CRS_TYPE_VIDEO
-                    | QtiCallConstants.CRS_TYPE_AUDIO))
-            || (crsType == QtiCallConstants.CRS_TYPE_AUDIO);
-    }
-
     public int getOriginalCallType() {
         if (mExtras == null) {
             return CALL_TYPE_UNKNOWN;
@@ -3575,6 +3565,25 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     }
 
 // QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
+
+    public int getCrsMode() {
+        if (mExtras == null) {
+            return android.telecom.Call.CRS_MODE_IN_CALL;
+        }
+        return mExtras.getInt(android.telecom.Call.EXTRA_CRS_AUDIO_MODE,
+                android.telecom.Call.CRS_MODE_IN_CALL);
+    }
+
+    public boolean isCrsCall() {
+        if (mExtras == null) {
+            return false;
+        }
+        int crsMediaType = mExtras.getInt(
+                android.telecom.Call.EXTRA_CRS_MEDIA_TYPE,
+                android.telecom.Call.CRS_MEDIA_TYPE_NONE);
+        return mIsSimCall && ((crsMediaType & android.telecom.Call.CRS_MEDIA_TYPE_AUDIO) != 0);
+    }
+
     /**
      * Adds extras to the extras bundle associated with this {@link Call}, as made by a
      * {@link ConnectionService} or other non {@link android.telecom.InCallService} source.

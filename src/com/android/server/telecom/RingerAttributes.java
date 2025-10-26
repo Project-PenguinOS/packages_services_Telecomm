@@ -16,6 +16,8 @@
 
 package com.android.server.telecom;
 
+import static com.android.server.telecom.Call.RINGTONE_TYPE_MEDIA;
+
 import android.telecom.Log;
 
 public class RingerAttributes {
@@ -28,6 +30,8 @@ public class RingerAttributes {
         private boolean mShouldRingForContact;
         private boolean mSilentRingingRequested;
         private boolean mWorkProfileQuietMode;
+        private int mRingtoneType = RINGTONE_TYPE_MEDIA;
+
 
         public RingerAttributes.Builder setEndEarly(boolean endEarly) {
             mEndEarly = endEarly;
@@ -69,10 +73,15 @@ public class RingerAttributes {
             return this;
         }
 
+        public RingerAttributes.Builder setRingToneType(int ringtoneType) {
+            mRingtoneType = ringtoneType;
+            return this;
+        }
+
         public RingerAttributes build() {
             return new RingerAttributes(mEndEarly, mLetDialerHandleRinging, mAcquireAudioFocus,
                     mRingerAudible, mInaudibleReason, mShouldRingForContact,
-                    mSilentRingingRequested, mWorkProfileQuietMode);
+                    mSilentRingingRequested, mWorkProfileQuietMode, mRingtoneType);
         }
     }
 
@@ -89,6 +98,7 @@ public class RingerAttributes {
                 ", mShouldRingForContact=" + mShouldRingForContact +
                 ", mSilentRingingRequested=" + mSilentRingingRequested +
                 ", mWorkProfileQuietMode=" + mWorkProfileQuietMode +
+                ", mRingtoneType=" + mRingtoneType +
                 '}';
     }
 
@@ -99,11 +109,12 @@ public class RingerAttributes {
     private boolean mShouldRingForContact;
     private boolean mSilentRingingRequested;
     private boolean mWorkProfileQuietMode;
+    private int mRingtoneType;
 
     private RingerAttributes(boolean endEarly, boolean letDialerHandleRinging,
             boolean acquireAudioFocus, boolean ringerAudible, String inaudibleReason,
             boolean shouldRingForContact, boolean silentRingingRequested,
-            boolean workProfileQuietMode) {
+            boolean workProfileQuietMode, int ringtoneType) {
         mEndEarly = endEarly;
         mLetDialerHandleRinging = letDialerHandleRinging;
         mAcquireAudioFocus = acquireAudioFocus;
@@ -112,6 +123,7 @@ public class RingerAttributes {
         mShouldRingForContact = shouldRingForContact;
         mSilentRingingRequested = silentRingingRequested;
         mWorkProfileQuietMode = workProfileQuietMode;
+        mRingtoneType = ringtoneType;
         Log.i(this, toString());
     }
 
@@ -145,5 +157,9 @@ public class RingerAttributes {
 
     public boolean isWorkProfileInQuietMode() {
         return mWorkProfileQuietMode;
+    }
+
+    public int getRingtoneType() {
+        return mRingtoneType;
     }
 }

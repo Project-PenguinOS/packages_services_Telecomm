@@ -1163,9 +1163,6 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         switch (focus) {
             case NO_FOCUS -> {
                 mWasOnSpeaker = false;
-                // Notify the CallAudioModeStateMachine that audio operations are complete so
-                // that we can relinquish audio focus.
-                mCallAudioManager.notifyAudioOperationsComplete();
                 // Reset mute state after call ends. This should remain unaffected if audio routing
                 // never went active.
                 handleMuteChanged(false);
@@ -1178,6 +1175,9 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                 mPendingAudioRoute.clearPendingMessages();
                 clearRingingBluetoothAddress();
                 mUsePreferredDeviceStrategy = true;
+                // Notify the CallAudioModeStateMachine that audio operations are complete so
+                // that we can relinquish audio focus.
+                mCallAudioManager.notifyAudioOperationsComplete();
             }
             case ACTIVE_FOCUS -> {
                 // Route to the current route if routing was already active. This should
