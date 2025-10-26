@@ -28,6 +28,8 @@
     <string name="call_attributes_empty_error" msgid="6921783379546938037">"通話属性は空白にできません。デフォルトを初期化しています。"</string>
     <string name="back_to_voip_main" msgid="2500173767939494261">"VoIP のメイン アクティビティに戻る"</string>
     <string name="clear_voip_call_logs" msgid="2402471290566644149">"VoIP テスト通話のログを消去"</string>
+    <!-- no translation found for refresh_call_logs (4633143020852759545) -->
+    <skip />
     <string name="call_log" msgid="2664639384522572724">"通話履歴"</string>
     <string name="voip_callback" msgid="9213402996514282039">"コールバックをテスト"</string>
     <string name="get_call_id" msgid="5513943242738347108">"通話 ID が設定されていません"</string>

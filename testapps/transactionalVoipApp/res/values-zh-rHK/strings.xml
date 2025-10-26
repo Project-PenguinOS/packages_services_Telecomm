@@ -28,6 +28,8 @@
     <string name="call_attributes_empty_error" msgid="6921783379546938037">"通話屬性不可留空。正在初始化為預設值。"</string>
     <string name="back_to_voip_main" msgid="2500173767939494261">"返回 VoIP 主要活動"</string>
     <string name="clear_voip_call_logs" msgid="2402471290566644149">"清除 VoIP 測試通話記錄"</string>
+    <!-- no translation found for refresh_call_logs (4633143020852759545) -->
+    <skip />
     <string name="call_log" msgid="2664639384522572724">"通話記錄"</string>
     <string name="voip_callback" msgid="9213402996514282039">"回電測試"</string>
     <string name="get_call_id" msgid="5513943242738347108">"未設定來電顯示"</string>
