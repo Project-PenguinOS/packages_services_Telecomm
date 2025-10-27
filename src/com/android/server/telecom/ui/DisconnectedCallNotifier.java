@@ -361,25 +361,14 @@ public class DisconnectedCallNotifier extends CallsManagerListenerBase {
         Intent intent = new Intent(Intent.ACTION_VIEW, null);
         intent.setType(CallLog.Calls.CONTENT_TYPE);
 
-        PendingIntent pendingIntent;
-        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            Intent[] myIntents = {intent};
-            Context context = mContext.createContextAsUser(userHandle, 0);
-            pendingIntent = PendingIntent.getActivities(
-                    context,
-                    0 /* requestCode */,
-                    myIntents,
-                    PendingIntent.FLAG_IMMUTABLE,
-                    null);
-        } else {
-            TaskStackBuilder taskStackBuilder = TaskStackBuilder.create(mContext);
-            taskStackBuilder.addNextIntent(intent);
-            pendingIntent = taskStackBuilder.getPendingIntent(
-                    0,
-                    PendingIntent.FLAG_IMMUTABLE,
-                    null,
-                    userHandle);
-        }
+        Intent[] myIntents = {intent};
+        Context context = mContext.createContextAsUser(userHandle, 0);
+        PendingIntent pendingIntent = PendingIntent.getActivities(
+                context,
+                0 /* requestCode */,
+                myIntents,
+                PendingIntent.FLAG_IMMUTABLE,
+                null);
         return pendingIntent;
     }
 

@@ -3638,7 +3638,6 @@ public class CallsManagerTest extends TelecomTestCase {
     @Test
     public void testSetCallDialingAndCalculateAverageVolume() {
         // This test specificaslly tests the new behavior guarded by this flag:
-        when(mFeatureFlags.resolveHiddenDependenciesTwo()).thenReturn(true);
 
         // Start with a zero volume stream.
         mComponentContextFixture.getAudioManager().setStreamVolume(AudioManager.STREAM_VOICE_CALL,

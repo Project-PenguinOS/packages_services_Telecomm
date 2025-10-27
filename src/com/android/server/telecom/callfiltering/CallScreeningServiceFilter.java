@@ -324,9 +324,6 @@ public class CallScreeningServiceFilter extends CallFilter {
     }
 
     private boolean hasReadPrivilegedPhoneStatePermission() {
-        if (!mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            return false;
-        }
         return mPackageManager != null
                 && mPackageManager.checkPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE,
                         mPackageName) == PackageManager.PERMISSION_GRANTED;

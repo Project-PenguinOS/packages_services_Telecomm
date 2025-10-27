@@ -47,7 +47,6 @@ public class BlockedNumbersUtilTests extends TelecomTestCase {
     @Before
     public void setUp() throws Exception {
         super.setUp();
-        when(mFeatureFlags.resolveHiddenDependenciesTwo()).thenReturn(true);
     }
 
     @SmallTest

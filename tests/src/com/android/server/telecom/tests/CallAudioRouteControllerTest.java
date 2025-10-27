@@ -213,7 +213,7 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         when(mCallsManager.getLock()).thenReturn(mLock);
         when(mCallsManager.getForegroundCall()).thenReturn(mCall);
         when(mContext.createContextAsUser(mCurrentUser, 0)).thenReturn(mUserContext);
-        when(mUserContext.getSystemService(Context.AUDIO_SERVICE)).thenReturn(mUserAudioManager);
+        when(mUserContext.getSystemService(AudioManager.class)).thenReturn(mUserAudioManager);
         when(mBluetoothRouteManager.getDeviceManager()).thenReturn(mBluetoothDeviceManager);
         when(mBluetoothDeviceManager.connectAudio(any(BluetoothDevice.class), anyInt(),
                 anyBoolean()))
@@ -238,7 +238,6 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         when(mCallAudioManager.getForegroundCall()).thenReturn(mCall);
         when(mCall.getVideoState()).thenReturn(VideoProfile.STATE_AUDIO_ONLY);
         when(mCall.getSupportedAudioRoutes()).thenReturn(CallAudioState.ROUTE_ALL);
-        when(mFeatureFlags.resolveHiddenDependenciesTwo()).thenReturn(true);
         BLUETOOTH_DEVICES.add(BLUETOOTH_DEVICE_1);
         mIsScoManagedByAudio = android.media.audio.Flags.scoManagedByAudio()
                 && BluetoothProperties.isScoManagedByAudioEnabled().orElse(false);
@@ -789,45 +788,6 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
 
     @SmallTest
     @Test
-    public void testToggleMuteLegacy() throws Exception {
-        when(mFeatureFlags.resolveHiddenDependenciesTwo()).thenReturn(false);
-        when(mAudioManager.isMicrophoneMute()).thenReturn(false);
-        mController.initialize();
-        mController.setActive(true);
-
-        mController.sendMessageWithSessionInfo(MUTE_ON);
-        CallAudioState expectedState = new CallAudioState(true, CallAudioState.ROUTE_EARPIECE,
-                CallAudioState.ROUTE_EARPIECE | CallAudioState.ROUTE_SPEAKER, null,
-                new HashSet<>());
-        verify(mAudioService, timeout(TEST_TIMEOUT)).setMicrophoneMute(eq(true), anyString(),
-                anyInt(), anyString());
-        verify(mCallsManager, timeout(TEST_TIMEOUT)).onCallAudioStateChanged(
-                any(CallAudioState.class), eq(expectedState));
-
-        when(mAudioManager.isMicrophoneMute()).thenReturn(true);
-        mController.sendMessageWithSessionInfo(MUTE_OFF);
-        expectedState = new CallAudioState(false, CallAudioState.ROUTE_EARPIECE,
-                CallAudioState.ROUTE_EARPIECE | CallAudioState.ROUTE_SPEAKER, null,
-                new HashSet<>());
-        verify(mAudioService, timeout(TEST_TIMEOUT)).setMicrophoneMute(eq(false), anyString(),
-                anyInt(), anyString());
-        verify(mCallsManager, timeout(TEST_TIMEOUT)).onCallAudioStateChanged(
-                any(CallAudioState.class), eq(expectedState));
-
-        // Send TOGGLE_MUTE
-        when(mAudioManager.isMicrophoneMute()).thenReturn(false);
-        mController.sendMessageWithSessionInfo(TOGGLE_MUTE);
-        expectedState = new CallAudioState(true, CallAudioState.ROUTE_EARPIECE,
-                CallAudioState.ROUTE_EARPIECE | CallAudioState.ROUTE_SPEAKER, null,
-                new HashSet<>());
-        verify(mAudioService, timeout(TEST_TIMEOUT).atLeastOnce()).setMicrophoneMute(eq(true),
-                anyString(), anyInt(), anyString());
-        verify(mCallsManager, timeout(TEST_TIMEOUT).atLeastOnce()).onCallAudioStateChanged(
-                any(CallAudioState.class), eq(expectedState));
-    }
-
-    @SmallTest
-    @Test
     public void testToggleMute() {
         when(mAudioManager.isMicrophoneMute()).thenReturn(false);
         mController.initialize();
@@ -859,38 +819,6 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         verify(mUserAudioManager, timeout(TEST_TIMEOUT)).setMicrophoneMute(eq(true));
         verify(mCallsManager, timeout(TEST_TIMEOUT).atLeastOnce()).onCallAudioStateChanged(
                 any(CallAudioState.class), eq(expectedState));
-    }
-
-    @SmallTest
-    @Test
-    public void testMuteOffAfterCallEndsLegacy() throws Exception {
-        when(mFeatureFlags.resolveHiddenDependenciesTwo()).thenReturn(false);
-        when(mAudioManager.isMicrophoneMute()).thenReturn(false);
-        mController.initialize();
-        mController.setActive(true);
-
-        mController.sendMessageWithSessionInfo(MUTE_ON);
-        CallAudioState expectedState = new CallAudioState(true, CallAudioState.ROUTE_EARPIECE,
-                CallAudioState.ROUTE_EARPIECE | CallAudioState.ROUTE_SPEAKER, null,
-                new HashSet<>());
-        verify(mAudioService, timeout(TEST_TIMEOUT)).setMicrophoneMute(eq(true), anyString(),
-                anyInt(), anyString());
-        verify(mCallsManager, timeout(TEST_TIMEOUT)).onCallAudioStateChanged(
-                any(CallAudioState.class), eq(expectedState));
-
-        // Switch to NO_FOCUS to indicate call termination and verify mute is reset.
-        when(mAudioManager.isMicrophoneMute()).thenReturn(true);
-        mController.sendMessageWithSessionInfo(SWITCH_FOCUS, NO_FOCUS, 0);
-        expectedState = new CallAudioState(false, CallAudioState.ROUTE_EARPIECE,
-                CallAudioState.ROUTE_EARPIECE | CallAudioState.ROUTE_SPEAKER, null,
-                new HashSet<>());
-        verify(mAudioService, timeout(TEST_TIMEOUT)).setMicrophoneMute(eq(false), anyString(),
-                anyInt(), anyString());
-        verify(mCallsManager, timeout(TEST_TIMEOUT).atLeastOnce()).onCallAudioStateChanged(
-                any(CallAudioState.class), eq(expectedState));
-        // Ensure we tell the CallAudioManager that audio operations are done so that we can ensure
-        // audio focus is relinquished.
-        verify(mCallAudioManager, timeout(TEST_TIMEOUT)).notifyAudioOperationsComplete();
     }
 
     @SmallTest

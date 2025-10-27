@@ -42,8 +42,7 @@ final class TtyManager implements WiredHeadsetManager.Listener {
         mContext = context;
         mWiredHeadsetManager = wiredHeadsetManager;
         mWiredHeadsetManager.addListener(this);
-        if (featureFlags.resolveHiddenDependenciesTwo()
-                && featureFlags.moveGetTtyModeToTelephonyManager()) {
+        if (featureFlags.moveGetTtyModeToTelephonyManager()) {
             TelephonyManager tm = (TelephonyManager)
                     mContext.getSystemService(Context.TELEPHONY_SERVICE);
             mPreferredTtyMode =  tm.getCurrentTtyMode();

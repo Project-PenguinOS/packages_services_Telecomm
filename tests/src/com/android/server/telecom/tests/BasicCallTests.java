@@ -679,13 +679,10 @@ public class BasicCallTests extends TelecomSystemTest {
                 .setMode(AudioManager.MODE_IN_CALL);
 
         mInCallServiceFixtureX.mInCallAdapter.mute(true);
-        verify(mAudioService, timeout(TEST_TIMEOUT))
-                .setMicrophoneMute(eq(true), any(String.class), any(Integer.class),
-                        nullable(String.class));
+        verify(audioManager, timeout(TEST_TIMEOUT)).setMicrophoneMute(eq(true));
         mInCallServiceFixtureX.mInCallAdapter.mute(false);
-        verify(mAudioService, timeout(TEST_TIMEOUT))
-                .setMicrophoneMute(eq(false), any(String.class), any(Integer.class),
-                        nullable(String.class));
+        verify(audioManager, timeout(TEST_TIMEOUT)).setMicrophoneMute(eq(false));
+        mInCallServiceFixtureX.mInCallAdapter.mute(false);
 
         mInCallServiceFixtureX.mInCallAdapter.setAudioRoute(CallAudioState.ROUTE_SPEAKER, null);
         waitForHandlerAction(mTelecomSystem.getCallsManager().getCallAudioManager()
