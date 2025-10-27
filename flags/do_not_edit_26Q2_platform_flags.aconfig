@@ -126,7 +126,6 @@ flag {
 flag {
   name: "integrated_call_logs_stage2"
   namespace: "telecom"
-  is_exported: true
   description: "Stage 2 of integrating call logs - add user opt-out support + call icon support"
   bug: "443306176"
 }
