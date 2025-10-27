@@ -27,6 +27,7 @@ import com.android.server.telecom.callsequencing.voip.HoldCallTransaction;
 import com.android.server.telecom.callsequencing.voip.MaybeHoldCallForNewCallTransaction;
 import com.android.server.telecom.callsequencing.voip.RequestNewActiveCallTransaction;
 import com.android.server.telecom.callsequencing.voip.SerialTransaction;
+import com.android.server.telecom.callsequencing.voip.VideoStateTranslation;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -58,12 +59,12 @@ public class TransactionalCallSequencingAdapter {
     /**
      * Client -> Server request to answer a call
      */
-    public void setAnswered(Call call, int newVideoState,
+    public void setAnswered(Call call, int newCallType,
             OutcomeReceiver<CallTransactionResult, CallException> receiver) {
         boolean isCallControlRequest = true;
         OutcomeReceiver<CallTransactionResult, CallException> receiverForTransaction =
                 getSetAnswerReceiver(call, null /* foregroundCallBeforeSwap */,
-                        false /* wasForegroundActive */, newVideoState, receiver,
+                        false /* wasForegroundActive */, newCallType, receiver,
                         isCallControlRequest);
         createSetActiveTransactionSequencing(call, isCallControlRequest, null,
                 receiver, receiverForTransaction /* receiverForTransaction */);
@@ -107,7 +108,7 @@ public class TransactionalCallSequencingAdapter {
      * Server -> Client command to answer an incoming call, which if it fails, will trigger the
      * disconnect of the call and then reset the state of the other call back to what it was before.
      */
-    public CompletableFuture<Boolean> onSetAnswered(Call call, int videoState,
+    public CompletableFuture<Boolean> onSetAnswered(Call call, int callType,
             CallTransaction clientCbT, OutcomeReceiver<CallTransactionResult,
             CallException> receiver) {
         boolean isCallControlRequest = false;
@@ -116,7 +117,7 @@ public class TransactionalCallSequencingAdapter {
         boolean wasActive = foregroundCallBeforeSwap != null && foregroundCallBeforeSwap.isActive();
         OutcomeReceiver<CallTransactionResult, CallException> receiverForTransaction =
                 getSetAnswerReceiver(call, foregroundCallBeforeSwap, wasActive,
-                        videoState, receiver, isCallControlRequest);
+                        callType, receiver, isCallControlRequest);
 
         return createSetActiveTransactionSequencing(call, false /* callControlRequest */,
                 clientCbT, receiver, receiverForTransaction);
@@ -267,12 +268,14 @@ public class TransactionalCallSequencingAdapter {
     }
 
     private OutcomeReceiver<CallTransactionResult, CallException> getSetAnswerReceiver(
-            Call call, Call foregroundCallBeforeSwap, boolean wasForegroundActive, int videoState,
+            Call call, Call foregroundCallBeforeSwap, boolean wasForegroundActive, int callType,
             OutcomeReceiver<CallTransactionResult, CallException> receiver,
             boolean isCallControlRequest) {
         return new OutcomeReceiver<>() {
             @Override
             public void onResult(CallTransactionResult result) {
+                int videoState = VideoStateTranslation
+                        .TransactionalVideoStateToVideoProfileState(callType);
                 call.setVideoState(videoState);
                 receiver.onResult(result);
             }

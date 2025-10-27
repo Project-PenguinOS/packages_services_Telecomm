@@ -18,7 +18,6 @@ package com.android.server.telecom.settings;
 
 import android.annotation.Nullable;
 import android.app.ActionBar;
-import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Fragment;
 import android.app.FragmentManager;
@@ -55,10 +54,6 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
-
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.telecom.R;
 import com.android.server.telecom.flags.FeatureFlags;
@@ -71,10 +66,7 @@ import com.android.server.telecom.flags.FeatureFlagsImpl;
 public class BlockedNumbersActivity extends ListActivity
         implements LoaderManager.LoaderCallbacks<Cursor>, View.OnClickListener, TextWatcher,
         BlockNumberTaskFragment.Listener {
-    private static final String ACTION_MANAGE_BLOCKED_NUMBERS =
-            "android.telecom.action.MANAGE_BLOCKED_NUMBERS";
     private static final String TAG_BLOCK_NUMBER_TASK_FRAGMENT = "block_number_task_fragment";
-    private static final String TELECOM_PACKAGE = "com.android.server.telecom";
     private static final String[] PROJECTION = new String[] {
             BlockedNumberContract.BlockedNumbers.COLUMN_ID,
             BlockedNumberContract.BlockedNumbers.COLUMN_ORIGINAL_NUMBER
@@ -96,12 +88,6 @@ public class BlockedNumbersActivity extends ListActivity
     private TextView mReEnableButton;
 
     private BroadcastReceiver mBlockingStatusReceiver;
-
-    public static Intent getIntentForStartingActivity() {
-        Intent intent = new Intent(ACTION_MANAGE_BLOCKED_NUMBERS);
-        intent.setPackage(TELECOM_PACKAGE);
-        return intent;
-    }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {

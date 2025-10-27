@@ -635,8 +635,13 @@ public class Ringer {
         if (ringtoneUri != null) {
             return Utils.hasVibrationParameter(ringtoneUri);
         }
-        return Utils.hasVibrationParameter(RingtoneManager.getActualDefaultRingtoneUri(
-                mContext, RingtoneManager.TYPE_RINGTONE));
+        if (Flags.supportPerPhoneAccountRingtone()){
+            return Utils.hasVibrationParameter(RingtoneManager.getRingtoneUriForPhoneAccountHandle(
+                    mContext, foregroundCall.getTargetPhoneAccount()));
+        } else {
+            return Utils.hasVibrationParameter(RingtoneManager.getActualDefaultRingtoneUri(
+                    mContext, RingtoneManager.TYPE_RINGTONE));
+        }
     }
 
     /**
@@ -973,7 +978,7 @@ public class Ringer {
         }
 
         boolean isCrsInRingToneMode =
-                call.isCrsCall() && call.getCrsMode() == android.telecom.Call.CRS_MODE_RINGTONE;
+                call.isCrsCall() && call.getCrsMode() == AudioManager.MODE_RINGTONE;
         int ringToneType = isCrsInRingToneMode ? RINGTONE_TYPE_CRS : RINGTONE_TYPE_MEDIA;
 
         // Set missed reason according to attributes
