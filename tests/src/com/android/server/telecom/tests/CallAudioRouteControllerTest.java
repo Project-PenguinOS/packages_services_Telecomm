@@ -61,6 +61,7 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
@@ -115,6 +116,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 
 import java.util.HashSet;
@@ -1507,6 +1509,35 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         // Ensure we tell the CallAudioManager that audio operations are done so that we can ensure
         // audio focus is relinquished.
         verify(mCallAudioManager, timeout(TEST_TIMEOUT)).notifyAudioOperationsComplete();
+    }
+
+    @Test
+    @SmallTest
+    public void testCleanupHappensBeforeFocusRelinquishOnCallEnd() {
+        // This test verifies that when a call ends (NO_FOCUS), audio cleanup operations
+        // (like clearing the communication device) happen BEFORE audio focus is relinquished
+        // (notifyAudioOperationsComplete). This is important to prevent race conditions where
+        // another app could grab audio focus before Telecom has fully cleaned up its audio routing.
+
+        // 1. Setup: Start with an active call on a BT device.
+        verifyConnectBluetoothDevice(AudioRoute.TYPE_BLUETOOTH_SCO);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+        assertTrue(mController.isActive());
+        assertEquals(AudioRoute.TYPE_BLUETOOTH_SCO, mController.getCurrentRoute().getType());
+
+        // 2. Action: Simulate the end of the call.
+        mController.sendMessageWithSessionInfo(SWITCH_FOCUS, NO_FOCUS, 0);
+        // Also need to simulate the BT disconnect completing to finish the routing change.
+        mController.sendMessageWithSessionInfo(BT_AUDIO_DISCONNECTED, 0, BLUETOOTH_DEVICE_1);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+
+        // 3. Verification: Use InOrder to check the sequence of calls.
+        InOrder inOrder = inOrder(mAudioManager, mCallAudioManager);
+
+        // The routeTo() call for NO_FOCUS will trigger clearing the communication device.
+        inOrder.verify(mAudioManager, timeout(TEST_TIMEOUT)).clearCommunicationDevice();
+        // Then, notifyAudioOperationsComplete should be called.
+        inOrder.verify(mCallAudioManager, timeout(TEST_TIMEOUT)).notifyAudioOperationsComplete();
     }
 
     @Test
