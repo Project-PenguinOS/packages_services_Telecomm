@@ -2849,6 +2849,10 @@ public class InCallController extends CallsManagerListenerBase implements
         try {
             inCallService.onCallAudioStateChanged(mCallsManager.getAudioState());
             inCallService.onCanAddCallChanged(mCallsManager.canAddCall());
+            if (mFeatureFlags.notifyAvailableEndpointsOnIcsConnected()) {
+                inCallService.onAvailableCallEndpointsChanged(new ArrayList<>(
+                        mCallsManager.getCallEndpointController().getAvailableEndpoints()));
+            }
             inCallService.onCallEndpointChanged(mCallsManager.getCallEndpointController()
                     .getCurrentCallEndpoint());
         } catch (RemoteException ignored) {
