@@ -2941,6 +2941,14 @@ public class InCallController extends CallsManagerListenerBase implements
      * @param call The {@link Call}.
      */
     private void updateCall(Call call) {
+        // If a bulk state update is in progress,
+        // defer sending the call update to the InCallUi.
+        if (mFeatureFlags.bulkStateUpdateCall() &&
+                call.isBulkStateUpdateInProgress()) {
+            Log.d(this, "Call is still setting its initial state. " +
+                    "Do not send update to InCallUi yet - " + call.getId());
+            return;
+        }
         updateCall(call, false /* videoProviderChanged */, false, null);
     }
 

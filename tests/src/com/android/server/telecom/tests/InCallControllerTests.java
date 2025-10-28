@@ -2091,6 +2091,131 @@ public class InCallControllerTests extends TelecomTestCase {
                 eq(InCallController.IN_CALL_SERVICE_NOTIFICATION_ID), any());
     }
 
+    /**
+      * Ensure updateCall is NOT invoked when Bulk Update is enabled and
+      * Bulk Update is in Progress
+      */
+    @Test
+    public void testUpdateCall_bulkUpdateInProgress_updateSuppressed() throws Exception {
+        setupMocks(false /* isExternalCall */);
+        setupMockPackageManager(true /* default */, true /* system */, false /* external calls */);
+        when(mFeatureFlags.bulkStateUpdateCall()).thenReturn(true);
+        when(mMockCall.isBulkStateUpdateInProgress()).thenReturn(true);
+
+        ArgumentCaptor<ServiceConnection> serviceConnectionCaptor =
+                ArgumentCaptor.forClass(ServiceConnection.class);
+        mInCallController.bindToServices(mMockCall);
+        verify(mMockContext).bindServiceAsUser(any(Intent.class),
+                                               serviceConnectionCaptor.capture(),
+                                               anyInt(),
+                                               any(UserHandle.class));
+
+        IBinder mockBinder = mock(IBinder.class);
+        IInCallService mockInCallService = mock(IInCallService.class);
+        when(mockBinder.queryLocalInterface(anyString())).thenReturn(mockInCallService);
+        serviceConnectionCaptor.getValue().onServiceConnected(
+                new ComponentName(DEF_PKG, DEF_CLASS), mockBinder);
+
+        // Add the call to the InCallController to register the listener
+        mInCallController.onCallAdded(mMockCall);
+
+        // Retrieve call listener
+        ArgumentCaptor<Call.Listener> callListenerCaptor =
+                ArgumentCaptor.forClass(Call.Listener.class);
+        verify(mMockCall, atLeastOnce()).addListener(callListenerCaptor.capture());
+        Call.Listener callListener = callListenerCaptor.getValue();
+
+        callListener.onCallerInfoChanged(mMockCall);
+
+        verify(mockInCallService, never()).updateCall(any(ParcelableCall.class));
+    }
+
+    /**
+      * Ensure updateCall is Invoked when Bulk Update is enabled and
+      * Bulk Update is not in progress
+      */
+    @Test
+    public void testUpdateCall_bulkUpdateComplete_updateSent() throws RemoteException {
+
+        setupMocks(false /* isExternalCall */);
+        setupMockPackageManager(true /* default */, true /* system */, false /* external calls */);
+        when(mFeatureFlags.bulkStateUpdateCall()).thenReturn(true);
+        when(mMockCall.isBulkStateUpdateInProgress()).thenReturn(false);
+
+        ArgumentCaptor<ServiceConnection> serviceConnectionCaptor =
+                ArgumentCaptor.forClass(ServiceConnection.class);
+        mInCallController.bindToServices(mMockCall);
+        verify(mMockContext).bindServiceAsUser(any(Intent.class),
+                                               serviceConnectionCaptor.capture(),
+                                               anyInt(),
+                                               any(UserHandle.class));
+
+        IBinder mockBinder = mock(IBinder.class);
+        IInCallService mockInCallService = mock(IInCallService.class);
+
+        when(mockInCallService.asBinder()).thenReturn(mockBinder);
+
+        when(mockBinder.queryLocalInterface(anyString())).thenReturn(mockInCallService);
+        serviceConnectionCaptor.getValue().onServiceConnected(
+                new ComponentName(DEF_PKG, DEF_CLASS), mockBinder);
+
+        // Add the call to the InCallController to register the listener
+        mInCallController.onCallAdded(mMockCall);
+
+        // Retrieve call listener
+        ArgumentCaptor<Call.Listener> callListenerCaptor =
+                ArgumentCaptor.forClass(Call.Listener.class);
+        verify(mMockCall, atLeastOnce()).addListener(callListenerCaptor.capture());
+        Call.Listener callListener = callListenerCaptor.getValue();
+
+        callListener.onCallerInfoChanged(mMockCall);
+
+        verify(mockInCallService, times(1)).updateCall(any(ParcelableCall.class));
+    }
+
+    /**
+      * Ensure updateCall is always Invoked irrespective of Bulk Update being
+      * In Progress
+      */
+    @Test
+    public void testUpdateCall_bulkUpdateFlagDisabled_updateSent() throws RemoteException {
+
+        setupMocks(false /* isExternalCall */);
+        setupMockPackageManager(true /* default */, true /* system */, false /* external calls */);
+        when(mFeatureFlags.bulkStateUpdateCall()).thenReturn(false);
+        when(mMockCall.isBulkStateUpdateInProgress()).thenReturn(true);
+
+        ArgumentCaptor<ServiceConnection> serviceConnectionCaptor =
+                ArgumentCaptor.forClass(ServiceConnection.class);
+        mInCallController.bindToServices(mMockCall);
+        verify(mMockContext).bindServiceAsUser(any(Intent.class),
+                                               serviceConnectionCaptor.capture(),
+                                               anyInt(),
+                                               any(UserHandle.class));
+
+        IBinder mockBinder = mock(IBinder.class);
+        IInCallService mockInCallService = mock(IInCallService.class);
+
+        when(mockInCallService.asBinder()).thenReturn(mockBinder);
+        when(mockBinder.queryLocalInterface(anyString())).thenReturn(mockInCallService);
+
+        serviceConnectionCaptor.getValue().onServiceConnected(
+                new ComponentName(DEF_PKG, DEF_CLASS), mockBinder);
+
+        // Add the call to the InCallController to register the listener
+        mInCallController.onCallAdded(mMockCall);
+
+        // Retrieve call listener
+        ArgumentCaptor<Call.Listener> callListenerCaptor =
+                ArgumentCaptor.forClass(Call.Listener.class);
+        verify(mMockCall, atLeastOnce()).addListener(callListenerCaptor.capture());
+        Call.Listener callListener = callListenerCaptor.getValue();
+
+        callListener.onCallerInfoChanged(mMockCall);
+
+        verify(mockInCallService, times(1)).updateCall(any(ParcelableCall.class));
+    }
+
     @Test
     public void testBindToServices_classCheckFlagOn_classFound() throws Exception {
         when(mFeatureFlags.enableIncallServiceClassCheck()).thenReturn(true);
