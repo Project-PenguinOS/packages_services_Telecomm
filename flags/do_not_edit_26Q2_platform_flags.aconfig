@@ -128,7 +128,6 @@ flag {
 # OWNER=tgunn TARGET=26Q2
 flag {
   name: "local_voicemail"
-  is_exported: true
   namespace: "telecom"
   description: "Support for local voicemail."
   bug: "394367444"
