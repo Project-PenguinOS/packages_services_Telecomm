@@ -19,7 +19,6 @@ flag {
 # OWNER=pengfeix TARGET=26Q2
 flag {
   name: "is_using_video_ringback"
-  is_exported: true
   namespace: "telecom"
   description: "Indicate that the call is a video color ring back tone call."
   bug: "408116489"
