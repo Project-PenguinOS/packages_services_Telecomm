@@ -126,7 +126,7 @@ public class DefaultDialerCache {
         mFeatureFlags = featureFlags;
         Resources resources = mContext.getResources();
         mSystemDialerComponentName = new ComponentName(resources.getString(
-                com.android.internal.R.string.config_defaultDialer),
+                R.string.config_defaultDialer),
                 resources.getString(R.string.incall_default_class));
 
         IntentFilter packageIntentFilter = new IntentFilter();
