@@ -45,6 +45,7 @@ import android.os.SystemClock;
 import android.os.UserHandle;
 import android.provider.CallLog;
 import android.provider.ContactsContract.Contacts;
+import android.telecom.Annotation;
 import android.telecom.BluetoothCallQualityReport;
 import android.telecom.CallAttributes;
 import android.telecom.CallAudioState;
@@ -1746,13 +1747,13 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     }
 
     public void setCallerNumberVerificationStatus(
-            @Connection.VerificationStatus int callerNumberVerificationStatus) {
+            @Annotation.VerificationStatus int callerNumberVerificationStatus) {
         mCallerNumberVerificationStatus = callerNumberVerificationStatus;
         mListeners.forEach(l -> l.onCallerNumberVerificationStatusChanged(this,
                 callerNumberVerificationStatus));
     }
 
-    public @Connection.VerificationStatus int getCallerNumberVerificationStatus() {
+    public @Annotation.VerificationStatus int getCallerNumberVerificationStatus() {
         return mCallerNumberVerificationStatus;
     }
 

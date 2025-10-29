@@ -29,6 +29,7 @@ import android.os.UserHandle;
 import android.telecom.CallScreeningService;
 import android.telecom.Log;
 import android.telecom.ParcelableCall;
+import android.telecom.ParcelableCallResponse;
 import android.telecom.TelecomManager;
 
 import com.android.internal.telecom.ICallScreeningAdapter;
@@ -42,7 +43,6 @@ import com.android.server.telecom.ParcelableCallUtils;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.TimeoutException;
 
 /**
  * A {@link CallFilter} that uses a {@link CallScreeningService} to screen outgoing calls.
@@ -157,7 +157,7 @@ public class OutgoingCallScreeningServiceFilter extends CallFilter {
 
         @Override
         public void onScreeningResponse(String callId, ComponentName componentName,
-                CallScreeningService.ParcelableCallResponse parcelableResponse) {
+                ParcelableCallResponse parcelableResponse) {
             if (mResultFuture.isDone() || mCall == null || !mCall.getId().equals(callId)) {
                 unbindCallScreeningService();
                 return;

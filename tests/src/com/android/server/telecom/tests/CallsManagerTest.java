@@ -80,6 +80,7 @@ import android.telecom.CallScreeningService;
 import android.telecom.Connection;
 import android.telecom.DisconnectCause;
 import android.telecom.GatewayInfo;
+import android.telecom.ParcelableCallResponse;
 import android.telecom.PhoneAccount;
 import android.telecom.PhoneAccountHandle;
 import android.telecom.TelecomManager;
@@ -3541,8 +3542,7 @@ public class CallsManagerTest extends TelecomTestCase {
                 CallScreeningService.CallResponse.CALL_COMPOSER_ATTACHMENT_LOCATION |
                 CallScreeningService.CallResponse.CALL_COMPOSER_ATTACHMENT_SUBJECT |
                 CallScreeningService.CallResponse.CALL_COMPOSER_ATTACHMENT_PRIORITY);
-        CallScreeningService.ParcelableCallResponse response =
-                mock(CallScreeningService.ParcelableCallResponse.class);
+        ParcelableCallResponse response = mock(ParcelableCallResponse.class);
         when(response.getCallComposerAttachmentsToShow()).thenReturn(attachmentDisabledMask);
 
         CallFilteringResult result = new CallFilteringResult.Builder()
