@@ -3258,6 +3258,11 @@ public class CallsManager extends Call.ListenerBase
             return CompletableFuture.completedFuture(Pair.create(call, accountHandle));
         }
 
+        if (call.isEmergencyCall()) {
+            Log.i(this, "Skipping OEM Outgoing Screening for emergency call.");
+            return CompletableFuture.completedFuture(Pair.create(call, accountHandle));
+        }
+
         ServiceInfo serviceInfo = getOemScreeningServiceInfo();
         if (isValidOemScreeningService(serviceInfo)) {
             Log.i(this, "OEM Outgoing Blocking Screening for: " + serviceInfo.getComponentName());
