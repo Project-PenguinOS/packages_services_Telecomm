@@ -28,8 +28,7 @@
     <string name="call_attributes_empty_error" msgid="6921783379546938037">"Skambučio atributai negali būti tušti. Vis tiek inicijuojami numatytieji nustatymai."</string>
     <string name="back_to_voip_main" msgid="2500173767939494261">"Grįžti į pagrindinę VoIP veiklą"</string>
     <string name="clear_voip_call_logs" msgid="2402471290566644149">"Išvalyti „VoIP“ bandomųjų skambučių žurnalus"</string>
-    <!-- no translation found for refresh_call_logs (4633143020852759545) -->
-    <skip />
+    <string name="refresh_call_logs" msgid="4633143020852759545">"Atnaujinti skambučių žurnalus"</string>
     <string name="call_log" msgid="2664639384522572724">"Skambučių žurnalas"</string>
     <string name="voip_callback" msgid="9213402996514282039">"Bandomasis atskambinimas"</string>
     <string name="get_call_id" msgid="5513943242738347108">"skambučio ID nenustatytas"</string>
