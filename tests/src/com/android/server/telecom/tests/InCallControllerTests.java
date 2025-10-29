@@ -137,6 +137,7 @@ import org.mockito.verification.VerificationMode;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
@@ -323,6 +324,9 @@ public class InCallControllerTests extends TelecomTestCase {
         when(mMockCallsManager.getCallEndpointController()).thenReturn(mMockCallEndpointController);
         when(mMockCallEndpointController.getCurrentCallEndpoint())
                 .thenReturn(new CallEndpoint("Earpiece", 1));
+        when(mMockCallEndpointController.getAvailableEndpoints())
+                .thenReturn(new HashSet<>());
+        when(mFeatureFlags.notifyAvailableEndpointsOnIcsConnected()).thenReturn(true);
 
         when(mMockContext.getSystemService(eq(Context.USER_SERVICE))).thenReturn(mMockUserManager);
         when(mMockContext.getSystemService(eq(UserManager.class)))
