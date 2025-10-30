@@ -54,7 +54,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -96,7 +95,7 @@ public class BluetoothDeviceManager {
                     return;
                 }
 
-                synchronized (mLock) {
+                synchronized (mBtDeviceManagerLock) {
                     mGroupsByDevice.put(device, groupId);
                 }
             }
@@ -109,7 +108,7 @@ public class BluetoothDeviceManager {
                     return;
                 }
 
-                synchronized (mLock) {
+                synchronized (mBtDeviceManagerLock) {
                     mGroupsByDevice.remove(device);
                 }
             }
@@ -121,8 +120,8 @@ public class BluetoothDeviceManager {
                 public void onServiceConnected(int profile, BluetoothProfile proxy) {
                     Log.startSession("BPSL.oSC");
                     try {
-                        synchronized (mLock) {
-                            String logString;
+                        String logString;
+                        synchronized (mBtDeviceManagerLock) {
                             if (profile == BluetoothProfile.HEADSET) {
                                 mBluetoothHeadsetFuture.complete((BluetoothHeadset) proxy);
                                 mBluetoothHeadset = (BluetoothHeadset) proxy;
@@ -133,7 +132,7 @@ public class BluetoothDeviceManager {
                                         + mBluetoothHearingAid;
                             } else if (profile == BluetoothProfile.LE_AUDIO) {
                                 mBluetoothLeAudioService = (BluetoothLeAudio) proxy;
-                                logString = ("Got BluetoothLeAudio: " + mBluetoothLeAudioService )
+                                logString = ("Got BluetoothLeAudio: " + mBluetoothLeAudioService)
                                         + (", mLeAudioCallbackRegistered: "
                                         + mLeAudioCallbackRegistered);
                                 if (!mLeAudioCallbackRegistered) {
@@ -147,23 +146,31 @@ public class BluetoothDeviceManager {
                                 logString = "Connected to non-requested bluetooth service." +
                                         " Not changing bluetooth headset.";
                             }
-                            // Try to bind back to BT services in the case that we don't receive
-                            // indication via the pkg changed receiver in InCallController. We
-                            // should only do so if there are ongoing calls.
-                            if (mCallsManager != null && mCallsManager.hasAnyCalls()) {
-                                mCallsManager.getInCallController().bindToBTService(null, null);
-                            }
+                        } // end sync mBtDeviceManagerLock
 
-                            Log.i(BluetoothDeviceManager.this, logString);
-                            mLocalLog.log(logString);
+                        // Try to bind back to BT services in the case that we don't receive
+                        // indication via the pkg changed receiver in InCallController. We
+                        // should only do so if there are ongoing calls.
+                        if (mCallsManager != null) {
+                            synchronized (mCallsManager.getLock()) {
+                                if (mCallsManager.hasAnyCalls()) {
+                                    // Note: This method syncs on the Telecom sync lock, however the
+                                    // hasAnyCalls method does not, hence why we get the lock and
+                                    // sync above.
+                                    mCallsManager.getInCallController().bindToBTService(null, null);
+                                }
+                            }
                         }
+
+                        Log.i(BluetoothDeviceManager.this, logString);
+                        mLocalLog.log(logString);
                     } finally {
                         Log.endSession();
                     }
                 }
 
                 private void registerToLeAudio() {
-                    synchronized (mLock) {
+                    synchronized (mBtDeviceManagerLock) {
                         String logString = "Register to leAudio";
 
                         if (mLeAudioCallbackRegistered) {
@@ -195,7 +202,7 @@ public class BluetoothDeviceManager {
                 public void onServiceDisconnected(int profile) {
                     Log.startSession("BPSL.oSD");
                     try {
-                        synchronized (mLock) {
+                        synchronized (mBtDeviceManagerLock) {
                             LinkedHashMap<String, BluetoothDevice> lostServiceDevices;
                             String logString;
                             if (profile == BluetoothProfile.HEADSET) {
@@ -290,7 +297,7 @@ public class BluetoothDeviceManager {
     private final LocalLog mLocalLog = new LocalLog(20);
 
     // This lock only protects internal state -- it doesn't lock on anything going into Telecom.
-    private final Object mLock = new Object();
+    private final Object mBtDeviceManagerLock = new Object();
 
     private BluetoothHeadset mBluetoothHeadset;
     private CompletableFuture<BluetoothHeadset> mBluetoothHeadsetFuture;
@@ -322,7 +329,7 @@ public class BluetoothDeviceManager {
     }
 
     private List<BluetoothDevice> getLeAudioConnectedDevices() {
-        synchronized (mLock) {
+        synchronized (mBtDeviceManagerLock) {
             // Let's get devices which are a group leaders
             ArrayList<BluetoothDevice> devices = new ArrayList<>();
 
@@ -346,7 +353,7 @@ public class BluetoothDeviceManager {
     }
 
     public Collection<BluetoothDevice> getConnectedDevices() {
-        synchronized (mLock) {
+        synchronized (mBtDeviceManagerLock) {
             ArraySet<BluetoothDevice> result = new ArraySet<>();
 
             // Set storing the group ids of all dual mode audio devices to de-dupe them
@@ -382,7 +389,7 @@ public class BluetoothDeviceManager {
     // together by their hiSyncId.
     public Collection<BluetoothDevice> getUniqueConnectedDevices() {
         ArraySet<BluetoothDevice> result;
-        synchronized (mLock) {
+        synchronized (mBtDeviceManagerLock) {
             result = new ArraySet<>(mHfpDevicesByAddress.values());
         }
         Set<Long> seenHiSyncIds = new LinkedHashSet<>();
@@ -398,7 +405,7 @@ public class BluetoothDeviceManager {
                 }
             }
         }
-        synchronized (mLock) {
+        synchronized (mBtDeviceManagerLock) {
             for (BluetoothDevice d : mHearingAidDevicesByAddress.values()) {
                 long hiSyncId = mHearingAidDeviceSyncIds.getOrDefault(d, -1L);
                 if (seenHiSyncIds.contains(hiSyncId)) {
@@ -475,7 +482,7 @@ public class BluetoothDeviceManager {
 
     @VisibleForTesting
     public void onDeviceConnected(BluetoothDevice device, int deviceType) {
-        synchronized (mLock) {
+        synchronized (mBtDeviceManagerLock) {
             LinkedHashMap<String, BluetoothDevice> targetDeviceMap;
             if (deviceType == DEVICE_TYPE_LE_AUDIO) {
                 if (mBluetoothLeAudioService == null) {
@@ -521,7 +528,7 @@ public class BluetoothDeviceManager {
     void onDeviceDisconnected(BluetoothDevice device, int deviceType) {
         mLocalLog.log("Device disconnected -- address: " + device.getAddress() + " deviceType: "
                 + deviceType);
-        synchronized (mLock) {
+        synchronized (mBtDeviceManagerLock) {
             LinkedHashMap<String, BluetoothDevice> targetDeviceMap;
             if (deviceType == DEVICE_TYPE_LE_AUDIO) {
                 targetDeviceMap = mLeAudioDevicesByAddress;
