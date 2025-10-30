@@ -103,12 +103,9 @@
     <string name="notification_channel_disconnected_calls" msgid="8228636543997645757">"已中斷的通話"</string>
     <string name="notification_channel_in_call_service_crash" msgid="7313237519166984267">"當機的手機應用程式"</string>
     <string name="notification_channel_call_streaming" msgid="5100510699787538991">"串流通話"</string>
-    <!-- no translation found for notification_local_voicemail_title (7886943892975348066) -->
-    <skip />
-    <!-- no translation found for notification_local_voicemail_details (8462904524686541516) -->
-    <skip />
-    <!-- no translation found for notification_local_voicemail_unknown_details (7688396653463660224) -->
-    <skip />
+    <string name="notification_local_voicemail_title" msgid="7886943892975348066">"留言"</string>
+    <string name="notification_local_voicemail_details" msgid="8462904524686541516">"「<xliff:g id="APP_NAME">%1$s</xliff:g>」正在為 <xliff:g id="CALLER_NAME">%2$s</xliff:g> 的來電錄製留言。"</string>
+    <string name="notification_local_voicemail_unknown_details" msgid="7688396653463660224">"「<xliff:g id="APP_NAME">%1$s</xliff:g>」正在為不明來電者的來電錄製留言。"</string>
     <string name="alert_outgoing_call" msgid="5319895109298927431">"如果撥打此電話，你的 <xliff:g id="OTHER_APP">%1$s</xliff:g> 通話將會結束。"</string>
     <string name="alert_redirect_outgoing_call_or_not" msgid="665409645789521636">"選擇如何撥打此電話"</string>
     <string name="alert_place_outgoing_call_with_redirection" msgid="5221065030959024121">"使用「<xliff:g id="OTHER_APP">%1$s</xliff:g>」將通話重新導向"</string>

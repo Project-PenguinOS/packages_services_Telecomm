@@ -198,11 +198,11 @@ public class TransactionalServiceWrapper implements
 
         @Override
 
-        public void answer(int videoState, String callId, android.os.ResultReceiver callback) {
+        public void answer(int callType, String callId, android.os.ResultReceiver callback) {
             long token = Binder.clearCallingIdentity();
             try {
                 Log.startSession("TSW.a");
-                createTransactions(callId, callback, ANSWER, videoState);
+                createTransactions(callId, callback, ANSWER, callType);
             } finally {
                 Binder.restoreCallingIdentity(token);
                 Log.endSession();
@@ -260,11 +260,11 @@ public class TransactionalServiceWrapper implements
         }
 
         @Override
-        public void requestVideoState(int videoState, String callId, ResultReceiver callback) {
+        public void requestVideoState(int callType, String callId, ResultReceiver callback) {
             long token = Binder.clearCallingIdentity();
             try {
                 Log.startSession("TSW.rVS");
-                createTransactions(callId, callback, REQUEST_VIDEO_STATE, videoState);
+                createTransactions(callId, callback, REQUEST_VIDEO_STATE, callType);
             } finally {
                 Binder.restoreCallingIdentity(token);
                 Log.endSession();
@@ -282,7 +282,7 @@ public class TransactionalServiceWrapper implements
                                 getCompleteReceiver(action, callback));
                         break;
                     case ANSWER:
-                        mCallSequencingAdapter.setAnswered(call, (int) objects[0] /*VideoState*/,
+                        mCallSequencingAdapter.setAnswered(call, (int) objects[0] /*callType*/,
                                 getCompleteReceiver(action, callback));
                         break;
                     case DISCONNECT:
