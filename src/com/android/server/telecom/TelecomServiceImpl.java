@@ -86,7 +86,6 @@ import com.android.internal.telecom.ICallControl;
 import com.android.internal.telecom.ICallEventCallback;
 import com.android.internal.telecom.ITelecomService;
 import com.android.modules.utils.ParceledListSlice;
-import com.android.server.telecom.R;
 import com.android.server.telecom.callsequencing.voip.VoipCallMonitor;
 import com.android.server.telecom.components.UserCallIntentProcessorFactory;
 import com.android.server.telecom.flags.FeatureFlags;
@@ -2594,7 +2593,7 @@ public class TelecomServiceImpl {
                     ApiStats.API_CREATELAUNCHEMERGENCYDIALERINTENT,
                     Binder.getCallingUid(), ApiStats.RESULT_NORMAL);
             String packageName = mContext.getApplicationContext().getString(
-                    R.string.config_emergency_dialer_package);
+                    com.android.internal.R.string.config_emergency_dialer_package);
             // Test to see if the package exists on the device
             Intent intent = new Intent(Intent.ACTION_DIAL_EMERGENCY).setPackage(packageName);
             long token = Binder.clearCallingIdentity();

@@ -57,7 +57,6 @@ import android.view.accessibility.AccessibilityManager;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.telecom.LogUtils.EventTimer;
-import com.android.server.telecom.R;
 import com.android.server.telecom.flags.FeatureFlags;
 
 import java.io.IOException;
@@ -330,7 +329,7 @@ public class Ringer {
         mAudioManager = mContext.getSystemService(AudioManager.class);
         mFlags = featureFlags;
         mRingtoneVibrationSupported = mContext.getResources().getBoolean(
-                R.bool.config_ringtoneVibrationSettingsSupported);
+                com.android.internal.R.bool.config_ringtoneVibrationSettingsSupported);
         mCallConnectedIndicatorSettings = callConnectedIndicator;
         mAsyncTaskExecutor = asyncTaskExecutor;
     }
@@ -1062,7 +1061,7 @@ public class Ringer {
         try {
             InputStream vibrationInputStream =
                     resources.openRawResource(
-                            R.raw.default_ringtone_vibration_effect);
+                            com.android.internal.R.raw.default_ringtone_vibration_effect);
             ParsedVibration parsedVibration = VibrationXmlParser
                     .parseDocument(
                             new InputStreamReader(vibrationInputStream, StandardCharsets.UTF_8));

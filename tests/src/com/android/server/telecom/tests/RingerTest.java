@@ -1029,7 +1029,7 @@ public class RingerTest extends TelecomTestCase {
                 any(Call.class), nullable(VolumeShaper.Configuration.class), anyBoolean()))
                 .thenReturn(ringtoneInfo);
         mComponentContextFixture.putBooleanResource(
-                R.bool.config_ringtoneVibrationSettingsSupported, true);
+                com.android.internal.R.bool.config_ringtoneVibrationSettingsSupported, true);
         try {
             RingtoneManager.setActualDefaultRingtoneUri(context, RingtoneManager.TYPE_RINGTONE,
                     FAKE_RINGTONE_VIBRATION_URI);
@@ -1185,7 +1185,7 @@ public class RingerTest extends TelecomTestCase {
     private void mockVibrationResourceValues(
             String defaultVibrationContent, boolean useSimpleVibration) {
         mComponentContextFixture.putRawResource(
-                R.raw.default_ringtone_vibration_effect,
+                com.android.internal.R.raw.default_ringtone_vibration_effect,
                 defaultVibrationContent);
         mComponentContextFixture.putBooleanResource(
                 R.bool.use_simple_vibration_pattern, useSimpleVibration);

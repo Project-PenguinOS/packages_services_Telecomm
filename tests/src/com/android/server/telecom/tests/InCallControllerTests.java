@@ -230,7 +230,8 @@ public class InCallControllerTests extends TelecomTestCase {
         doReturn(mMockResources).when(mMockContext).getResources();
         doReturn(mMockAppOpsManager).when(mMockContext).getSystemService(AppOpsManager.class);
         doReturn(mPermissionManager).when(mMockContext).getSystemService(PermissionManager.class);
-        doReturn(SYS_PKG).when(mMockResources).getString(R.string.config_defaultDialer);
+        doReturn(SYS_PKG).when(mMockResources).getString(
+                com.android.internal.R.string.config_defaultDialer);
         doReturn(SYS_CLASS).when(mMockResources).getString(R.string.incall_default_class);
         doReturn(true).when(mMockResources).getBoolean(R.bool.grant_location_permission_enabled);
         when(mDefaultDialerCache.getSystemDialerApplication()).thenReturn(SYS_PKG);

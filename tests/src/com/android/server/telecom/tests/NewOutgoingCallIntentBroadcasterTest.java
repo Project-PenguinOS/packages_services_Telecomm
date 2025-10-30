@@ -218,7 +218,8 @@ public class NewOutgoingCallIntentBroadcasterTest extends TelecomTestCase {
 
         String ui_package_string = "sample_string_1";
         String dialer_default_class_string = "sample_string_2";
-        mComponentContextFixture.putResource(R.string.config_defaultDialer, ui_package_string);
+        mComponentContextFixture.putResource(com.android.internal.R.string.config_defaultDialer,
+                ui_package_string);
         mComponentContextFixture.putResource(R.string.dialer_default_class,
                 dialer_default_class_string);
         when(mDefaultDialerCache.getSystemDialerApplication()).thenReturn(ui_package_string);
@@ -249,7 +250,8 @@ public class NewOutgoingCallIntentBroadcasterTest extends TelecomTestCase {
 
         String ui_package_string = "sample_string_1";
         String dialer_default_class_string = "sample_string_2";
-        mComponentContextFixture.putResource(R.string.config_defaultDialer, ui_package_string);
+        mComponentContextFixture.putResource(com.android.internal.R.string.config_defaultDialer,
+                ui_package_string);
         mComponentContextFixture.putResource(R.string.dialer_default_class,
                 dialer_default_class_string);
         when(mDefaultDialerCache.getSystemDialerApplication()).thenReturn(ui_package_string);
@@ -280,7 +282,8 @@ public class NewOutgoingCallIntentBroadcasterTest extends TelecomTestCase {
 
         String ui_package_string = "sample_string_1";
         String dialer_default_class_string = "sample_string_2";
-        mComponentContextFixture.putResource(R.string.config_defaultDialer, ui_package_string);
+        mComponentContextFixture.putResource(com.android.internal.R.string.config_defaultDialer,
+                ui_package_string);
         mComponentContextFixture.putResource(R.string.dialer_default_class,
                 dialer_default_class_string);
         when(mDefaultDialerCache.getSystemDialerApplication()).thenReturn(ui_package_string);
