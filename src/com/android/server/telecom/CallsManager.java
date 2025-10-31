@@ -2944,34 +2944,19 @@ public class CallsManager extends Call.ListenerBase
                                     "needs account selection");
                             // Create our own instance to modify (since extras may be Bundle.EMPTY)
                             Bundle newExtras = new Bundle(extras);
-                            if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-                                ArrayList<PhoneAccountHandle> accountsFromSuggestions =
-                                        accountSuggestions
-                                                .stream()
-                                                .map(PhoneAccountSuggestion::getPhoneAccountHandle)
-                                                .collect(Collectors.toCollection(ArrayList::new));
-                                newExtras.putParcelableArrayList(
-                                        android.telecom.Call.AVAILABLE_PHONE_ACCOUNTS,
-                                        accountsFromSuggestions);
-                                ArrayList<PhoneAccountSuggestion> accountSuggestionArrayList =
-                                        new ArrayList<>(accountSuggestions);
-                                newExtras.putParcelableArrayList(
-                                        android.telecom.Call.EXTRA_SUGGESTED_PHONE_ACCOUNTS,
-                                        accountSuggestionArrayList);
-                            } else {
-                                // Legacy path:
-                                List<PhoneAccountHandle> accountsFromSuggestions =
-                                        accountSuggestions
-                                                .stream()
-                                                .map(PhoneAccountSuggestion::getPhoneAccountHandle)
-                                                .collect(Collectors.toList());
-                                newExtras.putParcelableList(
-                                        android.telecom.Call.AVAILABLE_PHONE_ACCOUNTS,
-                                        accountsFromSuggestions);
-                                newExtras.putParcelableList(
-                                        android.telecom.Call.EXTRA_SUGGESTED_PHONE_ACCOUNTS,
-                                        accountSuggestions);
-                            }
+                            ArrayList<PhoneAccountHandle> accountsFromSuggestions =
+                                    accountSuggestions
+                                            .stream()
+                                            .map(PhoneAccountSuggestion::getPhoneAccountHandle)
+                                            .collect(Collectors.toCollection(ArrayList::new));
+                            newExtras.putParcelableArrayList(
+                                    android.telecom.Call.AVAILABLE_PHONE_ACCOUNTS,
+                                    accountsFromSuggestions);
+                            ArrayList<PhoneAccountSuggestion> accountSuggestionArrayList =
+                                    new ArrayList<>(accountSuggestions);
+                            newExtras.putParcelableArrayList(
+                                    android.telecom.Call.EXTRA_SUGGESTED_PHONE_ACCOUNTS,
+                                    accountSuggestionArrayList);
                             // Set a future in place so that we can proceed once the dialer replies.
                             mPendingAccountSelection.put(callToPlace.getId(),
                                     new CompletableFuture<>());
@@ -3027,10 +3012,8 @@ public class CallsManager extends Call.ListenerBase
         // Note that the ACTION_CALL intent will resolve to Telecomm's UserCallActivity
         // even if there is no dialer. Hence we explicitly check for whether a default dialer
         // exists instead of relying on ActivityNotFound when sending the call intent.
-        String defaultDialerApp = mFeatureFlags.resolveHiddenDependenciesTwo() ?
-                mDefaultDialerCache.getDefaultDialerApplication(managedProfileUserHandle) :
-                mDefaultDialerCache.getDefaultDialerApplicationLegacy(
-                        managedProfileUserHandle.getIdentifier());
+        String defaultDialerApp = mDefaultDialerCache.getDefaultDialerApplication(
+                managedProfileUserHandle);
         if (TextUtils.isEmpty(defaultDialerApp)) {
             Log.i(
                     this,
@@ -3051,11 +3034,7 @@ public class CallsManager extends Call.ListenerBase
                 this,
                 "Work profile telephony: show forwarding call to managed profile dialog");
 
-        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            return maybeRedirectToIntentForwarder(callUri, initiatingUser);
-        } else {
-            return maybeRedirectToIntentForwarderLegacy(callUri, initiatingUser);
-        }
+        return maybeRedirectToIntentForwarder(callUri, initiatingUser);
     }
 
     private boolean maybeRedirectToIntentForwarder(
@@ -3158,18 +3137,10 @@ public class CallsManager extends Call.ListenerBase
                 TelecomManager.EXTRA_MANAGED_PROFILE_USER_ID, managedProfileUserId);
 
         List<ResolveInfo> info;
-        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            info = UserUtil.getPackageManagerFromUserHandler(mContext, initiatingUser)
-                    .queryIntentActivities(
-                            showErrorIntent,
-                            ResolveInfoFlags.of(0));
-        } else {
-            info = mContext.getPackageManager()
-                    .queryIntentActivitiesAsUser(
-                            showErrorIntent,
-                            ResolveInfoFlags.of(0),
-                            initiatingUser);
-        }
+        info = UserUtil.getPackageManagerFromUserHandler(mContext, initiatingUser)
+                .queryIntentActivities(
+                        showErrorIntent,
+                        ResolveInfoFlags.of(0));
 
         if (info.isEmpty()) {
             return false;
@@ -3815,20 +3786,6 @@ public class CallsManager extends Call.ListenerBase
             }).start();
         }
 
-        final boolean requireCallCapableAccountByHandle;
-        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            // This was previously only configured "true" for wear and cuttlefish builds.
-            // For cases where no target phone account handle were given this determines whether
-            // the phone account registrar query to get call capable phone accounts looks for a
-            // specific URI scheme or not.  On non-wear and cuttlefish builds we ued to just check
-            // all call capable phone accounts without accounting for scheme; that logic was
-            // flawed since dialing a tel: uri number REQUIRES a call capable tel: phone account.
-            // We are in effect removing this option.
-            requireCallCapableAccountByHandle = true;
-        } else {
-            requireCallCapableAccountByHandle = mContext.getResources().getBoolean(
-                    com.android.internal.R.bool.config_requireCallCapableAccountForHandle);
-        }
         final boolean isOutgoingCallPermitted = isOutgoingCallPermitted(call,
                 call.getTargetPhoneAccount());
         final String callHandleScheme =
@@ -3868,8 +3825,7 @@ public class CallsManager extends Call.ListenerBase
                 }
 
             }
-        } else if (mPhoneAccountRegistrar.getCallCapablePhoneAccounts(
-                requireCallCapableAccountByHandle ? callHandleScheme : null, false,
+        } else if (mPhoneAccountRegistrar.getCallCapablePhoneAccounts(callHandleScheme, false,
                 call.getAssociatedUser(), false).isEmpty()) {
             // If there are no call capable accounts, disconnect the call.
             markCallAsDisconnected(call, new DisconnectCause(DisconnectCause.CANCELED,
@@ -4647,14 +4603,8 @@ public class CallsManager extends Call.ListenerBase
 
     private boolean isRttSettingOn(PhoneAccountHandle handle) {
         boolean isRttModeSettingOn;
-        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            isRttModeSettingOn = Settings.Secure.getInt(mContext.getContentResolver(),
-                    Settings.Secure.RTT_CALLING_MODE, 0) != 0;
-        } else {
-            int userId = UserUtil.getUserIdFromContext(mContext, mFeatureFlags);
-            isRttModeSettingOn = Settings.Secure.getIntForUser(mContext.getContentResolver(),
-                    Settings.Secure.RTT_CALLING_MODE, 0, userId) != 0;
-        }
+        isRttModeSettingOn = Settings.Secure.getInt(mContext.getContentResolver(),
+                Settings.Secure.RTT_CALLING_MODE, 0) != 0;
         // If the carrier config says that we should ignore the RTT mode setting from the user,
         // assume that it's off (i.e. only make an RTT call if it's requested through the extra).
         boolean shouldIgnoreRttModeSetting = getCarrierConfigForPhoneAccount(handle)
@@ -6191,18 +6141,11 @@ public class CallsManager extends Call.ListenerBase
                 return;
             }
             if (am.getStreamVolume(AudioManager.STREAM_VOICE_CALL) == 0) {
-                if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-                    Log.i(this, "ensureCallAudible: voice call stream has volume 0. "
-                            + "Adjusting to average.");
-                    int averageStreamVolume = (am.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL)
-                            + am.getStreamMinVolume(AudioManager.STREAM_VOICE_CALL)) / 2;
-                    am.setStreamVolume(AudioManager.STREAM_VOICE_CALL, averageStreamVolume, 0);
-                } else {
-                    Log.i(this, "ensureCallAudible: voice call stream has volume 0. "
-                            + "Adjusting to default.");
-                    am.setStreamVolume(AudioManager.STREAM_VOICE_CALL,
-                            AudioSystem.getDefaultStreamVolume(AudioManager.STREAM_VOICE_CALL), 0);
-                }
+                Log.i(this, "ensureCallAudible: voice call stream has volume 0. "
+                        + "Adjusting to average.");
+                int averageStreamVolume = (am.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL)
+                        + am.getStreamMinVolume(AudioManager.STREAM_VOICE_CALL)) / 2;
+                am.setStreamVolume(AudioManager.STREAM_VOICE_CALL, averageStreamVolume, 0);
             }
         });
     }
@@ -6489,14 +6432,12 @@ public class CallsManager extends Call.ListenerBase
     }
 
     public boolean isReplyWithSmsAllowed(int uid, UserHandle callingUserHandle) {
-        UserHandle callingUser = mFeatureFlags.resolveHiddenDependenciesTwo() ?
-                callingUserHandle : UserHandle.of(UserHandle.getUserId(uid));
         UserManager userManager = mContext.getSystemService(UserManager.class);
         KeyguardManager keyguardManager = mContext.getSystemService(KeyguardManager.class);
 
         boolean hasUserRestriction = mFeatureFlags.telecomResolveHiddenDependencies()
-                ? userManager.hasUserRestrictionForUser(UserManager.DISALLOW_SMS, callingUser)
-                : userManager.hasUserRestriction(UserManager.DISALLOW_SMS, callingUser);
+                ? userManager.hasUserRestrictionForUser(UserManager.DISALLOW_SMS, callingUserHandle)
+                : userManager.hasUserRestriction(UserManager.DISALLOW_SMS, callingUserHandle);
         boolean isUserRestricted = userManager != null && hasUserRestriction;
         boolean isLockscreenRestricted = keyguardManager != null
                 && keyguardManager.isDeviceLocked();
@@ -7080,10 +7021,8 @@ public class CallsManager extends Call.ListenerBase
         mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
                 PERMISSION_PROCESS_PHONE_ACCOUNT_REGISTRATION);
 
-        String dialerPackage = mFeatureFlags.resolveHiddenDependenciesTwo() ?
-                mDefaultDialerCache.getDefaultDialerApplication(getCurrentUserHandle()) :
-                mDefaultDialerCache
-                        .getDefaultDialerApplicationLegacy(getCurrentUserHandle().getIdentifier());
+        String dialerPackage = mDefaultDialerCache.getDefaultDialerApplication(
+                getCurrentUserHandle());
         if (!TextUtils.isEmpty(dialerPackage)) {
             Intent directedIntent = new Intent(TelecomManager.ACTION_PHONE_ACCOUNT_UNREGISTERED)
                     .setPackage(dialerPackage);
@@ -7105,10 +7044,8 @@ public class CallsManager extends Call.ListenerBase
         mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
                 PERMISSION_PROCESS_PHONE_ACCOUNT_REGISTRATION);
 
-        String dialerPackage = mFeatureFlags.resolveHiddenDependenciesTwo() ?
-                mDefaultDialerCache.getDefaultDialerApplication(getCurrentUserHandle()) :
-                mDefaultDialerCache
-                        .getDefaultDialerApplicationLegacy(getCurrentUserHandle().getIdentifier());
+        String dialerPackage = mDefaultDialerCache.getDefaultDialerApplication(
+                getCurrentUserHandle());
         if (!TextUtils.isEmpty(dialerPackage)) {
             Intent directedIntent = new Intent(TelecomManager.ACTION_PHONE_ACCOUNT_REGISTERED)
                     .setPackage(dialerPackage);

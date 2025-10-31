@@ -430,15 +430,9 @@ public class Ringer {
             final boolean shouldFlash = mRingerAttributes.shouldRingForContact();
             if (mAccessibilityManagerAdapter != null && shouldFlash) {
                 Log.addEvent(foregroundCall, LogUtils.Events.FLASH_NOTIFICATION_START);
-                if (mFlags.resolveHiddenDependenciesTwo()) {
-                    getExecutor().execute(() ->
-                            mAccessibilityManagerAdapter.startFlashNotificationSequence(mContext,
-                                    AccessibilityManager.FLASH_REASON_CALL));
-                } else {
-                    getHandler().post(() ->
-                            mAccessibilityManagerAdapter.startFlashNotificationSequence(mContext,
-                                    AccessibilityManager.FLASH_REASON_CALL));
-                }
+                getExecutor().execute(() ->
+                        mAccessibilityManagerAdapter.startFlashNotificationSequence(mContext,
+                                AccessibilityManager.FLASH_REASON_CALL));
             }
 
             Context userContext = null;
@@ -758,13 +752,8 @@ public class Ringer {
         final Call foregroundCall = mRingingCall != null ? mRingingCall : mVibratingCall;
         if (mAccessibilityManagerAdapter != null) {
             Log.addEvent(foregroundCall, LogUtils.Events.FLASH_NOTIFICATION_STOP);
-            if (mFlags.resolveHiddenDependenciesTwo()) {
-                getExecutor().execute(() ->
-                        mAccessibilityManagerAdapter.stopFlashNotificationSequence(mContext));
-            } else {
-                getHandler().post(() ->
-                        mAccessibilityManagerAdapter.stopFlashNotificationSequence(mContext));
-            }
+            getExecutor().execute(() ->
+                    mAccessibilityManagerAdapter.stopFlashNotificationSequence(mContext));
         }
 
         synchronized (mLock) {
@@ -851,17 +840,11 @@ public class Ringer {
         AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
         // Use AudioManager#getRingerMode for more accurate result, instead of
         // AudioManager#getRingerModeInternal which only useful for volume controllers
-        boolean zenModeOn;
-        if (mFlags.resolveHiddenDependenciesTwo()) {
-            // See NotificationManager#zenModeToInterruptionFilter; INTERRUPTION_FILTER_ALL is
-            // equivalent to the former ZEN_MODE_OFF.
-            zenModeOn = mNotificationManager != null
-                    && mNotificationManager.getCurrentInterruptionFilter()
-                    != NotificationManager.INTERRUPTION_FILTER_ALL;
-        } else {
-            zenModeOn = mNotificationManager != null
-                    && mNotificationManager.getZenMode() != ZEN_MODE_OFF;
-        }
+        // See NotificationManager#zenModeToInterruptionFilter; INTERRUPTION_FILTER_ALL is
+        // equivalent to the former ZEN_MODE_OFF.
+        boolean zenModeOn = mNotificationManager != null
+                && mNotificationManager.getCurrentInterruptionFilter()
+                != NotificationManager.INTERRUPTION_FILTER_ALL;
         maybeGenAnomReportForGetRingerMode(zenModeOn, audioManager);
         return mVibrator.hasVibrator()
                 && mSystemSettingsUtil.isRingVibrationEnabled(context, mFlags)
@@ -1020,11 +1003,7 @@ public class Ringer {
     }
 
     private Executor getLoggedExecutor(String functionName) {
-        if (mFlags.resolveHiddenDependenciesTwo()) {
-            return new LoggedExecutor(getExecutor(), functionName, null);
-        } else {
-            return new LoggedHandlerExecutor(getHandler(), functionName, null);
-        }
+        return new LoggedExecutor(getExecutor(), functionName, null);
     }
 
     public ExecutorService getExecutor() {

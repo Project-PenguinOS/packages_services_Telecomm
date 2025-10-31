@@ -172,10 +172,7 @@ public class RingerTest extends TelecomTestCase {
         // mocking flag values like we are as it means they're pretty much always false.  In this
         // case the success/failure of the test should be tied to whether the flag is on or off
         // for this device configuration.
-        FeatureFlags featureFlags = new FeatureFlagsImpl();
-        when(mFeatureFlags.resolveHiddenDependenciesTwo()).thenReturn(
-                featureFlags.resolveHiddenDependenciesTwo());
-         asyncRingtonePlayer = new AsyncRingtonePlayer(mFeatureFlags);
+        asyncRingtonePlayer = new AsyncRingtonePlayer(new FeatureFlagsImpl());
         doReturn(URI_VIBRATION_EFFECT).when(spyVibrationEffectProxy).get(any(), any());
         when(mockPlayerFactory.createPlayer(any(Call.class), anyInt())).thenReturn(mockTonePlayer);
         mockAudioManager = mock(AudioManager.class);
@@ -225,17 +222,7 @@ public class RingerTest extends TelecomTestCase {
         super.tearDown();
     }
 
-    private void acquireLooper() {
-        mLooperManager = InstrumentationRegistry.getInstrumentation()
-                .acquireLooperManager(asyncRingtonePlayer.getLooper());
-    }
 
-    private void processAllMessages() {
-        for (var msg = mLooperManager.poll(); msg != null && msg.getTarget() != null;) {
-            mLooperManager.execute(msg);
-            mLooperManager.recycle(msg);
-        }
-    }
 
     @SmallTest
     @Test
@@ -693,39 +680,7 @@ public class RingerTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testDelayRingerForBtHfpDevices() throws Exception {
-        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            delayRingerForBtHfpDevicesExecutor();
-        } else {
-            delayRingerForBtHfpDevicesHandler();
-        }
-    }
-
-    private void delayRingerForBtHfpDevicesHandler() throws Exception {
-        acquireLooper();
-
-        asyncRingtonePlayer.updateBtActiveState(false);
-        Ringtone mockRingtone = ensureRingtoneMocked();
-
-        ensureRingerIsAudible();
-        assertTrue(mRingerUnderTest.startRinging(mockCall1, true));
-        assertTrue(mRingerUnderTest.isRinging());
-        processAllMessages();
-        // We should not have the ringtone play until BT moves active
-        // TODO(b/395089048): verify(mockRingtone, never()).play();
-
-        asyncRingtonePlayer.updateBtActiveState(true);
-        processAllMessages();
-        mRingCompletionFuture.get();
-        verify(mockRingtoneFactory, atLeastOnce())
-                .getRingtone(any(Call.class), nullable(VolumeShaper.Configuration.class),
-                        anyBoolean());
-        verifyNoMoreInteractions(mockRingtoneFactory);
-        verify(mockRingtone).play();
-
-        mRingerUnderTest.stopRinging();
-        processAllMessages();
-        verify(mockRingtone).stop();
-        assertFalse(mRingerUnderTest.isRinging());
+        delayRingerForBtHfpDevicesExecutor();
     }
 
     private void delayRingerForBtHfpDevicesExecutor() throws Exception {
@@ -772,11 +727,7 @@ public class RingerTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testUnblockRingerForStopCommand() throws Exception {
-        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            unblockRingerForStopCommandExecutor();
-        } else {
-            unblockRingerForStopCommandHandler();
-        }
+        unblockRingerForStopCommandExecutor();
     }
 
     private void unblockRingerForStopCommandExecutor() {
@@ -805,25 +756,7 @@ public class RingerTest extends TelecomTestCase {
         assertFalse(mRingerUnderTest.isRinging());
     }
 
-    private void unblockRingerForStopCommandHandler() {
-        acquireLooper();
 
-        asyncRingtonePlayer.updateBtActiveState(false);
-        Ringtone mockRingtone = ensureRingtoneMocked();
-
-        ensureRingerIsAudible();
-        assertTrue(mRingerUnderTest.startRinging(mockCall1, true));
-
-        processAllMessages();
-        // We should not have the ringtone play until BT moves active
-        // TODO(b/395089048): verify(mockRingtone, never()).play();
-
-        // We are not setting BT active, but calling stop ringing while the other thread is waiting
-        // for BT active should also unblock it.
-        mRingerUnderTest.stopRinging();
-        processAllMessages();
-        verify(mockRingtone).stop();
-    }
 
     /**
      * test shouldRingForContact will suppress the incoming call if matchesCallFilter returns

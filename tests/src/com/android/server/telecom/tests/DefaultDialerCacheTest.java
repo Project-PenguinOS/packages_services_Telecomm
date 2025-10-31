@@ -78,7 +78,6 @@ public class DefaultDialerCacheTest extends TelecomTestCase {
     public void setUp() throws Exception {
         super.setUp();
         mContext = mComponentContextFixture.getTestDouble().getApplicationContext();
-        when(mFeatureFlags.resolveHiddenDependenciesTwo()).thenReturn(true);
         when(mContext.createContextAsUser(any(UserHandle.class), anyInt()))
                 .thenReturn(mUserContext);
 

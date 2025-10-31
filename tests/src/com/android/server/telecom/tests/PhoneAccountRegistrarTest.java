@@ -145,7 +145,6 @@ public class PhoneAccountRegistrarTest extends TelecomTestCase {
                 mDefaultDialerCache, mAppLabelProxy, mTelephonyFeatureFlags, mFeatureFlags);
         when(mFeatureFlags.unregisterUnresolvableAccounts()).thenReturn(true);
         when(mTelephonyFeatureFlags.workProfileApiSplit()).thenReturn(false);
-        when(mFeatureFlags.resolveHiddenDependenciesTwo()).thenReturn(true);
     }
 
     @Override
@@ -1910,32 +1909,6 @@ public class PhoneAccountRegistrarTest extends TelecomTestCase {
         }
         finally {
             mRegistrar.unregisterPhoneAccount(handle);
-        }
-    }
-
-    /**
-     * Ensure an IllegalArgumentException is thrown when an Icon that throws an IOException is given
-     */
-    @Test
-    public void testLimitOnIcon() throws Exception {
-        if(mFeatureFlags.resolveHiddenDependenciesTwo()){
-            // skip this test if the new icon logic is running
-           return;
-        }
-        Icon mockIcon = mock(Icon.class);
-        // GIVEN
-        PhoneAccount.Builder builder = makeBuilderWithBindCapabilities(
-                makeQuickAccountHandle(TEST_ID)).setIcon(mockIcon);
-        try {
-            // WHEN
-            doThrow(new IOException())
-                        .when(mockIcon).writeToStream(any(OutputStream.class));
-            //THEN
-            mRegistrar.enforceIconSizeLimit(builder.build());
-            fail("failed to throw IllegalArgumentException");
-        } catch (IllegalArgumentException e) {
-            // pass test
-            assertTrue(e.getMessage().contains(PhoneAccountRegistrar.ICON_ERROR_MSG));
         }
     }
 

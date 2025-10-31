@@ -212,8 +212,8 @@ public class VideoProviderTest extends TelecomSystemTest {
         // Wait until the callback has been received before performing verification.
         doAnswer(mVerification).when(mVideoCallCallback).onCallSessionEvent(anyInt());
 
-        // ensure app ops check fails.
-        doReturn(AppOpsManager.MODE_ERRORED).when(mAppOpsManager).noteOp(anyInt(), anyInt(),
+        // ensure app ops check failsatest Basic.
+        doReturn(AppOpsManager.MODE_ERRORED).when(mAppOpsManager).noteOp(anyString(), anyInt(),
                 anyString());
 
         // Set the target SDK version to > N-MR1.
@@ -243,7 +243,7 @@ public class VideoProviderTest extends TelecomSystemTest {
         doAnswer(mVerification).when(mVideoCallCallback).onCallSessionEvent(anyInt());
 
         // ensure app ops check fails.
-        doReturn(AppOpsManager.MODE_ERRORED).when(mAppOpsManager).noteOp(anyInt(), anyInt(),
+        doReturn(AppOpsManager.MODE_ERRORED).when(mAppOpsManager).noteOp(anyString(), anyInt(),
                 anyString());
 
         // Set the target SDK version to below N-MR1

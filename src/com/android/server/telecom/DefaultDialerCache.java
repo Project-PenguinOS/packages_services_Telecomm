@@ -137,21 +137,12 @@ public class DefaultDialerCache {
         packageIntentFilter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
         // Important: retain the all users context or the receivers will not fire.
         mAllUsersContext = context.createContextAsUser(UserHandle.ALL, 0);
-        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            mAllUsersContext.registerReceiver(mReceiver, packageIntentFilter,
-                    Context.RECEIVER_NOT_EXPORTED);
-        } else {
-            context.registerReceiverAsUser(mReceiver, UserHandle.ALL, packageIntentFilter, null,
-                    null);
-        }
+        mAllUsersContext.registerReceiver(mReceiver, packageIntentFilter,
+                Context.RECEIVER_NOT_EXPORTED);
 
         IntentFilter bootIntentFilter = new IntentFilter(Intent.ACTION_BOOT_COMPLETED);
-        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            mAllUsersContext.registerReceiver(mReceiver, bootIntentFilter,
-                    Context.RECEIVER_NOT_EXPORTED);
-        } else {
-            context.registerReceiverAsUser(mReceiver, UserHandle.ALL, bootIntentFilter, null, null);
-        }
+        mAllUsersContext.registerReceiver(mReceiver, bootIntentFilter,
+                Context.RECEIVER_NOT_EXPORTED);
 
         IntentFilter userRemovedFilter = new IntentFilter(Intent.ACTION_USER_REMOVED);
         context.registerReceiver(mUserRemovedReceiver, userRemovedFilter);
@@ -159,15 +150,9 @@ public class DefaultDialerCache {
         Uri defaultDialerSetting =
                 Settings.Secure.getUriFor(Settings.Secure.DIALER_DEFAULT_APPLICATION);
 
-        if (mFeatureFlags.resolveHiddenDependenciesTwo()){
-            context.getContentResolver()
-                    .registerContentObserverAsUser(defaultDialerSetting, false,
-                            mDefaultDialerObserver, UserHandle.ALL);
-        } else {
-            context.getContentResolver()
-                    .registerContentObserver(defaultDialerSetting, false,
-                            mDefaultDialerObserver, UserHandle.USER_ALL);
-        }
+        context.getContentResolver()
+                .registerContentObserverAsUser(defaultDialerSetting, false,
+                        mDefaultDialerObserver, UserHandle.ALL);
     }
 
     public String[] getBTInCallServicePackages() {
@@ -216,13 +201,8 @@ public class DefaultDialerCache {
     }
 
     public String getDefaultDialerApplication() {
-        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            return getDefaultDialerApplication(
-                    new UserHandle(UserUtil.getUserIdFromContext(mContext, mFeatureFlags)));
-        } else {
-            return getDefaultDialerApplicationLegacy(UserUtil.getUserIdFromContext(mContext,
-                    mFeatureFlags));
-        }
+        return getDefaultDialerApplication(
+                new UserHandle(UserUtil.getUserIdFromContext(mContext, mFeatureFlags)));
     }
 
     public void setSystemDialerComponentName(ComponentName testComponentName) {
@@ -253,9 +233,7 @@ public class DefaultDialerCache {
     }
 
     public boolean isDefaultOrSystemDialer(String packageName, int userId) {
-        String defaultDialer = mFeatureFlags.resolveHiddenDependenciesTwo() ?
-                getDefaultDialerApplication(UserHandle.of(userId)) :
-                getDefaultDialerApplicationLegacy(userId);
+        String defaultDialer = getDefaultDialerApplication(UserHandle.of(userId));
 
         return Objects.equals(packageName, defaultDialer)
                 || Objects.equals(packageName, getSystemDialerApplication());
