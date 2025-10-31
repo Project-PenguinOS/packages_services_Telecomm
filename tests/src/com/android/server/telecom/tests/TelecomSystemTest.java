@@ -653,7 +653,7 @@ public class TelecomSystemTest extends TelecomTestCase{
 
     private void setupInCallServices() throws Exception {
         mComponentContextFixture.putResource(
-                R.string.config_defaultDialer,
+                com.android.internal.R.string.config_defaultDialer,
                 mInCallServiceComponentNameX.getPackageName());
         mComponentContextFixture.putResource(
                 com.android.server.telecom.R.string.incall_default_class,
