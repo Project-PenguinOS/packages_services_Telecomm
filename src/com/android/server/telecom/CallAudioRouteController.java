@@ -766,11 +766,20 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
      */
     private void maybeClearPendingMessage() {
         AudioRoute pendingDestRoute = mPendingAudioRoute.getDestRoute();
-        if (pendingDestRoute != null && isCurrentCommunicationDevice(pendingDestRoute)) {
-            if (pendingDestRoute.getType() == TYPE_BLUETOOTH_SCO) {
+        if (pendingDestRoute != null) {
+            if (isCurrentCommunicationDevice(pendingDestRoute)) {
+                if (pendingDestRoute.getType() == TYPE_BLUETOOTH_SCO) {
+                    mPendingAudioRoute.clearPendingMessage(new Pair<>(BT_AUDIO_CONNECTED,
+                            pendingDestRoute.getBluetoothAddress()));
+                } else if (pendingDestRoute.getType() == TYPE_SPEAKER) {
+                    mPendingAudioRoute.clearPendingMessage(new Pair<>(SPEAKER_ON, null));
+                }
+            } else if (pendingDestRoute.getType() != TYPE_BLUETOOTH_SCO) {
+                // Don't wait for BT_AUDIO_CONNECTED msg if pending route is not BT_SCO.
                 mPendingAudioRoute.clearPendingMessage(new Pair<>(BT_AUDIO_CONNECTED,
-                        pendingDestRoute.getBluetoothAddress()));
-            } else if (pendingDestRoute.getType() == TYPE_SPEAKER) {
+                            pendingDestRoute.getBluetoothAddress()));
+            } else if (pendingDestRoute.getType() != TYPE_SPEAKER) {
+                // Don't wait for SPEAKER_ON msg if pending route is not SPEAKER.
                 mPendingAudioRoute.clearPendingMessage(new Pair<>(SPEAKER_ON, null));
             }
         }
