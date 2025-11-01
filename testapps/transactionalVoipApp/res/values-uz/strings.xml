@@ -28,8 +28,7 @@
     <string name="call_attributes_empty_error" msgid="6921783379546938037">"Chaqiruv atributlari boʻsh qolmasin. Standart qiymatlar ishlatilsin."</string>
     <string name="back_to_voip_main" msgid="2500173767939494261">"VOIP asosiy faoliyatiga qaytish"</string>
     <string name="clear_voip_call_logs" msgid="2402471290566644149">"VOIP sinov chaqiruv jurnallarini tozalash"</string>
-    <!-- no translation found for refresh_call_logs (4633143020852759545) -->
-    <skip />
+    <string name="refresh_call_logs" msgid="4633143020852759545">"Chaqiruvlar jurnalini yangilash"</string>
     <string name="call_log" msgid="2664639384522572724">"Chaqiruvlar jurnali"</string>
     <string name="voip_callback" msgid="9213402996514282039">"Teskari chaqiruvni sinash"</string>
     <string name="get_call_id" msgid="5513943242738347108">"chaqiruv id belgilanmagan"</string>

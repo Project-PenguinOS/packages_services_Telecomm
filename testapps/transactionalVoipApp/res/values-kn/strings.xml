@@ -28,8 +28,7 @@
     <string name="call_attributes_empty_error" msgid="6921783379546938037">"ಕರೆಯ ಆ್ಯಟ್ರಿಬ್ಯೂಟ್‌ಗಳು ಖಾಲಿಯಿರುವಂತಿಲ್ಲ. ಹೇಗಿದ್ದರೂ ಡೀಫಾಲ್ಟ್‌ಗಳನ್ನು ಪ್ರಾರಂಭಿಸಲಾಗುತ್ತಿದೆ."</string>
     <string name="back_to_voip_main" msgid="2500173767939494261">"VOIP ಮುಖ್ಯ ಚಟುವಟಿಕೆಗೆ ಹಿಂತಿರುಗಿ"</string>
     <string name="clear_voip_call_logs" msgid="2402471290566644149">"VOIP ಪರೀಕ್ಷಾ ಕರೆಯ ಲಾಗ್‌ಗಳನ್ನು ತೆರವುಗೊಳಿಸಿ"</string>
-    <!-- no translation found for refresh_call_logs (4633143020852759545) -->
-    <skip />
+    <string name="refresh_call_logs" msgid="4633143020852759545">"ಕರೆಯ ಲಾಗ್‌ಗಳನ್ನು ರಿಫ್ರೆಶ್ ಮಾಡಿ"</string>
     <string name="call_log" msgid="2664639384522572724">"ಕರೆಯ ಲಾಗ್‌"</string>
     <string name="voip_callback" msgid="9213402996514282039">"ಪರೀಕ್ಷಾರ್ಥ ಕಾಲ್‌ಬ್ಯಾಕ್"</string>
     <string name="get_call_id" msgid="5513943242738347108">"ಕರೆಮಾಡುವವರ ID ಅನ್ನು ಸೆಟ್ ಮಾಡಿಲ್ಲ"</string>
