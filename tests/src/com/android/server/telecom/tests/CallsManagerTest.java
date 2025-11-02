@@ -75,6 +75,7 @@ import android.os.UserHandle;
 import android.os.UserManager;
 import android.provider.BlockedNumbersManager;
 import android.telecom.CallAudioState;
+import android.telecom.CallEndpoint;
 import android.telecom.CallException;
 import android.telecom.CallScreeningService;
 import android.telecom.Connection;
@@ -4238,6 +4239,36 @@ public class CallsManagerTest extends TelecomTestCase {
 
         // THEN the result should be the expected bundle
         assertEquals(expectedBundle, result);
+    }
+
+    @SmallTest
+    @Test
+    public void testOnCallEndpointRequested_withForegroundCall() {
+        // GIVEN a foreground call exists
+        Call foregroundCall = addSpyCall(CallState.ACTIVE);
+        when(mConnectionSvrFocusMgr.getCurrentFocusCall()).thenReturn(foregroundCall);
+        CallEndpoint endpoint = mock(CallEndpoint.class);
+
+        // WHEN onCallEndpointRequested is called
+        mCallsManager.onCallEndpointRequested(TEST_PACKAGE_NAME, endpoint);
+
+        // THEN verify InCallController is notified with the foreground call
+        verify(mInCallController)
+                .onCallEndpointRequested(TEST_PACKAGE_NAME, endpoint, foregroundCall);
+    }
+
+    @SmallTest
+    @Test
+    public void testOnCallEndpointRequested_noForegroundCall() {
+        // GIVEN no foreground call exists
+        when(mConnectionSvrFocusMgr.getCurrentFocusCall()).thenReturn(null);
+        CallEndpoint endpoint = mock(CallEndpoint.class);
+
+        // WHEN onCallEndpointRequested is called
+        mCallsManager.onCallEndpointRequested(TEST_PACKAGE_NAME, endpoint);
+
+        // THEN verify InCallController is notified with a null call
+        verify(mInCallController).onCallEndpointRequested(TEST_PACKAGE_NAME, endpoint, null);
     }
 
     private Call addSpyCall() {
