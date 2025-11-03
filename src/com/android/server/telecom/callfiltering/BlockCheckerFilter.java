@@ -125,12 +125,7 @@ public class BlockCheckerFilter extends CallFilter {
         Log.addEvent(mCall, LogUtils.Events.BLOCK_CHECK_INITIATED);
         CompletableFuture<CallFilteringResult> resultFuture = new CompletableFuture<>();
         Bundle extras = new Bundle();
-        final Context userContext;
-        if (mFeatureFlags.telecomMainUserInBlockCheck()) {
-            userContext = mContext.createContextAsUser(mCall.getAssociatedUser(), 0);
-        } else {
-            userContext = mContext;
-        }
+        final Context userContext = mContext.createContextAsUser(mCall.getAssociatedUser(), 0);
         if (BlockedNumbersUtil.isEnhancedCallBlockingEnabledByPlatform(userContext,
                 mFeatureFlags)) {
             int presentation = mCall.getHandlePresentation();

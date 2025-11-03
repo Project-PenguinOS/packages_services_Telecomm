@@ -9,14 +9,3 @@ flag {
     description: "Mainland cleanup for hidden dependencies"
     bug: "323414215"
 }
-
-# OWNER=tgunn TARGET=26Q1
-flag {
-  name: "resolve_hidden_dependencies_two"
-  namespace: "telecom"
-  description: "Resolve hidden dependencies in Telecom related to mainline"
-  bug: "405460896"
-  metadata {
-    purpose: PURPOSE_FEATURE
-  }
-}

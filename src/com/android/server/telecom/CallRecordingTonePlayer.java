@@ -92,11 +92,7 @@ public class CallRecordingTonePlayer extends CallsManagerListenerBase {
             if (telephonyDevice != null) {
                 mRecordingTonePlayer = MediaPlayer.create(mContext, R.raw.record);
                 mRecordingTonePlayer.setPreferredDevice(telephonyDevice);
-                if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-                    mRecordingTonePlayer.setVolume(0.1f, 0.1f);
-                } else {
-                    mRecordingTonePlayer.setVolume(0.1f);
-                }
+                mRecordingTonePlayer.setVolume(0.1f, 0.1f);
                 AudioAttributes audioAttributes = new AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION).build();
                 mRecordingTonePlayer.setAudioAttributes(audioAttributes);

@@ -68,15 +68,7 @@ public class UserCallActivity extends Activity implements TelecomSystem.Componen
                     ? getTelecomSystem().getFeatureFlags()
                     : new FeatureFlagsImpl();
             final UserManager userManager = getSystemService(UserManager.class);
-            final UserHandle userHandle;
-
-            if (featureFlags.resolveHiddenDependenciesTwo()) {
-                userHandle = UserHandle.getUserHandleForUid(getLaunchedFromUid());
-            } else {
-                userHandle = new UserHandle(
-                        featureFlags.telecomResolveHiddenDependencies()
-                                ? UserHandle.myUserId() : userManager.getProcessUserId());
-            }
+            final UserHandle userHandle = UserHandle.getUserHandleForUid(getLaunchedFromUid());
 
             // Once control flow has passed to this activity, it is no longer guaranteed that we can
             // accurately determine whether the calling package has the CALL_PHONE runtime permission.

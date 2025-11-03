@@ -41,8 +41,7 @@ public final class UserUtil {
     private static final String LOG_TAG = "UserUtil";
 
     public static int getUserIdFromContext(Context context, FeatureFlags featureFlags){
-        return featureFlags.resolveHiddenDependenciesTwo() ? context.getUser().getIdentifier() :
-                context.getUserId();
+        return context.getUser().getIdentifier();
     }
 
     private static UserInfo getUserInfoFromUserHandle(Context context, UserHandle userHandle) {
@@ -116,10 +115,7 @@ public final class UserUtil {
             // by copying and pasting the phone number into the personal dialer.
             if (!UserUtil.isManagedProfile(context, userHandle, featureFlags)) {
                 final UserManager userManager = context.getSystemService(UserManager.class);
-                boolean hasUserRestriction = featureFlags.telecomResolveHiddenDependencies()
-                        ? userManager.hasUserRestrictionForUser(
-                                UserManager.DISALLOW_OUTGOING_CALLS, userHandle)
-                        : userManager.hasUserRestriction(
+                boolean hasUserRestriction = userManager.hasUserRestrictionForUser(
                                 UserManager.DISALLOW_OUTGOING_CALLS, userHandle);
                 // Only emergency calls are allowed for users with the DISALLOW_OUTGOING_CALLS
                 // restriction.
@@ -158,29 +154,20 @@ public final class UserUtil {
      * @return {@code true} if outgoing calls are disallowed for the user, {@code false} otherwise.
      * Returns {@code false} if an error occurs during the check (e.g., missing permissions).
      */
-    private static boolean hasDisallowOutgoingCalls(
-            Context context,
-            UserManager userManager,
-            UserHandle user,
-            FeatureFlags featureFlags){
-        if(featureFlags.resolveHiddenDependenciesTwo()){
-            UserHandle parent = userManager.getProfileParent(user);
-            UserHandle baseUser = (parent != null) ? parent : user;
-            try {
-                Context baseUserContext = context.createContextAsUser(baseUser, 0);
-                UserManager baseUserManager = baseUserContext.getSystemService(UserManager.class);
-                if (baseUserManager != null) {
-                    return baseUserManager.hasUserRestriction(UserManager.DISALLOW_OUTGOING_CALLS);
-                }
-                return false;
-            } catch (Exception e) {
-                Log.e("UserUtil", e, "hasDisallowOutgoingCalls: caught exception");
-                return false;
+    private static boolean hasDisallowOutgoingCalls(Context context, UserManager userManager,
+            UserHandle user, FeatureFlags featureFlags) {
+        UserHandle parent = userManager.getProfileParent(user);
+        UserHandle baseUser = (parent != null) ? parent : user;
+        try {
+            Context baseUserContext = context.createContextAsUser(baseUser, 0);
+            UserManager baseUserManager = baseUserContext.getSystemService(UserManager.class);
+            if (baseUserManager != null) {
+                return baseUserManager.hasUserRestriction(UserManager.DISALLOW_OUTGOING_CALLS);
             }
-        }
-        else{
-            return userManager.hasBaseUserRestriction(UserManager.DISALLOW_OUTGOING_CALLS,
-                    user);
+            return false;
+        } catch (Exception e) {
+            Log.e("UserUtil", e, "hasDisallowOutgoingCalls: caught exception");
+            return false;
         }
     }
 
@@ -215,24 +202,14 @@ public final class UserUtil {
 
     public static void processNotification(Context context, UserHandle userHandle, String tag,
             int id, Notification notification, FeatureFlags featureFlags) {
-        if (featureFlags.resolveHiddenDependenciesTwo()) {
-            Context userContext = context.createContextAsUser(userHandle, 0);
-            NotificationManager userNotificationMgr = userContext.getSystemService(
-                    NotificationManager.class);
-            if (userNotificationMgr != null) {
-                if (notification != null) {
-                    userNotificationMgr.notify(tag, id, notification);
-                } else {
-                    userNotificationMgr.cancel(tag, id);
-                }
-            }
-        } else {
-            NotificationManager notificationMgr = (NotificationManager) context.getSystemService(
-                    Context.NOTIFICATION_SERVICE);
+        Context userContext = context.createContextAsUser(userHandle, 0);
+        NotificationManager userNotificationMgr = userContext.getSystemService(
+                NotificationManager.class);
+        if (userNotificationMgr != null) {
             if (notification != null) {
-                notificationMgr.notifyAsUser(tag, id, notification, userHandle);
+                userNotificationMgr.notify(tag, id, notification);
             } else {
-                notificationMgr.cancelAsUser(tag, id, userHandle);
+                userNotificationMgr.cancel(tag, id);
             }
         }
     }

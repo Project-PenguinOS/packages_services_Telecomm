@@ -28,6 +28,7 @@
     <string name="call_attributes_empty_error" msgid="6921783379546938037">"କଲ ଆଟ୍ରିବ୍ୟୁଟଗୁଡ଼ିକ ଖାଲି ରହିବା ଉଚିତ ନୁହେଁ। ଯେ କୌଣସି ମତେ ଡିଫଲ୍ଟଗୁଡ଼ିକୁ ଆରମ୍ଭ କରାଯାଉଛି।"</string>
     <string name="back_to_voip_main" msgid="2500173767939494261">"VOIP ମୁଖ୍ୟ କାର୍ଯ୍ୟକଳାପକୁ ଫେରନ୍ତୁ"</string>
     <string name="clear_voip_call_logs" msgid="2402471290566644149">"VOIP ଟେଷ୍ଟ କଲ ଲଗ ଖାଲି କରନ୍ତୁ"</string>
+    <string name="refresh_call_logs" msgid="4633143020852759545">"କଲ ଲଗଗୁଡ଼ିକୁ ରିଫ୍ରେସ କରନ୍ତୁ"</string>
     <string name="call_log" msgid="2664639384522572724">"କଲ ଲଗ"</string>
     <string name="voip_callback" msgid="9213402996514282039">"କଲବେକ ଟେଷ୍ଟ କରନ୍ତୁ"</string>
     <string name="get_call_id" msgid="5513943242738347108">"କଲ ID ସେଟ କରାଯାଇନାହିଁ"</string>

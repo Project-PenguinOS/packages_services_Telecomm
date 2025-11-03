@@ -104,13 +104,8 @@ public class CallRedirectionProcessorHelper {
 
     protected ComponentName getComponentName(Intent intent, String serviceType) {
         List<ResolveInfo> entries;
-        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            entries = UserUtil.getPackageManagerFromUserHandler(mContext,
-                    mCallsManager.getCurrentUserHandle()).queryIntentServices(intent, 0);
-        } else {
-            entries = mContext.getPackageManager().queryIntentServicesAsUser(
-                    intent, 0, mCallsManager.getCurrentUserHandle().getIdentifier());
-        }
+        entries = UserUtil.getPackageManagerFromUserHandler(mContext,
+                mCallsManager.getCurrentUserHandle()).queryIntentServices(intent, 0);
         if (entries.isEmpty()) {
             Log.i(this, "There are no " + serviceType + " call redirection services installed" +
                     " on this device.");

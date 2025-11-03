@@ -45,6 +45,7 @@ import android.os.SystemClock;
 import android.os.UserHandle;
 import android.provider.CallLog;
 import android.provider.ContactsContract.Contacts;
+import android.telecom.Annotation;
 import android.telecom.BluetoothCallQualityReport;
 import android.telecom.CallAttributes;
 import android.telecom.CallAudioState;
@@ -1746,13 +1747,13 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     }
 
     public void setCallerNumberVerificationStatus(
-            @Connection.VerificationStatus int callerNumberVerificationStatus) {
+            @Annotation.VerificationStatus int callerNumberVerificationStatus) {
         mCallerNumberVerificationStatus = callerNumberVerificationStatus;
         mListeners.forEach(l -> l.onCallerNumberVerificationStatusChanged(this,
                 callerNumberVerificationStatus));
     }
 
-    public @Connection.VerificationStatus int getCallerNumberVerificationStatus() {
+    public @Annotation.VerificationStatus int getCallerNumberVerificationStatus() {
         return mCallerNumberVerificationStatus;
     }
 
@@ -2856,6 +2857,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             ParcelableConference conference) {
         Log.v(this, "handleCreateConferenceSuccessful %s", conference);
         mIsCreateConnectionComplete = true;
+        mIsBulkStateUpdateInProgress = true;
         setTargetPhoneAccount(conference.getPhoneAccount());
         setHandle(conference.getHandle(), conference.getHandlePresentation());
 
@@ -2866,6 +2868,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         setRingbackRequested(conference.isRingbackRequested());
         setStatusHints(conference.getStatusHints());
         putConnectionServiceExtras(conference.getExtras());
+        mIsBulkStateUpdateInProgress = false;
 
         switch (mCallDirection) {
             case CALL_DIRECTION_INCOMING:
@@ -2890,6 +2893,12 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             ParcelableConnection connection) {
         Log.v(this, "handleCreateConnectionSuccessful %s", connection);
         mIsCreateConnectionComplete = true;
+        /* Add a new flag indicating whether this call is setting its initial state. This allows
+         * listeners to ignore events during initialization, which helps improve Phone App KPIs
+         * by reducing unnecessary event processing during a period with many state updates.
+         */
+        mIsBulkStateUpdateInProgress = true;
+
         setTargetPhoneAccount(connection.getPhoneAccount());
         setHandle(connection.getHandle(), connection.getHandlePresentation());
 
@@ -2909,11 +2918,17 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         for (String id : connection.getConferenceableConnectionIds()) {
             mConferenceableCalls.add(idMapper.getCall(id));
         }
+        if(mFlags.bulkStateUpdateCall()) {
+            setCallerNumberVerificationStatus(connection.getCallerNumberVerificationStatus());
+        }
+        mIsBulkStateUpdateInProgress = false;
 
         switch (mCallDirection) {
             case CALL_DIRECTION_INCOMING:
-                setCallerNumberVerificationStatus(connection.getCallerNumberVerificationStatus());
-
+                if(!mFlags.bulkStateUpdateCall()) {
+                    setCallerNumberVerificationStatus(
+                            connection.getCallerNumberVerificationStatus());
+                }
                 // Listeners (just CallsManager for now) will be responsible for checking whether
                 // the call should be blocked.
                 for (Listener l : mListeners) {
@@ -5372,5 +5387,11 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
     public int getLastCallStateBeforeDisconnect() {
         return mLastCallStateBeforeDisconnect;
+    }
+
+    private boolean mIsBulkStateUpdateInProgress;
+
+    public boolean isBulkStateUpdateInProgress() {
+      return mIsBulkStateUpdateInProgress;
     }
 }

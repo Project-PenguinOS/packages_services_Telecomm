@@ -766,11 +766,20 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
      */
     private void maybeClearPendingMessage() {
         AudioRoute pendingDestRoute = mPendingAudioRoute.getDestRoute();
-        if (pendingDestRoute != null && isCurrentCommunicationDevice(pendingDestRoute)) {
-            if (pendingDestRoute.getType() == TYPE_BLUETOOTH_SCO) {
+        if (pendingDestRoute != null) {
+            if (isCurrentCommunicationDevice(pendingDestRoute)) {
+                if (pendingDestRoute.getType() == TYPE_BLUETOOTH_SCO) {
+                    mPendingAudioRoute.clearPendingMessage(new Pair<>(BT_AUDIO_CONNECTED,
+                            pendingDestRoute.getBluetoothAddress()));
+                } else if (pendingDestRoute.getType() == TYPE_SPEAKER) {
+                    mPendingAudioRoute.clearPendingMessage(new Pair<>(SPEAKER_ON, null));
+                }
+            } else if (pendingDestRoute.getType() != TYPE_BLUETOOTH_SCO) {
+                // Don't wait for BT_AUDIO_CONNECTED msg if pending route is not BT_SCO.
                 mPendingAudioRoute.clearPendingMessage(new Pair<>(BT_AUDIO_CONNECTED,
-                        pendingDestRoute.getBluetoothAddress()));
-            } else if (pendingDestRoute.getType() == TYPE_SPEAKER) {
+                            pendingDestRoute.getBluetoothAddress()));
+            } else if (pendingDestRoute.getType() != TYPE_SPEAKER) {
+                // Don't wait for SPEAKER_ON msg if pending route is not SPEAKER.
                 mPendingAudioRoute.clearPendingMessage(new Pair<>(SPEAKER_ON, null));
             }
         }
@@ -1125,34 +1134,13 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     private void handleMuteChanged(boolean mute) {
         mIsMute = mute;
         if (mIsMute != mAudioManager.isMicrophoneMute() && mIsActive) {
-            if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-                Context userContext = mContext.createContextAsUser(
-                        mCallsManager.getCurrentUserHandle(), 0);
-                AudioManager userAudioManager =
-                        (AudioManager) userContext.getSystemService(Context.AUDIO_SERVICE);
-                Log.i(this, "changing microphone mute state to: %b "
-                        + "[userAudioManagerIsNull=%b]", mute, userAudioManager == null);
-                if (userAudioManager != null) {
-                    userAudioManager.setMicrophoneMute(mute);
-                }
-            } else {
-                IAudioService audioService = mAudioServiceFactory.getAudioService();
-                Log.i(this, "changing microphone mute state to: %b [serviceIsNull=%b]", mute,
-                        audioService == null);
-                if (audioService != null) {
-                    try {
-                        audioService.setMicrophoneMute(mute, mContext.getOpPackageName(),
-                                mCallsManager.getCurrentUserHandle().getIdentifier(),
-                                mContext.getAttributionTag());
-                    } catch (RemoteException e) {
-                        if (mFeatureFlags.telecomMetricsSupport()) {
-                            mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_AUDIO,
-                                    ErrorStats.ERROR_EXTERNAL_EXCEPTION);
-                        }
-                        Log.e(this, e, "Remote exception while toggling mute.");
-                        return;
-                    }
-                }
+            Context userContext = mContext.createContextAsUser(
+                    mCallsManager.getCurrentUserHandle(), 0);
+            AudioManager userAudioManager = userContext.getSystemService(AudioManager.class);
+            Log.i(this, "changing microphone mute state to: %b "
+                    + "[userAudioManagerIsNull=%b]", mute, userAudioManager == null);
+            if (userAudioManager != null) {
+                userAudioManager.setMicrophoneMute(mute);
             }
         }
         onMuteStateChanged(mIsMute);
