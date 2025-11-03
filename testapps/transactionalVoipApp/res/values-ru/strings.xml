@@ -28,8 +28,7 @@
     <string name="call_attributes_empty_error" msgid="6921783379546938037">"Атрибуты звонка не могут быть пустыми. Использовать стандартные значения."</string>
     <string name="back_to_voip_main" msgid="2500173767939494261">"Вернуться к основным операциям VOIP"</string>
     <string name="clear_voip_call_logs" msgid="2402471290566644149">"Очистить список вызовов для проверки VoIP"</string>
-    <!-- no translation found for refresh_call_logs (4633143020852759545) -->
-    <skip />
+    <string name="refresh_call_logs" msgid="4633143020852759545">"Обновить списки вызовов"</string>
     <string name="call_log" msgid="2664639384522572724">"Список вызовов"</string>
     <string name="voip_callback" msgid="9213402996514282039">"Тестировать обратный звонок"</string>
     <string name="get_call_id" msgid="5513943242738347108">"идентификатор вызова не задан"</string>

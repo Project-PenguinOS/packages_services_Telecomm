@@ -28,8 +28,7 @@
     <string name="call_attributes_empty_error" msgid="6921783379546938037">"Dei-atributuak ezin dira hutsik egon. Atributu lehenetsiak hasieratzen, halere."</string>
     <string name="back_to_voip_main" msgid="2500173767939494261">"Itzuli VoIP bidezko jarduera nagusietara"</string>
     <string name="clear_voip_call_logs" msgid="2402471290566644149">"Garbitu VoIP bidezko probako deien erregistroak"</string>
-    <!-- no translation found for refresh_call_logs (4633143020852759545) -->
-    <skip />
+    <string name="refresh_call_logs" msgid="4633143020852759545">"Freskatu deien erregistroak"</string>
     <string name="call_log" msgid="2664639384522572724">"Deien erregistroa"</string>
     <string name="voip_callback" msgid="9213402996514282039">"Probako dei bidezko erantzuna"</string>
     <string name="get_call_id" msgid="5513943242738347108">"ez da ezarri deiaren identifikatzailea"</string>
