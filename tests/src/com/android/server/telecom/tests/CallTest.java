@@ -236,7 +236,6 @@ public class CallTest extends TelecomTestCase {
 
     @Test
     public void testMultipleCachedCallEvents() {
-        when(mFeatureFlags.cacheCallEvents()).thenReturn(true);
         TransactionalServiceWrapper tsw = Mockito.mock(TransactionalServiceWrapper.class);
         Call call = createCall("1", Call.CALL_DIRECTION_INCOMING);
 
@@ -300,7 +299,6 @@ public class CallTest extends TelecomTestCase {
 
     @Test
     public void testCacheAfterServiceSet() {
-        when(mFeatureFlags.cacheCallEvents()).thenReturn(true);
         TransactionalServiceWrapper tsw = Mockito.mock(TransactionalServiceWrapper.class);
         Call call = createCall("1", Call.CALL_DIRECTION_INCOMING);
 
@@ -386,7 +384,6 @@ public class CallTest extends TelecomTestCase {
      */
     @Test
     public void testAllCachedCallbacks() {
-        when(mFeatureFlags.cacheCallEvents()).thenReturn(true);
         TransactionalServiceWrapper tsw = Mockito.mock(TransactionalServiceWrapper.class);
         CallEndpoint earpiece = Mockito.mock(CallEndpoint.class);
         CallEndpoint bluetooth = Mockito.mock(CallEndpoint.class);
