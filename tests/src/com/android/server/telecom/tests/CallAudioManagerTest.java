@@ -361,7 +361,6 @@ public class CallAudioManagerTest extends TelecomTestCase {
     @Test
     public void testOutgoingCall_SwitchFocus_WaitForBtIcs_OnlyOnce() {
         when(mFlags.delayFocusSwitchForBtIcs()).thenReturn(true);
-        when(mFlags.sendNewRingingCallSync()).thenReturn(true);
         Call call = mock(Call.class);
         // When the call is ringing
         when(call.getState()).thenReturn(CallState.RINGING);
@@ -434,7 +433,6 @@ public class CallAudioManagerTest extends TelecomTestCase {
     @Test
     public void testRingingCall_SwitchFocus_WaitForBtIcs_CallRemoved() {
         when(mFlags.delayFocusSwitchForBtIcs()).thenReturn(true);
-        when(mFlags.sendNewRingingCallSync()).thenReturn(true);
         Call call = mock(Call.class);
         when(call.getState()).thenReturn(CallState.RINGING);
         CompletableFuture<Boolean> btIcsFuture = new CompletableFuture<>();
@@ -494,7 +492,6 @@ public class CallAudioManagerTest extends TelecomTestCase {
     public void testRingingCall_SwitchFocus_WaitForBtIcs_Exceptional_CallRemoved()
             throws Exception {
         when(mFlags.delayFocusSwitchForBtIcs()).thenReturn(true);
-        when(mFlags.sendNewRingingCallSync()).thenReturn(true);
         Call call = mock(Call.class);
         when(call.getState()).thenReturn(CallState.RINGING);
         CompletableFuture<Boolean> btIcsFuture = new CompletableFuture<>();
