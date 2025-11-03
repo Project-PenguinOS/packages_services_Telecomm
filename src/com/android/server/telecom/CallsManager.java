@@ -4340,21 +4340,6 @@ public class CallsManager extends Call.ListenerBase
         mCallAudioManager.playRttUpgradeTone(call);
     }
 
-    // Construct the list of possible PhoneAccounts that the outgoing call can use based on the
-    // active calls in CallsManager. If any of the active calls are on a SIM based PhoneAccount,
-    // then include only that SIM based PhoneAccount and any non-SIM PhoneAccounts, such as SIP.
-    @VisibleForTesting
-    public List<PhoneAccountHandle> constructPossiblePhoneAccounts(Uri handle, UserHandle user,
-            boolean isVideo, boolean isEmergency,  boolean isConference) {
-        if (mTelephonyFeatureFlags.simultaneousCallingIndications()) {
-            return constructPossiblePhoneAccountsNew(handle, user, isVideo, isEmergency,
-                    isConference);
-        } else {
-            return constructPossiblePhoneAccountsOld(handle, user, isVideo, isEmergency,
-                    isConference);
-        }
-    }
-
     // Returns whether the device is capable of 2 simultaneous active voice calls on different subs.
     @VisibleForTesting
     public boolean isDsdaCallingPossible() {
@@ -4371,54 +4356,14 @@ public class CallsManager extends Call.ListenerBase
         }
     }
 
-    private List<PhoneAccountHandle> constructPossiblePhoneAccountsOld(Uri handle, UserHandle user,
-            boolean isVideo, boolean isEmergency, boolean isConference) {
-
-        if (handle == null) {
-            return Collections.emptyList();
-        }
-        // If we're specifically looking for video capable accounts, then include that capability,
-        // otherwise specify no additional capability constraints. When handling the emergency call,
-        // it also needs to find the phone accounts excluded by CAPABILITY_EMERGENCY_CALLS_ONLY.
-        int capabilities = isVideo ? PhoneAccount.CAPABILITY_VIDEO_CALLING : 0;
-        capabilities |= isConference ? PhoneAccount.CAPABILITY_ADHOC_CONFERENCE_CALLING : 0;
-        List<PhoneAccountHandle> allAccounts =
-                mPhoneAccountRegistrar.getCallCapablePhoneAccounts(handle.getScheme(), false, user,
-                        capabilities,
-                        isEmergency ? 0 : PhoneAccount.CAPABILITY_EMERGENCY_CALLS_ONLY,
-                        isEmergency);
-        // Only one SIM PhoneAccount can be active at one time for DSDS. Only that SIM PhoneAccount
-        // should be available if a call is already active on the SIM account.
-        // Similarly, the emergency call should be attempted over the same PhoneAccount as the
-        // ongoing call. However, if the ongoing call is over cross-SIM registration, then the
-        // emergency call will be attempted over a different Phone object at a later stage.
-        if (isEmergency || !isDsdaCallingPossible()) {
-            List<PhoneAccountHandle> simAccounts =
-                    mPhoneAccountRegistrar.getSimPhoneAccountsOfCurrentUser();
-            PhoneAccountHandle ongoingCallAccount = null;
-            for (Call c : mCalls) {
-                if (!c.isDisconnected() && !c.isNew() && simAccounts.contains(
-                        c.getTargetPhoneAccount())) {
-                    ongoingCallAccount = c.getTargetPhoneAccount();
-                    break;
-                }
-            }
-            if (ongoingCallAccount != null) {
-                // Remove all SIM accounts that are not the active SIM from the list.
-                simAccounts.remove(ongoingCallAccount);
-                allAccounts.removeAll(simAccounts);
-            }
-        }
-        return allAccounts;
-    }
-
     /**
      * Filters the list of all PhoneAccounts that match the outgoing call Handle's schema against
      * the outgoing call request criteria and the state of the already ongoing calls on the
      * device and their potential simultaneous calling restrictions.
      * @return The filtered List
      */
-    private List<PhoneAccountHandle> constructPossiblePhoneAccountsNew(Uri handle, UserHandle user,
+    @VisibleForTesting
+    public List<PhoneAccountHandle> constructPossiblePhoneAccounts(Uri handle, UserHandle user,
             boolean isVideo, boolean isEmergency, boolean isConference) {
         if (handle == null) {
             return Collections.emptyList();
@@ -4433,12 +4378,12 @@ public class CallsManager extends Call.ListenerBase
                         capabilities,
                         isEmergency ? 0 : PhoneAccount.CAPABILITY_EMERGENCY_CALLS_ONLY,
                         isEmergency);
-        Log.v(this, "constructPossiblePhoneAccountsNew: allAccounts=" + allAccounts);
+        Log.v(this, "constructPossiblePhoneAccounts: allAccounts=" + allAccounts);
         Set<PhoneAccountHandle> activeCallAccounts = mCalls.stream()
                 .filter(c -> !c.isDisconnected() && !c.isNew()).map(Call::getTargetPhoneAccount)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
-        Log.v(this, "constructPossiblePhoneAccountsNew: activeCallAccounts="
+        Log.v(this, "constructPossiblePhoneAccounts: activeCallAccounts="
                 + activeCallAccounts);
         // No Active calls - all accounts are valid
         if (activeCallAccounts.isEmpty()) return allAccounts;
@@ -4451,7 +4396,7 @@ public class CallsManager extends Call.ListenerBase
                 allAccounts.removeIf(h -> {
                     boolean isRemoved = simAccounts.contains(h) && !activeCallAccounts.contains(h);
                     if (isRemoved) {
-                        Log.i(this, "constructPossiblePhoneAccountsNew: removing candidate PAH ["
+                        Log.i(this, "constructPossiblePhoneAccounts: removing candidate PAH ["
                                 + h + "] because another SIM account is active with an emergency "
                                 + "call");
                     }
@@ -4467,7 +4412,7 @@ public class CallsManager extends Call.ListenerBase
                 PhoneAccount callAcct = mPhoneAccountRegistrar.getPhoneAccount(callHandle,
                         user, true /* acrossProfiles */);
                 if (callAcct == null) {
-                    Log.w(this, "constructPossiblePhoneAccountsNew: unexpected"
+                    Log.w(this, "constructPossiblePhoneAccounts: unexpected"
                             + "null PA for PAH, removing : " + candidateHandle);
                     return true;
                 }
@@ -4477,7 +4422,7 @@ public class CallsManager extends Call.ListenerBase
                         && callAcct.hasSimultaneousCallingRestriction()
                         && !callAcct.getSimultaneousCallingRestriction().contains(candidateHandle);
                 if (isRemoved) {
-                    Log.i(this, "constructPossiblePhoneAccountsNew: removing candidate"
+                    Log.i(this, "constructPossiblePhoneAccounts: removing candidate"
                             + " PAH [" + candidateHandle + "] because it is not part of the"
                             + " restriction set by [" + callHandle + "], restriction="
                             + callAcct.getSimultaneousCallingRestriction());

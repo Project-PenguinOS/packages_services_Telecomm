@@ -58,6 +58,7 @@ import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Process;
 import android.os.UserHandle;
+import android.os.UserManager;
 import android.telecom.Call;
 import android.telecom.ConnectionRequest;
 import android.telecom.DisconnectCause;
@@ -646,6 +647,12 @@ public class TelecomSystemTest extends TelecomTestCase{
         mTelecomSystem.getPhoneAccountRegistrar().registerPhoneAccount(mPhoneAccountE0);
         mTelecomSystem.getPhoneAccountRegistrar().registerPhoneAccount(mPhoneAccountE1);
         mTelecomSystem.getPhoneAccountRegistrar().registerPhoneAccount(mPhoneAccountMultiUser);
+
+        // Assume the Users are in the same ProfileGroup by default
+        UserManager um = mContext.getSystemService(UserManager.class);
+        doReturn(true).when(um).isSameProfileGroup(any(UserHandle.class),
+                any(UserHandle.class));
+        doReturn(true).when(um).isSameProfileGroup(anyInt(), anyInt());
 
         mTelecomSystem.getPhoneAccountRegistrar().setUserSelectedOutgoingPhoneAccount(
                 mPhoneAccountA0.getAccountHandle(), Process.myUserHandle());
