@@ -29,6 +29,7 @@ import android.content.Context;
 // QTI_END: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
 import android.annotation.NonNull;
 import android.content.Context;
+import android.media.AudioManager;
 import android.media.IAudioService;
 // QTI_BEGIN: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
 import android.media.AudioManager;
@@ -879,7 +880,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
                 break;
             case CallState.RINGING:
                 mIsCrsInCallMode = (call != null &&
-                        call.getCrsMode() == android.telecom.Call.CRS_MODE_IN_CALL &&
+                        call.getCrsMode() == AudioManager.MODE_IN_CALL &&
                         call.isCrsCall());
             case CallState.SIMULATED_RINGING:
 // QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
@@ -1010,7 +1011,8 @@ public class CallAudioManager extends CallsManagerListenerBase {
                             // We should check that the call hasn't been disconnected or is in the
                             // middle of disconnecting. Otherwise, we shouldn't be signaling to the
                             // audio mode state machine to request audio focus.
-                            if (focusCall.getState() != CallState.DISCONNECTED
+                            if (mActiveDialingOrConnectingCalls.size() == 1
+                                    && focusCall.getState() != CallState.DISCONNECTED
                                     && !focusCall.isLocallyDisconnecting()) {
                                 mCallAudioModeStateMachine.sendMessageWithArgs(
                                         CallAudioModeStateMachine.NEW_ACTIVE_OR_DIALING_CALL,
@@ -1041,8 +1043,9 @@ public class CallAudioManager extends CallsManagerListenerBase {
                         ? ringingCall.getBtIcsFuture().thenCompose((completed) -> {
                             // Do a performative check to see if the call is still ringing before
                             // sending the msg forward to the CallAudioModeStateMachine.
-                            if (ringingCall.getState() == CallState.RINGING
-                                    || ringingCall.getState() == CallState.SIMULATED_RINGING) {
+                            if (mRingingCalls.size() == 1
+                                    && (ringingCall.getState() == CallState.RINGING
+                                    || ringingCall.getState() == CallState.SIMULATED_RINGING)) {
                                 mCallAudioModeStateMachine.sendMessageWithArgs(
                                         CallAudioModeStateMachine.NEW_RINGING_CALL,
                                         makeArgsForModeStateMachine());
@@ -1080,26 +1083,30 @@ public class CallAudioManager extends CallsManagerListenerBase {
             // Fallback on performing computation on a separate thread.
             mBtIcsBindingThread = new Thread(() -> {
                 if (isHandlingRinging) {
-                    Call ringingCall = mRingingCalls.getFirst();
-                    // Wait for the BT ICS future to complete
-                    ringingCall.waitForBtIcs();
-                    // Only send the message if the call is still ringing
-                    if (ringingCall.getState() == CallState.RINGING
-                            || ringingCall.getState() == CallState.SIMULATED_RINGING) {
-                        mCallAudioModeStateMachine.sendMessageWithArgs(
-                                CallAudioModeStateMachine.NEW_RINGING_CALL,
-                                makeArgsForModeStateMachine());
+                    if (!mRingingCalls.isEmpty()) {
+                        Call ringingCall = mRingingCalls.getFirst();
+                        // Wait for the BT ICS future to complete
+                        ringingCall.waitForBtIcs();
+                        // Only send the message if the call is still ringing
+                        if (ringingCall.getState() == CallState.RINGING
+                                || ringingCall.getState() == CallState.SIMULATED_RINGING) {
+                            mCallAudioModeStateMachine.sendMessageWithArgs(
+                                    CallAudioModeStateMachine.NEW_RINGING_CALL,
+                                    makeArgsForModeStateMachine());
+                        }
                     }
                 } else {
-                    Call dialingActiveOrConnectingCall = mActiveDialingOrConnectingCalls
+                    if (!mActiveDialingOrConnectingCalls.isEmpty()) {
+                        Call dialingActiveOrConnectingCall = mActiveDialingOrConnectingCalls
                             .getFirst();
-                    // Wait for the BT ICS future to complete
-                    dialingActiveOrConnectingCall.waitForBtIcs();
-                    if (dialingActiveOrConnectingCall.getState() != CallState.DISCONNECTED
-                            && !dialingActiveOrConnectingCall.isLocallyDisconnecting()) {
-                        mCallAudioModeStateMachine.sendMessageWithArgs(
-                                CallAudioModeStateMachine.NEW_ACTIVE_OR_DIALING_CALL,
-                                makeArgsForModeStateMachine());
+                        // Wait for the BT ICS future to complete
+                        dialingActiveOrConnectingCall.waitForBtIcs();
+                        if (dialingActiveOrConnectingCall.getState() != CallState.DISCONNECTED
+                                && !dialingActiveOrConnectingCall.isLocallyDisconnecting()) {
+                            mCallAudioModeStateMachine.sendMessageWithArgs(
+                                    CallAudioModeStateMachine.NEW_ACTIVE_OR_DIALING_CALL,
+                                    makeArgsForModeStateMachine());
+                        }
                     }
                 }
             });

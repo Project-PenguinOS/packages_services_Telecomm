@@ -2591,47 +2591,27 @@ public class TelecomServiceImpl {
 
         }
 
-        /**
-         * @see android.telecom.TelecomManager#createManageBlockedNumbersIntent
-         */
         @Override
-        public Intent createManageBlockedNumbersIntent(String callingPackage) {
-            ApiStats.ApiEvent event = new ApiStats.ApiEvent(
-                    ApiStats.API_CREATEMANAGEBLOCKEDNUMBERSINTENT,
-                    Binder.getCallingUid(), ApiStats.RESULT_NORMAL);
-            try {
-                Log.startSession("TSI.cMBNI", Log.getPackageAbbreviation(callingPackage));
-                return BlockedNumbersActivity.getIntentForStartingActivity();
-            } finally {
-                logEvent(event);
-                Log.endSession();
-            }
-        }
-
-        @Override
-        public Intent createLaunchEmergencyDialerIntent(String number) {
+        public String getPackageForCreateLaunchEmergencyDialerIntent() {
             ApiStats.ApiEvent event = new ApiStats.ApiEvent(
                     ApiStats.API_CREATELAUNCHEMERGENCYDIALERINTENT,
                     Binder.getCallingUid(), ApiStats.RESULT_NORMAL);
             String packageName = mContext.getApplicationContext().getString(
                     com.android.internal.R.string.config_emergency_dialer_package);
-            Intent intent = new Intent(Intent.ACTION_DIAL_EMERGENCY)
-                    .setPackage(packageName);
+            // Test to see if the package exists on the device
+            Intent intent = new Intent(Intent.ACTION_DIAL_EMERGENCY).setPackage(packageName);
             long token = Binder.clearCallingIdentity();
             try {
                 ResolveInfo resolveInfo = mPackageManager.resolveActivity(intent, 0 /* flags*/);
                 if (resolveInfo == null) {
                     // No matching activity from config, fallback to default platform implementation
-                    intent.setPackage(null);
+                    return null;
                 }
             } finally {
                 Binder.restoreCallingIdentity(token);
             }
-            if (!TextUtils.isEmpty(number) && TextUtils.isDigitsOnly(number)) {
-                intent.setData(Uri.parse("tel:" + number));
-            }
             logEvent(event);
-            return intent;
+            return packageName;
         }
 
         /**

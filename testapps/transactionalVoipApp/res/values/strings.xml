@@ -31,6 +31,7 @@
     <!-- TestDialer Activity -->
     <string name="back_to_voip_main">Back to VOIP main activity</string>
     <string name="clear_voip_call_logs">Clear VOIP test call logs</string>
+    <string name="refresh_call_logs">Refresh call logs</string>
     <string name="call_log">Call Log</string>
     <string name="voip_callback">Test callback</string>
 
