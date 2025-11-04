@@ -981,7 +981,35 @@ public class CallTest extends TelecomTestCase {
         assertEquals(packagePid, call.getCallingPackageIdentity().mCallingPackagePid);
     }
 
-        @Test
+    @Test
+    @SmallTest
+    public void testGetCreationTimeMillis_HandlesZeroInitialTime() {
+        // This test verifies the defensive check in getCreationTimeMillis.
+        // In some rare cases, a Call object might be created with a creation time of 0.
+        // The getter should handle this by setting a proper creation time.
+
+        // Arrange:
+        // Simulate the clock returning 0 during the Call's constructor.
+        when(mMockClockProxy.currentTimeMillis()).thenReturn(0L);
+        Call call = createCall("1");
+
+        // Arrange:
+        // Now, have the clock return a valid time for the getter call.
+        long expectedCreationTime = 1700000000L;
+        when(mMockClockProxy.currentTimeMillis()).thenReturn(expectedCreationTime);
+
+        // Act:
+        // Call the getter, which should trigger the defensive check.
+        long actualCreationTime = call.getCreationTimeMillis();
+
+        // Assert:
+        // The returned time should be the valid time, not the initial 0.
+        assertEquals(expectedCreationTime, actualCreationTime);
+        // Verify the clock was called once in the constructor and once in the getter.
+        verify(mMockClockProxy, times(2)).currentTimeMillis();
+    }
+
+    @Test
     @SmallTest
     public void testOnConnectionEventNotifiesListener() {
         Call.Listener listener = mock(Call.Listener.class);
