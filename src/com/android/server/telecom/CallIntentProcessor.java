@@ -249,7 +249,7 @@ public class CallIntentProcessor {
         final UserHandle initiatingUser = intent.getParcelableExtra(KEY_INITIATING_USER);
         if (UserUtil.isManagedProfile(context, initiatingUser, featureFlags)) {
             boolean noDialerInstalled = DefaultDialerManager.getInstalledDialerApplications(context,
-                    initiatingUser.getIdentifier()).size() == 0;
+                    initiatingUser).size() == 0;
             if (noDialerInstalled) {
                 final UserManager userManager = context.getSystemService(UserManager.class);
                 UserHandle parentUserHandle = featureFlags.telecomResolveHiddenDependencies()
