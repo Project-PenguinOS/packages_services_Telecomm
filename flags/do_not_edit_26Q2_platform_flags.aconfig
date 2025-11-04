@@ -144,7 +144,6 @@ flag {
 # OWNER=ntmyren TARGET=26Q2
 flag {
   name: "call_details_get_associated_user_api"
-  is_exported: true
   namespace: "telecom"
   description: "Adds a UserHandle to the Call Details"
   bug: "408470449"
