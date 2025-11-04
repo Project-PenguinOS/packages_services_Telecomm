@@ -7,7 +7,6 @@ container: "system"
 # OWNER=stevestatia TARGET=26Q2
 flag {
   name: "enable_audio_processing_use_case"
-  is_exported: true
   namespace: "telecom"
   description: "Introduce audio processing use case to improve call state synchronization."
   bug: "411205001"
