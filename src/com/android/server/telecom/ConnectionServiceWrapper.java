@@ -1876,9 +1876,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                             Log.getExternalSession(TELECOM_ABBREVIATION));
                 } catch (RemoteException e) {
                     Log.e(this, e, "Failure to createConference -- %s", getComponentName());
-                    if (mFlags.dontTimeoutDestroyedCalls()) {
-                        maybeRemoveCleanupFuture(call);
-                    }
+                    maybeRemoveCleanupFuture(call);
                     mPendingResponses.remove(callId).handleCreateConferenceFailure(
                             new DisconnectCause(DisconnectCause.ERROR, e.toString()));
                 }
@@ -1909,9 +1907,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                     Log.i(ConnectionServiceWrapper.this, "Call not present"
                             + " in call id mapper, maybe it was aborted before the bind"
                             + " completed successfully?");
-                    if (mFlags.dontTimeoutDestroyedCalls()) {
-                        maybeRemoveCleanupFuture(call);
-                    }
+                    maybeRemoveCleanupFuture(call);
                     response.handleCreateConnectionFailure(
                             new DisconnectCause(DisconnectCause.CANCELED));
                     return;
@@ -2016,9 +2012,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                 }
                 try {
                     if (mFlags.cswServiceInterfaceIsNull() && mServiceInterface == null) {
-                        if (mFlags.dontTimeoutDestroyedCalls()) {
-                            maybeRemoveCleanupFuture(call);
-                        }
+                        maybeRemoveCleanupFuture(call);
                         CreateConnectionResponse response = mPendingResponses.remove(callId);
                         if (response != null) {
                             response.handleCreateConnectionFailure(
@@ -2036,9 +2030,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                     }
                 } catch (RemoteException e) {
                     Log.e(this, e, "Failure to createConnection -- %s", getComponentName());
-                    if (mFlags.dontTimeoutDestroyedCalls()) {
-                        maybeRemoveCleanupFuture(call);
-                    }
+                    maybeRemoveCleanupFuture(call);
                     mPendingResponses.remove(callId).handleCreateConnectionFailure(
                             new DisconnectCause(DisconnectCause.ERROR, e.toString()));
                 }
@@ -2526,9 +2518,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         if (response != null) {
             response.handleCreateConnectionFailure(disconnectCause);
         }
-        if (mFlags.dontTimeoutDestroyedCalls()) {
-            maybeRemoveCleanupFuture(mCallIdMapper.getCall(callId));
-        }
+        maybeRemoveCleanupFuture(mCallIdMapper.getCall(callId));
+
 
         mCallIdMapper.removeCall(callId);
     }
@@ -2538,9 +2529,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         if (response != null) {
             response.handleCreateConnectionFailure(disconnectCause);
         }
-        if (mFlags.dontTimeoutDestroyedCalls()) {
-            maybeRemoveCleanupFuture(call);
-        }
+        maybeRemoveCleanupFuture(call);
 
         mCallIdMapper.removeCall(call);
     }
