@@ -554,7 +554,7 @@ public class TelecomSystemTest extends TelecomTestCase{
                 mConnServFMFactory,
                 mTimeoutsAdapter,
                 mAsyncRingtonePlayer,
-                new PhoneNumberUtilsAdapterImpl(),
+                new PhoneNumberUtilsAdapterImpl(mContext, mModuleBugFixFeatureFlags),
                 mIncomingCallNotifier,
                 (streamType, volume) -> mToneGenerator,
                 new CallAudioRouteController.Factory() {
