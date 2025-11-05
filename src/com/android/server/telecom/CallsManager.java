@@ -4939,37 +4939,28 @@ public class CallsManager extends Call.ListenerBase
      * @param call The call to configure the removal future for.
      */
     private void configureRemovalFuture(Call call) {
-        if (!mFeatureFlags.cancelRemovalOnEmergencyRedial()) {
-            call.getDiagnosticCompleteFuture().thenRunAsync(() -> performRemoval(call),
-                            new LoggedHandlerExecutor(mHandler, "CM.cRF-O", mLock))
-                    .exceptionally((throwable) -> {
-                        Log.e(TAG, throwable, "Error while executing disconnect future");
-                        return null;
-                    });
+        // A future is being used due to a CallDiagnosticService handling the call.  We will
+        // chain the removal operation to the end of any outstanding disconnect work.
+        CompletableFuture<Void> removalFuture;
+        if (call.getDisconnectFuture() == null) {
+            // Unexpected - can not get the disconnect future, attach to the diagnostic complete
+            // future in this case.
+            removalFuture = call.getDiagnosticCompleteFuture().thenRun(() ->
+                    Log.w(this, "configureRemovalFuture: remove called without disconnecting"
+                            + " first."));
         } else {
-            // A future is being used due to a CallDiagnosticService handling the call.  We will
-            // chain the removal operation to the end of any outstanding disconnect work.
-            CompletableFuture<Void> removalFuture;
-            if (call.getDisconnectFuture() == null) {
-                // Unexpected - can not get the disconnect future, attach to the diagnostic complete
-                // future in this case.
-                removalFuture = call.getDiagnosticCompleteFuture().thenRun(() ->
-                        Log.w(this, "configureRemovalFuture: remove called without disconnecting"
-                                + " first."));
-            } else {
-                removalFuture = call.getDisconnectFuture();
-            }
-            removalFuture = removalFuture.thenRunAsync(() -> performRemoval(call),
-                    new LoggedHandlerExecutor(mHandler, "CM.cRF-N", mLock));
-            removalFuture.exceptionally((throwable) -> {
-                Log.e(TAG, throwable, "Error while executing disconnect future");
-                return null;
-            });
-            // Cache the future to remove the call initiated by the ConnectionService in case we
-            // need to cancel it in favor of removing the call internally as part of creating a
-            // new connection (CreateConnectionProcessor#continueProcessingIfPossible)
-            call.setRemovalFuture(removalFuture);
+            removalFuture = call.getDisconnectFuture();
         }
+        removalFuture = removalFuture.thenRunAsync(() -> performRemoval(call),
+                new LoggedHandlerExecutor(mHandler, "CM.cRF-N", mLock));
+        removalFuture.exceptionally((throwable) -> {
+            Log.e(TAG, throwable, "Error while executing disconnect future");
+            return null;
+        });
+        // Cache the future to remove the call initiated by the ConnectionService in case we
+        // need to cancel it in favor of removing the call internally as part of creating a
+        // new connection (CreateConnectionProcessor#continueProcessingIfPossible)
+        call.setRemovalFuture(removalFuture);
     }
 
     /**
