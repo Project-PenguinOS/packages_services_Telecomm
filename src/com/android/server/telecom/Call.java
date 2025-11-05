@@ -39,6 +39,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
+import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -3566,13 +3567,23 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
 // QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
 
+    /**
+     * Determines the audio mode for a CRS call.
+     *
+     * @return {@link AudioManager#MODE_RINGTONE} if it is explicitly specified in the call extras,
+     *         otherwise defaults to {@link AudioManager#MODE_IN_CALL}.
+     */
     public int getCrsMode() {
-        if (mExtras == null) {
-            return android.telecom.Call.CRS_MODE_IN_CALL;
+        // This logic ensures that MODE_RINGTONE is only used when explicitly set by the vendor.
+        // In all other cases, it safely defaults to MODE_IN_CALL.
+        if (mExtras != null &&
+                mExtras.getInt(android.telecom.Call.EXTRA_CRS_AUDIO_MODE, AudioManager.MODE_IN_CALL)
+                        == AudioManager.MODE_RINGTONE) {
+            return AudioManager.MODE_RINGTONE;
         }
-        return mExtras.getInt(android.telecom.Call.EXTRA_CRS_AUDIO_MODE,
-                android.telecom.Call.CRS_MODE_IN_CALL);
+        return AudioManager.MODE_IN_CALL;
     }
+
 
     public boolean isCrsCall() {
         if (mExtras == null) {

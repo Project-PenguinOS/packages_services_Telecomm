@@ -42,6 +42,7 @@ import com.android.i18n.phonenumbers.PhoneNumberUtil;
 import com.android.i18n.phonenumbers.Phonenumber.PhoneNumber;
 import com.android.i18n.phonenumbers.geocoding.PhoneNumberOfflineGeocoder;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.telecom.R;
 
 import java.util.Locale;
 
@@ -66,7 +67,6 @@ public class CallerInfo {
      */
     public int numberType;
     public String numberLabel;
-    public int photoResource;
     public boolean needUpdate;
     public Uri contactRefUri;
     public String lookupKey;
@@ -155,7 +155,6 @@ public class CallerInfo {
      */
     public static CallerInfo getCallerInfo(Context context, Uri contactRef, Cursor cursor) {
         CallerInfo info = new CallerInfo();
-        info.photoResource = 0;
         info.phoneLabel = null;
         info.numberType = 0;
         info.numberLabel = null;
@@ -637,9 +636,7 @@ public class CallerInfo {
     // 'Emergency Number' and let the UI make the decision about what
     // should be displayed.
     /* package */ CallerInfo markAsEmergency(Context context) {
-        phoneNumber = context.getString(
-            com.android.internal.R.string.emergency_call_dialog_number_for_display);
-        photoResource = com.android.internal.R.drawable.picture_emergency;
+        phoneNumber = context.getString(R.string.emergency_call_dialog_number_for_display);
         mIsEmergency = true;
         return this;
     }
@@ -703,7 +700,6 @@ public class CallerInfo {
                 + "\nphoneLabel: " + phoneLabel
                 + "\nnumberType: " + numberType
                 + "\nnumberLabel: " + numberLabel
-                + "\nphotoResource: " + photoResource
                 + "\ncontactIdOrZero: " + contactIdOrZero
                 + "\nneedUpdate: " + needUpdate
                 + "\ncontactRingtoneUri: " + contactRingtoneUri

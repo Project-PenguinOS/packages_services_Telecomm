@@ -2498,7 +2498,7 @@ public class CallsManager extends Call.ListenerBase
                     Call foregroundCall = getForegroundCall();
                     Log.d(CallsManager.this, "No more room for outgoing call %s ",
                             finalCall);
-                    if (foregroundCall.isSelfManaged()) {
+                    if (foregroundCall != null && foregroundCall.isSelfManaged()) {
                         // If the ongoing call is a self-managed call, then prompt the
                         // user to ask if they'd like to disconnect their ongoing call
                         // and place the outgoing call.

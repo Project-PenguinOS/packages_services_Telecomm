@@ -19,6 +19,18 @@ filegroup {
     path: "src",
 }
 
+// Library for Telecom utility classes and THEIR specific resources.
+android_library {
+    name: "telecom-util-lib",
+    manifest: "AndroidManifestLib.xml",
+    srcs: [
+        "src/com/android/server/telecom/util/**/*.java",
+    ],
+    resource_dirs: ["util_res"],
+    platform_apis: true,
+    min_sdk_version: "23",
+}
+
 android_library {
     name: "TelecomLib",
     libs: [
@@ -34,12 +46,16 @@ android_library {
         ":statslog-telecom-java-gen",
         "proto/**/*.proto",
     ],
+    exclude_srcs: [
+        "src/com/android/server/telecom/util/**/*.java", // Exclude util srcs
+    ],
     static_libs: [
         "androidx.annotation_annotation",
         "androidx.core_core",
         "modules-utils-handlerexecutor",
         "modules-utils-list-slice",
         "telecom_module_flags-export-java",
+        "telecom-util-lib",
     ],
     resource_dirs: ["res"],
     proto: {
@@ -48,6 +64,9 @@ android_library {
         output_params: ["optional_field_style=accessors"],
     },
     platform_apis: true,
+    lint: {
+        baseline_filename: "lint-baseline.xml",
+    },
 }
 
 // Build the Telecom service.
@@ -68,14 +87,6 @@ android_app {
     optimize: {
         proguard_flags_files: ["proguard.flags"],
     },
-}
-
-// Build telecom util static lib
-java_library_static {
-    name: "telecom-util-lib",
-    srcs: [
-        "src/com/android/server/telecom/util/*.java",
-    ],
 }
 
 android_test {

@@ -28,6 +28,8 @@
     <string name="call_attributes_empty_error" msgid="6921783379546938037">"Укажіть атрибути виклику. Усе одно ініціалізуються налаштування за умовчанням."</string>
     <string name="back_to_voip_main" msgid="2500173767939494261">"Повернутися до основної активності VoIP"</string>
     <string name="clear_voip_call_logs" msgid="2402471290566644149">"Очистити журнали тестових викликів VoIP"</string>
+    <!-- no translation found for refresh_call_logs (4633143020852759545) -->
+    <skip />
     <string name="call_log" msgid="2664639384522572724">"Журнал викликів"</string>
     <string name="voip_callback" msgid="9213402996514282039">"Тестовий зворотний виклик"</string>
     <string name="get_call_id" msgid="5513943242738347108">"ідентифікатор виклику не налаштовано"</string>

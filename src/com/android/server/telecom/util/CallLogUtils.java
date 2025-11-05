@@ -24,6 +24,7 @@ import static android.provider.CallLog.Calls.CALL_SCREENING_APP_NAME;
 import static android.provider.CallLog.Calls.CALL_SCREENING_COMPONENT_NAME;
 import static android.provider.CallLog.Calls.COMPOSER_PHOTO_URI;
 import static android.provider.CallLog.Calls.CONTENT_URI;
+import static android.provider.CallLog.Calls.CONTENT_VOIP_URI;
 import static android.provider.CallLog.Calls.DATA_USAGE;
 import static android.provider.CallLog.Calls.DATE;
 import static android.provider.CallLog.Calls.DEFAULT_SORT_ORDER;
@@ -43,6 +44,8 @@ import static android.provider.CallLog.Calls.PHONE_ACCOUNT_ID;
 import static android.provider.CallLog.Calls.POST_DIAL_DIGITS;
 import static android.provider.CallLog.Calls.PREFERRED_DISPLAY_NAME;
 import static android.provider.CallLog.Calls.PRESENTATION_ALLOWED;
+import static android.provider.CallLog.Calls.PRESENTATION_RESTRICTED;
+import static android.provider.CallLog.Calls.PRESENTATION_PAYPHONE;
 import static android.provider.CallLog.Calls.PRESENTATION_UNAVAILABLE;
 import static android.provider.CallLog.Calls.PRESENTATION_UNKNOWN;
 import static android.provider.CallLog.Calls.PRIORITY;
@@ -280,7 +283,8 @@ public class CallLogUtils {
 
         int numberPresentation = getLogNumberPresentation(params.mNumber, params.mPresentation);
         String name = (params.mCallerInfo != null) ? params.mCallerInfo.getName() : "";
-        if (numberPresentation != PRESENTATION_ALLOWED) {
+        // Clear the number and name if the presentation is restricted
+        if (numberPresentation == PRESENTATION_RESTRICTED) {
             params.mNumber = "";
             if (params.mCallerInfo != null) {
                 name = "";
@@ -527,9 +531,13 @@ public class CallLogUtils {
 
         // Since we're doing this operation on behalf of an app, we only
         // want to use the actual "unlocked" state.
-        final Uri uri = ContentProvider.maybeAddUserId(
-            userManager.isUserUnlocked(user) ? CONTENT_URI : SHADOW_CONTENT_URI,
-            user.getIdentifier());
+        final String uuid = values.containsKey(UUID) ? values.getAsString(UUID) : null;
+        // Adjust the URI depending on if we're adding a VOIP call log entry.
+        boolean handlingVoipEntry = uuid != null;
+        final Uri uri = ContentProvider.maybeAddUserId(userManager.isUserUnlocked(user)
+                        ? (handlingVoipEntry ? CONTENT_VOIP_URI : CONTENT_URI)
+                        : SHADOW_CONTENT_URI,
+                user.getIdentifier());
 
         Log.i(LOG_TAG, String.format(Locale.getDefault(),
             "addEntryAndRemoveExpiredEntries: provider uri=%s", uri));
@@ -662,11 +670,11 @@ public class CallLogUtils {
      */
     private static int getLogNumberPresentation(String number, int presentation) {
         if (presentation == TelecomManager.PRESENTATION_RESTRICTED) {
-            return presentation;
+            return PRESENTATION_RESTRICTED;
         }
 
         if (presentation == TelecomManager.PRESENTATION_PAYPHONE) {
-            return presentation;
+            return PRESENTATION_PAYPHONE;
         }
 
         if (presentation == TelecomManager.PRESENTATION_UNAVAILABLE) {
