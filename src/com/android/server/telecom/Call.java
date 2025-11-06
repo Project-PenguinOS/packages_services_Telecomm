@@ -3086,8 +3086,9 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             Log.i(this, "disconnect: Aborting call %s", getId());
             abort(disconnectionTimeout);
             disconnectFutureHandler = awaitCallStateChangeAndMaybeDisconnectCall(
-                    false /* shouldDisconnectUponTimeout */, "disconnect",
-                    CallState.DISCONNECTED, CallState.ABORTED);
+                    com.android.internal.telecom.flags.Flags.disconnectOnTimeoutWhileDisconnecting()
+                            && isSelfManaged(), "disconnect", CallState.DISCONNECTED,
+                    CallState.ABORTED);
         } else if (mState != CallState.ABORTED && mState != CallState.DISCONNECTED) {
             if (mState == CallState.AUDIO_PROCESSING && !hasGoneActiveBefore()) {
                 setOverrideDisconnectCauseCode(new DisconnectCause(DisconnectCause.REJECTED));
@@ -3098,6 +3099,11 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 setOverrideDisconnectCauseCode(new DisconnectCause(DisconnectCause.MISSED));
             }
             if (mTransactionalService != null) {
+                // We request the VoIP application to disconnect the call via onDisconnect().
+                // WARNING: This is a non-cancelable action. If the app fails to handle this
+                // request and confirm disconnection within the strict 5-second timeout, the
+                // platform will automatically enforce the disconnect and remove the call
+                // internally. (See TransactionalCallSequencingAdapter for timeout logic).
                 disconnectFutureHandler = mTransactionalService.onDisconnect(this,
                         getDisconnectCause());
                 Log.i(this, "Send Disconnect to transactional service for call");
@@ -3111,7 +3117,9 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 // association between call and connection service severed, see
                 // {@link CallsManager#markCallAsDisconnected}.
                 disconnectFutureHandler = awaitCallStateChangeAndMaybeDisconnectCall(
-                        false /* shouldDisconnectUponTimeout */, "disconnect",
+                        com.android.internal.telecom.flags.Flags
+                                .disconnectOnTimeoutWhileDisconnecting() && isSelfManaged()
+                                /* shouldDisconnectUponTimeout */, "disconnect",
                         CallState.DISCONNECTED);
                 mConnectionService.disconnect(this);
             }
@@ -3472,7 +3480,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                         || Call.this.getState() != CallState.DISCONNECTED)) {
                     mCallsManager.markCallAsDisconnected(Call.this,
                             new DisconnectCause(DisconnectCause.ERROR,
-                                    "did not hold in timeout window"));
+                                    "did not reach the target state in timeout window"));
                     mCallsManager.markCallAsRemoved(Call.this);
                 }
             }
