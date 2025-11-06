@@ -63,13 +63,8 @@ public class CallScreeningServiceHelper {
                 .setPackage(packageName);
 
         List<ResolveInfo> entries;
-        if (flags.resolveHiddenDependenciesTwo()) {
-            entries = UserUtil.getPackageManagerFromUserHandler(context,
-                    userHandle).queryIntentServicesAsUser(intent, 0, userHandle.getIdentifier());
-        } else {
-            entries = context.getPackageManager().queryIntentServicesAsUser(
-                    intent, 0, userHandle.getIdentifier());
-        }
+        entries = UserUtil.getPackageManagerFromUserHandler(context,
+                userHandle).queryIntentServicesAsUser(intent, 0, userHandle.getIdentifier());
 
         if (entries.isEmpty()) {
             Log.i(TAG, packageName + " has no call screening service defined.");

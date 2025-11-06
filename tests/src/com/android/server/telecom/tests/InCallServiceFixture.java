@@ -118,6 +118,9 @@ public class InCallServiceFixture implements TestFixture<IInCallService> {
         public void onCallEndpointChanged(CallEndpoint callEndpoint) {}
 
         @Override
+        public void onCallEndpointRequested(CallEndpoint callEndpoint) {}
+
+        @Override
         public void onAvailableCallEndpointsChanged(List<CallEndpoint> availableCallEndpoints) {}
 
         @Override

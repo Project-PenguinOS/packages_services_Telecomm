@@ -159,11 +159,7 @@ public class TelecomSystem {
                 synchronized (mLock) {
                     int userHandleId = intent.getIntExtra(Intent.EXTRA_USER_HANDLE, 0);
                     UserHandle currentUserHandle;
-                    if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-                        currentUserHandle = UserHandle.of(userHandleId);
-                    } else {
-                        currentUserHandle = new UserHandle(userHandleId);
-                    }
+                    currentUserHandle = UserHandle.of(userHandleId);
                     Log.i(TelecomSystem.this, "ACTION_USER_SWITCHED: userHandle=%s",
                             currentUserHandle);
                     mPhoneAccountRegistrar.setCurrentUserHandle(currentUserHandle);
@@ -183,11 +179,7 @@ public class TelecomSystem {
                 synchronized (mLock) {
                     int userHandleId = intent.getIntExtra(Intent.EXTRA_USER_HANDLE, 0);
                     UserHandle addingUserHandle;
-                    if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-                        addingUserHandle = UserHandle.of(userHandleId);
-                    } else {
-                        addingUserHandle = new UserHandle(userHandleId);
-                    }
+                    addingUserHandle = UserHandle.of(userHandleId);
                     Log.i(TelecomSystem.this, "ACTION_USER_STARTING: userHandle=%s",
                             addingUserHandle);
                     mCallsManager.onUserStarting(addingUserHandle);
@@ -337,14 +329,9 @@ public class TelecomSystem {
                                 @Override
                                 public List<ResolveInfo> queryIntentServicesAsUser(
                                         @NonNull Intent intent, int flags, int userId) {
-                                    if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-                                        return UserUtil.getPackageManagerFromUserHandler(mContext,
-                                                UserHandle.of(userId)).queryIntentServices(intent,
-                                                flags);
-                                    } else {
-                                        return mContext.getPackageManager()
-                                                .queryIntentServicesAsUser(intent, flags, userId);
-                                    }
+                                    return UserUtil.getPackageManagerFromUserHandler(mContext,
+                                            UserHandle.of(userId)).queryIntentServices(intent,
+                                            flags);
                                 }
 
                                 @Override
@@ -505,21 +492,12 @@ public class TelecomSystem {
             // IMPORTANT: This context must be retained or the receivers we register here will never
             // fire once the context is garbage collected.
             mAllUsersContext = mContext.createContextAsUser(UserHandle.ALL, 0);
-            if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-                mAllUsersContext.registerReceiver(mUserSwitchedReceiver, USER_SWITCHED_FILTER,
-                        Context.RECEIVER_NOT_EXPORTED);
-                mAllUsersContext.registerReceiver(mUserStartingReceiver, USER_STARTING_FILTER,
-                        Context.RECEIVER_NOT_EXPORTED);
-                mAllUsersContext.registerReceiver(mBootCompletedReceiver, BOOT_COMPLETE_FILTER,
-                        Context.RECEIVER_NOT_EXPORTED);
-            } else {
-                mContext.registerReceiverAsUser(mUserSwitchedReceiver, UserHandle.ALL,
-                        USER_SWITCHED_FILTER, null, null, Context.RECEIVER_NOT_EXPORTED);
-                mContext.registerReceiverAsUser(mUserStartingReceiver, UserHandle.ALL,
-                        USER_STARTING_FILTER, null, null, Context.RECEIVER_NOT_EXPORTED);
-                mContext.registerReceiverAsUser(mBootCompletedReceiver, UserHandle.ALL,
-                        BOOT_COMPLETE_FILTER, null, null, Context.RECEIVER_NOT_EXPORTED);
-            }
+            mAllUsersContext.registerReceiver(mUserSwitchedReceiver, USER_SWITCHED_FILTER,
+                    Context.RECEIVER_NOT_EXPORTED);
+            mAllUsersContext.registerReceiver(mUserStartingReceiver, USER_STARTING_FILTER,
+                    Context.RECEIVER_NOT_EXPORTED);
+            mAllUsersContext.registerReceiver(mBootCompletedReceiver, BOOT_COMPLETE_FILTER,
+                    Context.RECEIVER_NOT_EXPORTED);
 
             // Set current user explicitly since USER_SWITCHED_FILTER intent can be missed at
             // startup

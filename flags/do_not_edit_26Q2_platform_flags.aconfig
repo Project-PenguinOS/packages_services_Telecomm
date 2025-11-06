@@ -19,7 +19,6 @@ flag {
 # OWNER=pengfeix TARGET=26Q2
 flag {
   name: "is_using_video_ringback"
-  is_exported: true
   namespace: "telecom"
   description: "Indicate that the call is a video color ring back tone call."
   bug: "408116489"
@@ -39,7 +38,6 @@ flag {
 # OWNER=tgunn TARGET=26Q2
 flag {
   name: "call_connected_indicator_preference"
-  is_exported: true
   namespace: "telecom"
   description: "Add call connected indicator support for playing a tone or starting a vibration"
   bug: "146090790"
@@ -51,7 +49,6 @@ flag {
 # OWNER=tgunn TARGET=26Q2
 flag {
   name: "remotely_hosted_property"
-  is_exported: true
   namespace: "telecom"
   description: "Add PROPERTY_REMOTELY_HOSTED to call to mirror what is in Connection."
   bug: "430293079"
@@ -63,7 +60,6 @@ flag {
 # OWNER=tjstuart TARGET=26Q2
 flag {
   name: "promote_extra_do_not_log_call_to_system_api"
-  is_exported: true
   namespace: "telecom"
   description: "Promoting the hidden extra DO_NOT_LOG call to a system API"
   bug: "427477225"
@@ -91,7 +87,6 @@ flag {
 # OWNER=tgunn TARGET=26Q2
 flag {
   name: "get_last_known_cell_identity"
-  is_exported: true
   namespace: "telecom"
   description: "Formalizes the getLastKnownCellIdentity API that Telecom reliees on as a system api"
   bug: "327454165"
@@ -100,7 +95,6 @@ flag {
 # OWNER=arunrajms TARGET=26Q2
 flag {
   name: "place_call_to_alternate_number"
-  is_exported: true
   namespace: "telecom"
   description: "Adds an API to display the alternate number dialed post redirection"
   bug: "429255861"
@@ -124,7 +118,6 @@ flag {
 flag {
   name: "integrated_call_logs_stage2"
   namespace: "telecom"
-  is_exported: true
   description: "Stage 2 of integrating call logs - add user opt-out support + call icon support"
   bug: "443306176"
 }
@@ -132,7 +125,6 @@ flag {
 # OWNER=tgunn TARGET=26Q2
 flag {
   name: "local_voicemail"
-  is_exported: true
   namespace: "telecom"
   description: "Support for local voicemail."
   bug: "394367444"

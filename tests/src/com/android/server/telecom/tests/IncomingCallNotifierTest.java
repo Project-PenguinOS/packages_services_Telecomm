@@ -90,7 +90,6 @@ public class IncomingCallNotifierTest extends TelecomTestCase {
         when(mRingingCall.getAssociatedUser()).
                 thenReturn(UserHandle.CURRENT);
         when(mRingingCall.getHandoverState()).thenReturn(HandoverState.HANDOVER_NONE);
-        when(mFeatureFlags.resolveHiddenDependenciesTwo()).thenReturn(true);
     }
 
     @Override

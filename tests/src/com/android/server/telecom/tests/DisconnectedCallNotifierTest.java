@@ -71,7 +71,6 @@ public class DisconnectedCallNotifierTest extends TelecomTestCase {
                 Context.TELEPHONY_SERVICE);
         when(fakeTelephonyManager.getNetworkCountryIso()).thenReturn("US");
         doReturn(mCallerInfoLookupHelper).when(mCallsManager).getCallerInfoLookupHelper();
-        when(mFeatureFlags.resolveHiddenDependenciesTwo()).thenReturn(true);
     }
 
     @After

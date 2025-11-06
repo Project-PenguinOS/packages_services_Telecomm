@@ -1057,11 +1057,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
             long token = Binder.clearCallingIdentity();
             try {
                 synchronized (mLock) {
-                    if (mFlags.resolveHiddenDependenciesTwo()) {
-                        extras = TelecomBundleUtils.defuse(extras);
-                    } else {
-                        Bundle.setDefusable(extras, true);
-                    }
+                    extras = TelecomBundleUtils.defuse(extras);
                     Call call = mCallIdMapper.getCall(callId);
                     if (call != null) {
                         call.putConnectionServiceExtras(extras);
@@ -1345,11 +1341,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
             long token = Binder.clearCallingIdentity();
             try {
                 synchronized (mLock) {
-                    if (mFlags.resolveHiddenDependenciesTwo()) {
-                        extras = TelecomBundleUtils.defuse(extras);
-                    } else {
-                        Bundle.setDefusable(extras, true);
-                    }
+                    extras = TelecomBundleUtils.defuse(extras);
                     Call call = mCallIdMapper.getCall(callId);
                     if (call != null) {
                         call.onConnectionEvent(event, extras);

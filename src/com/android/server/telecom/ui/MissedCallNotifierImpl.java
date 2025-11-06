@@ -204,17 +204,10 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
                 where.append(" = ?");
                 try {
                     ContentResolver resolver;
-                    Uri uriToUpdate;
+                    Uri uriToUpdate = Calls.CONTENT_URI;
 
-                    if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-                        Context userContext = mContext.createContextAsUser(userHandle, 0);
-                        resolver = userContext.getContentResolver();
-                        uriToUpdate = Calls.CONTENT_URI;
-                    } else {
-                        resolver = mContext.getContentResolver();
-                        uriToUpdate = ContentProvider
-                                .maybeAddUserId(Calls.CONTENT_URI, userHandle.getIdentifier());
-                    }
+                    Context userContext = mContext.createContextAsUser(userHandle, 0);
+                    resolver = userContext.getContentResolver();
 
                     if (resolver != null && uriToUpdate != null) {
                         resolver.update(uriToUpdate, values, where.toString(),
@@ -237,9 +230,7 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
     }
 
     private String getDefaultDialerPackage(UserHandle userHandle) {
-        String dialerPackage = mFeatureFlags.resolveHiddenDependenciesTwo() ?
-                mDefaultDialerCache.getDefaultDialerApplication(userHandle) :
-                mDefaultDialerCache.getDefaultDialerApplicationLegacy(userHandle.getIdentifier());
+        String dialerPackage = mDefaultDialerCache.getDefaultDialerApplication(userHandle);
         if (TextUtils.isEmpty(dialerPackage)) {
             return null;
         }
@@ -271,13 +262,8 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
         }
 
         List<ResolveInfo> receivers;
-        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            receivers = UserUtil.getPackageManagerFromUserHandler(mContext, userHandle)
-                    .queryBroadcastReceivers(intent, 0);
-        } else {
-            receivers = mContext.getPackageManager()
-                    .queryBroadcastReceiversAsUser(intent, 0, userHandle.getIdentifier());
-        }
+        receivers = UserUtil.getPackageManagerFromUserHandler(mContext, userHandle)
+                .queryBroadcastReceivers(intent, 0);
         return receivers.size() > 0;
     }
 
@@ -294,24 +280,19 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
         BroadcastOptions bopts = BroadcastOptions.makeBasic();
         long duration = Timeouts.getDialerMissedCallPowerSaveExemptionTimeMillis(
                 mContext, mFeatureFlags);
-        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            PowerExemptionManager powerExemptionManager = mContext.getSystemService(
-                    PowerExemptionManager.class);
-            if (powerExemptionManager != null) {
-                try {
-                    powerExemptionManager.addToTemporaryAllowList(dialerPackage,
-                            PowerExemptionManager.REASON_OTHER, MISSED_CALL_POWER_SAVE_REASON,
-                            duration);
-                } catch (RuntimeException e) {
-                    Log.w(this, "exemptFromPowerSavingTemporarily e=" + e.getMessage());
-                }
-            } else {
-                Log.w(this, "exemptFromPowerSavingTemporarily: could not get "
-                        + "PowerExemptionManager");
+        PowerExemptionManager powerExemptionManager = mContext.getSystemService(
+                PowerExemptionManager.class);
+        if (powerExemptionManager != null) {
+            try {
+                powerExemptionManager.addToTemporaryAllowList(dialerPackage,
+                        PowerExemptionManager.REASON_OTHER, MISSED_CALL_POWER_SAVE_REASON,
+                        duration);
+            } catch (RuntimeException e) {
+                Log.w(this, "exemptFromPowerSavingTemporarily e=" + e.getMessage());
             }
         } else {
-            mDeviceIdleControllerAdapter.exemptAppTemporarilyForEvent(dialerPackage, duration,
-                    handle.getIdentifier(), MISSED_CALL_POWER_SAVE_REASON);
+            Log.w(this, "exemptFromPowerSavingTemporarily: could not get "
+                    + "PowerExemptionManager");
         }
         bopts.setTemporaryAppWhitelistDuration(duration);
         return bopts.toBundle();
@@ -588,24 +569,14 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
         intent.setType(Calls.CONTENT_TYPE);
 
         PendingIntent pendingIntent;
-        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            Intent[] myIntents = {intent};
-            Context context = mContext.createContextAsUser(userHandle, 0);
-            pendingIntent = PendingIntent.getActivities(
-                    context,
-                    0 /* requestCode */,
-                    myIntents,
-                    PendingIntent.FLAG_IMMUTABLE,
-                    null);
-        } else {
-            TaskStackBuilder taskStackBuilder = TaskStackBuilder.create(mContext);
-            taskStackBuilder.addNextIntent(intent);
-            pendingIntent = taskStackBuilder.getPendingIntent(
-                    0,
-                    PendingIntent.FLAG_IMMUTABLE,
-                    null,
-                    userHandle);
-        }
+        Intent[] myIntents = {intent};
+        Context context = mContext.createContextAsUser(userHandle, 0);
+        pendingIntent = PendingIntent.getActivities(
+                context,
+                0 /* requestCode */,
+                myIntents,
+                PendingIntent.FLAG_IMMUTABLE,
+                null);
         return pendingIntent;
     }
 
@@ -710,16 +681,12 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
         }
 
         Context contextToUse;
-        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            try {
-                contextToUse = mContext.createContextAsUser(userHandle, 0 /* flags */);
-            } catch (IllegalStateException e) {
-                Log.e(this, e, "reloadFromDatabase: Failed to create context for user "
-                    + userHandle);
-                return;
-            }
-        } else {
-            contextToUse = mContext;
+        try {
+            contextToUse = mContext.createContextAsUser(userHandle, 0 /* flags */);
+        } catch (IllegalStateException e) {
+            Log.e(this, e, "reloadFromDatabase: Failed to create context for user "
+                + userHandle);
+            return;
         }
 
         // instantiate query handler
@@ -804,13 +771,7 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
         };
 
         // setup query spec, look for all Missed calls that are new.
-        Uri callsUri;
-        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            callsUri = Calls.CONTENT_URI;
-        } else {
-            callsUri = ContentProvider
-                    .maybeAddUserId(Calls.CONTENT_URI, userHandle.getIdentifier());
-        }
+        Uri callsUri = Calls.CONTENT_URI;
         //Adding code to catch IllegalArgumentException, which might occur when we
         //query the ContactsProvider and ContactsProvider is dying,
         //so that system server does not crash.

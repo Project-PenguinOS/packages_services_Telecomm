@@ -603,13 +603,8 @@ public class VideoProviderProxy extends Connection.VideoProvider {
 
         try {
             // Some apps that have the permission can be restricted via app ops.
-            if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-                return appOpsManager != null && appOpsManager.noteOp(AppOpsManager.OPSTR_CAMERA,
-                        callingUid, callingPackage) == AppOpsManager.MODE_ALLOWED;
-            } else {
-                return appOpsManager != null && appOpsManager.noteOp(AppOpsManager.OP_CAMERA,
-                        callingUid, callingPackage) == AppOpsManager.MODE_ALLOWED;
-            }
+            return appOpsManager != null && appOpsManager.noteOp(AppOpsManager.OPSTR_CAMERA,
+                    callingUid, callingPackage) == AppOpsManager.MODE_ALLOWED;
         } catch (SecurityException se) {
             Log.w(this, "canUseCamera got appOpps Exception " + se.toString());
             return false;
