@@ -22,18 +22,23 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.content.ContentProvider;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.net.Uri;
 import android.os.UserHandle;
+import android.provider.CallLog;
 import android.text.TextUtils;
 
 import androidx.test.filters.SmallTest;
@@ -66,6 +71,7 @@ public class CallLogIntegrationTests extends TelecomTestCase {
     @Mock private SharedPreferences mSharedPreferences;
     @Mock private SharedPreferences.Editor mEditor;
     @Mock private UserHandle mUserHandle;
+    @Mock private ContentResolver mUserContentResolver;
 
     private CallLogIntegrationAdapterImpl mAdapter;
 
@@ -74,12 +80,13 @@ public class CallLogIntegrationTests extends TelecomTestCase {
         super.setUp();
         when(mContext.createContextAsUser(any(UserHandle.class), anyInt()))
                 .thenReturn(mUserContext);
+        when(mUserContext.getContentResolver()).thenReturn(mUserContentResolver);
         when(mUserContext.getPackageManager()).thenReturn(mPackageManager);
         when(mUserContext.getSharedPreferences(anyString(), anyInt()))
                 .thenReturn(mSharedPreferences);
         when(mSharedPreferences.edit()).thenReturn(mEditor);
         when(mEditor.putString(anyString(), anyString())).thenReturn(mEditor);
-        mAdapter = new CallLogIntegrationAdapterImpl(mContext);
+        mAdapter = new CallLogIntegrationAdapterImpl(mContext, mFeatureFlags);
     }
 
     @After
@@ -135,6 +142,7 @@ public class CallLogIntegrationTests extends TelecomTestCase {
     @Test
     @SmallTest
     public void testSetEnabledState() {
+        when(mFeatureFlags.integratedCallLogsStage2()).thenReturn(true);
         // Set up persistent storage to be empty and broadcast query to return one package.
         when(mSharedPreferences.getString(anyString(), anyString())).thenReturn("");
         mockBroadcastQueryResult(Collections.singletonList(PKG_1));
@@ -150,6 +158,13 @@ public class CallLogIntegrationTests extends TelecomTestCase {
         Map<String, Boolean> storedMap = deserializeSharedPrefString(captor.getValue());
         assertEquals(1, storedMap.size());
         assertFalse(storedMap.get(PKG_1));
+
+        // Verify that we deleted the call log entries for the package.
+        Uri expectedUri = ContentProvider.createContentUriForUser(
+                CallLog.Calls.CONTENT_URI_WITH_VOIP_CALLS, mUserHandle);
+        String expectedSelection = CallLog.Calls.PHONE_ACCOUNT_COMPONENT_NAME + " LIKE '"
+                + PKG_1 + "%'";
+        verify(mUserContentResolver).delete(eq(expectedUri), eq(expectedSelection), eq(null));
     }
 
     @Test
@@ -202,6 +217,29 @@ public class CallLogIntegrationTests extends TelecomTestCase {
         Map<String, Boolean> storedMap = deserializeSharedPrefString(captor.getValue());
         assertEquals(1, storedMap.size());
         assertTrue(storedMap.containsKey(PKG_1));
+    }
+
+    @Test
+    public void testPackageRemoved_deletesCallLogEntries() {
+        when(mFeatureFlags.integratedCallLogsStage2()).thenReturn(true);
+        // Initialize state with one available package.
+        when(mPackageManager.queryBroadcastReceivers(any(), anyInt()))
+                .thenReturn(Collections.singletonList(createResolveInfo(PKG_1)));
+        mAdapter.getSupportedVoipCallLogIntegrationPackages(mUserHandle);
+
+        // Simulate package being removed by broadcasting ACTION_PACKAGE_REMOVED.
+        Intent intent = new Intent(Intent.ACTION_PACKAGE_REMOVED);
+        intent.setData(Uri.parse("package:" + PKG_1));
+        // Set a UID that corresponds to the test user.
+        intent.putExtra(Intent.EXTRA_UID, mUserHandle.getIdentifier() * UserHandle.PER_USER_RANGE);
+        mAdapter.getPackageChangedReceiver().onReceive(mContext, intent);
+
+        // Verify that we deleted the call log entries for the package.
+        Uri expectedUri = ContentProvider.createContentUriForUser(
+                CallLog.Calls.CONTENT_URI_WITH_VOIP_CALLS, mUserHandle);
+        String expectedSelection = CallLog.Calls.PHONE_ACCOUNT_COMPONENT_NAME + " LIKE '"
+                + PKG_1 + "%'";
+        verify(mUserContentResolver).delete(eq(expectedUri), eq(expectedSelection), eq(null));
     }
 
     @Test

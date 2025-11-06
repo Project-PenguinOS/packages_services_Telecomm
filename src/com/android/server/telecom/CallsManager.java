@@ -951,7 +951,7 @@ public class CallsManager extends Call.ListenerBase
             mListeners.add(mLowBatteryAlertListener);
         }
 
-        mCallLogIntegrationAdapter = new CallLogIntegrationAdapterImpl(mContext);
+        mCallLogIntegrationAdapter = new CallLogIntegrationAdapterImpl(mContext, mFeatureFlags);
 
         if (mCallScreeningServiceComponent == null) {
             String oemCssComponentStr = mContext.getResources().getString(
