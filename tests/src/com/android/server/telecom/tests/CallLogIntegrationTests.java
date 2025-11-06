@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -62,6 +63,7 @@ import java.util.stream.Collectors;
 
 @RunWith(JUnit4.class)
 public class CallLogIntegrationTests extends TelecomTestCase {
+    private static final int TIMEOUT = 5000;
     private static final String PKG_1 = "com.voip.app1";
     private static final String PKG_2 = "com.voip.app2";
 
@@ -164,7 +166,8 @@ public class CallLogIntegrationTests extends TelecomTestCase {
                 CallLog.Calls.CONTENT_URI_WITH_VOIP_CALLS, mUserHandle);
         String expectedSelection = CallLog.Calls.PHONE_ACCOUNT_COMPONENT_NAME + " LIKE '"
                 + PKG_1 + "%'";
-        verify(mUserContentResolver).delete(eq(expectedUri), eq(expectedSelection), eq(null));
+        verify(mUserContentResolver, timeout(TIMEOUT)).delete(eq(expectedUri),
+                eq(expectedSelection), eq(null));
     }
 
     @Test
@@ -239,7 +242,8 @@ public class CallLogIntegrationTests extends TelecomTestCase {
                 CallLog.Calls.CONTENT_URI_WITH_VOIP_CALLS, mUserHandle);
         String expectedSelection = CallLog.Calls.PHONE_ACCOUNT_COMPONENT_NAME + " LIKE '"
                 + PKG_1 + "%'";
-        verify(mUserContentResolver).delete(eq(expectedUri), eq(expectedSelection), eq(null));
+        verify(mUserContentResolver, timeout(TIMEOUT)).delete(eq(expectedUri),
+                eq(expectedSelection), eq(null));
     }
 
     @Test

@@ -43,6 +43,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 /**
@@ -74,6 +76,7 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
     // also don't need to use a concurrent DS on top of a lock as it adds unnecessary overhead and
     // adds confusion as to why both practices are being implemented.
     private final Object mLock = new Object();
+    private final Executor mExecutor = Executors.newSingleThreadExecutor();
     private final FeatureFlags mFeatureFlags;
 
     /**
@@ -385,13 +388,16 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
                 + packageName + "%'";
         Uri appendedUserUri = ContentProvider.createContentUriForUser(
                 CallLog.Calls.CONTENT_URI_WITH_VOIP_CALLS, userHandle);
-        try {
-            int rowsDeleted = userContext.getContentResolver().delete(appendedUserUri,
-                    selection, null);
-            Log.d(TAG, "Deleted %d VoIP call log entries for %s", rowsDeleted, packageName);
-        } catch (Exception e) {
-            Log.e(TAG, e, "Error clearing VoIP call log entries for %s", packageName);
-        }
+        Context finalUserContext = userContext;
+        mExecutor.execute(() -> {
+            try {
+                int rowsDeleted = finalUserContext.getContentResolver().delete(appendedUserUri,
+                        selection, null);
+                Log.d(TAG, "Deleted %d VoIP call log entries for %s", rowsDeleted, packageName);
+            } catch (Exception e) {
+                Log.e(TAG, e, "Error clearing VoIP call log entries for %s", packageName);
+            }
+        });
     }
 
     private boolean doSupportedPackagesNeedUpdate(UserHandle userHandle) {
