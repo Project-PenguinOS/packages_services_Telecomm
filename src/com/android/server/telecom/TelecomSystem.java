@@ -238,7 +238,6 @@ public class TelecomSystem {
             ClockProxy clockProxy,
             RoleManagerAdapter roleManagerAdapter,
             ContactsAsyncHelper.Factory contactsAsyncHelperFactory,
-            DeviceIdleControllerAdapter deviceIdleControllerAdapter,
             String sysUiPackageName,
             Ringer.AccessibilityManagerAdapter accessibilityManagerAdapter,
             Executor asyncTaskExecutor,
@@ -291,7 +290,6 @@ public class TelecomSystem {
             mMissedCallNotifier = missedCallNotifierImplFactory
                     .makeMissedCallNotifierImpl(mContext, mPhoneAccountRegistrar,
                             defaultDialerCache,
-                            deviceIdleControllerAdapter,
                             featureFlags);
             DisconnectedCallNotifier.Factory disconnectedCallNotifierFactory =
                     new DisconnectedCallNotifier.Default();
