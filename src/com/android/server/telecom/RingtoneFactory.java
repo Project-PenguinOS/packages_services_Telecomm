@@ -229,14 +229,8 @@ public class RingtoneFactory {
         if(userContext == null) {
             return false;
         }
-        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            return !TextUtils.isEmpty(Settings.System.getString(userContext.getContentResolver(),
-                    Settings.System.RINGTONE));
-        } else {
-            return !TextUtils.isEmpty(Settings.System.getStringForUser(
-                    userContext.getContentResolver(), Settings.System.RINGTONE,
-                    UserUtil.getUserIdFromContext(userContext, mFeatureFlags)));
-        }
+        return !TextUtils.isEmpty(Settings.System.getString(userContext.getContentResolver(),
+                Settings.System.RINGTONE));
     }
 
     private boolean isWorkContact(Call incomingCall) {

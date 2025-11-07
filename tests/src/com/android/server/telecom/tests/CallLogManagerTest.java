@@ -311,9 +311,6 @@ public class CallLogManagerTest extends TelecomTestCase {
         when(mockCarrierConfigManager.getConfig()).thenReturn(bundle);
 
         Resources mockResources = mContext.getResources();
-        when(mFeatureFlags.resolveHiddenDependenciesTwo()).thenReturn(
-                new com.android.server.telecom.flags.FeatureFlagsImpl()
-                        .resolveHiddenDependenciesTwo());
         when(mockResources.getStringArray(com.android.internal.R.array.unloggable_phone_numbers))
                 .thenReturn(new String[] {number2});
         when(mockResources.getStringArray(

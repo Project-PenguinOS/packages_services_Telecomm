@@ -151,21 +151,16 @@ public class CallStreamingNotification extends CallsManagerListenerBase implemen
         mAsyncTaskExecutor.execute(() -> {
             Icon contactPhotoIcon = null;
             try {
-                if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-                    Resources resources = mContext.getResources();
-                    String resPackage = null;
-                    if (resources != null) {
-                        resPackage = resources.getResourcePackageName(R.drawable.person_circle);
-                    }
-                    if (resPackage != null) {
-                        contactPhotoIcon = Icon.createWithResource(
-                                resPackage, R.drawable.person_circle);
-                    } else {
-                        contactPhotoIcon = Icon.createWithResource(mContext,
-                                R.drawable.person_circle);
-                    }
+                Resources resources = mContext.getResources();
+                String resPackage = null;
+                if (resources != null) {
+                    resPackage = resources.getResourcePackageName(R.drawable.person_circle);
+                }
+                if (resPackage != null) {
+                    contactPhotoIcon = Icon.createWithResource(
+                            resPackage, R.drawable.person_circle);
                 } else {
-                    contactPhotoIcon = Icon.createWithResource(mContext.getResources(),
+                    contactPhotoIcon = Icon.createWithResource(mContext,
                             R.drawable.person_circle);
                 }
             } catch (Exception e) {

@@ -121,11 +121,7 @@ public class OutgoingCallTransaction extends CallTransaction {
     @VisibleForTesting
     public static Bundle generateExtras(String callId, Bundle extras,
             CallAttributes callAttributes, FeatureFlags featureFlags) {
-        if (featureFlags.resolveHiddenDependenciesTwo()) {
-            extras = TelecomBundleUtils.defuse(extras);
-        } else {
-            extras.setDefusable(true);
-        }
+        extras = TelecomBundleUtils.defuse(extras);
         extras.putString(TelecomManager.TRANSACTION_CALL_ID_KEY, callId);
         extras.putInt(CALL_CAPABILITIES_KEY, callAttributes.getCallCapabilities());
         if (featureFlags.transactionalVideoState()) {

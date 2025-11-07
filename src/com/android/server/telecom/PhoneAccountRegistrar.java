@@ -622,9 +622,7 @@ public class PhoneAccountRegistrar {
     public PhoneAccountHandle getSimCallManager(int subId, UserHandle userHandle) {
 
         // Get the default dialer in case it has a connection manager associated with it.
-        String dialerPackage = mTelecomFeatureFlags.resolveHiddenDependenciesTwo() ?
-                mDefaultDialerCache.getDefaultDialerApplication(userHandle) :
-                mDefaultDialerCache.getDefaultDialerApplicationLegacy(userHandle.getIdentifier());
+        String dialerPackage = mDefaultDialerCache.getDefaultDialerApplication(userHandle);
 
         // Check carrier config.
         ComponentName systemSimCallManagerComponent = getSystemSimCallManagerComponent(subId);
@@ -904,22 +902,17 @@ public class PhoneAccountRegistrar {
         try {
             if (userHandle != null) {
                 List<ResolveInfo> info;
-                if (mTelecomFeatureFlags.resolveHiddenDependenciesTwo()) {
-                    try {
-                        info = UserUtil.getPackageManagerFromUserHandler(mContext, userHandle)
-                                .queryIntentServices(intent, 0);
-                    } catch (Exception e) {
-                        Log.e(this, e, "encountered an exception while" +
-                                        "resolving the component=[%s] under userHandle=[%s]",
-                                componentName, userHandle);
-                        AnomalyReporter.reportAnomaly(
-                                EXCEPTION_COMPONENT_IS_NOT_VISIBLE_FOR_USER_UUID,
-                                EXCEPTION_COMPONENT_IS_NOT_VISIBLE_FOR_USER_MSG);
-                        return Collections.EMPTY_LIST;
-                    }
-                } else {
-                    PackageManager pm = mContext.getPackageManager();
-                    info = pm.queryIntentServicesAsUser(intent, 0, userHandle.getIdentifier());
+                try {
+                    info = UserUtil.getPackageManagerFromUserHandler(mContext, userHandle)
+                            .queryIntentServices(intent, 0);
+                } catch (Exception e) {
+                    Log.e(this, e, "encountered an exception while" +
+                                    "resolving the component=[%s] under userHandle=[%s]",
+                            componentName, userHandle);
+                    AnomalyReporter.reportAnomaly(
+                            EXCEPTION_COMPONENT_IS_NOT_VISIBLE_FOR_USER_UUID,
+                            EXCEPTION_COMPONENT_IS_NOT_VISIBLE_FOR_USER_MSG);
+                    return Collections.EMPTY_LIST;
                 }
                 return info;
             } else {
@@ -2354,9 +2347,6 @@ public class PhoneAccountRegistrar {
         public boolean nextElementWithin(XmlPullParser parser, int outerDepth,
                 com.android.server.telecom.flags.FeatureFlags featureFlags)
                 throws IOException, XmlPullParserException {
-            if (!featureFlags.resolveHiddenDependenciesTwo()) {
-                return XmlUtils.nextElementWithin(parser, outerDepth);
-            }
             for (;;) {
                 int type = parser.next();
                 if (type == XmlPullParser.END_DOCUMENT
@@ -2504,14 +2494,9 @@ public class PhoneAccountRegistrar {
         public static String writeIconToBase64String(Icon icon,
                 com.android.server.telecom.flags.FeatureFlags telecomFeatureFlags, Context context)
                 throws IOException {
-            ByteArrayOutputStream stream = new ByteArrayOutputStream();
-            if (telecomFeatureFlags.resolveHiddenDependenciesTwo()) {
-                stream = iconToStream(context, icon);
-                if (stream == null) {
-                    return "";
-                }
-            } else {
-                icon.writeToStream(stream);
+            ByteArrayOutputStream stream = iconToStream(context, icon);
+            if (stream == null) {
+                return "";
             }
             byte[] iconByteArray = stream.toByteArray();
             return Base64.encodeToString(iconByteArray, 0, iconByteArray.length, 0);
@@ -2715,19 +2700,13 @@ public class PhoneAccountRegistrar {
             try {
                 byte[] iconByteArray = Base64.decode(parser.getText(), 0);
                 ByteArrayInputStream stream = new ByteArrayInputStream(iconByteArray);
-                Icon icon;
-                if (telecomFeatureFlags.resolveHiddenDependenciesTwo()) {
-                    Bitmap bitmap = BitmapFactory.decodeStream(stream);
-                    if (bitmap == null) {
-                        Log.w(this, "BitmapFactory.decodeStream returned null."
-                                + " The stream data may be malformed.");
-                        return null;
-                    }
-                    icon = Icon.createWithBitmap(bitmap);
-                } else {
-                    icon = Icon.createFromStream(stream);
+                Bitmap bitmap = BitmapFactory.decodeStream(stream);
+                if (bitmap == null) {
+                    Log.w(this, "BitmapFactory.decodeStream returned null."
+                            + " The stream data may be malformed.");
+                    return null;
                 }
-                return icon;
+                return Icon.createWithBitmap(bitmap);
             } catch (IllegalArgumentException e) {
                 Log.e(this, e, "Bitmap must not be null.");
                 return null;
@@ -2770,7 +2749,7 @@ public class PhoneAccountRegistrar {
                 serializer.endTag(null, ACCOUNTS);
 
                 // Lets write out the local voicemail timeouts!
-                if (telecomFeatureFlags.localVoicemail()) {
+                if (android.telecom.flags.Flags.localVoicemail()) {
                     serializer.startTag(null, LOCAL_VOICEMAIL_TIMEOUT);
                     o.localVoicemailTimeout.forEach((x, y) -> {
                         try {

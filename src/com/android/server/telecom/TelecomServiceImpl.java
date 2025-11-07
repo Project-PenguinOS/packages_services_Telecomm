@@ -887,11 +887,8 @@ public class TelecomServiceImpl {
                 try {
                     Log.startSession("TSI.gSCM", Log.getPackageAbbreviation(callingPackage));
                     final int callingUid = Binder.getCallingUid();
-                    final int callingUserId = mFeatureFlags.resolveHiddenDependenciesTwo() ?
-                            Binder.getCallingUserHandle().getIdentifier() :
-                            UserHandle.getUserId(callingUid);
-                    final UserHandle user = mFeatureFlags.resolveHiddenDependenciesTwo() ?
-                            Binder.getCallingUserHandle() : UserHandle.of(callingUserId);
+                    final int callingUserId = Binder.getCallingUserHandle().getIdentifier();
+                    final UserHandle user = Binder.getCallingUserHandle();
                     long token = Binder.clearCallingIdentity();
                     try {
                         if (callingUserId != ActivityManager.getCurrentUser()) {
@@ -1289,9 +1286,7 @@ public class TelecomServiceImpl {
                 UserHandle callerUser = Binder.getCallingUserHandle();
                 final long token = Binder.clearCallingIdentity();
                 try {
-                    return mFeatureFlags.resolveHiddenDependenciesTwo() ?
-                            mDefaultDialerCache.getDefaultDialerApplication(callerUser) :
-                            mDefaultDialerCache.getDefaultDialerApplicationLegacy(callerUserId);
+                    return mDefaultDialerCache.getDefaultDialerApplication(callerUser);
                 } finally {
                     Binder.restoreCallingIdentity(token);
                 }
@@ -1321,10 +1316,8 @@ public class TelecomServiceImpl {
                 final long token = Binder.clearCallingIdentity();
                 event.setResult(ApiStats.RESULT_NORMAL);
                 try {
-                    return mFeatureFlags.resolveHiddenDependenciesTwo() ?
-                            mDefaultDialerCache
-                                    .getDefaultDialerApplication(new UserHandle(userId)) :
-                            mDefaultDialerCache.getDefaultDialerApplicationLegacy(userId);
+                    return mDefaultDialerCache
+                            .getDefaultDialerApplication(new UserHandle(userId));
                 } finally {
                     Binder.restoreCallingIdentity(token);
                 }
@@ -1426,28 +1419,16 @@ public class TelecomServiceImpl {
                 enforceCallingPackage(callingPackage, "hasManageOngoingCallsPermission");
                 event.setResult(ApiStats.RESULT_NORMAL);
                 AttributionSource attributionSource;
-                if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-                    // checkPermissionForPreflight is documented as useful for cases where you are
-                    // seeing if a permission is held, but you're not going to deliver data to the
-                    // app yet; that's what we'd expect here.
-                    int result = mPermissionManager.checkPermissionForPreflight(
-                            Manifest.permission.MANAGE_ONGOING_CALLS,
-                            new AttributionSource.Builder(Binder.getCallingUid())
-                                    .setPackageName(callingPackage).build());
-                    Log.i(this, "hasManageOngoingCallPermission: caller=%s; uid=%d, result=%d",
-                            callingPackage, Binder.getCallingUid(), result);
-                    return result == PermissionManager.PERMISSION_GRANTED;
-                } else {
-                    attributionSource = new AttributionSource(mContext.getAttributionSource(),
-                            new AttributionSource(Binder.getCallingUid(),
-                                    callingPackage, /*attributionTag*/ null));
-                    return PermissionChecker.checkPermissionForDataDeliveryFromDataSource(
-                            mContext, Manifest.permission.MANAGE_ONGOING_CALLS,
-                            Binder.getCallingPid(),
-                            attributionSource,
-                            "Checking whether the caller has MANAGE_ONGOING_CALLS permission")
-                            == PermissionChecker.PERMISSION_GRANTED;
-                }
+                // checkPermissionForPreflight is documented as useful for cases where you are
+                // seeing if a permission is held, but you're not going to deliver data to the
+                // app yet; that's what we'd expect here.
+                int result = mPermissionManager.checkPermissionForPreflight(
+                        Manifest.permission.MANAGE_ONGOING_CALLS,
+                        new AttributionSource.Builder(Binder.getCallingUid())
+                                .setPackageName(callingPackage).build());
+                Log.i(this, "hasManageOngoingCallPermission: caller=%s; uid=%d, result=%d",
+                        callingPackage, Binder.getCallingUid(), result);
+                return result == PermissionManager.PERMISSION_GRANTED;
             } finally {
                 logEvent(event);
                 Log.endSession();
@@ -2005,11 +1986,7 @@ public class TelecomServiceImpl {
                                     phoneAccountHandle);
                             intent.putExtra(CallIntentProcessor.KEY_IS_INCOMING_CALL, true);
                             if (extras != null) {
-                                if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-                                    extras = TelecomBundleUtils.defuse(extras);
-                                } else {
-                                    extras.setDefusable(true);
-                                }
+                                extras = TelecomBundleUtils.defuse(extras);
                                 intent.putExtra(TelecomManager.EXTRA_INCOMING_CALL_EXTRAS, extras);
                             }
                             mCallIntentProcessorAdapter.processIncomingCallIntent(
@@ -2197,11 +2174,7 @@ public class TelecomServiceImpl {
                         try {
                             Intent intent = new Intent(TelecomManager.ACTION_NEW_UNKNOWN_CALL);
                             if (extras != null) {
-                                if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-                                    extras = TelecomBundleUtils.defuse(extras);
-                                } else {
-                                    extras.setDefusable(true);
-                                }
+                                extras = TelecomBundleUtils.defuse(extras);
                                 intent.putExtras(extras);
                             }
                             intent.putExtra(CallIntentProcessor.KEY_IS_UNKNOWN_CALL, true);
@@ -2326,16 +2299,9 @@ public class TelecomServiceImpl {
                 // call is being made to a non-emergency number, the call will be denied later on
                 // by {@link UserCallIntentProcessor}.
 
-                final boolean hasCallAppOp;
-                if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-                    hasCallAppOp = mAppOpsManager.noteOp(AppOpsManager.OPSTR_CALL_PHONE,
-                            Binder.getCallingUid(), callingPackage, callingFeatureId, null)
-                            == AppOpsManager.MODE_ALLOWED;
-                } else {
-                    hasCallAppOp = mAppOpsManager.noteOp(AppOpsManager.OP_CALL_PHONE,
-                            Binder.getCallingUid(), callingPackage, callingFeatureId, null)
-                            == AppOpsManager.MODE_ALLOWED;
-                }
+                final boolean hasCallAppOp = mAppOpsManager.noteOp(AppOpsManager.OPSTR_CALL_PHONE,
+                        Binder.getCallingUid(), callingPackage, callingFeatureId, null)
+                        == AppOpsManager.MODE_ALLOWED;
 
                 final boolean hasCallPermission = mContext.checkCallingOrSelfPermission(CALL_PHONE)
                         == PackageManager.PERMISSION_GRANTED;
@@ -2355,11 +2321,7 @@ public class TelecomServiceImpl {
                         final Intent intent = new Intent(hasCallPrivilegedPermission ?
                                 Intent.ACTION_CALL_PRIVILEGED : Intent.ACTION_CALL, handle);
                         if (extras != null) {
-                            if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-                                extras = TelecomBundleUtils.defuse(extras);
-                            } else {
-                                extras.setDefusable(true);
-                            }
+                            extras = TelecomBundleUtils.defuse(extras);
                             intent.putExtras(extras);
                         }
                         mUserCallIntentProcessorFactory.create(mContext, userHandle)
@@ -2417,10 +2379,7 @@ public class TelecomServiceImpl {
                     long token = Binder.clearCallingIdentity();
                     event.setResult(ApiStats.RESULT_NORMAL);
                     try {
-                        return mFeatureFlags.resolveHiddenDependenciesTwo() ?
-                                mDefaultDialerCache.setDefaultDialer(packageName, callerUser) :
-                                mDefaultDialerCache
-                                        .setDefaultDialerLegacy(packageName, callerUserId);
+                        return mDefaultDialerCache.setDefaultDialer(packageName, callerUser);
                     } finally {
                         Binder.restoreCallingIdentity(token);
                     }
@@ -3446,9 +3405,8 @@ public class TelecomServiceImpl {
         setupPackageRemovedReceiver(phoneAccountRegistrar);
 
         mDefaultDialerCache.observeDefaultDialerApplication(mContext.getMainExecutor(), userId -> {
-            String defaultDialer = mFeatureFlags.resolveHiddenDependenciesTwo() ?
-                    mDefaultDialerCache.getDefaultDialerApplication(new UserHandle(userId)) :
-                    mDefaultDialerCache.getDefaultDialerApplicationLegacy(userId);
+            String defaultDialer = mDefaultDialerCache.getDefaultDialerApplication(
+                    new UserHandle(userId));
             if (defaultDialer == null) {
                 // We are replacing the dialer, just wait for the upcoming callback.
                 return;
@@ -3475,11 +3433,6 @@ public class TelecomServiceImpl {
      * Assumes this method is called only once or is protected against multiple thread creations.
      */
     private void setupPackageRemovedReceiver(PhoneAccountRegistrar phoneAccountRegistrar) {
-        if (!mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            Log.i(TAG, "resolveHiddenDependenciesTwo' is disabled");
-            return;
-        }
-
         if (mPackageRemovedReceiver != null) {
             Log.w(TAG, "PackageRemovedReceiver appears to be already initialized. Skipping setup.");
             return;
@@ -3553,18 +3506,8 @@ public class TelecomServiceImpl {
             final String permission = Manifest.permission.ANSWER_PHONE_CALLS;
             enforcePermission(permission);
 
-            if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-                return mAppOpsManager.checkOp(AppOpsManager.OPSTR_ANSWER_PHONE_CALLS, uid,
-                        packageName) == AppOpsManager.MODE_ALLOWED;
-
-            } else {
-                final int opCode = AppOpsManager.permissionToOpCode(permission);
-                if (opCode != AppOpsManager.OP_NONE
-                        && mAppOpsManager.checkOp(opCode, uid, packageName)
-                        != AppOpsManager.MODE_ALLOWED) {
-                    return false;
-                }
-            }
+            return mAppOpsManager.checkOp(AppOpsManager.OPSTR_ANSWER_PHONE_CALLS, uid,
+                    packageName) == AppOpsManager.MODE_ALLOWED;
         }
         return true;
     }
@@ -3578,16 +3521,8 @@ public class TelecomServiceImpl {
         mContext.enforceCallingOrSelfPermission(Manifest.permission.ACCEPT_HANDOVER,
                 "App requires ACCEPT_HANDOVER permission to accept handovers.");
 
-        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            return mAppOpsManager.checkOp(AppOpsManager.OPSTR_ACCEPT_HANDOVER, uid, packageName)
-                    == AppOpsManager.MODE_ALLOWED;
-        } else {
-            final int opCode = AppOpsManager.permissionToOpCode(
-                    Manifest.permission.ACCEPT_HANDOVER);
-            return opCode == AppOpsManager.OP_ACCEPT_HANDOVER
-                    && (mAppOpsManager.checkOp(opCode, uid, packageName)
-                    == AppOpsManager.MODE_ALLOWED);
-        }
+        return mAppOpsManager.checkOp(AppOpsManager.OPSTR_ACCEPT_HANDOVER, uid, packageName)
+                == AppOpsManager.MODE_ALLOWED;
     }
 
     @VisibleForTesting
@@ -3988,15 +3923,9 @@ public class TelecomServiceImpl {
             mContext.enforceCallingOrSelfPermission(READ_PHONE_STATE, message);
 
             // Some apps that have the permission can be restricted via app ops.
-            if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-                return mAppOpsManager.noteOp(AppOpsManager.OPSTR_READ_PHONE_STATE,
-                        Binder.getCallingUid(),
-                        callingPackage, callingFeatureId, message) == AppOpsManager.MODE_ALLOWED;
-            } else {
-                return mAppOpsManager.noteOp(AppOpsManager.OP_READ_PHONE_STATE,
-                        Binder.getCallingUid(),
-                        callingPackage, callingFeatureId, message) == AppOpsManager.MODE_ALLOWED;
-            }
+            return mAppOpsManager.noteOp(AppOpsManager.OPSTR_READ_PHONE_STATE,
+                    Binder.getCallingUid(),
+                    callingPackage, callingFeatureId, message) == AppOpsManager.MODE_ALLOWED;
         }
     }
 
@@ -4114,15 +4043,9 @@ public class TelecomServiceImpl {
         mContext.enforceCallingOrSelfPermission(CALL_PHONE, message);
 
         // Some apps that have the permission can be restricted via app ops.
-        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            return mAppOpsManager.noteOp(AppOpsManager.OPSTR_CALL_PHONE, Binder.getCallingUid(),
-                    callingPackage, callingFeatureId, message)
-                    == AppOpsManager.MODE_ALLOWED;
-        } else {
-            return mAppOpsManager.noteOp(AppOpsManager.OP_CALL_PHONE,
-                    Binder.getCallingUid(), callingPackage, callingFeatureId, message)
-                    == AppOpsManager.MODE_ALLOWED;
-        }
+        return mAppOpsManager.noteOp(AppOpsManager.OPSTR_CALL_PHONE, Binder.getCallingUid(),
+                callingPackage, callingFeatureId, message)
+                == AppOpsManager.MODE_ALLOWED;
     }
 
     private boolean canGetPhoneAccount(String callingPackage, PhoneAccountHandle accountHandle) {
@@ -4256,8 +4179,7 @@ public class TelecomServiceImpl {
         // incompatible types.
         if (icon != null && (icon.getType() == Icon.TYPE_URI
                 || icon.getType() == Icon.TYPE_URI_ADAPTIVE_BITMAP)) {
-            int callingUserId = mFeatureFlags.resolveHiddenDependenciesTwo() ?
-                    Binder.getCallingUserHandle().getIdentifier() : UserHandle.getCallingUserId();
+            int callingUserId = Binder.getCallingUserHandle().getIdentifier();
             int requestingUserId = StatusHints.getUserIdFromAuthority(
                     icon.getUri().getAuthority(), callingUserId);
             if(callingUserId != requestingUserId) {

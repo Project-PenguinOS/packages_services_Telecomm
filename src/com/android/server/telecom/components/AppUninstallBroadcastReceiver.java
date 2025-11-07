@@ -64,25 +64,8 @@ public class AppUninstallBroadcastReceiver extends BroadcastReceiver {
             // Move computation off into a separate thread to prevent ANR.
             new Thread(() -> {
                 String packageName = uri.getSchemeSpecificPart();
-                handlePackageRemoved(context, packageName);
                 result.finish();
             }).start();
-        }
-    }
-
-    /**
-     * Handles the removal of a package by calling upon the {@link PhoneAccountRegistrar} to
-     * un-register any {@link android.telecom.PhoneAccount}s associated with the package.
-     *
-     * @param packageName The name of the removed package.
-     */
-    private void handlePackageRemoved(Context context, String packageName) {
-        if (Flags.resolveHiddenDependenciesTwo()) {
-            return;
-        }
-        final TelecomManager telecomManager = context.getSystemService(TelecomManager.class);
-        if (telecomManager != null) {
-            telecomManager.clearAccountsForPackage(packageName);
         }
     }
 }

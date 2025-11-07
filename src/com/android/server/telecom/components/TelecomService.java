@@ -122,59 +122,32 @@ public class TelecomService extends Service implements TelecomSystem.Component {
             HandlerThread handlerThread = new HandlerThread("TelecomSystem");
             handlerThread.start();
 
-            Ringer.VibratorAdapter vibratorAdapter;
-            if (featureFlags.resolveHiddenDependenciesTwo()) {
-                final VibratorManager vibratorManager =
-                        context.getSystemService(VibratorManager.class);
-                vibratorAdapter = new Ringer.VibratorAdapter() {
-                    @Override
-                    public boolean hasVibrator() {
-                        int[] vibratorIds = vibratorManager.getVibratorIds();
-                        return vibratorIds != null && vibratorIds.length > 0;
-                    }
+            final VibratorManager vibratorManager =
+                    context.getSystemService(VibratorManager.class);
+            Ringer.VibratorAdapter vibratorAdapter = new Ringer.VibratorAdapter() {
+                @Override
+                public boolean hasVibrator() {
+                    int[] vibratorIds = vibratorManager.getVibratorIds();
+                    return vibratorIds != null && vibratorIds.length > 0;
+                }
 
-                    @Override
-                    public void vibrate(VibrationEffect vibe, VibrationAttributes attributes) {
-                        // This is what SystemVibrator does.
-                        CombinedVibration combinedEffect = CombinedVibration.createParallel(vibe);
-                        vibratorManager.vibrate(combinedEffect, attributes);
-                    }
+                @Override
+                public void vibrate(VibrationEffect vibe, VibrationAttributes attributes) {
+                    // This is what SystemVibrator does.
+                    CombinedVibration combinedEffect = CombinedVibration.createParallel(vibe);
+                    vibratorManager.vibrate(combinedEffect, attributes);
+                }
 
-                    @Override
-                    public void cancel() {
-                        vibratorManager.cancel();
-                    }
+                @Override
+                public void cancel() {
+                    vibratorManager.cancel();
+                }
 
-                    @Override
-                    public Vibrator getVibrator() {
-                        return vibratorManager.getDefaultVibrator();
-                    }
-                };
-            } else {
-                // SystemVibrator extends Vibrator
-                final SystemVibrator systemVibrator = new SystemVibrator(context);
-                vibratorAdapter = new Ringer.VibratorAdapter() {
-                    @Override
-                    public boolean hasVibrator() {
-                        return systemVibrator.hasVibrator();
-                    }
-
-                    @Override
-                    public void vibrate(VibrationEffect vibe, VibrationAttributes attributes) {
-                        systemVibrator.vibrate(vibe, attributes);
-                    }
-
-                    @Override
-                    public void cancel() {
-                        systemVibrator.cancel();
-                    }
-
-                    @Override
-                    public Vibrator getVibrator() {
-                        return systemVibrator;
-                    }
-                };
-            }
+                @Override
+                public Vibrator getVibrator() {
+                    return vibratorManager.getDefaultVibrator();
+                }
+            };
 
             TelecomSystem.setInstance(
                     new TelecomSystem(
@@ -243,12 +216,7 @@ public class TelecomService extends Service implements TelecomSystem.Component {
                             new CallAudioManager.AudioServiceFactory() {
                                 @Override
                                 public IAudioService getAudioService() {
-                                    if (featureFlags.resolveHiddenDependenciesTwo()) {
-                                        return null;
-                                    } else {
-                                        return IAudioService.Stub.asInterface(
-                                                ServiceManager.getService(Context.AUDIO_SERVICE));
-                                    }
+                                    return null;
                                 }
                             },
                             ConnectionServiceFocusManager::new,

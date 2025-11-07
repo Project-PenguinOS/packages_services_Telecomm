@@ -33,8 +33,6 @@
     <uses-permission android:name="android.permission.BLUETOOTH"/>
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
     <uses-permission android:name="android.permission.BLUETOOTH_PRIVILEGED"/>
-    <uses-permission android:name="android.permission.BROADCAST_CALLLOG_INFO"/>
-    <uses-permission android:name="android.permission.BROADCAST_PHONE_ACCOUNT_REGISTRATION"/>
     <uses-permission android:name="android.permission.CALL_PRIVILEGED"/>
     <uses-permission android:name="android.permission.HANDLE_CALL_INTENT"/>
     <uses-permission android:name="android.permission.HANDLE_CAR_MODE_CHANGES"/>
@@ -77,18 +75,7 @@
     <uses-permission android:name="android.permission.CHANGE_DEVICE_IDLE_TEMP_WHITELIST" />
     <uses-permission android:name="android.permission.BIND_LOCAL_VOICEMAIL_SERVICE"/>
 
-    <permission android:name="android.permission.BROADCAST_CALLLOG_INFO"
-         android:label="Broadcast the call type/duration information"
-         android:protectionLevel="signature|system"/>
-
-    <permission android:name="android.permission.PROCESS_CALLLOG_INFO"
-         android:label="Register to handle the broadcasted call type/duration information"
-         android:protectionLevel="signature|system"/>
-
-    <permission android:name="android.permission.BROADCAST_PHONE_ACCOUNT_REGISTRATION"
-         android:label="Broadcast phone account registration"
-         android:protectionLevel="signature|system"/>
-
+    <!-- protectionLevel system has been deprecated, beware when modifying this permission. -->
     <permission android:name="android.permission.PROCESS_PHONE_ACCOUNT_REGISTRATION"
          android:label="Process phone account registration"
          android:protectionLevel="signature|system"/>

@@ -210,7 +210,6 @@ public class MissedCallNotifierImplTest extends TelecomTestCase {
         mComponentContextFixture.putResource(R.string.userCallActivityLabel,
                 USER_CALL_ACTIVITY_LABEL);
         mComponentContextFixture.setTelecomManager(mTelecomManager);
-        when(mFeatureFlags.resolveHiddenDependenciesTwo()).thenReturn(true);
     }
 
     @Override
@@ -715,7 +714,6 @@ public class MissedCallNotifierImplTest extends TelecomTestCase {
         // GIVEN
         TelecomSystem.setInstance(mTelecomSystem);
         when(mTelecomSystem.isBootComplete()).thenReturn(true);
-        when(mFeatureFlags.resolveHiddenDependenciesTwo()).thenReturn(true);
 
         // Configure mContext.createContextAsUser to throw an exception
         when(mContext.createContextAsUser(eq(PRIMARY_USER), anyInt()))
