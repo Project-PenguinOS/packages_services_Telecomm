@@ -342,51 +342,6 @@ public class CallLogUtils {
         if (Flags.supportDisplayNameCallLog()) {
             values.put(PREFERRED_DISPLAY_NAME, params.mPreferredDisplayName);
         }
-        if ((params.mCallerInfo != null) && (params.mCallerInfo.getContactId() > 0)) {
-            // Update usage information for the number associated with the contact ID.
-            // We need to use both the number and the ID for obtaining a data ID since other
-            // contacts may have the same number.
-
-            final Cursor cursor;
-
-            // We should prefer normalized one (probably coming from
-            // Phone.NORMALIZED_NUMBER column) first. If it isn't available try others.
-            if (params.mCallerInfo.normalizedNumber != null) {
-                final String normalizedPhoneNumber = params.mCallerInfo.normalizedNumber;
-                cursor = resolver.query(Phone.CONTENT_URI,
-                    new String[]{Phone._ID},
-                    Phone.CONTACT_ID + " =? AND " + Phone.NORMALIZED_NUMBER + " =?",
-                    new String[]{String.valueOf(params.mCallerInfo.getContactId()),
-                        normalizedPhoneNumber},
-                    null);
-            } else {
-                final String phoneNumber = params.mCallerInfo.getPhoneNumber() != null
-                    ? params.mCallerInfo.getPhoneNumber() : params.mNumber;
-                cursor = resolver.query(
-                    Uri.withAppendedPath(Callable.CONTENT_FILTER_URI,
-                        Uri.encode(phoneNumber)),
-                    new String[]{Phone._ID},
-                    Phone.CONTACT_ID + " =?",
-                    new String[]{String.valueOf(params.mCallerInfo.getContactId())},
-                    null);
-            }
-
-            if (cursor != null) {
-                try {
-                    if (cursor.getCount() > 0 && cursor.moveToFirst()) {
-                        final String dataId = cursor.getString(0);
-                        updateDataUsageStatForData(resolver, dataId);
-                        if (params.mDuration >= MIN_DURATION_FOR_NORMALIZED_NUMBER_UPDATE_MS
-                            && params.mCallType == CallLog.Calls.OUTGOING_TYPE
-                            && TextUtils.isEmpty(params.mCallerInfo.normalizedNumber)) {
-                            updateNormalizedNumber(context, resolver, dataId, params.mNumber);
-                        }
-                    }
-                } finally {
-                    cursor.close();
-                }
-            }
-        }
 
         /*
                 Writing the calllog works in the following way:
@@ -629,37 +584,6 @@ public class CallLogUtils {
             Log.w(LOG_TAG, "Skipping inserting location for " + e);
             return null;
         }
-    }
-
-    private static void updateDataUsageStatForData(ContentResolver resolver, String dataId) {
-        final Uri feedbackUri = DataUsageFeedback.FEEDBACK_URI.buildUpon()
-            .appendPath(dataId)
-            .appendQueryParameter(DataUsageFeedback.USAGE_TYPE,
-                DataUsageFeedback.USAGE_TYPE_CALL)
-            .build();
-        resolver.update(feedbackUri, new ContentValues(), null, null);
-    }
-
-    /*
-     * Update the normalized phone number for the given dataId in the ContactsProvider, based
-     * on the user's current country.
-     */
-    private static void updateNormalizedNumber(Context context, ContentResolver resolver,
-        String dataId, String number) {
-        if (TextUtils.isEmpty(number) || TextUtils.isEmpty(dataId)) {
-            return;
-        }
-        final String countryIso = getCurrentCountryIso(context);
-        if (TextUtils.isEmpty(countryIso)) {
-            return;
-        }
-        final String normalizedNumber = PhoneNumberUtils.formatNumberToE164(number, countryIso);
-        if (TextUtils.isEmpty(normalizedNumber)) {
-            return;
-        }
-        final ContentValues values = new ContentValues();
-        values.put(Phone.NORMALIZED_NUMBER, normalizedNumber);
-        resolver.update(Data.CONTENT_URI, values, Data._ID + "=?", new String[]{dataId});
     }
 
     /**
