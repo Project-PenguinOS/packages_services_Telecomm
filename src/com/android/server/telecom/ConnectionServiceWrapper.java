@@ -476,8 +476,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                     logIncoming("removeCall %s", callId);
                     Call call = mCallIdMapper.getCall(callId);
                     if (call != null) {
-                        boolean isRemovalPending = mFlags.cancelRemovalOnEmergencyRedial()
-                                && call.isRemovalPending();
+                        boolean isRemovalPending = call.isRemovalPending();
                         if (call.isAlive() && !call.isDisconnectHandledViaFuture()
                                 && !isRemovalPending) {
                             Log.w(this, "call not disconnected when removeCall"
