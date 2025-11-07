@@ -221,15 +221,12 @@ public class TelecomSystemTest extends TelecomTestCase{
     @Mock RoleManagerAdapter mRoleManagerAdapter;
     @Mock ToneGenerator mToneGenerator;
     @Mock DeviceIdleControllerAdapter mDeviceIdleControllerAdapter;
-
     @Mock Ringer.AccessibilityManagerAdapter mAccessibilityManagerAdapter;
-    @Mock
-    BlockedNumbersAdapter mBlockedNumbersAdapter;
-    @Mock
-    FeatureFlags mFeatureFlags;
+    @Mock BlockedNumbersAdapter mBlockedNumbersAdapter;
+    @Mock FeatureFlags mFeatureFlags;
     @Mock android.telecom.flags.FeatureFlags mModuleFeatureFlags;
-    @Mock
-    com.android.internal.telephony.flags.FeatureFlags mTelephonyFlags;
+    @Mock com.android.internal.telecom.flags.FeatureFlags mModuleBugFixFeatureFlags;
+    @Mock com.android.internal.telephony.flags.FeatureFlags mTelephonyFlags;
     @Mock Ringer.VibratorAdapter mVibratorAdapter;
 
     private static final String SYSTEM_UI_PACKAGE = "com.android.systemui";
@@ -610,6 +607,7 @@ public class TelecomSystemTest extends TelecomTestCase{
                 mBlockedNumbersAdapter,
                 mFeatureFlags,
                 mModuleFeatureFlags,
+                mModuleBugFixFeatureFlags,
                 mTelephonyFlags,
                 mHandlerThread.getLooper(),
                 mVibratorAdapter);

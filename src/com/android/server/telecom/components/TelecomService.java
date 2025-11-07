@@ -280,6 +280,7 @@ public class TelecomService extends Service implements TelecomSystem.Component {
                             },
                             featureFlags,
                             new android.telecom.flags.FeatureFlagsImpl(),
+                            new com.android.internal.telecom.flags.FeatureFlagsImpl(),
                             new com.android.internal.telephony.flags.FeatureFlagsImpl(),
                             handlerThread.getLooper(),
                             vibratorAdapter));
