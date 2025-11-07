@@ -20,6 +20,7 @@ import android.annotation.Nullable;
 import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
+import android.content.res.Resources;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
@@ -637,8 +638,11 @@ public class CallerInfo {
     // 'Emergency Number' and let the UI make the decision about what
     // should be displayed.
     /* package */ CallerInfo markAsEmergency(Context context) {
-        phoneNumber = context.getString(
-            com.android.internal.R.string.emergency_call_dialog_number_for_display);
+        int resourceId = Resources.getSystem().getIdentifier(
+                "emergency_call_dialog_number_for_display", "string", "android");
+        if (resourceId != 0) {
+            phoneNumber = context.getResources().getString(resourceId);
+        }
         photoResource = com.android.internal.R.drawable.picture_emergency;
         mIsEmergency = true;
         return this;

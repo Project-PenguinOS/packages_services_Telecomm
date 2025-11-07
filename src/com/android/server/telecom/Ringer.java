@@ -328,8 +328,10 @@ public class Ringer {
 
         mAudioManager = mContext.getSystemService(AudioManager.class);
         mFlags = featureFlags;
-        mRingtoneVibrationSupported = mContext.getResources().getBoolean(
-                com.android.internal.R.bool.config_ringtoneVibrationSettingsSupported);
+        Resources res = mContext.getResources();
+        int resourceId = Resources.getSystem().getIdentifier(
+                "config_ringtoneVibrationSettingsSupported", "bool", "android");
+        mRingtoneVibrationSupported = res.getBoolean(resourceId);
         mCallConnectedIndicatorSettings = callConnectedIndicator;
         mAsyncTaskExecutor = asyncTaskExecutor;
     }
@@ -1038,9 +1040,9 @@ public class Ringer {
     private static VibrationEffect loadSerializedDefaultRingVibration(
             Resources resources, Vibrator vibrator) {
         try {
-            InputStream vibrationInputStream =
-                    resources.openRawResource(
-                            com.android.internal.R.raw.default_ringtone_vibration_effect);
+            int resourceId = Resources.getSystem().getIdentifier(
+                    "default_ringtone_vibration_effect", "raw", "android");
+            InputStream vibrationInputStream = resources.openRawResource(resourceId);
             ParsedVibration parsedVibration = VibrationXmlParser
                     .parseDocument(
                             new InputStreamReader(vibrationInputStream, StandardCharsets.UTF_8));
