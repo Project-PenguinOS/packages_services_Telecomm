@@ -668,6 +668,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     private boolean mSkipAutoUnhold = false;
     private boolean mIsTransactionalLogExcluded = false;
     private int mLastCallStateBeforeDisconnect = CallState.DISCONNECTED;
+    private Uri mVoipContactLookupUri;
+    private boolean mIsGroupCall = false;
 
     /**
      * CallingPackageIdentity is responsible for storing properties about the calling package that
@@ -5403,6 +5405,22 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
     public int getLastCallStateBeforeDisconnect() {
         return mLastCallStateBeforeDisconnect;
+    }
+
+    public void setIsGroupCall(boolean isGroupCall) {
+        mIsGroupCall = isGroupCall;
+    }
+
+    public boolean isGroupCall() {
+        return mIsGroupCall;
+    }
+
+    public void setVoipContactLookupUri(Uri lookupUri) {
+        mVoipContactLookupUri = lookupUri;
+    }
+
+    public Uri getVoipContactLookupUri() {
+        return mVoipContactLookupUri;
     }
 
     private boolean mIsBulkStateUpdateInProgress;

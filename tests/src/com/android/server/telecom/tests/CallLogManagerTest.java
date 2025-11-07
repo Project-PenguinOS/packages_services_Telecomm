@@ -669,6 +669,32 @@ public class CallLogManagerTest extends TelecomTestCase {
     }
 
     @MediumTest
+    @Test
+    public void testLogGroupCallFeatures() {
+        when(mMockPhoneAccountRegistrar.getPhoneAccountUnchecked(any(PhoneAccountHandle.class)))
+                .thenReturn(makeFakePhoneAccount(mDefaultAccountHandle, 0 /* capabilities */));
+        Call fakeGroupCall = makeFakeCall(
+                DisconnectCause.OTHER, // disconnectCauseCode
+                false, // isConference
+                true, // isIncoming
+                1L, // creationTimeMillis
+                1000L, // ageMillis
+                TEL_PHONEHANDLE, // callHandle
+                mDefaultAccountHandle, // phoneAccountHandle
+                NO_VIDEO_STATE, // callVideoState
+                POST_DIAL_STRING, // postDialDigits
+                VIA_NUMBER_STRING, // viaNumber
+                UserHandle.of(CURRENT_USER_ID)
+        );
+        // Set call as group call
+        when(fakeGroupCall.isGroupCall()).thenReturn(true);
+        mCallLogManager.onCallStateChanged(fakeGroupCall, CallState.ACTIVE, CallState.DISCONNECTED);
+        ContentValues insertedValues = verifyInsertionWithCapture(CURRENT_USER_ID);
+        assertTrue((insertedValues.getAsInteger(CallLog.Calls.FEATURES)
+                & Calls.FEATURES_GROUP_CALL) == CallLog.Calls.FEATURES_GROUP_CALL);
+    }
+
+    @MediumTest
     @FlakyTest
     @Test
     public void testLogCallDirectionOutgoingWithMultiUserCapability() {
