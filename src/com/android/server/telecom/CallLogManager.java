@@ -371,6 +371,7 @@ public final class CallLogManager extends CallsManagerListenerBase {
                         Connection.PROPERTY_ASSISTED_DIALING,
                 call.wasEverRttCall(),
                 call.wasVolte(),
+                call.wasVonr(),
                 call.isHdPlus(), mFeatureFlags));
 
         if (result == null) {
@@ -552,7 +553,7 @@ public final class CallLogManager extends CallsManagerListenerBase {
      */
     private static int getCallFeatures(int videoState, boolean isPulledCall, boolean isStoreHd,
             boolean isWifi, boolean isUsingAssistedDialing, boolean isRtt, boolean isVolte,
-            boolean isHdPlus, FeatureFlags featureFlags) {
+            boolean isVonr, boolean isHdPlus, FeatureFlags featureFlags) {
         int features = 0;
         if (VideoProfile.isVideo(videoState)) {
             features |= Calls.FEATURES_VIDEO;
@@ -574,6 +575,9 @@ public final class CallLogManager extends CallsManagerListenerBase {
         }
         if (isVolte) {
             features |= Calls.FEATURES_VOLTE;
+        }
+        if (featureFlags.hdPlusCall() && isVonr) {
+            features |= Calls.FEATURES_VONR;
         }
         if (featureFlags.hdPlusCall() && isHdPlus) {
             features |= Calls.FEATURES_HD_PLUS_CALL;
