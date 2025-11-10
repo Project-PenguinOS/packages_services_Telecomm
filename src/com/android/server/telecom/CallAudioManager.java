@@ -889,8 +889,8 @@ public class CallAudioManager extends CallsManagerListenerBase {
                     && (!mFeatureFlags.delayFocusSwitchForBtIcs()
                     || !ringingCall.getBtIcsFuture().isDone());
             if (shouldWaitForBtIcs) {
-                mCallRingingFuture = mFeatureFlags.sendNewRingingCallSync()
-                        ? ringingCall.getBtIcsFuture().thenCompose((completed) -> {
+                mCallRingingFuture = ringingCall.getBtIcsFuture()
+                        .thenCompose((completed) -> {
                             // Do a performative check to see if the call is still ringing before
                             // sending the msg forward to the CallAudioModeStateMachine.
                             if (mRingingCalls.size() == 1
@@ -900,14 +900,8 @@ public class CallAudioManager extends CallsManagerListenerBase {
                                         CallAudioModeStateMachine.NEW_RINGING_CALL,
                                         makeArgsForModeStateMachine());
                             }
-                            return CompletableFuture.completedFuture(completed);})
-                        : ringingCall.getBtIcsFuture().thenComposeAsync((completed) -> {
-                            mCallAudioModeStateMachine.sendMessageWithArgs(
-                                    CallAudioModeStateMachine.NEW_RINGING_CALL,
-                                    makeArgsForModeStateMachine());
-                            return CompletableFuture.completedFuture(completed);
-                            }, new LoggedHandlerExecutor(mHandler, "CAM.oCER",
-                                mCallsManager.getLock()));
+                            return CompletableFuture.completedFuture(completed);}
+                        );
 
                 mCallRingingFuture = mFeatureFlags.delayFocusSwitchForBtIcs()
                         ? completeBtIcsFutureExceptionally(mCallRingingFuture,

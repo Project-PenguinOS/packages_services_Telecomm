@@ -177,6 +177,7 @@ public class TelecomServiceImpl {
     private final FeatureFlags mFeatureFlags;
     private final android.telecom.flags.FeatureFlags mModuleFeatureFlags;
     private final com.android.internal.telephony.flags.FeatureFlags mTelephonyFeatureFlags;
+    private final com.android.internal.telecom.flags.FeatureFlags mModuleBugFixFeatureFlags;
     private final TelecomMetricsController mMetricsController;
     private final String mSystemUiPackageName;
     private AnomalyReporterAdapter mAnomalyReporter = new AnomalyReporterAdapterImpl();
@@ -1012,8 +1013,7 @@ public class TelecomServiceImpl {
                         // Validate the profile boundary of the given image URI.
                         validateAccountIconUserBoundary(account.getIcon());
 
-                        if (mTelephonyFeatureFlags.simultaneousCallingIndications()
-                                && account.hasSimultaneousCallingRestriction()) {
+                        if (account.hasSimultaneousCallingRestriction()) {
                             validateSimultaneousCallingPackageNames(
                                     account.getAccountHandle().getComponentName().getPackageName(),
                                     account.getSimultaneousCallingRestriction());
@@ -2482,15 +2482,22 @@ public class TelecomServiceImpl {
                 Analytics.dump(pw);
                 pw.decreaseIndent();
 
-                pw.println("Flag Configurations(framework): ");
+                pw.println("Flag Configurations (framework - com.android.server.telecom): ");
                 pw.increaseIndent();
                 reflectAndPrintFlagConfigs(FeatureFlags.class.getMethods(), mFeatureFlags, pw);
                 pw.decreaseIndent();
 
-                pw.println("Flag Configurations(module): ");
+                pw.println("Flag Configurations (module API - android.telecom): ");
                 pw.increaseIndent();
                 reflectAndPrintFlagConfigs(android.telecom.flags.FeatureFlags.class.getMethods(),
                         mModuleFeatureFlags, pw);
+                pw.decreaseIndent();
+
+                pw.println("Flag Configurations (module bugfix - com.android.internal.telecom): ");
+                pw.increaseIndent();
+                reflectAndPrintFlagConfigs(
+                        com.android.internal.telecom.flags.FeatureFlags.class.getMethods(),
+                        mModuleBugFixFeatureFlags, pw);
                 pw.decreaseIndent();
 
                 pw.println("TransactionManager: ");
@@ -3370,6 +3377,7 @@ public class TelecomServiceImpl {
             SettingsSecureAdapter settingsSecureAdapter,
             FeatureFlags featureFlags,
             android.telecom.flags.FeatureFlags moduleFeatureFlags,
+            com.android.internal.telecom.flags.FeatureFlags moduleBugFixFeatureFlags,
             com.android.internal.telephony.flags.FeatureFlags telephonyFeatureFlags,
             TelecomSystem.SyncRoot lock, TelecomMetricsController metricsController,
             String sysUiPackageName) {
@@ -3382,6 +3390,7 @@ public class TelecomServiceImpl {
         mCallsManager = callsManager;
         mFeatureFlags = featureFlags;
         mModuleFeatureFlags = moduleFeatureFlags;
+        mModuleBugFixFeatureFlags = moduleBugFixFeatureFlags;
         if (telephonyFeatureFlags != null) {
             mTelephonyFeatureFlags = telephonyFeatureFlags;
         } else {

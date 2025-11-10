@@ -1522,11 +1522,15 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             mCallAudioState = new CallAudioState(mIsMute, mCallAudioState.getRoute(),
                     mCallSupportedRouteMask, mCallAudioState.getActiveBluetoothDevice(),
                     mCallAudioState.getSupportedBluetoothDevices());
+            // Update audio route when the foreground call changes. This ensures, for example, that
+            // if we have an ongoing video call + new PSTN call that the PSTN call doesn't get
+            // placed on the speaker. Don't recalculate the route if the foreground call is not
+            // defined (e.g. when a call is disconnected). This ensures that we don't change the
+            // route when playing the disconnect tone.
+            // Todo: b/455395635 - Routing recalculation should be based on phone accounts. We
+            // should only update the route for calls on different phone accounts.
+            routeTo(mIsActive, getBaseRoute(true, null));
         }
-        // Update audio route when the foreground call changes. This ensures, for example, that if
-        // we have an ongoing video call + new PSTN call that the PSTN call doesn't get placed on
-        // the speaker.
-        routeTo(mIsActive, getBaseRoute(true, null));
     }
 
     /**

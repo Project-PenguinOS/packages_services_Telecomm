@@ -24,7 +24,9 @@ import static junit.framework.TestCase.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -33,12 +35,15 @@ import android.content.Context;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.PersistableBundle;
+import android.os.UserHandle;
+import android.os.UserManager;
 import android.provider.CallLog;
 import android.telecom.TelecomManager;
 import android.telephony.CarrierConfigManager;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.internal.telecom.flags.Flags;
 import com.android.server.telecom.Call;
 import com.android.server.telecom.CallerInfoLookupHelper;
 import com.android.server.telecom.callfiltering.BlockCheckerAdapter;
@@ -61,6 +66,7 @@ public class BlockCheckerFilterTest extends TelecomTestCase {
     @Mock private BlockCheckerAdapter mBlockCheckerAdapter;
     @Mock private CallerInfoLookupHelper mCallerInfoLookupHelper;
     @Mock private CarrierConfigManager mCarrierConfigManager;
+    @Mock private Context mUserContext;
 
     private BlockCheckerFilter mFilter;
     private static final CallFilteringResult PASS_RESULT = new CallFilteringResult.Builder()
@@ -141,6 +147,74 @@ public class BlockCheckerFilterTest extends TelecomTestCase {
         verifyEnhancedLookupStart();
         assertEquals(PASS_RESULT, resultFuture.toCompletableFuture()
                 .get(BlockCheckerFilter.CALLER_INFO_QUERY_TIMEOUT, TimeUnit.MILLISECONDS));
+    }
+
+    @SmallTest
+    @Test
+    public void testUsesCorrectUserContextLegacy() throws Exception {
+        // Ensure the relevant flag is disabled:
+        if (Flags.getMainUserForBlockChecker()) {
+            return;
+        }
+
+        // Arrange: Set up a specific user handle for the call.
+        UserHandle userHandle = UserHandle.of(10);
+        when(mCall.getAssociatedUser()).thenReturn(userHandle);
+        // Arrange: When the system context creates a context for the user, return a mock user
+        // context.
+        when(mContext.createContextAsUser(eq(userHandle), eq(0))).thenReturn(mUserContext);
+        // Arrange: Assume the number is not blocked.
+        when(mBlockCheckerAdapter.getBlockStatus(any(Context.class),
+                eq(TEST_HANDLE.getSchemeSpecificPart()), anyInt(), anyBoolean()))
+                .thenReturn(STATUS_NOT_BLOCKED);
+        // Arrange: Disable enhanced blocking to simplify the call path.
+        setEnhancedBlockingEnabled(false);
+
+        // Act: Start the filter lookup process.
+        mFilter.startFilterLookup(PASS_RESULT).toCompletableFuture()
+                .get(BlockCheckerFilter.CALLER_INFO_QUERY_TIMEOUT, TimeUnit.MILLISECONDS);
+
+        // Assert: Verify that the block checker was called with the user-specific context.
+        verify(mBlockCheckerAdapter).getBlockStatus(eq(mUserContext),
+                eq(TEST_HANDLE.getSchemeSpecificPart()), anyInt(), anyBoolean());
+        // Assert: Verify that the block checker was not called with `mContext`.
+        verify(mBlockCheckerAdapter, never())
+                .getBlockStatus(eq(mContext), anyString(), anyInt(), anyBoolean());
+    }
+
+    @SmallTest
+    @Test
+    public void testUsesCorrectUserContext() throws Exception {
+        // Ensure the relevant flag is enabled:
+        if (!Flags.getMainUserForBlockChecker()) {
+            return;
+        }
+
+        // Arrange: Set up a specific user handle for the call.
+        UserHandle userHandle = UserHandle.of(10);
+        UserManager userManager = mContext.getSystemService(UserManager.class);
+        when(userManager.getMainUser()).thenReturn(userHandle);
+
+        // Arrange: When the system context creates a context for the user, return a mock user
+        // context.
+        when(mContext.createContextAsUser(eq(userHandle), eq(0))).thenReturn(mUserContext);
+        // Arrange: Assume the number is not blocked.
+        when(mBlockCheckerAdapter.getBlockStatus(any(Context.class),
+                eq(TEST_HANDLE.getSchemeSpecificPart()), anyInt(), anyBoolean()))
+                .thenReturn(STATUS_NOT_BLOCKED);
+        // Arrange: Disable enhanced blocking to simplify the call path.
+        setEnhancedBlockingEnabled(false);
+
+        // Act: Start the filter lookup process.
+        mFilter.startFilterLookup(PASS_RESULT).toCompletableFuture()
+                .get(BlockCheckerFilter.CALLER_INFO_QUERY_TIMEOUT, TimeUnit.MILLISECONDS);
+
+        // Assert: Verify that the block checker was called with the user-specific context.
+        verify(mBlockCheckerAdapter).getBlockStatus(eq(mUserContext),
+                eq(TEST_HANDLE.getSchemeSpecificPart()), anyInt(), anyBoolean());
+        // Assert: Verify that the block checker was not called with `mContext`.
+        verify(mBlockCheckerAdapter, never())
+                .getBlockStatus(eq(mContext), anyString(), anyInt(), anyBoolean());
     }
 
     private void setEnhancedBlockingEnabled(boolean value) {

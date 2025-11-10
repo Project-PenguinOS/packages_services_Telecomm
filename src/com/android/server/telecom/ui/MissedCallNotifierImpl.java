@@ -65,7 +65,6 @@ import com.android.server.telecom.CallerInfoLookupHelper;
 import com.android.server.telecom.CallsManagerListenerBase;
 import com.android.server.telecom.Constants;
 import com.android.server.telecom.DefaultDialerCache;
-import com.android.server.telecom.DeviceIdleControllerAdapter;
 import com.android.server.telecom.UserUtil;
 import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.MissedCallNotifier;
@@ -95,7 +94,6 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
         MissedCallNotifier makeMissedCallNotifierImpl(Context context,
                 PhoneAccountRegistrar phoneAccountRegistrar,
                 DefaultDialerCache defaultDialerCache,
-                DeviceIdleControllerAdapter deviceIdleControllerAdapter,
                 FeatureFlags featureFlags);
     }
 
@@ -142,7 +140,6 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
     private final PhoneAccountRegistrar mPhoneAccountRegistrar;
     private final NotificationBuilderFactory mNotificationBuilderFactory;
     private final DefaultDialerCache mDefaultDialerCache;
-    private final DeviceIdleControllerAdapter mDeviceIdleControllerAdapter;
     private UserHandle mCurrentUserHandle;
 
     // Used to guard access to mMissedCallCounts
@@ -155,21 +152,18 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
 
     public MissedCallNotifierImpl(Context context, PhoneAccountRegistrar phoneAccountRegistrar,
             DefaultDialerCache defaultDialerCache,
-            DeviceIdleControllerAdapter deviceIdleControllerAdapter,
             FeatureFlags featureFlags) {
         this(context, phoneAccountRegistrar, defaultDialerCache,
-                new DefaultNotificationBuilderFactory(), deviceIdleControllerAdapter, featureFlags);
+                new DefaultNotificationBuilderFactory(), featureFlags);
     }
 
     public MissedCallNotifierImpl(Context context,
             PhoneAccountRegistrar phoneAccountRegistrar,
             DefaultDialerCache defaultDialerCache,
             NotificationBuilderFactory notificationBuilderFactory,
-            DeviceIdleControllerAdapter deviceIdleControllerAdapter,
             FeatureFlags featureFlags) {
         mContext = context;
         mPhoneAccountRegistrar = phoneAccountRegistrar;
-        mDeviceIdleControllerAdapter = deviceIdleControllerAdapter;
         mDefaultDialerCache = defaultDialerCache;
 
         mNotificationBuilderFactory = notificationBuilderFactory;
