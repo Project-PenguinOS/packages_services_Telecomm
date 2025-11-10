@@ -561,6 +561,25 @@ public class CallTest extends TelecomTestCase {
 
     @Test
     @SmallTest
+    public void testIllegalAudioProcessingTransition_ExternalCall() {
+        // An external call in AUDIO_PROCESSING state.
+        when(mFeatureFlags.preventIllegalAudioProcessingExit()).thenReturn(true);
+        Call call = createCall("1", Call.CALL_DIRECTION_INCOMING);
+        call.setConnectionService(mMockConnectionService);
+        call.setState(CallState.AUDIO_PROCESSING, "test");
+        call.setConnectionProperties(Connection.PROPERTY_IS_EXTERNAL_CALL);
+
+        // Attempt to transition to ACTIVE state.
+        boolean transitionResult = call.setState(CallState.ACTIVE, "test");
+
+        // The transition should be allowed because the call is external.
+        assertTrue("State transition should be allowed for external calls", transitionResult);
+        assertEquals(CallState.ACTIVE, call.getState());
+        verify(mMockConnectionService, never()).disconnect(eq(call));
+    }
+
+    @Test
+    @SmallTest
     public void testCanPullCallRemovedDuringEmergencyCall() {
         Call call = createCall("1", Call.CALL_DIRECTION_INCOMING);
         boolean[] hasCalledConnectionCapabilitiesChanged = new boolean[1];

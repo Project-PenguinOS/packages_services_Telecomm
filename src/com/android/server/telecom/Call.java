@@ -1607,6 +1607,10 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         if (!mFlags.preventIllegalAudioProcessingExit()) {
             return false;
         }
+        if (isExternalCall()) {
+            Log.i(this, "isIllegalAudioProcessingTransition: Call is external, skipping check.");
+            return false;
+        }
         // This is the core guard condition. A transition is considered an "unauthorized attempt"
         // if the call is currently in the AUDIO_PROCESSING state, but the exit was NOT initiated
         // via the sanctioned CallsManager#exitBackgroundAudioProcessing API (which is tracked
