@@ -719,7 +719,7 @@ public class CallLogUtils {
         if (detector != null) {
             final Country country = detector.detectCountry();
             if (country != null) {
-                countryIso = country.getCountryIso();
+                countryIso = country.getCountryCode();
             }
         }
         return countryIso;

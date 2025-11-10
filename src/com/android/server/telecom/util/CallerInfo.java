@@ -24,7 +24,6 @@ import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
 import android.location.Country;
-import android.location.CountryDetector;
 import android.net.Uri;
 import android.provider.ContactsContract.CommonDataKinds.Phone;
 import android.provider.ContactsContract.Contacts;
@@ -535,16 +534,11 @@ public class CallerInfo {
      */
     private static String getCurrentCountryIso(Context context, Locale locale) {
         String countryIso = null;
-        CountryDetector detector = context.getSystemService(CountryDetector.class);
-        if (detector != null) {
-            Country country = detector.detectCountry();
-            if (country != null) {
-                countryIso = country.getCountryIso();
-            } else {
-                Log.e(TAG, new Exception(), "CountryDetector.detectCountry() returned null.");
-            }
+        TelephonyManager tm = context.getSystemService(TelephonyManager.class);
+        if (tm != null) {
+            countryIso = tm.getNetworkCountryIso().toUpperCase();
         }
-        if (countryIso == null) {
+        if (countryIso == null || countryIso.isEmpty()) {
             countryIso = locale.getCountry();
             Log.w(TAG, "No CountryDetector; falling back to countryIso based on locale: "
                 + countryIso);
