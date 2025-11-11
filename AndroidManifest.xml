@@ -96,20 +96,12 @@
 
     <application android:label="@string/telecommAppLabel"
          android:icon="@mipmap/ic_launcher_phone"
-         android:allowBackup="true"
-         android:backupAgent="android.app.backup.TelecomBackupAgent"
-         android:restoreAnyVersion="true"
+         android:allowBackup="false"
          android:supportsRtl="true"
          android:process="system"
          android:usesCleartextTraffic="false"
          android:defaultToDeviceProtectedStorage="true"
          android:directBootAware="true">
-
-        <!-- API key is no longer required by the backup service but some older devices may
-             still check for one so provide a stubbed value. -->
-        <meta-data
-            android:name="com.google.android.backup.api_key"
-            android:value="unused" />
 
         <!-- CALL vs CALL_PRIVILEGED vs CALL_EMERGENCY
              We have three different intents through which a call can be initiated each with its
