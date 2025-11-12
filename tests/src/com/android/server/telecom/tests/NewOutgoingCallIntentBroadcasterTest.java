@@ -39,6 +39,7 @@ import android.app.AppOpsManager;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Intent;
+import android.content.res.Resources;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -218,7 +219,9 @@ public class NewOutgoingCallIntentBroadcasterTest extends TelecomTestCase {
 
         String ui_package_string = "sample_string_1";
         String dialer_default_class_string = "sample_string_2";
-        mComponentContextFixture.putResource(com.android.internal.R.string.config_defaultDialer,
+        int mockConfigDefaultDialer = Resources.getSystem().getIdentifier("config_defaultDialer",
+                "string", "android");
+        mComponentContextFixture.putResource(mockConfigDefaultDialer,
                 ui_package_string);
         mComponentContextFixture.putResource(R.string.dialer_default_class,
                 dialer_default_class_string);
@@ -250,7 +253,9 @@ public class NewOutgoingCallIntentBroadcasterTest extends TelecomTestCase {
 
         String ui_package_string = "sample_string_1";
         String dialer_default_class_string = "sample_string_2";
-        mComponentContextFixture.putResource(com.android.internal.R.string.config_defaultDialer,
+        int mockConfigDefaultDialer = Resources.getSystem().getIdentifier("config_defaultDialer",
+                "string", "android");
+        mComponentContextFixture.putResource(mockConfigDefaultDialer,
                 ui_package_string);
         mComponentContextFixture.putResource(R.string.dialer_default_class,
                 dialer_default_class_string);
@@ -282,7 +287,9 @@ public class NewOutgoingCallIntentBroadcasterTest extends TelecomTestCase {
 
         String ui_package_string = "sample_string_1";
         String dialer_default_class_string = "sample_string_2";
-        mComponentContextFixture.putResource(com.android.internal.R.string.config_defaultDialer,
+        int mockConfigDefaultDialer = Resources.getSystem().getIdentifier("config_defaultDialer",
+                "string", "android");
+        mComponentContextFixture.putResource(mockConfigDefaultDialer,
                 ui_package_string);
         mComponentContextFixture.putResource(R.string.dialer_default_class,
                 dialer_default_class_string);
