@@ -622,6 +622,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     private boolean mWasHighDefAudio = false;
     private boolean mWasWifi = false;
     private boolean mWasVolte = false;
+    private boolean mWasVonr = false;
     private boolean mDestroyed = false;
     private boolean mIsHdPlus = false;
 
@@ -3632,6 +3633,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         if (mExtras.containsKey(TelecomManager.EXTRA_CALL_NETWORK_TYPE)) {
             mWasVolte = mExtras.get(TelecomManager.EXTRA_CALL_NETWORK_TYPE)
                     .equals(TelephonyManager.NETWORK_TYPE_LTE);
+            mWasVonr = mExtras.get(TelecomManager.EXTRA_CALL_NETWORK_TYPE)
+                    .equals(TelephonyManager.NETWORK_TYPE_NR);
         }
 
         if (extras.containsKey(Connection.EXTRA_ORIGINAL_CONNECTION_ID)) {
@@ -4981,6 +4984,15 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      */
     public boolean wasVolte() {
         return mWasVolte;
+    }
+
+    /**
+     * Returns whether or not Vonr call was used.
+     *
+     * @return true if Vonr call was used during this call.
+     */
+    public boolean wasVonr() {
+        return mWasVonr;
     }
 
     /**
