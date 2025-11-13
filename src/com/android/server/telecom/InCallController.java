@@ -1534,8 +1534,7 @@ public class InCallController extends CallsManagerListenerBase implements
             /** Let's add a 2 second delay before we send unbind to the services to hopefully
              *  give them enough time to process all the pending messages.
              */
-            if (mCallRemovedRunnable != null
-                    && mFeatureFlags.preventRedundantLocationPermissionGrantAndRevoke()) {
+            if (mCallRemovedRunnable != null) {
                 mHandler.removeCallbacks(mCallRemovedRunnable);
             }
             mCallRemovedRunnable = new Runnable("ICC.oCR", mLock) {
