@@ -85,7 +85,6 @@ import com.android.server.telecom.CallsManagerListenerBase;
 import com.android.server.telecom.ClockProxy;
 import com.android.server.telecom.ConnectionServiceFocusManager;
 import com.android.server.telecom.ContactsAsyncHelper;
-import com.android.server.telecom.DeviceIdleControllerAdapter;
 import com.android.server.telecom.HeadsetMediaButton;
 import com.android.server.telecom.HeadsetMediaButtonFactory;
 import com.android.server.telecom.InCallWakeLockController;
@@ -220,16 +219,12 @@ public class TelecomSystemTest extends TelecomTestCase{
     @Mock ClockProxy mClockProxy;
     @Mock RoleManagerAdapter mRoleManagerAdapter;
     @Mock ToneGenerator mToneGenerator;
-    @Mock DeviceIdleControllerAdapter mDeviceIdleControllerAdapter;
-
     @Mock Ringer.AccessibilityManagerAdapter mAccessibilityManagerAdapter;
-    @Mock
-    BlockedNumbersAdapter mBlockedNumbersAdapter;
-    @Mock
-    FeatureFlags mFeatureFlags;
+    @Mock BlockedNumbersAdapter mBlockedNumbersAdapter;
+    @Mock FeatureFlags mFeatureFlags;
     @Mock android.telecom.flags.FeatureFlags mModuleFeatureFlags;
-    @Mock
-    com.android.internal.telephony.flags.FeatureFlags mTelephonyFlags;
+    @Mock com.android.internal.telecom.flags.FeatureFlags mModuleBugFixFeatureFlags;
+    @Mock com.android.internal.telephony.flags.FeatureFlags mTelephonyFlags;
     @Mock Ringer.VibratorAdapter mVibratorAdapter;
 
     private static final String SYSTEM_UI_PACKAGE = "com.android.systemui";
@@ -548,8 +543,7 @@ public class TelecomSystemTest extends TelecomTestCase{
         when(mRoleManagerAdapter.getBTInCallService()).thenReturn(new String[] {"bt_pkg"});
         mTelecomSystem = new TelecomSystem(
                 mComponentContextFixture.getTestDouble(),
-                (context, phoneAccountRegistrar, defaultDialerCache, mDeviceIdleControllerAdapter,
-                        mFeatureFlag)
+                (context, phoneAccountRegistrar, defaultDialerCache, mFeatureFlag)
                         -> mMissedCallNotifier,
                 mCallerInfoAsyncQueryFactoryFixture.getTestDouble(),
                 headsetMediaButtonFactory,
@@ -603,13 +597,14 @@ public class TelecomSystemTest extends TelecomTestCase{
                             ContactsAsyncHelper.ContentResolverAdapter adapter) {
                         return new ContactsAsyncHelper(adapter, mHandlerThread.getLooper());
                     }
-                }, mDeviceIdleControllerAdapter, SYSTEM_UI_PACKAGE,
+                }, SYSTEM_UI_PACKAGE,
                 mAccessibilityManagerAdapter,
                 Runnable::run,
                 Runnable::run,
                 mBlockedNumbersAdapter,
                 mFeatureFlags,
                 mModuleFeatureFlags,
+                mModuleBugFixFeatureFlags,
                 mTelephonyFlags,
                 mHandlerThread.getLooper(),
                 mVibratorAdapter);

@@ -238,7 +238,6 @@ public class TelecomSystem {
             ClockProxy clockProxy,
             RoleManagerAdapter roleManagerAdapter,
             ContactsAsyncHelper.Factory contactsAsyncHelperFactory,
-            DeviceIdleControllerAdapter deviceIdleControllerAdapter,
             String sysUiPackageName,
             Ringer.AccessibilityManagerAdapter accessibilityManagerAdapter,
             Executor asyncTaskExecutor,
@@ -246,6 +245,7 @@ public class TelecomSystem {
             BlockedNumbersAdapter blockedNumbersAdapter,
             FeatureFlags featureFlags,
             android.telecom.flags.FeatureFlags moduleFeatureFlags,
+            com.android.internal.telecom.flags.FeatureFlags moduleBugFixFeatureFlags,
             com.android.internal.telephony.flags.FeatureFlags telephonyFlags,
             Looper looper,
             Ringer.VibratorAdapter vibratorAdapter) {
@@ -290,7 +290,6 @@ public class TelecomSystem {
             mMissedCallNotifier = missedCallNotifierImplFactory
                     .makeMissedCallNotifierImpl(mContext, mPhoneAccountRegistrar,
                             defaultDialerCache,
-                            deviceIdleControllerAdapter,
                             featureFlags);
             DisconnectedCallNotifier.Factory disconnectedCallNotifierFactory =
                     new DisconnectedCallNotifier.Default();
@@ -533,6 +532,7 @@ public class TelecomSystem {
                     new TelecomServiceImpl.SettingsSecureAdapterImpl(),
                     featureFlags,
                     moduleFeatureFlags,
+                    moduleBugFixFeatureFlags,
                     null,
                     mLock,
                     mMetricsController,

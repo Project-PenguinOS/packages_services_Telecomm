@@ -19,18 +19,6 @@ filegroup {
     path: "src",
 }
 
-// Library for Telecom utility classes and THEIR specific resources.
-android_library {
-    name: "telecom-util-lib",
-    manifest: "AndroidManifestLib.xml",
-    srcs: [
-        "src/com/android/server/telecom/util/**/*.java",
-    ],
-    resource_dirs: ["util_res"],
-    platform_apis: true,
-    min_sdk_version: "23",
-}
-
 android_library {
     name: "TelecomLib",
     libs: [
@@ -49,9 +37,6 @@ android_library {
         ":framework-telecom-aidl-internal-sources",
         ":framework-telecom-aidl-export-sources",
     ],
-    exclude_srcs: [
-        "src/com/android/server/telecom/util/**/*.java", // Exclude util srcs
-    ],
     aidl: {
         include_dirs: [
             "frameworks/native/aidl/gui", // For Surface.java
@@ -64,7 +49,6 @@ android_library {
         "modules-utils-handlerexecutor",
         "modules-utils-list-slice",
         "telecom_module_bugfix_flags-java",
-        "telecom-util-lib",
     ],
     min_sdk_version: "36",
     resource_dirs: ["res"],
@@ -97,6 +81,14 @@ android_app {
     optimize: {
         proguard_flags_files: ["proguard.flags"],
     },
+}
+
+// Build telecom util static lib
+java_library_static {
+    name: "telecom-util-lib",
+    srcs: [
+        "src/com/android/server/telecom/util/*.java",
+    ],
 }
 
 android_test {

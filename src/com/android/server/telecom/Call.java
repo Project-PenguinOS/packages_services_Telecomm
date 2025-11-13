@@ -1504,8 +1504,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
             if (newState == CallState.DISCONNECTED && shouldContinueProcessingAfterDisconnect()) {
                 Log.w(this, "continuing processing disconnected call with another service");
-                if (mFlags.cancelRemovalOnEmergencyRedial() && isDisconnectHandledViaFuture()
-                        && isRemovalPending()) {
+                if (isDisconnectHandledViaFuture() && isRemovalPending()) {
                     Log.i(this, "cancelling removal future in favor of "
                             + "CreateConnectionProcessor handling removal");
                     mRemovalFuture.cancel(true);
