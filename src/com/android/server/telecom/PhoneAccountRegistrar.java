@@ -1105,9 +1105,7 @@ public class PhoneAccountRegistrar {
             enforcePhoneAccountTargetService(account);
         }
         enforceMaxPhoneAccountLimit(account);
-        if (mTelephonyFeatureFlags.simultaneousCallingIndications()) {
-            enforceSimultaneousCallingRestrictionLimit(account);
-        }
+        enforceSimultaneousCallingRestrictionLimit(account);
         addOrReplacePhoneAccount(account);
     }
 
@@ -3042,8 +3040,7 @@ public class PhoneAccountRegistrar {
                 writeTextIfNonNull(ENABLED, o.isEnabled() ? "true" : "false" , serializer);
                 writeTextIfNonNull(SUPPORTED_AUDIO_ROUTES, Integer.toString(
                         o.getSupportedAudioRoutes()), serializer);
-                if (o.hasSimultaneousCallingRestriction()
-                        && telephonyFeatureFlags.simultaneousCallingIndications()) {
+                if (o.hasSimultaneousCallingRestriction()) {
                     writePhoneAccountHandleSet(SIMULTANEOUS_CALLING_RESTRICTION,
                             o.getSimultaneousCallingRestriction(), serializer, context,
                             telephonyFeatureFlags, telecomFeatureFlags);
@@ -3208,8 +3205,7 @@ public class PhoneAccountRegistrar {
                 } else if (!TextUtils.isEmpty(iconPackageName)) {
                     builder.setIcon(Icon.createWithResource(iconPackageName, iconResId));
                     // TODO: Need to set tint.
-                } else if (simultaneousCallingRestriction != null
-                        && telephonyFeatureFlags.simultaneousCallingIndications()) {
+                } else if (simultaneousCallingRestriction != null) {
                     builder.setSimultaneousCallingRestriction(simultaneousCallingRestriction);
                 }
 
