@@ -63,7 +63,7 @@ android_library {
         "androidx.core_core",
         "modules-utils-handlerexecutor",
         "modules-utils-list-slice",
-        "telecom_module_flags-export-java",
+        "telecom_module_bugfix_flags-java",
         "telecom-util-lib",
     ],
     min_sdk_version: "36",
