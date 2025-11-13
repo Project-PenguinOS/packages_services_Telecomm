@@ -950,19 +950,17 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
     public void cacheServiceCallback(CachedCallback callback) {
         synchronized (mCachedServiceCallbacks) {
-            if (mFlags.cacheCallEvents()) {
-                // If there are multiple threads caching + calling processCachedCallbacks at the
-                // same time, there is a race - double check here to ensure that we do not lose an
-                // operation due to a a cache happening after processCachedCallbacks.
-                // Either service will be non-null in this case, but both will not be non-null
-                if (mConnectionService != null) {
-                    callback.executeCallback(mConnectionService, this);
-                    return;
-                }
-                if (mTransactionalService != null) {
-                    callback.executeCallback(mTransactionalService, this);
-                    return;
-                }
+            // If there are multiple threads caching + calling processCachedCallbacks at the
+            // same time, there is a race - double check here to ensure that we do not lose an
+            // operation due to a a cache happening after processCachedCallbacks.
+            // Either service will be non-null in this case, but both will not be non-null
+            if (mConnectionService != null) {
+                callback.executeCallback(mConnectionService, this);
+                return;
+            }
+            if (mTransactionalService != null) {
+                callback.executeCallback(mTransactionalService, this);
+                return;
             }
             List<CachedCallback> cbs = mCachedServiceCallbacks.computeIfAbsent(
                     callback.getCallbackId(), k -> new ArrayList<>());
@@ -3973,14 +3971,9 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             Log.addEvent(this, LogUtils.Events.CALL_EVENT, event);
             sendEventToService(this, event, extras);
         } else {
-            if (mFlags.cacheCallEvents()) {
-                Log.i(this, "sendCallEvent: caching call event for callId=%s, event=%s",
-                        getId(), event);
-                cacheServiceCallback(new CachedCallEventQueue(event, extras));
-            } else {
-                Log.e(this, new NullPointerException(),
-                        "sendCallEvent failed due to null CS callId=%s", getId());
-            }
+            Log.i(this, "sendCallEvent: caching call event for callId=%s, event=%s",
+                    getId(), event);
+            cacheServiceCallback(new CachedCallEventQueue(event, extras));
         }
     }
 
