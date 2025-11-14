@@ -19,6 +19,7 @@ package com.android.server.telecom.util;
 import static android.provider.CallLog.Calls.ADD_FOR_ALL_USERS;
 import static android.provider.CallLog.Calls.ASSERTED_DISPLAY_NAME;
 import static android.provider.CallLog.Calls.BLOCK_REASON;
+import static android.provider.CallLog.Calls.CACHED_LOOKUP_URI;
 import static android.provider.CallLog.Calls.CACHED_NAME;
 import static android.provider.CallLog.Calls.CALL_SCREENING_APP_NAME;
 import static android.provider.CallLog.Calls.CALL_SCREENING_COMPONENT_NAME;
@@ -338,6 +339,10 @@ public class CallLogUtils {
         }
         if (Flags.integratedCallLogs()) {
             values.put(UUID, params.mUuid);
+        }
+        if (android.telecom.flags.Flags.integratedCallLogsStage2()
+                && params.mVoipContactLookupUri != null) {
+            values.put(CACHED_LOOKUP_URI, params.mVoipContactLookupUri.toString());
         }
         if (Flags.supportDisplayNameCallLog()) {
             values.put(PREFERRED_DISPLAY_NAME, params.mPreferredDisplayName);
@@ -684,6 +689,7 @@ public class CallLogUtils {
         private String mAssertedDisplayName;
         private String mUuid;
         private String mPreferredDisplayName;
+        private Uri mVoipContactLookupUri;
 
         private AddCallParams(CallerInfo callerInfo, String number, String postDialDigits,
             String viaNumber, int presentation, int callType, int features,
@@ -767,7 +773,8 @@ public class CallLogUtils {
                 long missedReason,
                 int priority, String subject, double latitude, double longitude, Uri pictureUri,
                 int isPhoneAccountMigrationPending, boolean isBusinessCall,
-                String assertedDisplayName, String uuid, String preferredDisplayName) {
+                String assertedDisplayName, String uuid, String preferredDisplayName,
+                Uri voipLookupUri) {
             this(callerInfo, number, postDialDigits, viaNumber, presentation, callType, features,
                     accountHandle, start, duration, dataUsage, addForAllUsers, userToBeInsertedTo,
                     isRead, callBlockReason, callScreeningAppName, callScreeningComponentName,
@@ -776,6 +783,9 @@ public class CallLogUtils {
             mUuid = uuid;
             if (Flags.supportDisplayNameCallLog()) {
                 mPreferredDisplayName = preferredDisplayName;
+            }
+            if (android.telecom.flags.Flags.integratedCallLogsStage2()) {
+                mVoipContactLookupUri = voipLookupUri;
             }
         }
 
@@ -813,6 +823,7 @@ public class CallLogUtils {
             private String mAssertedDisplayName;
             private String mUuid;
             private String mPreferredDisplayName;
+            private Uri mVoipContactLookupUri;
 
             /**
              * @param callerInfo the CallerInfo object to get the target contact from.
@@ -1097,6 +1108,17 @@ public class CallLogUtils {
             }
 
             /**
+             * @param voipContactLookupUri {@link Uri} pointing to the VoIP contact directory.
+             *     A lookup URI that is used by the system dialer for enriched call information
+             *     associated with the VoIP call.
+             */
+            public @NonNull AddCallParametersBuilder setVoipContactLookupUri(
+                    @NonNull Uri voipContactLookupUri) {
+                mVoipContactLookupUri = voipContactLookupUri;
+                return this;
+            }
+
+            /**
              * Builds the object
              */
             public @NonNull AddCallParams build() {
@@ -1109,7 +1131,8 @@ public class CallLogUtils {
                                 mCallScreeningAppName, mCallScreeningComponentName, mMissedReason,
                                 mPriority, mSubject, mLatitude, mLongitude, mPictureUri,
                                 mIsPhoneAccountMigrationPending, mIsBusinessCall,
-                                mAssertedDisplayName, mUuid, mPreferredDisplayName);
+                                mAssertedDisplayName, mUuid, mPreferredDisplayName,
+                                mVoipContactLookupUri);
                     } else {
                         return new AddCallParams(mCallerInfo, mNumber, mPostDialDigits, mViaNumber,
                                 mPresentation, mCallType, mFeatures, mAccountHandle, mStart,

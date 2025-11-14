@@ -286,6 +286,10 @@ public class TelecomServiceImpl {
                                     call.setIsTransactionalLogExcluded(
                                             callAttributes.isLogExcluded());
                                 }
+                                if (android.telecom.flags.Flags.integratedCallLogsStage2()) {
+                                    call.setIsGroupCall(callAttributes.isGroupCall());
+                                    call.setVoipContactLookupUri(callAttributes.getContactUri());
+                                }
                                 ICallControl clientCallControl = serviceWrapper.getICallControl();
 
                                 if (clientCallControl == null) {
