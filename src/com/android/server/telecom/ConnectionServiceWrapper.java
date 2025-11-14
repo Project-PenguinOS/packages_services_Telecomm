@@ -489,8 +489,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                     logIncoming("removeCall %s", callId);
                     Call call = mCallIdMapper.getCall(callId);
                     if (call != null) {
-                        boolean isRemovalPending = mFlags.cancelRemovalOnEmergencyRedial()
-                                && call.isRemovalPending();
+                        boolean isRemovalPending = call.isRemovalPending();
                         if (call.isAlive() && !call.isDisconnectHandledViaFuture()
                                 && !isRemovalPending) {
                             Log.w(this, "call not disconnected when removeCall"
@@ -1897,9 +1896,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                         mPendingResponses.remove(callId).handleCreateConferenceFailure(
                                 new DisconnectCause(DisconnectCause.ERROR, e.toString()));
 // QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
-                        if (mFlags.dontTimeoutDestroyedCalls()) {
-                            maybeRemoveCleanupFuture(call);
-                        }
+                        maybeRemoveCleanupFuture(call);
 // QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                     }
                 } else {
@@ -1937,9 +1934,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                     Log.i(ConnectionServiceWrapper.this, "Call not present"
                             + " in call id mapper, maybe it was aborted before the bind"
                             + " completed successfully?");
-                    if (mFlags.dontTimeoutDestroyedCalls()) {
-                        maybeRemoveCleanupFuture(call);
-                    }
+                    maybeRemoveCleanupFuture(call);
                     response.handleCreateConnectionFailure(
                             new DisconnectCause(DisconnectCause.CANCELED));
                     return;
@@ -2044,9 +2039,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                 }
                 try {
                     if (mFlags.cswServiceInterfaceIsNull() && mServiceInterface == null) {
-                        if (mFlags.dontTimeoutDestroyedCalls()) {
-                            maybeRemoveCleanupFuture(call);
-                        }
+                        maybeRemoveCleanupFuture(call);
                         CreateConnectionResponse response = mPendingResponses.remove(callId);
                         if (response != null) {
                             response.handleCreateConnectionFailure(
@@ -2066,9 +2059,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
 // QTI_END: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                 } catch (RemoteException e) {
                     Log.e(this, e, "Failure to createConnection -- %s", getComponentName());
-                    if (mFlags.dontTimeoutDestroyedCalls()) {
-                        maybeRemoveCleanupFuture(call);
-                    }
+                    maybeRemoveCleanupFuture(call);
                     mPendingResponses.remove(callId).handleCreateConnectionFailure(
 // QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                             new DisconnectCause(DisconnectCause.ERROR));
@@ -2605,9 +2596,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         if (response != null) {
             response.handleCreateConnectionFailure(disconnectCause);
         }
-        if (mFlags.dontTimeoutDestroyedCalls()) {
-            maybeRemoveCleanupFuture(mCallIdMapper.getCall(callId));
-        }
+        maybeRemoveCleanupFuture(mCallIdMapper.getCall(callId));
+
 
         mCallIdMapper.removeCall(callId);
     }
@@ -2617,9 +2607,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         if (response != null) {
             response.handleCreateConnectionFailure(disconnectCause);
         }
-        if (mFlags.dontTimeoutDestroyedCalls()) {
-            maybeRemoveCleanupFuture(call);
-        }
+        maybeRemoveCleanupFuture(call);
 
         mCallIdMapper.removeCall(call);
     }

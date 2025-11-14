@@ -61,7 +61,7 @@ import com.android.server.telecom.metrics.EventStats.CriticalEvent;
  * work on all non-emergency numbers just like it did pre-L.
  */
 public class UserCallIntentProcessor {
-
+    private static final int INVALID_CALL_TYPE = -1;
     private final Context mContext;
     private final UserHandle mUserHandle;
     private FeatureFlags mFeatureFlags;
@@ -136,7 +136,7 @@ public class UserCallIntentProcessor {
         // See if this is an action callback from the default dialer to initiate a VOIP call from
         // the call log. If so, don't continue processing this call in Telecom. The corresponding
         // VOIP app will initiate the call themselves via {@link TelecomManager#addCall}.
-        if (isProcessingCallbackAction(handle)) {
+        if (isProcessingCallbackAction(handle, intent)) {
             try {
                 int uid = mContext.getPackageManager().getPackageUid(
                         callingPackageName, PackageManager.PackageInfoFlags.of(0));
@@ -197,8 +197,9 @@ public class UserCallIntentProcessor {
      * @return {@code true} if the call log entry was able to be located and the intent sent to the
      *         calling package.
      */
-    private boolean isProcessingCallbackAction(Uri handle) {
+    private boolean isProcessingCallbackAction(Uri handle, Intent intent) {
         if (mFeatureFlags.integratedCallLogs()) {
+            int callType = intent.getIntExtra(TelecomManager.EXTRA_CALL_TYPE, INVALID_CALL_TYPE);
             String authority = handle != null ? handle.getAuthority() : null;
             // Check to see if the provided handle's authority corresponds to the call log content
             // URI authority.
@@ -231,6 +232,10 @@ public class UserCallIntentProcessor {
                                 .setAction(TelecomManager.ACTION_CALL_BACK);
                         actionCallbackIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                         actionCallbackIntent.putExtra(TelecomManager.EXTRA_UUID, uuid);
+                        if (mFeatureFlags.integratedCallLogsStage2()
+                                && callType != INVALID_CALL_TYPE) {
+                            actionCallbackIntent.putExtra(TelecomManager.EXTRA_CALL_TYPE, callType);
+                        }
                         mContext.startActivity(actionCallbackIntent);
                         return true;
                     }

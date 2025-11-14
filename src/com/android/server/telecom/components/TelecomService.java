@@ -40,7 +40,6 @@ import android.telecom.Log;
 
 import android.view.accessibility.AccessibilityManager;
 
-import com.android.internal.telecom.IInternalServiceRetriever;
 import com.android.internal.telecom.ITelecomLoader;
 import com.android.internal.telecom.ITelecomService;
 import com.android.server.telecom.AsyncRingtonePlayer;
@@ -52,13 +51,11 @@ import com.android.server.telecom.ClockProxy;
 import com.android.server.telecom.ConnectionServiceFocusManager;
 import com.android.server.telecom.ContactsAsyncHelper;
 import com.android.server.telecom.DefaultDialerCache;
-import com.android.server.telecom.DeviceIdleControllerAdapter;
 import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.HeadsetMediaButton;
 import com.android.server.telecom.HeadsetMediaButtonFactory;
 import com.android.server.telecom.InCallWakeLockControllerFactory;
 import com.android.server.telecom.CallAudioManager;
-import com.android.server.telecom.InternalServiceRetrieverAdapter;
 import com.android.server.telecom.PhoneAccountRegistrar;
 import com.android.server.telecom.PhoneNumberUtilsAdapterImpl;
 import com.android.server.telecom.ProximitySensorManagerFactory;
@@ -89,11 +86,8 @@ public class TelecomService extends Service implements TelecomSystem.Component {
         Log.d(this, "onBind");
         return new ITelecomLoader.Stub() {
             @Override
-            public ITelecomService createTelecomService(IInternalServiceRetriever retriever,
-                    String sysUiPackageName) {
-                InternalServiceRetrieverAdapter adapter =
-                        new InternalServiceRetrieverAdapter(retriever);
-                initializeTelecomSystem(TelecomService.this, adapter, sysUiPackageName);
+            public ITelecomService createTelecomService(String sysUiPackageName) {
+                initializeTelecomSystem(TelecomService.this, sysUiPackageName);
                 synchronized (getTelecomSystem().getLock()) {
                     return getTelecomSystem().getTelecomServiceImpl().getBinder();
                 }
@@ -111,8 +105,7 @@ public class TelecomService extends Service implements TelecomSystem.Component {
      *
      * @param context
      */
-    static void initializeTelecomSystem(Context context,
-            InternalServiceRetrieverAdapter internalServiceRetriever, String sysUiPackageName) {
+    static void initializeTelecomSystem(Context context, String sysUiPackageName) {
         if (TelecomSystem.getInstance() == null) {
             FeatureFlags featureFlags = new FeatureFlagsImpl();
             NotificationChannelManager notificationChannelManager =
@@ -158,11 +151,10 @@ public class TelecomService extends Service implements TelecomSystem.Component {
                                         Context context,
                                         PhoneAccountRegistrar phoneAccountRegistrar,
                                         DefaultDialerCache defaultDialerCache,
-                                        DeviceIdleControllerAdapter idleControllerAdapter,
                                         FeatureFlags featureFlags) {
                                     return new MissedCallNotifierImpl(context,
                                             phoneAccountRegistrar, defaultDialerCache,
-                                            idleControllerAdapter, featureFlags);
+                                            featureFlags);
                                 }
                             },
                             new CallerInfoAsyncQueryFactory() {
@@ -241,7 +233,6 @@ public class TelecomService extends Service implements TelecomSystem.Component {
                             new RoleManagerAdapterImpl(context,
                                     (RoleManager) context.getSystemService(Context.ROLE_SERVICE)),
                             new ContactsAsyncHelper.Factory(),
-                            internalServiceRetriever.getDeviceIdleController(),
                             sysUiPackageName,
                             new Ringer.AccessibilityManagerAdapter() {
                                 @Override
@@ -280,6 +271,7 @@ public class TelecomService extends Service implements TelecomSystem.Component {
                             },
                             featureFlags,
                             new android.telecom.flags.FeatureFlagsImpl(),
+                            new com.android.internal.telecom.flags.FeatureFlagsImpl(),
                             new com.android.internal.telephony.flags.FeatureFlagsImpl(),
                             handlerThread.getLooper(),
                             vibratorAdapter));

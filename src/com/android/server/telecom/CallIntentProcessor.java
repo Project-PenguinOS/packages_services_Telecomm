@@ -273,13 +273,10 @@ public class CallIntentProcessor {
         final UserHandle initiatingUser = intent.getParcelableExtra(KEY_INITIATING_USER);
         if (UserUtil.isManagedProfile(context, initiatingUser, featureFlags)) {
             boolean noDialerInstalled = DefaultDialerManager.getInstalledDialerApplications(context,
-                    initiatingUser.getIdentifier()).size() == 0;
+                    initiatingUser).size() == 0;
             if (noDialerInstalled) {
                 final UserManager userManager = context.getSystemService(UserManager.class);
-                UserHandle parentUserHandle = featureFlags.telecomResolveHiddenDependencies()
-                        ? userManager.getProfileParent(initiatingUser)
-                        : userManager.getProfileParent(initiatingUser.getIdentifier())
-                                .getUserHandle();
+                UserHandle parentUserHandle = userManager.getProfileParent(initiatingUser);
                 intent.putExtra(KEY_INITIATING_USER, parentUserHandle);
 
                 Log.i(CallIntentProcessor.class, "fixInitiatingUserIfNecessary: no dialer installed"

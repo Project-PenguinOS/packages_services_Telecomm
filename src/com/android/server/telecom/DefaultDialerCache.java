@@ -250,16 +250,6 @@ public class DefaultDialerCache {
         return isChanged;
     }
 
-    public boolean setDefaultDialerLegacy(String packageName, int userId) {
-        boolean isChanged = mDefaultDialerManagerAdapter.setDefaultDialerApplicationLegacy(
-                mContext, packageName, userId);
-        if (isChanged) {
-            // Update the cache synchronously so that there is no delay in cache update.
-            mCurrentDefaultDialerPerUser.put(userId, packageName == null ? "" : packageName);
-        }
-        return isChanged;
-    }
-
     private String refreshCacheForUserId(int userId) {
         String currentDefaultDialer =
                 mRoleManagerAdapter.getDefaultDialerApp(userId);
@@ -324,12 +314,7 @@ public class DefaultDialerCache {
 
         String getDefaultDialerApplication(Context context, UserHandle user);
 
-        String getDefaultDialerApplicationLegacy(Context context, int userId);
-
         boolean setDefaultDialerApplication(Context context, String packageName, UserHandle user);
-
-        boolean setDefaultDialerApplicationLegacy(Context context, String packageName, int userId);
-
     }
 
     static class DefaultDialerManagerAdapterImpl implements DefaultDialerManagerAdapter {
@@ -344,21 +329,9 @@ public class DefaultDialerCache {
         }
 
         @Override
-        public String getDefaultDialerApplicationLegacy(Context context, int userId) {
-            return DefaultDialerManager.getDefaultDialerApplicationLegacy(context, userId);
-        }
-
-        @Override
         public boolean setDefaultDialerApplication(Context context, String packageName,
                 UserHandle user) {
             return DefaultDialerManager.setDefaultDialerApplication(context, packageName, user);
-        }
-
-        @Override
-        public boolean setDefaultDialerApplicationLegacy(Context context, String packageName,
-                int userId) {
-            return DefaultDialerManager.setDefaultDialerApplicationLegacy(
-                    context, packageName, userId);
         }
     }
 }

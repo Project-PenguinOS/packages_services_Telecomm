@@ -28,8 +28,7 @@
     <string name="call_attributes_empty_error" msgid="6921783379546938037">"Opkaldsattributter skal udfyldes. Standardindstillingerne initialiseres alligevel."</string>
     <string name="back_to_voip_main" msgid="2500173767939494261">"Tilbage til hovedaktiviteten for VoIP"</string>
     <string name="clear_voip_call_logs" msgid="2402471290566644149">"Ryd opkaldshistorik for VoIP-testopkald"</string>
-    <!-- no translation found for refresh_call_logs (4633143020852759545) -->
-    <skip />
+    <string name="refresh_call_logs" msgid="4633143020852759545">"Opdater opkaldshistorik"</string>
     <string name="call_log" msgid="2664639384522572724">"Opkaldshistorik"</string>
     <string name="voip_callback" msgid="9213402996514282039">"Test tilbagekald"</string>
     <string name="get_call_id" msgid="5513943242738347108">"opkalds-id ikke konfigureret"</string>

@@ -28,8 +28,7 @@
     <string name="call_attributes_empty_error" msgid="6921783379546938037">"ခေါ်ဆိုမှုရည်ညွှန်းချက်များသည် ဗလာမဖြစ်ရပါ။ မည်သို့ပင်ဖြစ်စေ မူရင်းများကို စတင်နေသည်။"</string>
     <string name="back_to_voip_main" msgid="2500173767939494261">"VOIP ပင်မလုပ်ဆောင်ချက်သို့ ပြန်သွားရန်"</string>
     <string name="clear_voip_call_logs" msgid="2402471290566644149">"VOIP စမ်းသပ်ခေါ်ဆိုမှတ်တမ်းကို ရှင်းထုတ်ရန်"</string>
-    <!-- no translation found for refresh_call_logs (4633143020852759545) -->
-    <skip />
+    <string name="refresh_call_logs" msgid="4633143020852759545">"ခေါ်ဆိုမှတ်တမ်းကို အပ်ဒိတ်လုပ်ရန်"</string>
     <string name="call_log" msgid="2664639384522572724">"ခေါ်ဆိုမှတ်တမ်း"</string>
     <string name="voip_callback" msgid="9213402996514282039">"ပြန်ခေါ်ခြင်းကို စမ်းသပ်ရန်"</string>
     <string name="get_call_id" msgid="5513943242738347108">"ခေါ်ဆိုမှု id သတ်မှတ်မထားပါ"</string>

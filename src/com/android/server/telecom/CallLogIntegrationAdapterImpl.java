@@ -17,18 +17,23 @@
 package com.android.server.telecom;
 
 import android.content.BroadcastReceiver;
+import android.content.ContentProvider;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.net.Uri;
 import android.os.UserHandle;
+import android.provider.CallLog;
 import android.telecom.Log;
 import android.telecom.TelecomManager;
 import android.text.TextUtils;
 
 import androidx.annotation.VisibleForTesting;
+
+import com.android.server.telecom.flags.FeatureFlags;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -38,6 +43,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 /**
@@ -45,8 +52,8 @@ import java.util.stream.Collectors;
  */
 public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter {
 
+    public static final String SHARED_PREFERENCES_NAME = "voip_call_log_integration_prefs";
     private static final String TAG = CallLogIntegrationAdapterImpl.class.getSimpleName();
-    private static final String SHARED_PREFERENCES_NAME = "voip_call_log_integration_prefs";
     private static final String SHARED_PREFERENCES_KEY = "voip_call_log_integration_key";
     private static final Intent CALLBACK_INTENT = new Intent(TelecomManager.ACTION_CALL_BACK);
 
@@ -69,6 +76,8 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
     // also don't need to use a concurrent DS on top of a lock as it adds unnecessary overhead and
     // adds confusion as to why both practices are being implemented.
     private final Object mLock = new Object();
+    private final Executor mExecutor = Executors.newSingleThreadExecutor();
+    private final FeatureFlags mFeatureFlags;
 
     /**
      * Receiver to detect when packages are added or removed. It is filtered to only packages that
@@ -105,6 +114,7 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
                     } else if (Intent.ACTION_PACKAGE_REMOVED.equals(intent.getAction())) {
                         mPackagesToRemove.putIfAbsent(userHandle, new HashSet<>());
                         mPackagesToRemove.get(userHandle).add(packageName);
+                        removeLogEntries(packageName, userHandle);
                     }
                 }
             } else {
@@ -152,8 +162,9 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
         }
     }
 
-    public CallLogIntegrationAdapterImpl(Context context) {
+    public CallLogIntegrationAdapterImpl(Context context, FeatureFlags featureFlags) {
         mContext = context;
+        mFeatureFlags = featureFlags;
         registerPackageChangeReceiver();
     }
 
@@ -192,6 +203,10 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
             mEnabledPackageStates.get(userHandle).put(packageName, isEnabled);
             // Update the corresponding SharedPreferences for the user.
             updateSharedPrefForUser(userContext, mEnabledPackageStates.get(userHandle));
+            // Ensure that we remove log entries if app integration is disabled by the user.
+            if (!isEnabled) {
+                removeLogEntries(packageName, userHandle);
+            }
         }
     }
 
@@ -356,6 +371,35 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
         editor.apply();
     }
 
+    /**
+     * Remove the existing system call log entries for the specified package and user.
+     * @param packageName The package name for the VoIP application.
+     * @param userHandle The {@link UserHandle} that we should remove the entries for .
+     */
+    private void removeLogEntries(String packageName, UserHandle userHandle) {
+        if (!mFeatureFlags.integratedCallLogsStage2()) {
+            return;
+        }
+        Context userContext = createUserContext(userHandle);
+        if (userContext == null) {
+            userContext = mContext;
+        }
+        final String selection = CallLog.Calls.PHONE_ACCOUNT_COMPONENT_NAME + " LIKE '"
+                + packageName + "%'";
+        Uri appendedUserUri = ContentProvider.createContentUriForUser(
+                CallLog.Calls.CONTENT_URI_WITH_VOIP_CALLS, userHandle);
+        Context finalUserContext = userContext;
+        mExecutor.execute(() -> {
+            try {
+                int rowsDeleted = finalUserContext.getContentResolver().delete(appendedUserUri,
+                        selection, null);
+                Log.d(TAG, "Deleted %d VoIP call log entries for %s", rowsDeleted, packageName);
+            } catch (Exception e) {
+                Log.e(TAG, e, "Error clearing VoIP call log entries for %s", packageName);
+            }
+        });
+    }
+
     private boolean doSupportedPackagesNeedUpdate(UserHandle userHandle) {
         return mPackagesToAdd.containsKey(userHandle) || mPackagesToRemove.containsKey(userHandle);
     }
@@ -377,5 +421,10 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
     @VisibleForTesting
     public Map<UserHandle, Set<String>> getPackagesToRemove() {
         return mPackagesToRemove;
+    }
+
+    @VisibleForTesting
+    public BroadcastReceiver getPackageChangedReceiver() {
+        return mPackageChangedReceiver;
     }
 }
