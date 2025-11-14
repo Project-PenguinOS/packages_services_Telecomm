@@ -1850,7 +1850,8 @@ public class InCallController extends CallsManagerListenerBase implements
             CallAudioState newCallAudioState) {
         Map<UserHandle, Map<InCallController.InCallServiceInfo, IInCallService>> serviceMap =
                 getCombinedInCallServiceMap();
-        if (!serviceMap.isEmpty()) {
+
+        if (!serviceMap.isEmpty() && !shouldSkipUpdateIcs()) {
             Log.i(this, "Calling onAudioStateChanged, audioState: %s -> %s", oldCallAudioState,
                     newCallAudioState);
             maybeTrackMicrophoneUse(newCallAudioState.isMuted());
@@ -1869,7 +1870,7 @@ public class InCallController extends CallsManagerListenerBase implements
     public void onCallEndpointChanged(CallEndpoint callEndpoint) {
         Map<UserHandle, Map<InCallController.InCallServiceInfo, IInCallService>> serviceMap =
                 getCombinedInCallServiceMap();
-        if (!serviceMap.isEmpty()) {
+        if (!serviceMap.isEmpty() && !shouldSkipUpdateIcs()) {
             Log.i(this, "Calling onCallEndpointChanged");
             serviceMap.values().forEach(inCallServices -> {
                 for (IInCallService inCallService : inCallServices.values()) {
@@ -1887,7 +1888,7 @@ public class InCallController extends CallsManagerListenerBase implements
     public void onAvailableCallEndpointsChanged(Set<CallEndpoint> availableCallEndpoints) {
         Map<UserHandle, Map<InCallController.InCallServiceInfo, IInCallService>> serviceMap =
                 getCombinedInCallServiceMap();
-        if (!serviceMap.isEmpty()) {
+        if (!serviceMap.isEmpty() && !shouldSkipUpdateIcs()) {
             Log.i(this, "Calling onAvailableCallEndpointsChanged");
             List<CallEndpoint> availableEndpoints = new ArrayList<>(availableCallEndpoints);
             serviceMap.values().forEach(inCallServices -> {
@@ -3702,5 +3703,34 @@ public class InCallController extends CallsManagerListenerBase implements
         } finally {
             p.recycle();
         }
+    }
+
+    /**
+     * It's possible to race between when Telecom sends the request to abandon audio focus and
+     * when the AF processes the message with when the ICS are unbound once a call is disconnected.
+     * Once audio focus is relinquished, the ICS shouldn't be updated with audio states that could
+     * potentially be changed by other apps who have gained focus. Instead, we can check if the
+     * focus state is unfocused and that all calls are disconnected in order to prevent additional
+     * audio style updates from being sent at the end of the call.
+     */
+    private boolean shouldSkipUpdateIcs() {
+        if (!com.android.internal.telecom.flags.Flags.skipAudioUpdateToIcs()) {
+            return false;
+        }
+        Collection<Call> calls = mCallsManager.getCalls();
+        boolean allCallsAreDisconnected = true;
+        for (Call call : calls) {
+            if (call.getState() != CallState.DISCONNECTED) {
+                allCallsAreDisconnected = false;
+                break;
+            }
+        }
+        boolean shouldSkipUpdate = mCallsManager.getCallAudioManager().isFocusStateUnfocused()
+                && allCallsAreDisconnected;
+        if (shouldSkipUpdate) {
+            Log.w(this, "Skipping audio update for ICS because all calls are disconnected and"
+                    + " the audio focus is abandoned.");
+        }
+        return shouldSkipUpdate;
     }
 }
