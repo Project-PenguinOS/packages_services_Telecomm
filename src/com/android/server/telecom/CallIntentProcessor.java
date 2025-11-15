@@ -3,8 +3,8 @@ package com.android.server.telecom;
 import static android.content.pm.PackageManager.MATCH_DEFAULT_ONLY;
 
 import com.android.internal.app.IntentForwarderActivity;
-import com.android.server.telecom.components.ErrorDialogActivity;
 import com.android.server.telecom.flags.FeatureFlags;
+import com.android.server.telecom.ui.UiConstants;
 
 import android.content.ActivityNotFoundException;
 import android.content.Context;
@@ -247,7 +247,7 @@ public class CallIntentProcessor {
     static boolean fixInitiatingUserIfNecessary(Context context, Intent intent,
             FeatureFlags featureFlags) {
         final UserHandle initiatingUser = intent.getParcelableExtra(KEY_INITIATING_USER);
-        if (UserUtil.isManagedProfile(context, initiatingUser, featureFlags)) {
+        if (UserUtil.isManagedProfile(context, initiatingUser)) {
             boolean noDialerInstalled = DefaultDialerManager.getInstalledDialerApplications(context,
                     initiatingUser).size() == 0;
             if (noDialerInstalled) {
@@ -309,7 +309,10 @@ public class CallIntentProcessor {
     }
 
     private static void showErrorDialog(Context context, int errorCode) {
-        final Intent errorIntent = new Intent(context, ErrorDialogActivity.class);
+        final Intent errorIntent = new Intent();
+        errorIntent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
+              UiConstants.COMPONENT_ERROR_DIALOG);
+
         int errorMessageId = -1;
         switch (errorCode) {
             case DisconnectCause.INVALID_NUMBER:
@@ -318,7 +321,7 @@ public class CallIntentProcessor {
                 break;
         }
         if (errorMessageId != -1) {
-            errorIntent.putExtra(ErrorDialogActivity.ERROR_MESSAGE_ID_EXTRA, errorMessageId);
+            errorIntent.putExtra(UiConstants.ERROR_MESSAGE_ID_EXTRA, errorMessageId);
             errorIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             context.startActivityAsUser(errorIntent, UserHandle.CURRENT);
         }

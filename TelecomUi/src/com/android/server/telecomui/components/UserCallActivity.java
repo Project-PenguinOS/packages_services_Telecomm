@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 
-package com.android.server.telecom.components;
+package com.android.server.telecomui.components;
 
 import com.android.server.telecom.CallIntentProcessor;
-import com.android.server.telecom.TelecomSystem;
-import com.android.server.telecom.flags.FeatureFlags;
-import com.android.server.telecom.flags.FeatureFlagsImpl;
+import com.android.server.telecom.components.UserCallIntentProcessor;
 
 import android.app.Activity;
 import android.content.Context;
@@ -48,7 +46,7 @@ import android.telecom.TelecomManager;
  * {@link UserCallActivity}. Calling startActivity will continue to work on all non-emergency
  * numbers just like it did pre-L.
  */
-public class UserCallActivity extends Activity implements TelecomSystem.Component {
+public class UserCallActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle bundle) {
@@ -64,10 +62,6 @@ public class UserCallActivity extends Activity implements TelecomSystem.Componen
             // See OutgoingCallBroadcaster in services/Telephony for more.
             Intent intent = getIntent();
             verifyCallAction(intent);
-            FeatureFlags featureFlags = getTelecomSystem() != null
-                    ? getTelecomSystem().getFeatureFlags()
-                    : new FeatureFlagsImpl();
-            final UserManager userManager = getSystemService(UserManager.class);
             final UserHandle userHandle = UserHandle.getUserHandleForUid(getLaunchedFromUid());
 
             // Once control flow has passed to this activity, it is no longer guaranteed that we can
@@ -80,7 +74,7 @@ public class UserCallActivity extends Activity implements TelecomSystem.Componen
             // Note: getCallingPackage() is not appropriate as it only works for activities launched
             // with startActivityForResult.  getLaunchedFromPackage() lets priv apps known who
             // launched in all cases.
-            new UserCallIntentProcessor(this, userHandle, featureFlags)
+            new UserCallIntentProcessor(this, userHandle)
                     .processIntent(new Intent(intent), getLaunchedFromPackage(), false,
                             true /* hasCallAppOp*/, false /* isLocalInvocation */);
         } finally {
@@ -100,10 +94,5 @@ public class UserCallActivity extends Activity implements TelecomSystem.Componen
                 intent.setAction(Intent.ACTION_CALL);
             }
         }
-    }
-
-    @Override
-    public TelecomSystem getTelecomSystem() {
-        return TelecomSystem.getInstance();
     }
 }

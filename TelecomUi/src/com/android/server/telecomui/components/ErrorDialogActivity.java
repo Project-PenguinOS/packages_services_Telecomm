@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package com.android.server.telecom.components;
+package com.android.server.telecomui.components;
 
-import com.android.server.telecom.R;
+import com.android.server.telecomui.R;
 
 import android.app.Activity;
 import android.app.AlertDialog;

@@ -267,7 +267,7 @@ public class TelecomService extends Service implements TelecomSystem.Component {
                                 public void updateEmergencyCallNotification(Context context,
                                         boolean showNotification) {
                                     BlockedNumbersUtil.updateEmergencyCallNotification(context,
-                                            showNotification, featureFlags);
+                                            showNotification);
                                 }
                             },
                             featureFlags,

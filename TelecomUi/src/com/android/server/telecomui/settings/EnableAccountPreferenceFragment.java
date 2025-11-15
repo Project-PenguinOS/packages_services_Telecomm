@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.server.telecom.settings;
+package com.android.server.telecomui.settings;
 
 import android.content.Context;
 import android.graphics.drawable.Icon;
@@ -28,7 +28,7 @@ import android.telecom.PhoneAccount;
 import android.telecom.PhoneAccountHandle;
 import android.telecom.TelecomManager;
 
-import com.android.server.telecom.R;
+import com.android.server.telecomui.R;
 
 import java.util.List;
 

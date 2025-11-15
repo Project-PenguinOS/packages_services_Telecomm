@@ -14,7 +14,7 @@
  * limitations under the License
  */
 
-package com.android.server.telecom.settings;
+package com.android.server.telecomui.settings;
 
 import android.annotation.Nullable;
 import android.app.ActionBar;
@@ -55,9 +55,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.server.telecom.R;
-import com.android.server.telecom.flags.FeatureFlags;
-import com.android.server.telecom.flags.FeatureFlagsImpl;
+import com.android.server.telecom.settings.BlockedNumbersUtil;
+import com.android.server.telecom.settings.SettingsConstants;
+import com.android.server.telecomui.R;
 
 
 /**
@@ -79,7 +79,6 @@ public class BlockedNumbersActivity extends ListActivity
     private BlockedNumbersManager mBlockedNumbersManager;
     private BlockNumberTaskFragment mBlockNumberTaskFragment;
     private BlockedNumbersAdapter mAdapter;
-    private FeatureFlags mFeatureFlags;
     private TextView mAddButton;
     private ProgressBar mProgressBar;
     private RelativeLayout mButterBar;
@@ -112,7 +111,6 @@ public class BlockedNumbersActivity extends ListActivity
             return;
         }
 
-        mFeatureFlags = new FeatureFlagsImpl();
         FragmentManager fm = getFragmentManager();
         mBlockNumberTaskFragment =
                 (BlockNumberTaskFragment) fm.findFragmentByTag(TAG_BLOCK_NUMBER_TASK_FRAGMENT);
@@ -145,7 +143,7 @@ public class BlockedNumbersActivity extends ListActivity
         updateButterBar();
 
         updateEnhancedCallBlockingFragment(
-                BlockedNumbersUtil.isEnhancedCallBlockingEnabledByPlatform(this, mFeatureFlags));
+                BlockedNumbersUtil.isEnhancedCallBlockingEnabledByPlatform(this));
 
         mBlockingStatusReceiver = new BroadcastReceiver() {
             @Override
@@ -160,9 +158,7 @@ public class BlockedNumbersActivity extends ListActivity
                 Context.RECEIVER_EXPORTED);
 
         getLoaderManager().initLoader(0, null, this);
-        mBlockedNumbersManager = mFeatureFlags.telecomMainlineBlockedNumbersManager()
-                ? getSystemService(BlockedNumbersManager.class)
-                : null;
+        mBlockedNumbersManager = getSystemService(BlockedNumbersManager.class);
     }
 
     @Override
