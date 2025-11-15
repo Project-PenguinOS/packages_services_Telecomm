@@ -691,7 +691,7 @@ public class CallLogManagerTest extends TelecomTestCase {
         mCallLogManager.onCallStateChanged(fakeGroupCall, CallState.ACTIVE, CallState.DISCONNECTED);
         ContentValues insertedValues = verifyInsertionWithCapture(CURRENT_USER_ID);
         assertTrue((insertedValues.getAsInteger(CallLog.Calls.FEATURES)
-                & Calls.FEATURES_GROUP_CALL) == CallLog.Calls.FEATURES_GROUP_CALL);
+                & CallLog.Calls.FEATURES_GROUP_CALL) == CallLog.Calls.FEATURES_GROUP_CALL);
     }
 
     @MediumTest
