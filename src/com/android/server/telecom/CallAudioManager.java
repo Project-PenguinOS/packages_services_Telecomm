@@ -94,6 +94,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
     private Call mStreamingCall;
     private Call mForegroundCall;
     private CompletableFuture<Boolean> mCallRingingFuture;
+    private CompletableFuture<Boolean> mCallDialingActiveOrConnectingFuture;
     private Thread mBtIcsBindingThread;
     private boolean mIsTonePlaying = false;
     private boolean mIsDisconnectedTonePlaying = false;
@@ -1003,9 +1004,29 @@ public class CallAudioManager extends CallsManagerListenerBase {
 
     private void onCallEnteringActiveDialingOrConnecting() {
         if (mActiveDialingOrConnectingCalls.size() == 1) {
-            mCallAudioModeStateMachine.sendMessageWithArgs(
-                    CallAudioModeStateMachine.NEW_ACTIVE_OR_DIALING_CALL,
-                    makeArgsForModeStateMachine());
+            Call focusCall = mActiveDialingOrConnectingCalls.getFirst();
+            if (mFeatureFlags.delayFocusSwitchForBtIcs()
+                    && focusCall.getBtIcsFuture() != null && !focusCall.getBtIcsFuture().isDone()) {
+                mCallDialingActiveOrConnectingFuture = focusCall.getBtIcsFuture()
+                        .thenCompose((completed) -> {
+                            // We should check that the call hasn't been disconnected or is in the
+                            // middle of disconnecting. Otherwise, we shouldn't be signaling to the
+                            // audio mode state machine to request audio focus.
+                            if (focusCall.getState() != CallState.DISCONNECTED
+                                    && !focusCall.isLocallyDisconnecting()) {
+                                mCallAudioModeStateMachine.sendMessageWithArgs(
+                                        CallAudioModeStateMachine.NEW_ACTIVE_OR_DIALING_CALL,
+                                        makeArgsForModeStateMachine());
+                            }
+                            return CompletableFuture.completedFuture(completed);
+                        });
+                mCallDialingActiveOrConnectingFuture = completeBtIcsFutureExceptionally(
+                        mCallDialingActiveOrConnectingFuture, false /* isHandlingRinging */);
+            } else {
+                mCallAudioModeStateMachine.sendMessageWithArgs(
+                        CallAudioModeStateMachine.NEW_ACTIVE_OR_DIALING_CALL,
+                        makeArgsForModeStateMachine());
+            }
         }
     }
 
@@ -1014,7 +1035,10 @@ public class CallAudioManager extends CallsManagerListenerBase {
             Call ringingCall = mRingingCalls.getFirst();
             Log.i(this, "onCallEnteringRinging: mRingingCalls.getFirst().getBtIcsFuture() = %s",
                     ringingCall.getBtIcsFuture());
-            if (ringingCall.getBtIcsFuture() != null) {
+            boolean shouldWaitForBtIcs = ringingCall.getBtIcsFuture() != null
+                    && (!mFeatureFlags.delayFocusSwitchForBtIcs()
+                    || !ringingCall.getBtIcsFuture().isDone());
+            if (shouldWaitForBtIcs) {
                 mCallRingingFuture = mFeatureFlags.sendNewRingingCallSync()
                         ? ringingCall.getBtIcsFuture().thenCompose((completed) -> {
                             // Do a performative check to see if the call is still ringing before
@@ -1034,12 +1058,15 @@ public class CallAudioManager extends CallsManagerListenerBase {
                             }, new LoggedHandlerExecutor(mHandler, "CAM.oCER",
                                 mCallsManager.getLock()));
 
-                mCallRingingFuture = mCallRingingFuture.exceptionally((throwable) -> {
-                    Log.e(this, throwable, "Error while executing BT ICS future");
-                    // Fallback on performing computation on a separate thread.
-                    handleBtBindingWaitFallback();
-                    return null;
-                });
+                mCallRingingFuture = mFeatureFlags.delayFocusSwitchForBtIcs()
+                        ? completeBtIcsFutureExceptionally(mCallRingingFuture,
+                                true  /* isHandlingRinging */)
+                        : mCallRingingFuture.exceptionally((throwable) -> {
+                            Log.e(this, throwable, "Error while executing BT ICS future");
+                            // Fallback on performing computation on a separate thread.
+                            handleBtBindingWaitFallbackForRinging();
+                            return null;
+                        });
             } else {
                 mCallAudioModeStateMachine.sendMessageWithArgs(
                         CallAudioModeStateMachine.NEW_RINGING_CALL,
@@ -1048,7 +1075,42 @@ public class CallAudioManager extends CallsManagerListenerBase {
         }
     }
 
-    private void handleBtBindingWaitFallback() {
+    private CompletableFuture<Boolean> completeBtIcsFutureExceptionally(
+            CompletableFuture<Boolean> future, boolean isHandlingRinging) {
+        return future.exceptionally((throwable) -> {
+            Log.e(this, throwable, "Error while executing BT ICS future");
+            // Fallback on performing computation on a separate thread.
+            mBtIcsBindingThread = new Thread(() -> {
+                if (isHandlingRinging) {
+                    Call ringingCall = mRingingCalls.getFirst();
+                    // Wait for the BT ICS future to complete
+                    ringingCall.waitForBtIcs();
+                    // Only send the message if the call is still ringing
+                    if (ringingCall.getState() == CallState.RINGING
+                            || ringingCall.getState() == CallState.SIMULATED_RINGING) {
+                        mCallAudioModeStateMachine.sendMessageWithArgs(
+                                CallAudioModeStateMachine.NEW_RINGING_CALL,
+                                makeArgsForModeStateMachine());
+                    }
+                } else {
+                    Call dialingActiveOrConnectingCall = mActiveDialingOrConnectingCalls
+                            .getFirst();
+                    // Wait for the BT ICS future to complete
+                    dialingActiveOrConnectingCall.waitForBtIcs();
+                    if (dialingActiveOrConnectingCall.getState() != CallState.DISCONNECTED
+                            && !dialingActiveOrConnectingCall.isLocallyDisconnecting()) {
+                        mCallAudioModeStateMachine.sendMessageWithArgs(
+                                CallAudioModeStateMachine.NEW_ACTIVE_OR_DIALING_CALL,
+                                makeArgsForModeStateMachine());
+                    }
+                }
+            });
+            mBtIcsBindingThread.start();
+            return null;
+        });
+    }
+
+    private void handleBtBindingWaitFallbackForRinging() {
         // Wait until the BT ICS binding completed to request further audio route change
         mBtIcsBindingThread = new Thread(() -> {
             mRingingCalls.getFirst().waitForBtIcs();
@@ -1444,5 +1506,10 @@ public class CallAudioManager extends CallsManagerListenerBase {
     @VisibleForTesting
     public CompletableFuture<Boolean> getCallRingingFuture() {
         return mCallRingingFuture;
+    }
+
+    @VisibleForTesting
+    public CompletableFuture<Boolean> getCallDialingActiveOrConnectingFuture() {
+        return mCallDialingActiveOrConnectingFuture;
     }
 }

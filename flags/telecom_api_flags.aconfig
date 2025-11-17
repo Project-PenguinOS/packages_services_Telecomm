@@ -194,3 +194,15 @@ flag {
   }
 }
 
+# OWNER=arunrajms TARGET=26Q2
+flag {
+  name: "place_call_to_alternate_number"
+  is_exported: true
+  namespace: "telecom"
+  description: "Adds an API to display the alternate number dialed post redirection"
+  bug: "429255861"
+  metadata {
+      purpose: PURPOSE_FEATURE
+  }
+}
+

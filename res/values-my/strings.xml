@@ -65,7 +65,7 @@
     <string name="change_default_call_screening_dialog_affirmative" msgid="7162433828280058647">"မူရင်းအဖြစ် သတ်မှတ်မည်"</string>
     <string name="change_default_call_screening_dialog_negative" msgid="1839266125623106342">"မလုပ်တော့"</string>
     <string name="blocked_numbers" msgid="8322134197039865180">"ပိတ်ထားသည့် နံပါတ်များ"</string>
-    <string name="blocked_numbers_msg" msgid="2797422132329662697">"ပိတ်ထားသော နံပါတ်များမှ ဖုန်းခေါ်ခြင်း (သို့) စာသားပို့ခြင်းတို့ကို သင်လက်ခံရရှိမည် မဟုတ်ပါ။"</string>
+    <string name="blocked_numbers_msg" msgid="141985883563301785">"သင်သည် ပိတ်ထားသော နံပါတ်များမှ ဖုန်းခေါ်မှုများ၊ စာတိုများကို ရရှိမည်မဟုတ်ပါ။ အရေးပေါ်ဖုန်းခေါ်ခြင်း ပြုလုပ်သည့်အခါ ငြင်းပယ်ခြင်း ဆက်တင်များကို အလိုအလျောက် ပိတ်ထားသည်။"</string>
     <string name="block_number" msgid="3784343046852802722">"နံပါတ်တစ်ခု ထည့်ပါ"</string>
     <string name="unblock_dialog_body" msgid="2723393535797217261">"<xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g> ကို ပြန်ဖွင့်မလား။"</string>
     <string name="unblock_button" msgid="8732021675729981781">"ပြန်ဖွင့်ရန်"</string>

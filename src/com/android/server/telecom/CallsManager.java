@@ -575,6 +575,7 @@ public class CallsManager extends Call.ListenerBase
     private final IncomingCallFilterGraphProvider mIncomingCallFilterGraphProvider;
     private CallAudioWatchdog mCallAudioWatchDog;
     private CallAudioRouteAdapter mCallAudioRouteAdapter;
+    private CallLogIntegrationAdapter mCallLogIntegrationAdapter;
 
     private final ConnectionServiceFocusManager.CallsManagerRequester mRequester =
             new ConnectionServiceFocusManager.CallsManagerRequester() {
@@ -940,6 +941,7 @@ public class CallsManager extends Call.ListenerBase
         mAsyncTaskExecutor = asyncTaskExecutor;
         mUserManager = mContext.getSystemService(UserManager.class);
         mPendingAccountSelection = new HashMap<>();
+        mCallLogIntegrationAdapter = new CallLogIntegrationAdapterImpl(mContext);
 
 // QTI_BEGIN: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
         QtiCarrierConfigHelper.getInstance().setup(mContext);
@@ -1202,7 +1204,6 @@ public class CallsManager extends Call.ListenerBase
 
         if (result.shouldAllowCall) {
             mInCallController.bindToBTService(incomingCall, null);
-            incomingCall.setBtIcsFuture(mInCallController.getBtBindingFuture(incomingCall));
             setCallState(incomingCall, CallState.RINGING, "successful incoming call");
             incomingCall.setPostCallPackageName(
                     getRoleManagerAdapter().getDefaultCallScreeningApp(
@@ -7914,5 +7915,29 @@ public class CallsManager extends Call.ListenerBase
 
     public void setCallConnectedIndicatorPreference(int preference) {
         mCallConnectedIndicatorSettings.setCallConnectedIndicatorPreference(preference);
+    }
+
+    /**
+     * Returns the list of VoIP app package names that support integrating their call logs to the
+     * system call log and their enabled state (controlled by user selection).
+     * @param userHandle The user to retrieve the package names for.
+     * @return {@link Map<String, Boolean>} containing the VoIP app package names to their enabled
+     *         states. An empty map will be returned if there's an error retrieving the data.
+     */
+    public Map<String, Boolean> getVoipPackageNamesCallLogIntegration(UserHandle userHandle) {
+        return mCallLogIntegrationAdapter.getSupportedVoipCallLogIntegrationPackages(userHandle);
+    }
+
+    /**
+     * Sets the user's preference to either enable or disable VoIP call log integration for a given
+     * app.
+     * @param userHandle The user for whom the setting is being changed.
+     * @param packageName The package name to update.
+     * @param isEnabled The new enabled state.
+     */
+    public void setVoipCallLogIntegrationEnabled(UserHandle userHandle, String packageName,
+            boolean isEnabled) {
+        mCallLogIntegrationAdapter.setVoipPackageCallLogIntegrationEnabled(userHandle, packageName,
+                isEnabled);
     }
 }

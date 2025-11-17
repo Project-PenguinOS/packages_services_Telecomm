@@ -266,6 +266,40 @@ public class CallRedirectionProcessor implements CallRedirectionCallback {
                     Log.endSession();
                 }
             }
+
+            @Override
+            public void placeCallToAlternateNumber(Uri alternateUri,
+                                                   PhoneAccountHandle targetPhoneAccount,
+                                                   boolean confirmFirst) {
+                Log.startSession("CRA.pCTAN");
+                long token = Binder.clearCallingIdentity();
+                try {
+                    synchronized (mTelecomLock) {
+                        Log.d(this, "Received placeCallToAlternateNumber with [alternateUri]"
+                               + Log.pii(alternateUri) + " [phoneAccountHandle]"
+                               + targetPhoneAccount + "[confirmFirst]" + confirmFirst + " from "
+                                + mServiceType + " call redirection service");
+
+                        // Update the destination URI with the new number
+                        mDestinationUri = mCallRedirectionProcessorHelper.
+                            getUpdatedUriwithPostDial(alternateUri, mPostDialDigits);
+                        mPhoneAccountHandle = targetPhoneAccount;
+
+                        // Clear any previous gateway info as it's not used here
+                        mRedirectionGatewayInfo = null;
+
+                        // Handle user confirmation if requested
+                        mUiAction = (confirmFirst && mServiceType.equals(SERVICE_TYPE_USER_DEFINED)
+                                       && mAllowInteractiveResponse)
+                                       ? UI_TYPE_USER_DEFINED_ASK_FOR_CONFIRM : UI_TYPE_NO_ACTION;
+
+                        finishCallRedirection();
+                    }
+                } finally {
+                    Binder.restoreCallingIdentity(token);
+                    Log.endSession();
+                }
+            }
         }
     }
 

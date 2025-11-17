@@ -65,7 +65,7 @@
     <string name="change_default_call_screening_dialog_affirmative" msgid="7162433828280058647">"Defolt ayarlayın"</string>
     <string name="change_default_call_screening_dialog_negative" msgid="1839266125623106342">"Ləğv edin"</string>
     <string name="blocked_numbers" msgid="8322134197039865180">"Bloklanmış nömrələr"</string>
-    <string name="blocked_numbers_msg" msgid="2797422132329662697">"Blok edilmiş nömrədən zənglər və ya mesajlar almayacaqsınız."</string>
+    <string name="blocked_numbers_msg" msgid="141985883563301785">"Blok edilmiş nömrədən zəng və ya mesajlar almayacaqsınız. Təcili zəng etdiyiniz zaman imtina ayarları avtomatik deaktiv edilir."</string>
     <string name="block_number" msgid="3784343046852802722">"Nömrə əlavə edin"</string>
     <string name="unblock_dialog_body" msgid="2723393535797217261">"<xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g> nömrəsi blokdan çıxarılsın?"</string>
     <string name="unblock_button" msgid="8732021675729981781">"Blokdan çıxar"</string>
