@@ -371,7 +371,9 @@ public final class CallLogManager extends CallsManagerListenerBase {
                         Connection.PROPERTY_ASSISTED_DIALING,
                 call.wasEverRttCall(),
                 call.wasVolte(),
-                call.isHdPlus(), mFeatureFlags));
+                call.wasVonr(),
+                call.isHdPlus(),
+                call.isGroupCall(), mFeatureFlags));
 
         if (result == null) {
             result = new CallFilteringResult.Builder()
@@ -470,6 +472,10 @@ public final class CallLogManager extends CallsManagerListenerBase {
             if (isCallerDisplayPresent) {
                 callerInfo.setName(call.getCallerDisplayName());
             }
+            // Sets the VoIP contact lookup uri.
+            if (android.telecom.flags.Flags.integratedCallLogsStage2()) {
+                paramBuilder.setVoipContactLookupUri(call.getVoipContactLookupUri());
+            }
         }
         // A little different from the above logic to set the caller info name to the caller display
         // name as that field is used for populating the CACHED_NAME column in the call log, which
@@ -552,7 +558,7 @@ public final class CallLogManager extends CallsManagerListenerBase {
      */
     private static int getCallFeatures(int videoState, boolean isPulledCall, boolean isStoreHd,
             boolean isWifi, boolean isUsingAssistedDialing, boolean isRtt, boolean isVolte,
-            boolean isHdPlus, FeatureFlags featureFlags) {
+            boolean isVonr, boolean isHdPlus, boolean isGroupCall, FeatureFlags featureFlags) {
         int features = 0;
         if (VideoProfile.isVideo(videoState)) {
             features |= Calls.FEATURES_VIDEO;
@@ -575,8 +581,14 @@ public final class CallLogManager extends CallsManagerListenerBase {
         if (isVolte) {
             features |= Calls.FEATURES_VOLTE;
         }
+        if (featureFlags.hdPlusCall() && isVonr) {
+            features |= Calls.FEATURES_VONR;
+        }
         if (featureFlags.hdPlusCall() && isHdPlus) {
             features |= Calls.FEATURES_HD_PLUS_CALL;
+        }
+        if (isGroupCall) {
+            features |= Calls.FEATURES_GROUP_CALL;
         }
 
         return features;

@@ -622,6 +622,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     private boolean mWasHighDefAudio = false;
     private boolean mWasWifi = false;
     private boolean mWasVolte = false;
+    private boolean mWasVonr = false;
     private boolean mDestroyed = false;
     private boolean mIsHdPlus = false;
 
@@ -667,6 +668,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     private boolean mSkipAutoUnhold = false;
     private boolean mIsTransactionalLogExcluded = false;
     private int mLastCallStateBeforeDisconnect = CallState.DISCONNECTED;
+    private Uri mVoipContactLookupUri;
+    private boolean mIsGroupCall = false;
 
     /**
      * CallingPackageIdentity is responsible for storing properties about the calling package that
@@ -1605,6 +1608,10 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      */
     private boolean isIllegalAudioProcessingTransition(int newState) {
         if (!mFlags.preventIllegalAudioProcessingExit()) {
+            return false;
+        }
+        if (isExternalCall()) {
+            Log.i(this, "isIllegalAudioProcessingTransition: Call is external, skipping check.");
             return false;
         }
         // This is the core guard condition. A transition is considered an "unauthorized attempt"
@@ -3086,8 +3093,9 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             Log.i(this, "disconnect: Aborting call %s", getId());
             abort(disconnectionTimeout);
             disconnectFutureHandler = awaitCallStateChangeAndMaybeDisconnectCall(
-                    false /* shouldDisconnectUponTimeout */, "disconnect",
-                    CallState.DISCONNECTED, CallState.ABORTED);
+                    com.android.internal.telecom.flags.Flags.disconnectOnTimeoutWhileDisconnecting()
+                            && isSelfManaged(), "disconnect", CallState.DISCONNECTED,
+                    CallState.ABORTED);
         } else if (mState != CallState.ABORTED && mState != CallState.DISCONNECTED) {
             if (mState == CallState.AUDIO_PROCESSING && !hasGoneActiveBefore()) {
                 setOverrideDisconnectCauseCode(new DisconnectCause(DisconnectCause.REJECTED));
@@ -3098,6 +3106,11 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 setOverrideDisconnectCauseCode(new DisconnectCause(DisconnectCause.MISSED));
             }
             if (mTransactionalService != null) {
+                // We request the VoIP application to disconnect the call via onDisconnect().
+                // WARNING: This is a non-cancelable action. If the app fails to handle this
+                // request and confirm disconnection within the strict 5-second timeout, the
+                // platform will automatically enforce the disconnect and remove the call
+                // internally. (See TransactionalCallSequencingAdapter for timeout logic).
                 disconnectFutureHandler = mTransactionalService.onDisconnect(this,
                         getDisconnectCause());
                 Log.i(this, "Send Disconnect to transactional service for call");
@@ -3111,7 +3124,9 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 // association between call and connection service severed, see
                 // {@link CallsManager#markCallAsDisconnected}.
                 disconnectFutureHandler = awaitCallStateChangeAndMaybeDisconnectCall(
-                        false /* shouldDisconnectUponTimeout */, "disconnect",
+                        com.android.internal.telecom.flags.Flags
+                                .disconnectOnTimeoutWhileDisconnecting() && isSelfManaged()
+                                /* shouldDisconnectUponTimeout */, "disconnect",
                         CallState.DISCONNECTED);
                 mConnectionService.disconnect(this);
             }
@@ -3472,7 +3487,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                         || Call.this.getState() != CallState.DISCONNECTED)) {
                     mCallsManager.markCallAsDisconnected(Call.this,
                             new DisconnectCause(DisconnectCause.ERROR,
-                                    "did not hold in timeout window"));
+                                    "did not reach the target state in timeout window"));
                     mCallsManager.markCallAsRemoved(Call.this);
                 }
             }
@@ -3628,6 +3643,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         if (mExtras.containsKey(TelecomManager.EXTRA_CALL_NETWORK_TYPE)) {
             mWasVolte = mExtras.get(TelecomManager.EXTRA_CALL_NETWORK_TYPE)
                     .equals(TelephonyManager.NETWORK_TYPE_LTE);
+            mWasVonr = mExtras.get(TelecomManager.EXTRA_CALL_NETWORK_TYPE)
+                    .equals(TelephonyManager.NETWORK_TYPE_NR);
         }
 
         if (extras.containsKey(Connection.EXTRA_ORIGINAL_CONNECTION_ID)) {
@@ -4980,6 +4997,15 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     }
 
     /**
+     * Returns whether or not Vonr call was used.
+     *
+     * @return true if Vonr call was used during this call.
+     */
+    public boolean wasVonr() {
+        return mWasVonr;
+    }
+
+    /**
      * Returns whether or not the call is HD+.
      *
      * @return true if it's HD+, false otherwise.
@@ -5379,6 +5405,22 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
     public int getLastCallStateBeforeDisconnect() {
         return mLastCallStateBeforeDisconnect;
+    }
+
+    public void setIsGroupCall(boolean isGroupCall) {
+        mIsGroupCall = isGroupCall;
+    }
+
+    public boolean isGroupCall() {
+        return mIsGroupCall;
+    }
+
+    public void setVoipContactLookupUri(Uri lookupUri) {
+        mVoipContactLookupUri = lookupUri;
+    }
+
+    public Uri getVoipContactLookupUri() {
+        return mVoipContactLookupUri;
     }
 
     private boolean mIsBulkStateUpdateInProgress;

@@ -46,6 +46,7 @@ import android.content.PermissionChecker;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.content.res.Resources;
 import android.graphics.drawable.Icon;
 import android.net.Uri;
 import android.os.BadParcelableException;
@@ -284,6 +285,10 @@ public class TelecomServiceImpl {
                                 if (mFeatureFlags.integratedCallLogs()) {
                                     call.setIsTransactionalLogExcluded(
                                             callAttributes.isLogExcluded());
+                                }
+                                if (android.telecom.flags.Flags.integratedCallLogsStage2()) {
+                                    call.setIsGroupCall(callAttributes.isGroupCall());
+                                    call.setVoipContactLookupUri(callAttributes.getContactUri());
                                 }
                                 ICallControl clientCallControl = serviceWrapper.getICallControl();
 
@@ -2558,8 +2563,13 @@ public class TelecomServiceImpl {
             ApiStats.ApiEvent event = new ApiStats.ApiEvent(
                     ApiStats.API_CREATELAUNCHEMERGENCYDIALERINTENT,
                     Binder.getCallingUid(), ApiStats.RESULT_NORMAL);
-            String packageName = mContext.getApplicationContext().getString(
-                    com.android.internal.R.string.config_emergency_dialer_package);
+            // Get the package name of the emergency dialer
+            int resourceId = Resources.getSystem().getIdentifier("config_emergency_dialer_package",
+                    "string", "android");
+            String packageName = "";
+            if (resourceId != 0) {
+                packageName = mContext.getApplicationContext().getString(resourceId);
+            }
             // Test to see if the package exists on the device
             Intent intent = new Intent(Intent.ACTION_DIAL_EMERGENCY).setPackage(packageName);
             long token = Binder.clearCallingIdentity();

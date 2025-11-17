@@ -68,9 +68,8 @@ public class EmergencyCallHelper {
 
     @VisibleForTesting
     public void maybeGrantTemporaryLocationPermission(Call call, UserHandle userHandle) {
-        if (shouldGrantTemporaryLocationPermission(call) && (
-                !mFeatureFlags.preventRedundantLocationPermissionGrantAndRevoke()
-                || !wasGrantedTemporaryLocationPermission())) {
+        if (shouldGrantTemporaryLocationPermission(call)
+             && !wasGrantedTemporaryLocationPermission()) {
             grantLocationPermission(userHandle);
         }
         if (call != null && call.isEmergencyCall()) {

@@ -86,6 +86,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
     private final Handler mHandler;
     private final Set<Call> mSilencedCalls;
     private boolean mIsCrsInCallMode = false;
+    private int mFocusState;
 
     public CallAudioManager(CallAudioRouteAdapter callAudioRouteAdapter,
             CallsManager callsManager,
@@ -129,6 +130,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
         mHandlerThread.start();
         mHandler = new Handler(mHandlerThread.getLooper());
         mSilencedCalls = new HashSet<>();
+        mFocusState = CallAudioRouteController.NO_FOCUS;
 
         mPlayerFactory.setCallAudioManager(this);
         mCallAudioModeStateMachine.setCallAudioManager(this);
@@ -637,6 +639,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
 
     @VisibleForTesting
     public void setCallAudioRouteFocusState(int focusState) {
+        mFocusState = focusState;
         if (focusState == CallAudioRouteController.NO_FOCUS) {
             mCallAudioRouteAdapter.sendMessageWithSessionInfoAtFront(
                     CallAudioRouteController.SWITCH_FOCUS, focusState, 0);
@@ -647,6 +650,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
     }
 
     public void setCallAudioRouteFocusStateForEndTone() {
+        mFocusState = CallAudioRouteController.ACTIVE_FOCUS;
         mCallAudioRouteAdapter.sendMessageWithSessionInfoAtFront(
                 CallAudioRouteController.SWITCH_FOCUS,
                 CallAudioRouteController.ACTIVE_FOCUS, 1);
@@ -1285,5 +1289,9 @@ public class CallAudioManager extends CallsManagerListenerBase {
 
     public boolean isCrsInCallMode() {
         return mIsCrsInCallMode;
+    }
+
+    public boolean isFocusStateUnfocused() {
+        return mFocusState == CallAudioRouteController.NO_FOCUS;
     }
 }
