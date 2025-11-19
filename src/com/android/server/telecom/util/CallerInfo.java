@@ -20,22 +20,22 @@ import android.annotation.Nullable;
 import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
+import android.content.res.Resources;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
 import android.location.Country;
-import android.location.CountryDetector;
 import android.net.Uri;
 import android.provider.ContactsContract.CommonDataKinds.Phone;
 import android.provider.ContactsContract.Contacts;
 import android.provider.ContactsContract.Data;
 import android.provider.ContactsContract.PhoneLookup;
 import android.provider.ContactsContract.RawContacts;
-import android.telecom.Log;
 import android.telephony.PhoneNumberUtils;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.android.i18n.phonenumbers.NumberParseException;
 import com.android.i18n.phonenumbers.PhoneNumberUtil;
@@ -53,7 +53,7 @@ public class CallerInfo {
     public static final long USER_TYPE_CURRENT = 0;
     public static final long USER_TYPE_WORK = 1;
     private static final String TAG = "CallerInfo";
-    private static final boolean VDBG = Log.VERBOSE;
+    private static final boolean VDBG = android.util.Log.isLoggable(TAG, Log.VERBOSE);
     public String normalizedNumber;
     public String geoDescription;
     public String cnapName;
@@ -304,7 +304,7 @@ public class CallerInfo {
                 info = getCallerInfo(context, contactRef,
                     cr.query(contactRef, null, null, null, null));
             } catch (RuntimeException re) {
-                Log.e(TAG, re, "Error getting caller info.");
+                Log.e(TAG, "Error getting caller info." + re.toString());
             }
         }
         return info;
@@ -516,8 +516,7 @@ public class CallerInfo {
                 Log.v(TAG, "- parsed number: " + pn);
             }
         } catch (NumberParseException e) {
-            Log.w(TAG, "getGeoDescription: NumberParseException for incoming number '"
-                + Log.pii(number) + "'");
+            Log.w(TAG, "getGeoDescription: NumberParseException for incoming number");
         }
 
         if (pn != null) {
@@ -536,16 +535,11 @@ public class CallerInfo {
      */
     private static String getCurrentCountryIso(Context context, Locale locale) {
         String countryIso = null;
-        CountryDetector detector = context.getSystemService(CountryDetector.class);
-        if (detector != null) {
-            Country country = detector.detectCountry();
-            if (country != null) {
-                countryIso = country.getCountryIso();
-            } else {
-                Log.e(TAG, new Exception(), "CountryDetector.detectCountry() returned null.");
-            }
+        TelephonyManager tm = context.getSystemService(TelephonyManager.class);
+        if (tm != null) {
+            countryIso = tm.getNetworkCountryIso().toUpperCase();
         }
-        if (countryIso == null) {
+        if (countryIso == null || countryIso.isEmpty()) {
             countryIso = locale.getCountry();
             Log.w(TAG, "No CountryDetector; falling back to countryIso based on locale: "
                 + countryIso);
@@ -637,8 +631,11 @@ public class CallerInfo {
     // 'Emergency Number' and let the UI make the decision about what
     // should be displayed.
     /* package */ CallerInfo markAsEmergency(Context context) {
-        phoneNumber = context.getString(
-            com.android.internal.R.string.emergency_call_dialog_number_for_display);
+        int resourceId = Resources.getSystem().getIdentifier(
+                "emergency_call_dialog_number_for_display", "string", "android");
+        if (resourceId != 0) {
+            phoneNumber = context.getResources().getString(resourceId);
+        }
         photoResource = com.android.internal.R.drawable.picture_emergency;
         mIsEmergency = true;
         return this;
@@ -657,7 +654,7 @@ public class CallerInfo {
             // permission to retrieve VM number and would not call
             // this method.
             // Leave phoneNumber untouched.
-            Log.e(TAG, se, "Cannot access VoiceMail.");
+            Log.e(TAG, "Cannot access VoiceMail.");
         }
         // TODO: There is no voicemail picture?
         // FIXME: FIND ANOTHER ICON
