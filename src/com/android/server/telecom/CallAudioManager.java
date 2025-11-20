@@ -25,19 +25,15 @@
 package com.android.server.telecom;
 
 // QTI_BEGIN: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
-import android.content.Context;
 // QTI_END: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
 import android.annotation.NonNull;
 import android.content.Context;
 import android.media.AudioManager;
 import android.media.IAudioService;
 // QTI_BEGIN: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
-import android.media.AudioManager;
 // QTI_END: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
 import android.media.ToneGenerator;
 // QTI_BEGIN: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
-import android.provider.Settings;
-import android.provider.Settings.SettingNotFoundException;
 // QTI_END: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
 import android.os.Handler;
 import android.os.HandlerThread;
