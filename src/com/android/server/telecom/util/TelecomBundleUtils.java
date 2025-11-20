@@ -18,7 +18,7 @@ package com.android.server.telecom.util;
 
 import android.os.BadParcelableException;
 import android.os.Bundle;
-import android.telecom.Log;
+import android.util.Log;
 
 /**
  * Encapsulates util methods to safely handle Bundle objects.
@@ -35,7 +35,7 @@ public class TelecomBundleUtils {
             bundle.getBoolean("FOO", false);
             return bundle;
         } catch (BadParcelableException e) {
-            Log.e(TAG, e, "defuse: BadParcelableException caught, returning empty Bundle.");
+            Log.e(TAG, "defuse: BadParcelableException caught, returning empty Bundle.");
             return new Bundle();
         }
     }
