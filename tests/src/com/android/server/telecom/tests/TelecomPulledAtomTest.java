@@ -54,6 +54,7 @@ import com.android.server.telecom.Call;
 import com.android.server.telecom.PendingAudioRoute;
 import com.android.server.telecom.metrics.ApiStats;
 import com.android.server.telecom.metrics.AudioRouteStats;
+import com.android.server.telecom.metrics.CallEndpointStats;
 import com.android.server.telecom.metrics.CallSequencingStats;
 import com.android.server.telecom.metrics.CallStats;
 import com.android.server.telecom.metrics.ErrorStats;
@@ -111,6 +112,13 @@ public class TelecomPulledAtomTest extends TelecomTestCase {
     private static final int VALUE_EVENT_ID = 1;
     private static final int VALUE_CAUSE_ID = 1;
     private static final int VALUE_EVENT_COUNT = 1;
+
+    private static final int VALUE_ENDPOINT_TYPE1 = 1;
+    private static final int VALUE_ENDPOINT_TYPE2 = 2;
+    private static final int VALUE_ENDPOINT_RESULT = 1;
+    private static final boolean VALUE_ENDPOINT_TIMEOUT = false;
+    private static final int VALUE_ENDPOINT_LATENCY = 300;
+    private static final int VALUE_ENDPOINT_COUNT = 1;
 
     @Rule
     public TemporaryFolder mTempFolder = new TemporaryFolder();
@@ -178,6 +186,11 @@ public class TelecomPulledAtomTest extends TelecomTestCase {
 
         assertNotNull(callSequencingStats.mPulledAtoms);
         assertEquals(callSequencingStats.mPulledAtoms.callSequencingStats.length, 0);
+
+        CallEndpointStats callEndpointStats = new CallEndpointStats(mSpyContext, mLooper, false);
+
+        assertNotNull(callEndpointStats.mPulledAtoms);
+        assertEquals(callEndpointStats.mPulledAtoms.callEndpointStats.length, 0);
     }
 
     @Test
@@ -212,6 +225,12 @@ public class TelecomPulledAtomTest extends TelecomTestCase {
                 new CallSequencingStats(mSpyContext, mLooper, false);
 
         verifyTestDataForCallSequencingStats(callSequencingStats.mPulledAtoms,
+                DEFAULT_TIMESTAMPS_MILLIS);
+
+        createTestFileForCallEndpointStats(DEFAULT_TIMESTAMPS_MILLIS);
+        CallEndpointStats callEndpointStats = new CallEndpointStats(mSpyContext, mLooper, false);
+
+        verifyTestDataForCallEndpointStats(callEndpointStats.mPulledAtoms,
                 DEFAULT_TIMESTAMPS_MILLIS);
     }
 
@@ -358,6 +377,21 @@ public class TelecomPulledAtomTest extends TelecomTestCase {
         verify(callSequencingStats).onPull(eq(data));
         assertEquals(data.size(), sizePulled);
         assertEquals(callSequencingStats.mPulledAtoms.callSequencingStats.length, 0);
+    }
+
+    @Test
+    public void testPullCallEndpointStatsLessThanMinPullIntervalShouldSkip() throws Exception {
+        createTestFileForCallEndpointStats(
+                System.currentTimeMillis() - MIN_PULL_INTERVAL_MILLIS / 2);
+        CallEndpointStats callEndpointStats =
+                spy(new CallEndpointStats(mSpyContext, mLooper, false));
+        final List<StatsEvent> data = new ArrayList<>();
+
+        int result = callEndpointStats.pull(data);
+
+        assertEquals(StatsManager.PULL_SUCCESS, result);
+        verify(callEndpointStats, never()).onPull(any());
+        assertEquals(data.size(), 0);
     }
 
     @Test
@@ -919,6 +953,34 @@ public class TelecomPulledAtomTest extends TelecomTestCase {
     }
 
     @Test
+    public void testCallEndpointStatsLog() throws Exception {
+        CallEndpointStats callEndpointStats =
+                spy(new CallEndpointStats(mSpyContext, mLooper, false));
+
+        callEndpointStats.log(VALUE_UID, VALUE_ENDPOINT_TYPE1, VALUE_ENDPOINT_TYPE2,
+                VALUE_ENDPOINT_RESULT, VALUE_ENDPOINT_TIMEOUT, VALUE_ENDPOINT_LATENCY);
+        waitForHandlerAction(callEndpointStats, TEST_TIMEOUT);
+
+        verify(callEndpointStats, times(1)).onAggregate();
+        verify(callEndpointStats, times(1)).save(eq(DELAY_FOR_PERSISTENT_MILLIS));
+        assertEquals(callEndpointStats.mPulledAtoms.callEndpointStats.length, 1);
+        verifyMessageForCallEndpointStats(callEndpointStats.mPulledAtoms.callEndpointStats[0],
+                VALUE_UID, VALUE_ENDPOINT_TYPE1, VALUE_ENDPOINT_TYPE2, VALUE_ENDPOINT_RESULT,
+                VALUE_ENDPOINT_TIMEOUT, 1, VALUE_ENDPOINT_LATENCY);
+
+        callEndpointStats.log(VALUE_UID, VALUE_ENDPOINT_TYPE1, VALUE_ENDPOINT_TYPE2,
+                VALUE_ENDPOINT_RESULT, VALUE_ENDPOINT_TIMEOUT, VALUE_ENDPOINT_LATENCY);
+        waitForHandlerAction(callEndpointStats, TEST_TIMEOUT);
+
+        verify(callEndpointStats, times(2)).onAggregate();
+        verify(callEndpointStats, times(2)).save(eq(DELAY_FOR_PERSISTENT_MILLIS));
+        assertEquals(callEndpointStats.mPulledAtoms.callEndpointStats.length, 1);
+        verifyMessageForCallEndpointStats(callEndpointStats.mPulledAtoms.callEndpointStats[0],
+                VALUE_UID, VALUE_ENDPOINT_TYPE1, VALUE_ENDPOINT_TYPE2, VALUE_ENDPOINT_RESULT,
+                VALUE_ENDPOINT_TIMEOUT, 2, VALUE_ENDPOINT_LATENCY);
+    }
+
+    @Test
     public void testApiStatsWithTestModeOn() throws Exception {
         final List<StatsEvent> data = new ArrayList<>();
         ApiStats apiStats = spy(new ApiStats(mSpyContext, mLooper, true));
@@ -976,6 +1038,19 @@ public class TelecomPulledAtomTest extends TelecomTestCase {
 
         verify(mSpyContext, never()).getFileStreamPath(anyString());
         verify(callSequencingStats, times(1)).onPull(any());
+        verify(mSpyContext, never()).openFileOutput(anyString(), anyInt());
+    }
+
+    @Test
+    public void testCallEndpointStatsWithTestModeOn() throws Exception {
+        final List<StatsEvent> data = new ArrayList<>();
+        CallEndpointStats callEndpointStats =
+                spy(new CallEndpointStats(mSpyContext, mLooper, true));
+        callEndpointStats.pull(data);
+        callEndpointStats.flush();
+
+        verify(mSpyContext, never()).getFileStreamPath(anyString());
+        verify(callEndpointStats, times(1)).onPull(any());
         verify(mSpyContext, never()).openFileOutput(anyString(), anyInt());
     }
 
@@ -1311,6 +1386,52 @@ public class TelecomPulledAtomTest extends TelecomTestCase {
             }
         }
         return false;
+    }
+
+    private void createTestFileForCallEndpointStats(long timestamps) throws IOException {
+        PulledAtomsClass.PulledAtoms atom = new PulledAtomsClass.PulledAtoms();
+        atom.callEndpointStats =
+                new PulledAtomsClass.CallEndPointStats[VALUE_ATOM_COUNT];
+        for (int i = 0; i < VALUE_ATOM_COUNT; i++) {
+            atom.callEndpointStats[i] = new PulledAtomsClass.CallEndPointStats();
+            atom.callEndpointStats[i].setUid(VALUE_UID);
+            atom.callEndpointStats[i].setEndpointRequested(VALUE_ENDPOINT_TYPE1);
+            atom.callEndpointStats[i].setEndpointNotified(VALUE_ENDPOINT_TYPE2);
+            atom.callEndpointStats[i].setResult(VALUE_ENDPOINT_RESULT);
+            atom.callEndpointStats[i].setTimeout(VALUE_ENDPOINT_TIMEOUT);
+            atom.callEndpointStats[i].setCount(VALUE_ENDPOINT_COUNT);
+            atom.callEndpointStats[i].setAverageLatencyMs(VALUE_ENDPOINT_LATENCY);
+        }
+        atom.setCallEndpointStatsPullTimestampMillis(timestamps);
+        FileOutputStream stream = new FileOutputStream(mTempFile);
+        stream.write(PulledAtomsClass.PulledAtoms.toByteArray(atom));
+        stream.close();
+    }
+
+    private void verifyTestDataForCallEndpointStats(
+            final PulledAtomsClass.PulledAtoms atom, long timestamps) {
+        assertNotNull(atom);
+        assertEquals(atom.getCallEndpointStatsPullTimestampMillis(), timestamps);
+        assertNotNull(atom.callEndpointStats);
+        assertEquals(atom.callEndpointStats.length, VALUE_ATOM_COUNT);
+        for (int i = 0; i < VALUE_ATOM_COUNT; i++) {
+            assertNotNull(atom.callEndpointStats[i]);
+            verifyMessageForCallEndpointStats(atom.callEndpointStats[i], VALUE_UID,
+                    VALUE_ENDPOINT_TYPE1, VALUE_ENDPOINT_TYPE2, VALUE_ENDPOINT_RESULT,
+                    VALUE_ENDPOINT_TIMEOUT, VALUE_ENDPOINT_COUNT, VALUE_ENDPOINT_LATENCY);
+        }
+    }
+
+    private void verifyMessageForCallEndpointStats(
+            final PulledAtomsClass.CallEndPointStats msg, int uid, int requested, int notified,
+            int result, boolean isTimeout, int count, int latency) {
+        assertEquals(msg.getUid(), uid);
+        assertEquals(msg.getEndpointRequested(), requested);
+        assertEquals(msg.getEndpointNotified(), notified);
+        assertEquals(msg.getResult(), result);
+        assertEquals(msg.getTimeout(), isTimeout);
+        assertEquals(msg.getCount(), count);
+        assertTrue(Math.abs(latency - msg.getAverageLatencyMs()) < DELAY_TOLERANCE);
     }
 
     private void createTestFileForCallSequencingStats(long timestamps) throws IOException {

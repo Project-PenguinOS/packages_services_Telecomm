@@ -973,12 +973,13 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         public void setAudioRoute(String callId, int audioRoute,
                 String bluetoothAddress, Session.Info sessionInfo) {
             Log.startSession(sessionInfo, "CSW.sAR", mPackageAbbreviation);
+            int uid = Binder.getCallingUid();
             long token = Binder.clearCallingIdentity();
             try {
                 synchronized (mLock) {
                     logIncoming("setAudioRoute %s %s", callId,
                             CallAudioState.audioRouteToString(audioRoute));
-                    mCallsManager.setAudioRoute(audioRoute, bluetoothAddress);
+                    mCallsManager.setAudioRoute(uid, audioRoute, bluetoothAddress);
                 }
             } catch (Throwable t) {
                 Log.e(ConnectionServiceWrapper.this, t, "");
@@ -993,12 +994,13 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         public void requestCallEndpointChange(String callId, CallEndpoint endpoint,
                 ResultReceiver callback, Session.Info sessionInfo) {
             Log.startSession(sessionInfo, "CSW.rCEC", mPackageAbbreviation);
+            int uid = Binder.getCallingUid();
             long token = Binder.clearCallingIdentity();
             try {
                 synchronized (mLock) {
                     logIncoming("requestCallEndpointChange %s %s", callId,
                             endpoint.getEndpointName());
-                    mCallsManager.requestCallEndpointChange(endpoint, callback);
+                    mCallsManager.requestCallEndpointChange(uid, endpoint, callback);
                 }
             } catch (Throwable t) {
                 Log.e(ConnectionServiceWrapper.this, t, "");

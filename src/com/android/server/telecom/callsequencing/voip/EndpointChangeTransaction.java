@@ -33,18 +33,20 @@ public class EndpointChangeTransaction extends CallTransaction {
     private static final String TAG = EndpointChangeTransaction.class.getSimpleName();
     private final CallEndpoint mCallEndpoint;
     private final CallsManager mCallsManager;
+    private final int mUid;
 
-    public EndpointChangeTransaction(CallEndpoint endpoint, CallsManager callsManager) {
+    public EndpointChangeTransaction(CallEndpoint endpoint, CallsManager callsManager, int uid) {
         super(callsManager.getLock());
         mCallEndpoint = endpoint;
         mCallsManager = callsManager;
+        mUid = uid;
     }
 
     @Override
     public CompletionStage<CallTransactionResult> processTransaction(Void v) {
         Log.i(TAG, "processTransaction");
         CompletableFuture<CallTransactionResult> future = new CompletableFuture<>();
-        mCallsManager.requestCallEndpointChange(mCallEndpoint, new ResultReceiver(null) {
+        mCallsManager.requestCallEndpointChange(mUid, mCallEndpoint, new ResultReceiver(null) {
             @Override
             protected void onReceiveResult(int resultCode, Bundle resultData) {
                 Log.i(TAG, "processTransaction: code=" + resultCode);

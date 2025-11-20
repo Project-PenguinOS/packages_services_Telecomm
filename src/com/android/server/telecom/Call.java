@@ -40,6 +40,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.OutcomeReceiver;
 import android.os.ParcelFileDescriptor;
+import android.os.Process;
 import android.os.RemoteException;
 import android.os.SystemClock;
 import android.os.UserHandle;
@@ -5011,7 +5012,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         if (mCallsManager.isSpeakerphoneAutoEnabledForVideoCalls(newVideoState)) {
             Log.i(this, "maybeEnableSpeakerForVideoCall; callId=%s, auto-enable speaker for call"
                             + " upgraded to video.");
-            mCallsManager.setAudioRoute(CallAudioState.ROUTE_SPEAKER, null);
+            mCallsManager.setAudioRoute(Process.myUid(), CallAudioState.ROUTE_SPEAKER, null);
         }
     }
 
