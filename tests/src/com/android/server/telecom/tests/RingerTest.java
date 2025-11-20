@@ -47,6 +47,7 @@ import static org.mockito.Mockito.when;
 import android.app.NotificationManager;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.res.Resources;
 import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.media.Ringtone;
@@ -55,6 +56,7 @@ import android.media.VolumeShaper;
 import android.media.audio.Flags;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.InputConstants;
 import android.os.TestLooperManager;
 import android.os.UserHandle;
 import android.os.UserManager;
@@ -98,6 +100,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Spy;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -150,6 +155,8 @@ public class RingerTest extends TelecomTestCase {
     @Mock InCallTonePlayer mockTonePlayer;
     @Mock Call mockCall1;
     @Mock Call mockCall2;
+    @Mock
+    Resources mMockResources;
 
     private static final PhoneAccountHandle PA_HANDLE =
             new PhoneAccountHandle(new ComponentName("pa_pkg", "pa_cls"),
@@ -192,6 +199,7 @@ public class RingerTest extends TelecomTestCase {
         when(mockCall1.getTargetPhoneAccount()).thenReturn(PA_HANDLE);
         when(mockCall2.getTargetPhoneAccount()).thenReturn(PA_HANDLE);
         when(mCallConnectedIndicatorSettings.isCallConnectedVibrationEnabled()).thenReturn(false);
+        when(mContext.getResources()).thenReturn(mMockResources);
         // Set BT active state in tests to ensure that we do not end up blocking tests for 1 sec
         // waiting for BT to connect in unit tests by default.
         asyncRingtonePlayer.updateBtActiveState(true);
@@ -961,8 +969,10 @@ public class RingerTest extends TelecomTestCase {
         when(mockRingtoneFactory.getRingtone(
                 any(Call.class), nullable(VolumeShaper.Configuration.class), anyBoolean()))
                 .thenReturn(ringtoneInfo);
-        mComponentContextFixture.putBooleanResource(
-                com.android.internal.R.bool.config_ringtoneVibrationSettingsSupported, true);
+        int mockResourceId = Resources.getSystem().getIdentifier(
+                "config_ringtoneVibrationSettingsSupported", "bool",
+                "android");
+        when(mMockResources.getBoolean(mockResourceId)).thenReturn(true);
         try {
             RingtoneManager.setActualDefaultRingtoneUri(context, RingtoneManager.TYPE_RINGTONE,
                     FAKE_RINGTONE_VIBRATION_URI);
@@ -1117,10 +1127,11 @@ public class RingerTest extends TelecomTestCase {
 
     private void mockVibrationResourceValues(
             String defaultVibrationContent, boolean useSimpleVibration) {
-        mComponentContextFixture.putRawResource(
-                com.android.internal.R.raw.default_ringtone_vibration_effect,
-                defaultVibrationContent);
-        mComponentContextFixture.putBooleanResource(
-                R.bool.use_simple_vibration_pattern, useSimpleVibration);
+        when(mMockResources.getBoolean(anyInt())).thenReturn(useSimpleVibration);
+        int mockVibrationResId = Resources.getSystem().getIdentifier(
+                "default_ringtone_vibration_effect", "raw", "android");
+        when(mMockResources.openRawResource(mockVibrationResId)).thenReturn(
+                new ByteArrayInputStream(defaultVibrationContent.getBytes(
+                        StandardCharsets.UTF_8)));
     }
 }

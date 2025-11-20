@@ -48,6 +48,7 @@ import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.Resources;
 import android.media.AudioManager;
 import android.media.IAudioService;
 import android.media.ToneGenerator;
@@ -654,8 +655,9 @@ public class TelecomSystemTest extends TelecomTestCase{
     }
 
     private void setupInCallServices() throws Exception {
-        mComponentContextFixture.putResource(
-                com.android.internal.R.string.config_defaultDialer,
+        int mockResourceId = Resources.getSystem().getIdentifier("config_defaultDialer", "string",
+                "android");
+        mComponentContextFixture.putResource(mockResourceId,
                 mInCallServiceComponentNameX.getPackageName());
         mComponentContextFixture.putResource(
                 com.android.server.telecom.R.string.incall_default_class,

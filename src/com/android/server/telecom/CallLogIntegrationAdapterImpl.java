@@ -52,8 +52,8 @@ import java.util.stream.Collectors;
  */
 public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter {
 
-    public static final String SHARED_PREFERENCES_NAME = "voip_call_log_integration_prefs";
     private static final String TAG = CallLogIntegrationAdapterImpl.class.getSimpleName();
+    private static final String SHARED_PREFERENCES_NAME = "voip_call_log_integration_prefs";
     private static final String SHARED_PREFERENCES_KEY = "voip_call_log_integration_key";
     private static final Intent CALLBACK_INTENT = new Intent(TelecomManager.ACTION_CALL_BACK);
 
