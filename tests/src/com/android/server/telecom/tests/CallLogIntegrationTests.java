@@ -41,6 +41,9 @@ import android.content.pm.ResolveInfo;
 import android.net.Uri;
 import android.os.UserHandle;
 import android.os.UserManager;
+import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.CallLog;
 import android.telecom.TelecomManager;
 import android.text.TextUtils;
@@ -52,6 +55,7 @@ import com.android.server.telecom.CallLogIntegrationAdapterImpl;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -70,6 +74,9 @@ public class CallLogIntegrationTests extends TelecomTestCase {
     private static final int TIMEOUT = 5000;
     private static final String PKG_1 = "com.voip.app1";
     private static final String PKG_2 = "com.voip.app2";
+
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Mock private Context mContext;
     @Mock private Context mUserContext;
@@ -169,10 +176,8 @@ public class CallLogIntegrationTests extends TelecomTestCase {
 
     @Test
     @SmallTest
+    @RequiresFlagsEnabled(android.telecom.flags.Flags.FLAG_INTEGRATED_CALL_LOGS_STAGE2)
     public void testSetEnabledState() {
-        if (!android.telecom.flags.Flags.integratedCallLogsStage2()) {
-            return;
-        }
         // Set up persistent storage to be empty and broadcast query to return one package.
         when(mSharedPreferences.getString(anyString(), anyString())).thenReturn("");
         mockBroadcastQueryResult(Collections.singletonList(PKG_1));
@@ -270,10 +275,8 @@ public class CallLogIntegrationTests extends TelecomTestCase {
     }
 
     @Test
+    @RequiresFlagsEnabled(android.telecom.flags.Flags.FLAG_INTEGRATED_CALL_LOGS_STAGE2)
     public void testPackageRemoved_deletesCallLogEntries() {
-        if (!android.telecom.flags.Flags.integratedCallLogsStage2()) {
-            return;
-        }
         // Initialize state with one available package.
         when(mPackageManager.queryBroadcastReceivers(any(), anyInt()))
                 .thenReturn(Collections.singletonList(createResolveInfo(PKG_1)));
