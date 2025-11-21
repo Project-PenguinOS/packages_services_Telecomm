@@ -1055,6 +1055,48 @@ public class CallAudioManagerTest extends TelecomTestCase {
         assertMessageArgEquality(expectedArgs2, captor.getValue());
     }
 
+    @Test
+    public void testInitialFocusStateIsUnfocused() {
+        // By default, the focus state should be unfocused.
+        assertTrue(mCallAudioManager.isFocusStateUnfocused());
+    }
+
+    @Test
+    public void testSetCallAudioRouteFocusState() {
+        // Set focus to ACTIVE_FOCUS
+        mCallAudioManager.setCallAudioRouteFocusState(CallAudioRouteController.ACTIVE_FOCUS);
+        // Verify focus state is not unfocused
+        assertFalse(mCallAudioManager.isFocusStateUnfocused());
+        // Verify that the message is sent to the route controller.
+        verify(mCallAudioRouteController).sendMessageWithSessionInfo(
+                eq(CallAudioRouteController.SWITCH_FOCUS),
+                eq(CallAudioRouteController.ACTIVE_FOCUS),
+                eq(0));
+
+        // Set focus to NO_FOCUS
+        mCallAudioManager.setCallAudioRouteFocusState(CallAudioRouteController.NO_FOCUS);
+        // Verify focus state is unfocused
+        assertTrue(mCallAudioManager.isFocusStateUnfocused());
+        // Verify that the message is sent to the front of the queue.
+        verify(mCallAudioRouteController).sendMessageWithSessionInfoAtFront(
+                eq(CallAudioRouteController.SWITCH_FOCUS),
+                eq(CallAudioRouteController.NO_FOCUS),
+                eq(0));
+    }
+
+    @Test
+    public void testSetCallAudioRouteFocusStateForEndTone() {
+        // Set focus for end tone
+        mCallAudioManager.setCallAudioRouteFocusStateForEndTone();
+        // Verify focus state is not unfocused
+        assertFalse(mCallAudioManager.isFocusStateUnfocused());
+        // Verify that the message is sent to the front of the queue.
+        verify(mCallAudioRouteController).sendMessageWithSessionInfoAtFront(
+                eq(CallAudioRouteController.SWITCH_FOCUS),
+                eq(CallAudioRouteController.ACTIVE_FOCUS),
+                eq(1));
+    }
+
     private Call createSimulatedRingingCall() {
         Call call = mock(Call.class);
         when(call.getState()).thenReturn(CallState.SIMULATED_RINGING);
