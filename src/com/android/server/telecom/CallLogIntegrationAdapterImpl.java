@@ -26,6 +26,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
 import android.os.UserHandle;
+import android.os.UserManager;
 import android.provider.CallLog;
 import android.telecom.Log;
 import android.telecom.TelecomManager;
@@ -114,7 +115,7 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
                     } else if (Intent.ACTION_PACKAGE_REMOVED.equals(intent.getAction())) {
                         mPackagesToRemove.putIfAbsent(userHandle, new HashSet<>());
                         mPackagesToRemove.get(userHandle).add(packageName);
-                        removeLogEntries(packageName, userHandle);
+                        removeLogEntries(mContext, packageName, userHandle, mExecutor);
                     }
                 }
             } else {
@@ -133,7 +134,7 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
      * @return {@code true} if the package is relevant, {@code false} otherwise.
      */
     private boolean doesPackageSupportCallback(String packageName, UserHandle userHandle) {
-        Context userContext = createUserContext(userHandle);
+        Context userContext = createUserContext(mContext, userHandle);
         if (userContext == null) {
             return false;
         }
@@ -155,7 +156,7 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
         packageChangedFilter.addAction(Intent.ACTION_PACKAGE_ADDED);
         packageChangedFilter.addAction(Intent.ACTION_PACKAGE_REMOVED);
         packageChangedFilter.addDataScheme(IntentFilter.SCHEME_PACKAGE);
-        Context allUsersContext = createUserContext(UserHandle.ALL);
+        Context allUsersContext = createUserContext(mContext, UserHandle.ALL);
         if (allUsersContext != null) {
             allUsersContext.registerReceiver(mPackageChangedReceiver, packageChangedFilter,
                     null, null);
@@ -166,6 +167,18 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
         mContext = context;
         mFeatureFlags = featureFlags;
         registerPackageChangeReceiver();
+        initCallLogPreferencesForRunningUsers();
+    }
+
+    public void initCallLogPreferencesForRunningUsers() {
+        // Populate the initial cache with all the running users
+        UserManager userManager = mContext.getSystemService(UserManager.class);
+        List<UserHandle> runningUsers = userManager.getUserHandles(true /* excludeDying */);
+        for (UserHandle user: runningUsers) {
+            // This will create the internal map from the SharedPreferences for the user and also
+            // notify apps, upon init, for disabled prefs.
+            getSupportedVoipCallLogIntegrationPackages(user);
+        }
     }
 
     /**
@@ -179,8 +192,9 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
     @Override
     public void setVoipPackageCallLogIntegrationEnabled(UserHandle userHandle, String packageName,
             boolean isEnabled) {
-        Context userContext = createUserContext(userHandle);
-        if (userContext == null || TextUtils.isEmpty(packageName)) {
+        Context userContext = createUserContext(mContext, userHandle);
+        if (userContext == null || TextUtils.isEmpty(packageName)
+                || !android.telecom.flags.Flags.integratedCallLogsStage2()) {
             return;
         }
 
@@ -205,8 +219,10 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
             updateSharedPrefForUser(userContext, mEnabledPackageStates.get(userHandle));
             // Ensure that we remove log entries if app integration is disabled by the user.
             if (!isEnabled) {
-                removeLogEntries(packageName, userHandle);
+                removeLogEntries(mContext, packageName, userHandle, mExecutor);
             }
+            // Notify the app of the new preference change.
+            notifyAppOfPreferenceChange(mContext, userHandle, packageName, isEnabled);
         }
     }
 
@@ -220,13 +236,16 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
      */
     @Override
     public Map<String, Boolean> getSupportedVoipCallLogIntegrationPackages(UserHandle userHandle) {
+        if (!android.telecom.flags.Flags.integratedCallLogsStage2()) {
+            return new HashMap<>();
+        }
         Log.i(TAG, "getSupportedVoipCallLogIntegrationPackages: user %s",
                 userHandle.getIdentifier());
-        Context userContext = createUserContext(userHandle);
+        Context userContext = createUserContext(mContext, userHandle);
         if (userContext == null) {
             // Remove the user mapping if it exists.
             mEnabledPackageStates.remove(userHandle);
-            return new HashMap<>(Collections.emptyMap());
+            return new HashMap<>();
         }
 
         synchronized (mLock) {
@@ -235,42 +254,62 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
             // update the mapping first.
             if (!mEnabledPackageStates.containsKey(userHandle)
                     || doSupportedPackagesNeedUpdate(userHandle)) {
+                boolean preferenceStateNotDefined = !mEnabledPackageStates.containsKey(userHandle);
                 // Get all the packages for the user that have registered the ACTION_CALL_BACK
                 // intent. This is queried from the broadcast receivers.
                 Set<String> allSupportedPackages = getSupportedPackages(userContext, userHandle);
-
                 // Try to load the pkg enabled states set for the user from the shared preferences
                 // if it doesn't already exist in the map.
                 loadSharedPrefForUser(userContext, userHandle);
-                mEnabledPackageStates.putIfAbsent(userHandle, new HashMap<>());
                 Map<String, Boolean> enabledPkgStatesForUser = mEnabledPackageStates.get(
                         userHandle);
-
-                boolean isUpdated = false;
-                // Prune the map and remove any old references (apps may have been uninstalled).
-                isUpdated |= enabledPkgStatesForUser.entrySet().removeIf(
-                        entry -> !allSupportedPackages.contains(entry.getKey()));
-
-                // Go through each supported package and add it into the map if it's not already
-                // present in the set.
-                for (String pkgName : allSupportedPackages) {
-                    // Add the entry if it doesn't exist and set the default enabled state to true.
-                    // Note here that PackageEnabledState only considers the package name when
-                    // comparing for equality.
-                    if (enabledPkgStatesForUser.putIfAbsent(pkgName, true) == null) {
-                        isUpdated = true;
-                    }
-                }
-
-                // Persist the data only if there was an update.
-                if (isUpdated) {
-                    updateSharedPrefForUser(userContext, enabledPkgStatesForUser);
+                // Update the existing shared preferences from the packages retrieved from the
+                // broadcast query.
+                pruneSharedPreferences(userContext, enabledPkgStatesForUser, allSupportedPackages);
+                // If this is the first time loading from SharedPreferences, notify all apps what
+                // whose preference is disabled by the user. By default, the preference is enabled
+                // so we can notify the app only if it got disabled.
+                if (preferenceStateNotDefined) {
+                    // Filter by disabled package prefs.
+                    Map<String, Boolean> disabledPkgPrefs = enabledPkgStatesForUser
+                            .entrySet().stream().filter(entry -> !entry.getValue())
+                            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+                    notifyAppsOfPreferenceChangeForUser(mContext, userHandle, mExecutor,
+                            disabledPkgPrefs);
                 }
             }
 
             // Return a the map of package names to their enabled states. Return a copy to prevent
             // modification outside of the lock.
             return new HashMap<>(mEnabledPackageStates.get(userHandle));
+        }
+    }
+
+    /**
+     * Prunes the shared preferences by cross-checking against the broadcast query for the packages.
+     * Updates the existing shared preferences if there was a change.
+     */
+    private static void pruneSharedPreferences(Context userContext,
+            Map<String, Boolean> enabledPkgStatesForUser, Set<String> allSupportedPackages) {
+        boolean isUpdated = false;
+        // Prune the map and remove any old references (apps may have been uninstalled).
+        isUpdated |= enabledPkgStatesForUser.entrySet().removeIf(
+                entry -> !allSupportedPackages.contains(entry.getKey()));
+
+        // Go through each supported package and add it into the map if it's not already
+        // present in the set.
+        for (String pkgName : allSupportedPackages) {
+            // Add the entry if it doesn't exist and set the default enabled state to true.
+            // Note here that PackageEnabledState only considers the package name when
+            // comparing for equality.
+            if (enabledPkgStatesForUser.putIfAbsent(pkgName, true) == null) {
+                isUpdated = true;
+            }
+        }
+
+        // Persist the data only if there was an update.
+        if (isUpdated) {
+            updateSharedPrefForUser(userContext, enabledPkgStatesForUser);
         }
     }
 
@@ -302,7 +341,7 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
     /**
      * Manually query the supported packages for the user from the pkg manager.
      */
-    private Set<String> querySupportedPackages(Context userContext) {
+    private static Set<String> querySupportedPackages(Context userContext) {
         Log.i(TAG, "Querying supported VoIP packages from broadcast receivers");
         PackageManager packageManager = userContext.getPackageManager();
         List<ResolveInfo> resolveInfoList = packageManager
@@ -321,32 +360,39 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
     }
 
     /**
-     * Loads the map from the shared preferences if the key exists for the user.
+     * Loads the map from the shared preferences if the key exists for the user. Otherwise, a new
+     * {key, value} pair is inserted.
      */
     private void loadSharedPrefForUser(Context userContext, UserHandle userHandle) {
         // Skip if the map already contains a valid set for the user
         if (mEnabledPackageStates.containsKey(userHandle)) {
             return;
         }
+        Map<String, Boolean> pkgEnabledStatesMap = getSharedPrefsForUser(userContext, userHandle);
+        mEnabledPackageStates.put(userHandle, pkgEnabledStatesMap);
+    }
 
+    /**
+     * Static helper to retrieve the SharedPreferences for the user.
+     */
+    public static Map<String, Boolean> getSharedPrefsForUser(Context userContext,
+            UserHandle userHandle ) {
         Log.i(TAG, "Loading shared preferences for user %s", userHandle);
         // Get the shared preference for the user if it exists. Otherwise, we can skip this process.
         SharedPreferences prefs = userContext.getSharedPreferences(
                 SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
         String pkgEnabledStatesFromPref = prefs.getString(SHARED_PREFERENCES_KEY, "");
         if (TextUtils.isEmpty(pkgEnabledStatesFromPref)) {
-            return;
+            return new HashMap<>();
         }
 
         // Deserialize the string into the resulting set which can be added to the map.
-        Map<String, Boolean> pkgEnabledStatesMap = Arrays
-                .stream(pkgEnabledStatesFromPref.split(","))
+        return Arrays.stream(pkgEnabledStatesFromPref.split(","))
                 .map(s -> s.split(":"))
                 .filter(entry -> entry.length == 2 && !TextUtils.isEmpty(entry[0]))
                 .collect(Collectors.toMap(
                         entry -> entry[0],
                         entry -> Boolean.parseBoolean(entry[1])));
-        mEnabledPackageStates.put(userHandle, pkgEnabledStatesMap);
     }
 
     /**
@@ -354,7 +400,7 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
      * @param userContext The user context for which to update the SharedPreferences.
      * @param packageEnabledStates The VoIP package enabled states to store in SharedPreferences.
      */
-    private void updateSharedPrefForUser(Context userContext,
+    private static void updateSharedPrefForUser(Context userContext,
             Map<String, Boolean> packageEnabledStates) {
         Log.i(TAG, "Updating shared preferences.");
         // Get the SharedPreferences file for userHandle
@@ -376,20 +422,21 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
      * @param packageName The package name for the VoIP application.
      * @param userHandle The {@link UserHandle} that we should remove the entries for .
      */
-    private void removeLogEntries(String packageName, UserHandle userHandle) {
-        if (!mFeatureFlags.integratedCallLogsStage2()) {
+    private static void removeLogEntries(Context context, String packageName, UserHandle userHandle,
+            Executor executor) {
+        if (!android.telecom.flags.Flags.integratedCallLogsStage2()) {
             return;
         }
-        Context userContext = createUserContext(userHandle);
+        Context userContext = createUserContext(context, userHandle);
         if (userContext == null) {
-            userContext = mContext;
+            userContext = context;
         }
         final String selection = CallLog.Calls.PHONE_ACCOUNT_COMPONENT_NAME + " LIKE '"
                 + packageName + "%'";
         Uri appendedUserUri = ContentProvider.createContentUriForUser(
                 CallLog.Calls.CONTENT_URI_WITH_VOIP_CALLS, userHandle);
         Context finalUserContext = userContext;
-        mExecutor.execute(() -> {
+        executor.execute(() -> {
             try {
                 int rowsDeleted = finalUserContext.getContentResolver().delete(appendedUserUri,
                         selection, null);
@@ -404,9 +451,58 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
         return mPackagesToAdd.containsKey(userHandle) || mPackagesToRemove.containsKey(userHandle);
     }
 
-    private Context createUserContext(UserHandle userhandle) {
+    private static void notifyAppsOfPreferenceChangeForUser(Context context, UserHandle userHandle,
+            Executor executor, Map<String, Boolean> preferences) {
+        if (!android.telecom.flags.Flags.integratedCallLogsStage2()) {
+            return;
+        }
+        for (Map.Entry<String, Boolean> entry : preferences.entrySet()) {
+            String packageName = entry.getKey();
+            Boolean enabledState = entry.getValue();
+            notifyAppOfPreferenceChange(context, userHandle, packageName, enabledState);
+            // Ensure entries are deleted if we load in the shared prefs for the first
+            // time and the preference is disabled.
+            if (!enabledState) {
+                removeLogEntries(context, packageName, userHandle, executor);
+            }
+        }
+    }
+
+    private static void notifyAppOfPreferenceChange(Context context, UserHandle userHandle,
+            String pkgName, boolean enabled) {
+        if (!android.telecom.flags.Flags.integratedCallLogsStage2()) {
+            return;
+        }
+        Context userContext = createUserContext(context, userHandle);
+        if (userContext == null) {
+            userContext = context;
+        }
+        Log.d(TAG, "Notifying package %s of preference change(%b) for user %s", pkgName,
+                enabled, userHandle);
+        Intent intent = new Intent(TelecomManager.ACTION_VOIP_CALL_LOG_PREFERENCE);
+        intent.setPackage(pkgName);
+        intent.putExtra(TelecomManager.EXTRA_VOIP_CALL_LOG_PREFERENCE_STATUS, enabled);
+        userContext.sendBroadcast(intent);
+    }
+
+    public static void handleNotifyAppsOfPreferenceOnRestore(Context context, UserHandle userHandle,
+            Executor executor) {
+        Context userContext = createUserContext(context, userHandle);
+        if (userContext == null) {
+            userContext = context;
+        }
+        Map<String, Boolean> sharedPrefsForUser = getSharedPrefsForUser(userContext, userHandle);
+        Set<String> supportedPackages = querySupportedPackages(userContext);
+        // This will modify the existing sharedPrefsForUser map.
+        pruneSharedPreferences(userContext, sharedPrefsForUser, supportedPackages);
+        // Now notify all apps for the preferences. We cannot ignore packages that have enabled
+        // prefs since the device restoring may have different data from the backup.
+        notifyAppsOfPreferenceChangeForUser(userContext, userHandle, executor, sharedPrefsForUser);
+    }
+
+    private static Context createUserContext(Context context, UserHandle userhandle) {
         try {
-            return mContext.createContextAsUser(userhandle, 0);
+            return context.createContextAsUser(userhandle, 0);
         } catch (IllegalStateException e) {
             Log.e(TAG, e, "Error while creating context as user = %s", userhandle);
             return null;
