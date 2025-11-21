@@ -62,7 +62,6 @@ import android.os.Vibrator;
 import android.os.vibrator.persistence.ParsedVibration;
 import android.os.vibrator.persistence.VibrationXmlParser;
 // QTI_BEGIN: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
-import android.provider.Settings;
 // QTI_END: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
 import android.telecom.Log;
 import android.telecom.TelecomManager;
@@ -1186,6 +1185,8 @@ public class Ringer {
                 && (audioManager.getRingerMode() != AudioManager.RINGER_MODE_SILENT
                 || (zenModeOn && shouldRingForContact));
     }
+// QTI_BEGIN: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
+// QTI_END: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
 
     /**
      * There are 3 settings for haptics:
@@ -1432,14 +1433,11 @@ public class Ringer {
     }
 
     public void startVibratingForOutgoingCallActive() {
-        /*if (!mFlags.callConnectedIndicatorPreference()) {
+        if (!mFlags.callConnectedIndicatorPreference()) {
             Log.i(TAG, "Call connected indicator of vibration is disabled.");
             return;
-        }*/
-        final boolean isVibratingEnabled = Settings.Global.getInt(mContext.getContentResolver(),
-                Settings.Global.VIBRATING_FOR_OUTGOING_CALL_ACCEPTED, 1) == 1;
-        if (!mIsVibrating && (mCallConnectedIndicatorSettings.isCallConnectedVibrationEnabled()
-                || isVibratingEnabled)) {
+        }
+        if (!mIsVibrating && (mCallConnectedIndicatorSettings.isCallConnectedVibrationEnabled())) {
             mIsVibrating = true;
             mAsyncTaskExecutor.execute(() -> {
                 final VibrationEffect vibrationEffect =

@@ -25,19 +25,15 @@
 package com.android.server.telecom;
 
 // QTI_BEGIN: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
-import android.content.Context;
 // QTI_END: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
 import android.annotation.NonNull;
 import android.content.Context;
 import android.media.AudioManager;
 import android.media.IAudioService;
 // QTI_BEGIN: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
-import android.media.AudioManager;
 // QTI_END: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
 import android.media.ToneGenerator;
 // QTI_BEGIN: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
-import android.provider.Settings;
-import android.provider.Settings.SettingNotFoundException;
 // QTI_END: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -1294,21 +1290,12 @@ public class CallAudioManager extends CallsManagerListenerBase {
     }
 
     private void playToneAfterCallConnected(Call call) {
-        /*if (!mFeatureFlags.callConnectedIndicatorPreference()) {
+        if (!mFeatureFlags.callConnectedIndicatorPreference()) {
             Log.i(LOG_TAG, "Call connected indicator of playing tone is disabled.");
             return;
-        }*/
-        boolean isPlayingToneEnabled = false;
-        try {
-            isPlayingToneEnabled = Settings.System.getInt(call.getContext().getContentResolver(),
-                    Settings.System.CALL_CONNECTED_TONE_ENABLED) == 1;
-        } catch (SettingNotFoundException e) {
-            Log.e(this, e, "Settings exception when reading playing tone config");
         }
-
         if (mCallConnectedIndicatorSettings != null &&
-                (mCallConnectedIndicatorSettings.isCallConnectedToneEnabled()
-                || isPlayingToneEnabled)) {
+                mCallConnectedIndicatorSettings.isCallConnectedToneEnabled()) {
             mPlayerFactory.createPlayer(call, InCallTonePlayer.TONE_OUTGOING_CALL_ACCEPTED).startTone();
         }
     }
