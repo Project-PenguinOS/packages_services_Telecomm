@@ -155,6 +155,8 @@ import com.android.server.telecom.ui.ToastFactory;
 import com.android.server.telecom.callsequencing.TransactionManager;
 import com.android.server.telecom.util.CallerInfo;
 
+import com.google.common.base.Predicate;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -4045,7 +4047,8 @@ public class CallsManagerTest extends TelecomTestCase {
         mCallsManager.markCallAsAudioProcessing(ongoingCall, AUDIO_PROCESSING_USE_CASE_ASK_TO_HOLD);
         assertEquals(CallState.AUDIO_PROCESSING, ongoingCall.getState());
         mCallsManager.markCallAsActive(ongoingCall);
-        assertEquals(CallState.ACTIVE, ongoingCall.getState());
+        verifyFocusRequestAndExecuteCallback(ongoingCall);
+        TelecomSystemTest.assertTrueWithTimeout(v -> ongoingCall.getState() == CallState.ACTIVE);
     }
 
     @SmallTest

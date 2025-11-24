@@ -16,14 +16,3 @@ flag {
   description: "Locks access to the ServiceConnection to ensure consistency of state across threads"
   bug: "409122082"
 }
-
-# OWNER=pmadapurmath TARGET=26Q1
-flag {
-  name: "request_focus_for_set_active"
-  namespace: "telecom"
-  description: "Ensure that the focus call is updated if a call is set active directly."
-  bug: "445832417"
-  metadata {
-      purpose: PURPOSE_BUGFIX
-    }
-}
