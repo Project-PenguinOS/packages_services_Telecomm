@@ -33,17 +33,6 @@ flag {
 
 # OWNER=pmadapurmath TARGET=26Q1
 flag {
-  name: "delay_focus_switch_for_bt_ics"
-  namespace: "telecom"
-  description: "Delay sending the active focus switch to wait on the BT ICS binding for outgoing calls"
-  bug: "441726251"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-# OWNER=pmadapurmath TARGET=26Q1
-flag {
   name: "hearing_aid_pair_fix"
   namespace: "telecom"
   description: "Store both MACs for the HAs instead of only tracking the first connected device's address"

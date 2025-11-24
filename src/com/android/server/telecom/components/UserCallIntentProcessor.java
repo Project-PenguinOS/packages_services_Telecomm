@@ -232,7 +232,7 @@ public class UserCallIntentProcessor {
                                 .setAction(TelecomManager.ACTION_CALL_BACK);
                         actionCallbackIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                         actionCallbackIntent.putExtra(TelecomManager.EXTRA_UUID, uuid);
-                        if (mFeatureFlags.integratedCallLogsStage2()
+                        if (android.telecom.flags.Flags.integratedCallLogsStage2()
                                 && callType != INVALID_CALL_TYPE) {
                             actionCallbackIntent.putExtra(TelecomManager.EXTRA_CALL_TYPE, callType);
                         }
