@@ -4783,7 +4783,7 @@ public class CallsManager extends Call.ListenerBase
             // hasn't been created yet. We will end up with two active "child" calls (WAI from a
             // Telephony standpoint) and we want to skip sequencing in this case. We can also add
             // another check to ensure the active call we would end up holding isn't a child call.
-            if (mFeatureFlags.requestFocusForSetActive() && !Objects.equals(activeCall, call)
+            if (!Objects.equals(activeCall, call)
                     && call.isFocusable() && call.getState() != CallState.ON_HOLD
                     && (activeCall == null || activeCall.getParentCall() == null)) {
                 mCallSequencingAdapter.markCallAsActive(call);

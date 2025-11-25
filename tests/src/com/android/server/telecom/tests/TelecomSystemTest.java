@@ -1121,8 +1121,10 @@ public class TelecomSystemTest extends TelecomTestCase{
         when(mClockProxy.elapsedRealtime()).thenReturn(TEST_CONNECT_ELAPSED_TIME);
         connectionServiceFixture.sendSetActive(ids.mConnectionId);
         if (phoneAccountHandle != mPhoneAccountSelfManaged.getAccountHandle()) {
-            assertEquals(Call.STATE_ACTIVE, mInCallServiceFixtureX.getCall(ids.mCallId).getState());
-            assertEquals(Call.STATE_ACTIVE, mInCallServiceFixtureY.getCall(ids.mCallId).getState());
+            TelecomSystemTest.assertTrueWithTimeout(v -> mInCallServiceFixtureX
+                    .getCall(ids.mCallId).getState() == Call.STATE_ACTIVE);
+            TelecomSystemTest.assertTrueWithTimeout(v -> mInCallServiceFixtureY
+                    .getCall(ids.mCallId).getState() == Call.STATE_ACTIVE);
 
             if ((mInCallServiceFixtureX.getCall(ids.mCallId).getProperties() &
                     Call.Details.PROPERTY_IS_EXTERNAL_CALL) == 0) {
@@ -1179,8 +1181,10 @@ public class TelecomSystemTest extends TelecomTestCase{
         connectionServiceFixture.sendSetActive(ids.mConnectionId);
 
         if (phoneAccountHandle != mPhoneAccountSelfManaged.getAccountHandle()) {
-            assertEquals(Call.STATE_ACTIVE, mInCallServiceFixtureX.getCall(ids.mCallId).getState());
-            assertEquals(Call.STATE_ACTIVE, mInCallServiceFixtureY.getCall(ids.mCallId).getState());
+            TelecomSystemTest.assertTrueWithTimeout(v -> mInCallServiceFixtureX
+                    .getCall(ids.mCallId).getState() == Call.STATE_ACTIVE);
+            TelecomSystemTest.assertTrueWithTimeout(v -> mInCallServiceFixtureY
+                    .getCall(ids.mCallId).getState() == Call.STATE_ACTIVE);
 
             if ((mInCallServiceFixtureX.getCall(ids.mCallId).getProperties() &
                     Call.Details.PROPERTY_IS_EXTERNAL_CALL) == 0) {
