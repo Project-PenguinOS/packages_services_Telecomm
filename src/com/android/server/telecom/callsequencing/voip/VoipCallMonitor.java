@@ -337,7 +337,7 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
         mNewCallsMissingCallStyleNotification.removeAll(toRemove);
 
         if (mActivityManagerInternal != null) {
-            ServiceConnection fgsConnection = mServices.get(handle);
+            ServiceConnection fgsConnection = mServices.remove(handle);
             if (fgsConnection != null) {
                 Log.i(TAG, "stopFGSDelegation: requesting stopForegroundServiceDelegate");
                 mActivityManagerInternal.stopForegroundServiceDelegate(fgsConnection);
