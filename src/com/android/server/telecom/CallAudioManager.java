@@ -1004,8 +1004,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
     private void onCallEnteringActiveDialingOrConnecting() {
         if (mActiveDialingOrConnectingCalls.size() == 1) {
             Call focusCall = mActiveDialingOrConnectingCalls.getFirst();
-            if (mFeatureFlags.delayFocusSwitchForBtIcs()
-                    && focusCall.getBtIcsFuture() != null && !focusCall.getBtIcsFuture().isDone()) {
+            if (focusCall.getBtIcsFuture() != null && !focusCall.getBtIcsFuture().isDone()) {
                 mCallDialingActiveOrConnectingFuture = focusCall.getBtIcsFuture()
                         .thenCompose((completed) -> {
                             // We should check that the call hasn't been disconnected or is in the
@@ -1036,8 +1035,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
             Log.i(this, "onCallEnteringRinging: mRingingCalls.getFirst().getBtIcsFuture() = %s",
                     ringingCall.getBtIcsFuture());
             boolean shouldWaitForBtIcs = ringingCall.getBtIcsFuture() != null
-                    && (!mFeatureFlags.delayFocusSwitchForBtIcs()
-                    || !ringingCall.getBtIcsFuture().isDone());
+                    && !ringingCall.getBtIcsFuture().isDone();
             if (shouldWaitForBtIcs) {
                 mCallRingingFuture = ringingCall.getBtIcsFuture()
                         .thenCompose((completed) -> {
@@ -1053,15 +1051,8 @@ public class CallAudioManager extends CallsManagerListenerBase {
                             return CompletableFuture.completedFuture(completed);}
                         );
 
-                mCallRingingFuture = mFeatureFlags.delayFocusSwitchForBtIcs()
-                        ? completeBtIcsFutureExceptionally(mCallRingingFuture,
-                                true  /* isHandlingRinging */)
-                        : mCallRingingFuture.exceptionally((throwable) -> {
-                            Log.e(this, throwable, "Error while executing BT ICS future");
-                            // Fallback on performing computation on a separate thread.
-                            handleBtBindingWaitFallbackForRinging();
-                            return null;
-                        });
+                mCallRingingFuture = completeBtIcsFutureExceptionally(mCallRingingFuture,
+                                true  /* isHandlingRinging */);
             } else {
                 mCallAudioModeStateMachine.sendMessageWithArgs(
                         CallAudioModeStateMachine.NEW_RINGING_CALL,
