@@ -867,6 +867,7 @@ public class CallsManager extends Call.ListenerBase
         mVoipCallMonitor = new VoipCallMonitor(
                 mContext,
                 new Handler(Looper.getMainLooper()),
+                new com.android.internal.telecom.flags.FeatureFlagsImpl(),
                 mLock);
         mTelephonyFeatureFlags = telephonyFlags;
         mMetricsController = metricsController;

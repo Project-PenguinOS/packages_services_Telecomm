@@ -83,6 +83,7 @@ import android.widget.Toast;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telecom.IVideoProvider;
 import com.android.internal.util.Preconditions;
+import com.android.server.telecom.callsequencing.voip.VoipCallMonitor;
 import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.stats.CallFailureCause;
 import com.android.server.telecom.stats.CallStateChangedAtomWriter;
@@ -108,6 +109,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -161,6 +163,82 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     public static final int CALL_SIMULTANEOUS_DISABLED_DIFF_ACCOUNT = 2;
     public static final int CALL_DIRECTION_DUAL_SAME_ACCOUNT = 3;
     public static final int CALL_DIRECTION_DUAL_DIFF_ACCOUNT = 4;
+
+    // To work around a BAL issue, transactionally backed calls need to bind to the connection
+    // service that voip apps will inherit when using the core-telecom library. This is the
+    // MAX time that should be spent waiting to bind when an onAnswer request is proceessed.
+    public static final int CORE_TELECOM_CS_BIND_TIMEOUT = 5;
+
+
+    /**
+     * Interface for components, such as {@code VoipCallMonitor}, to listen for
+     * actions on this Call that have been requested by the application layer.
+     *
+     * These actions often originate as requests from an InCallService (e.g., Bluetooth,
+     * Android Auto, Wear OS device). The methods within this listener are invoked
+     * BEFORE the application's ConnectionService or TransactionalService backend
+     * has acknowledged and confirmed the successful execution of the requested action.
+     * This allows Telecom components to perform tasks before propagating out the action to the
+     * application.
+     */
+    public interface InCallServiceToVoipAppListener {
+        /**
+         * Called BEFORE the application has successfully processed and confirmed an ANSWER request
+         * for this call.
+         *
+         * @param call       The call being requested for pickup.
+         * @param videoState The video state in which the call was answered.
+         * @param completionCallback The receiver to trigger when the listener has finished its
+         *                          tasks.
+         */
+        void onAnswerRequested(Call call, int videoState,
+                OutcomeReceiver<Object, Exception> completionCallback);
+    }
+
+    /**
+     * A thread-safe list of listeners to be notified of VoIP application-requested events,
+     * which often originate from InCallService requests.
+     */
+    private final List<InCallServiceToVoipAppListener> mInCallServiceToVoipAppListeners =
+            new CopyOnWriteArrayList<>();
+
+    /**
+     * Adds a listener to be notified of VoIP application-requested events for this call.
+     * If the listener is already added, this method has no effect.
+     *
+     * @param listener The listener instance to add. Must not be null.
+     */
+    public void addInCallServiceToVoipAppListener(
+            @NonNull InCallServiceToVoipAppListener listener) {
+        Objects.requireNonNull(listener);
+        if (!mInCallServiceToVoipAppListeners.contains(listener)) {
+            mInCallServiceToVoipAppListeners.add(listener);
+        }
+    }
+
+    private void notifyAnswerRequested(int videoState, OutcomeReceiver<Object, Exception> or) {
+        for (InCallServiceToVoipAppListener listener : mInCallServiceToVoipAppListeners) {
+            try {
+                listener.onAnswerRequested(this, videoState, or);
+            } catch (Exception e) {
+                // Log the exception but continue notifying other listeners.
+                Log.e(this, e, "notifyAnswerConfirmed:"
+                        + " Listener " + listener + " threw an exception");
+            }
+        }
+    }
+
+    /**
+     * Removes a listener from receiving further notifications.
+     * If the listener was not previously added, this method has no effect.
+     *
+     * @param listener The listener instance to remove. Must not be null.
+     */
+    public void removeInCallServiceToVoipAppListener(
+            @NonNull InCallServiceToVoipAppListener listener) {
+        Objects.requireNonNull(listener);
+        mInCallServiceToVoipAppListeners.remove(listener);
+    }
 
     /**
      * Identifies call audio quality
@@ -3234,13 +3312,57 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                         CallState.LOCAL_VOICEMAIL);
                 mConnectionService.answer(this, videoState);
             } else if (mTransactionalService != null) {
-                return mTransactionalService.onAnswer(this, videoState);
+                if(!com.android.internal.telecom.flags.Flags.voipBackgroundActivityLaunchFix()){
+                    return mTransactionalService.onAnswer(this, videoState);
+                }
+                final int finalVideoState = videoState;
+                return waitForConnectionServiceBind(videoState)
+                        // If binding takes > 5s, we stop waiting and pass 'null' down the chain
+                        .completeOnTimeout(null, CORE_TELECOM_CS_BIND_TIMEOUT, TimeUnit.SECONDS)
+                        // Regardless of success, failure, or timeout, we proceed to answer
+                        .thenCompose(v -> {
+                            return mTransactionalService.onAnswer(this, finalVideoState);
+                        });
             } else {
                 Log.e(this, new NullPointerException(),
                         "answer call failed due to null CS callId=%s", getId());
             }
         }
         return answerCallFuture;
+    }
+
+    /**
+     * Wraps the callback-based notifyAnswerRequested in a Future.
+     * Returns a Future that completes when ConnectionService binds
+     */
+    private CompletableFuture<Void> waitForConnectionServiceBind(int videoState) {
+        CompletableFuture<Void> waitUntilConnectionServiceIsBound = new CompletableFuture<>();
+
+        OutcomeReceiver<Object, Exception> receiver = new OutcomeReceiver<>() {
+            @Override
+            public void onResult(Object result) {
+                if (result instanceof VoipCallMonitor) {
+                    Log.i(Call.this, "waitForConnectionServiceBind: The"
+                            + " VoipCallMonitor class signaled the ConnectionService was bound,"
+                            + " propagating the onAnswer out");
+                    waitUntilConnectionServiceIsBound.complete(null);
+                } else {
+                    // If we add other tasks later, we can add 'else if' checks here.
+                    // For now, unexpected types are logged as warnings.
+                    Log.w(Call.this, "waitForConnectionServiceBind: Ignored"
+                            + " result from unexpected source: "
+                            + (result != null ? result.getClass().getName() : "null"));
+                }
+            }
+
+            @Override
+            public void onError(Exception e) {
+                Log.e(Call.this, e, "waitForConnectionServiceBind onError");
+            }
+        };
+
+        notifyAnswerRequested(videoState, receiver);
+        return waitUntilConnectionServiceIsBound;
     }
 
     /**

@@ -24,12 +24,16 @@ import static android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -41,14 +45,18 @@ import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Person;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.OutcomeReceiver;
 import android.os.UserHandle;
 import android.service.notification.StatusBarNotification;
+import android.telecom.ConnectionService;
 import android.telecom.PhoneAccountHandle;
+import android.telecom.VideoProfile;
 
 import androidx.test.filters.SmallTest;
 
@@ -56,6 +64,7 @@ import com.android.server.telecom.Call;
 import com.android.server.telecom.CallState;
 import com.android.server.telecom.TelecomSystem;
 import com.android.server.telecom.callsequencing.voip.VoipCallMonitor;
+import com.android.internal.telecom.flags.FeatureFlags;
 
 import org.junit.After;
 import org.junit.Before;
@@ -85,7 +94,7 @@ public class VoipCallMonitorTest extends TelecomTestCase {
     @Mock private TelecomSystem.SyncRoot mLock;
     @Mock private ActivityManagerInternal mActivityManagerInternal;
     @Mock private IBinder mServiceConnection;
-
+    @Mock FeatureFlags mFlags;
     private final PhoneAccountHandle mHandle1User1 = new PhoneAccountHandle(
             new ComponentName(PKG_NAME_1, CLS_NAME), ID_1, USER_HANDLE_1);
     private final PhoneAccountHandle mHandle2User1 = new PhoneAccountHandle(
@@ -96,13 +105,14 @@ public class VoipCallMonitorTest extends TelecomTestCase {
     public void setUp() throws Exception {
         super.setUp();
         mHandler = mock(Handler.class);
-        mMonitor = new VoipCallMonitor(mContext, mHandler, mLock);
+        mMonitor = new VoipCallMonitor(mContext, mHandler, mFlags, mLock);
         mActivityManagerInternal = mock(ActivityManagerInternal.class);
         mMonitor.setActivityManagerInternal(mActivityManagerInternal);
         mMonitor.registerNotificationListener();
         when(mActivityManagerInternal.startForegroundServiceDelegate(any(
                 ForegroundServiceDelegationOptions.class), any(ServiceConnection.class)))
                 .thenReturn(true);
+        when(mFlags.voipBackgroundActivityLaunchFix()).thenReturn(true);
     }
 
     @Override
@@ -341,6 +351,127 @@ public class VoipCallMonitorTest extends TelecomTestCase {
     }
 
     /**
+     * Tests the "Happy Path":
+     * 1. An Answer Request comes in.
+     * 2. The Monitor binds to the Jetpack ConnectionService.
+     * 3. On successful bind, the OutcomeReceiver is notified.
+     */
+    @SmallTest
+    @Test
+    public void testBindToVoipApp_Success() {
+        // GIVEN
+        Call call = createTestCall("testCall", mHandle1User1);
+        OutcomeReceiver<Object, Exception> callback = mock(OutcomeReceiver.class);
+
+        doReturn(true).when(mContext).bindServiceAsUser(
+                any(Intent.class), any(ServiceConnection.class), anyInt(), any(UserHandle.class));
+
+        // Capture the listener registered by VoipCallMonitor
+        mMonitor.onCallAdded(call);
+        ArgumentCaptor<Call.InCallServiceToVoipAppListener> listenerCaptor =
+                ArgumentCaptor.forClass(Call.InCallServiceToVoipAppListener.class);
+        verify(call).addInCallServiceToVoipAppListener(listenerCaptor.capture());
+        Call.InCallServiceToVoipAppListener listener = listenerCaptor.getValue();
+
+        // WHEN - The InCallService requests an answer
+        listener.onAnswerRequested(call, VideoProfile.STATE_AUDIO_ONLY, callback);
+
+        // THEN
+        // 1. Verify we tried to bind to the correct package/component
+        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
+        ArgumentCaptor<ServiceConnection> serviceConnCaptor =
+                ArgumentCaptor.forClass(ServiceConnection.class);
+
+        verify(mContext).bindServiceAsUser(intentCaptor.capture(), serviceConnCaptor.capture(),
+                eq(Context.BIND_AUTO_CREATE | Context.BIND_FOREGROUND_SERVICE
+                        | Context.BIND_ALLOW_BACKGROUND_ACTIVITY_STARTS),
+                eq(mHandle1User1.getUserHandle()));
+
+        Intent intent = intentCaptor.getValue();
+        assertEquals(ConnectionService.SERVICE_INTERFACE, intent.getAction());
+        assertEquals(PKG_NAME_1, intent.getPackage());
+
+        // 2. Simulate the system saying "Service Connected"
+        serviceConnCaptor.getValue().onServiceConnected(
+                new ComponentName(PKG_NAME_1, "Jetpack"), mock(IBinder.class));
+
+        // 3. Verify the Receiver completes successfully with the Monitor instance
+        verify(callback).onResult(any(VoipCallMonitor.class));
+    }
+
+    /**
+     * Tests that if we are already bound to an app for activity launching,
+     * we do not try to bind again, but we do trigger the callback immediately.
+     */
+    @SmallTest
+    @Test
+    public void testBindToVoipApp_AlreadyBound() {
+        // GIVEN
+        Call call = createTestCall("testCall", mHandle1User1);
+        OutcomeReceiver<Object, Exception> callback1 = mock(OutcomeReceiver.class);
+        OutcomeReceiver<Object, Exception> callback2 = mock(OutcomeReceiver.class);
+
+        doReturn(true).when(mContext).bindServiceAsUser(
+                any(Intent.class), any(ServiceConnection.class), anyInt(), any(UserHandle.class));
+
+        // Get listener
+        mMonitor.onCallAdded(call);
+        ArgumentCaptor<Call.InCallServiceToVoipAppListener> listenerCaptor =
+                ArgumentCaptor.forClass(Call.InCallServiceToVoipAppListener.class);
+        verify(call).addInCallServiceToVoipAppListener(listenerCaptor.capture());
+        Call.InCallServiceToVoipAppListener listener = listenerCaptor.getValue();
+
+        // WHEN - Request answer twice
+        listener.onAnswerRequested(call, VideoProfile.STATE_AUDIO_ONLY, callback1);
+        listener.onAnswerRequested(call, VideoProfile.STATE_AUDIO_ONLY, callback2);
+
+        // THEN
+        // Verify we only called bindServiceAsUser ONCE
+        verify(mContext, times(1)).bindServiceAsUser(
+                any(Intent.class), any(ServiceConnection.class), anyInt(), any(UserHandle.class));
+
+        // But verify BOTH callbacks were triggered
+        // 1. Simulate connection for the first one
+        ArgumentCaptor<ServiceConnection> sc = ArgumentCaptor.forClass(ServiceConnection.class);
+        verify(mContext).bindServiceAsUser(any(), sc.capture(), anyInt(), any());
+        sc.getValue().onServiceConnected(null, null); // Trigger callback1
+
+        // 2. callback2 should have been triggered immediately by the "already bound" check
+        verify(callback1).onResult(any());
+        verify(callback2).onResult(any());
+    }
+
+    /**
+     * Edge Case: If binding fails (returns false), we should not crash,
+     * and we should not schedule a timeout.
+     */
+    @SmallTest
+    @Test
+    public void testBindToVoipApp_BindFails() {
+        // GIVEN
+        Call call = createTestCall("testCall", mHandle1User1);
+
+        doReturn(false).when(mContext).bindServiceAsUser(
+                any(Intent.class), any(ServiceConnection.class), anyInt(), any(UserHandle.class));
+
+        mMonitor.onCallAdded(call);
+        ArgumentCaptor<Call.InCallServiceToVoipAppListener> listenerCaptor =
+                ArgumentCaptor.forClass(Call.InCallServiceToVoipAppListener.class);
+        verify(call).addInCallServiceToVoipAppListener(listenerCaptor.capture());
+
+        // WHEN
+        listenerCaptor.getValue().onAnswerRequested(call, 0, mock(OutcomeReceiver.class));
+
+        // THEN
+        // Verify we tried to bind
+        verify(mContext).bindServiceAsUser(
+                any(Intent.class), any(ServiceConnection.class), anyInt(), any(UserHandle.class));
+
+        // Verify NO timeout was scheduled (because we returned early)
+        verify(mHandler, never()).postDelayed(any(Runnable.class), anyLong());
+    }
+
+    /**
      * Helpers for testing
      */
 
@@ -406,4 +537,5 @@ public class VoipCallMonitorTest extends TelecomTestCase {
         Runnable capturedRunnable = runnableCaptor.getValue();
         capturedRunnable.run();
     }
+
 }
