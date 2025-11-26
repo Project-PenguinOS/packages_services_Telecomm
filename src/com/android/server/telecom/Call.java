@@ -12,12 +12,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
-// QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
- *
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
-// QTI_END: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
  */
 
 package com.android.server.telecom;
@@ -5001,14 +4995,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      * the history as an audio call.
      */
     private void updateVideoHistoryViaState(int oldState, int newState) {
-// QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
-        // Video state is audio only when it is visualized voice call with VT-RX call type
-        if (isVisualizedVoiceCall()) {
-            mVideoStateHistory = VideoProfile.STATE_AUDIO_ONLY;
-            return;
-        }
-
-// QTI_END: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
         if ((oldState == CallState.DIALING && newState == CallState.ACTIVE)
                 || (oldState == CallState.RINGING && newState == CallState.ANSWERED)) {
             mVideoStateHistory = mVideoState;
@@ -5019,11 +5005,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 mVideoStateHistory = VideoProfile.STATE_AUDIO_ONLY;
                 return;
             }
-// QTI_END: 2023-03-28: Telephony: IMS: Show incorrect video icon in call history after answering
-// QTI_BEGIN: 2023-06-05: Telephony: IMS: Fix incorrect video icon in call history after disconnecting
         } else if ((oldState == CallState.RINGING && newState == CallState.DISCONNECTED)
-// QTI_END: 2023-06-05: Telephony: IMS: Fix incorrect video icon in call history after disconnecting
-// QTI_BEGIN: 2023-06-05: Telephony: IMS: Fix incorrect video icon in call history after disconnecting
                 && isVideoCrsForVoLteCall()) {
             // For disconnecting Video CRS for VoLTE call by APM or other abnormal scenarios
             mVideoStateHistory = VideoProfile.STATE_AUDIO_ONLY;
@@ -5039,17 +5021,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         return isCrsCall() && getOriginalCallType() == VideoProfile.STATE_AUDIO_ONLY;
     }
 
-// QTI_END: 2023-03-28: Telephony: IMS: Show incorrect video icon in call history after answering
-// QTI_BEGIN: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
-    public boolean isVisualizedVoiceCall() {
-        if (mExtras == null) {
-            return false;
-        }
-        return mExtras.getBoolean(QtiCallConstants.EXTRA_IS_VISUALIZED_VOICE_CALL, false)
-                && mVideoState == VideoProfile.STATE_RX_ENABLED;
-    }
-
-// QTI_END: 2024-12-10: Telephony: IMS: Support visualized voice call and video CRBT call
     /**
      * Returns whether or not high definition audio was used.
      *
