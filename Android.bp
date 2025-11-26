@@ -88,7 +88,6 @@ android_app {
         "TelecomUi/res",
     ],
     static_libs: [
-        "TelecomLib",
         "framework-annotations-lib", // For @Nullable, @VisibleForTesting
         "telecom-strings", // All strings and translations
         "androidx.core_core",
@@ -96,10 +95,7 @@ android_app {
     libs: [
         "framework-telecom.stubs.module_lib",
     ],
-    min_sdk_version: "36",
-    platform_apis: true,
-    certificate: "platform",
-    privileged: true,
+    sdk_version: "module_current",
     optimize: {
         proguard_flags_files: ["proguard.flags"],
     },
@@ -111,7 +107,7 @@ android_library {
     srcs: [
         "res/values*/strings.xml",
     ],
-    min_sdk_version: "36",
+    sdk_version: "module_current",
 }
 
 // Build telecom util static lib
