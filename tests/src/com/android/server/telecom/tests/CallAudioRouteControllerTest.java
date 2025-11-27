@@ -1509,8 +1509,8 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
                 BLUETOOTH_DEVICE_1);
         setCommunicationDeviceToScoAndConnect(scoDevice2);
         expectedState = new CallAudioState(false, CallAudioState.ROUTE_BLUETOOTH,
-                CallAudioState.ROUTE_EARPIECE | CallAudioState.ROUTE_SPEAKER
-                        | CallAudioState.ROUTE_BLUETOOTH, scoDevice2, BLUETOOTH_DEVICES);
+                CallAudioState.ROUTE_EARPIECE | CallAudioState.ROUTE_BLUETOOTH
+                        | CallAudioState.ROUTE_SPEAKER, scoDevice2, BLUETOOTH_DEVICES);
         verify(mCallsManager, timeout(TEST_TIMEOUT)).onCallAudioStateChanged(
                 any(CallAudioState.class), eq(expectedState));
     }
@@ -2356,5 +2356,40 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         BluetoothDevice device = BluetoothDevice.CREATOR.createFromParcel(p1);
         p1.recycle();
         return device;
+    }
+
+    @Test
+    public void testCrsCall_IgnoresWiredHeadsetConnection() {
+        when(mCallAudioManager.isCrsInCallMode()).thenReturn(true);
+        mController.initialize();
+        mController.sendMessageWithSessionInfo(CONNECT_WIRED_HEADSET);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+        verify(mCallsManager, never()).onCallAudioStateChanged(any(), any());
+    }
+
+    @Test
+    public void testCrsCall_IgnoresBluetoothConnection() {
+        when(mCallAudioManager.isCrsInCallMode()).thenReturn(true);
+        mController.initialize();
+        mController.sendMessageWithSessionInfo(BT_DEVICE_ADDED, AudioRoute.TYPE_BLUETOOTH_SCO,
+                BLUETOOTH_DEVICE_1);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+        verify(mCallsManager, never()).onCallAudioStateChanged(any(), any());
+    }
+
+    @Test
+    public void testCrsCall_IgnoresUserSwitchToBluetooth() {
+        when(mCallAudioManager.isCrsInCallMode()).thenReturn(true);
+        mController.initialize();
+        // Add the device so that the switch would otherwise work
+        mController.sendMessageWithSessionInfo(BT_DEVICE_ADDED, AudioRoute.TYPE_BLUETOOTH_SCO,
+                BLUETOOTH_DEVICE_1);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+
+        mController.sendMessageWithSessionInfo(USER_SWITCH_BLUETOOTH, 0,
+                BLUETOOTH_DEVICE_1.getAddress());
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+
+        verify(mCallsManager, never()).onCallAudioStateChanged(any(), any());
     }
 }

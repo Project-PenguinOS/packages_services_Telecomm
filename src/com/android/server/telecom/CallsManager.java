@@ -161,7 +161,6 @@ import com.android.server.telecom.ui.ToastFactory;
 import com.android.server.telecom.util.CallerInfo;
 import com.android.server.telecom.callsequencing.voip.VoipCallMonitor;
 import com.android.server.telecom.callsequencing.TransactionManager;
-import com.android.server.telecom.R;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -569,6 +568,7 @@ public class CallsManager extends Call.ListenerBase
     private CallLogIntegrationAdapter mCallLogIntegrationAdapter;
 
     private String mCrsCallId = null;
+    private CrsAudioController mCrsAudioController;
 
     private final ConnectionServiceFocusManager.CallsManagerRequester mRequester =
             new ConnectionServiceFocusManager.CallsManagerRequester() {
@@ -796,12 +796,17 @@ public class CallsManager extends Call.ListenerBase
         mCallDiagnosticServiceController = callDiagnosticServiceController;
         mCallDiagnosticServiceController.setInCallTonePlayerFactory(playerFactory);
         mCallConnectedIndicatorSettings = new CallConnectedIndicatorSettings(context, featureFlags);
+        if (android.telecom.flags.Flags.isUsingCrs()) {
+            mCrsAudioController = new CrsAudioController(context,
+                    context.getSystemService(AudioManager.class));
+        }
         mRinger = new Ringer(playerFactory, context, systemSettingsUtil, asyncRingtonePlayer,
                 ringtoneFactory, vibratorAdapter,
                 new Ringer.VibrationEffectProxy(), mInCallController,
                 mContext.getSystemService(NotificationManager.class),
                 accessibilityManagerAdapter, featureFlags, mAnomalyReporter,
-                mCallConnectedIndicatorSettings, asyncTaskExecutor);
+                mCallConnectedIndicatorSettings, asyncTaskExecutor,
+                mCrsAudioController);
         if (featureFlags.telecomResolveHiddenDependencies()) {
             // This is now deprecated
             mCallRecordingTonePlayer = null;
@@ -962,6 +967,10 @@ public class CallsManager extends Call.ListenerBase
                         ComponentName.unflattenFromString(oemCssComponentStr);
             }
         }
+    }
+
+    public CrsAudioController getCrsAudioController() {
+        return mCrsAudioController;
     }
 
     public void setIncomingCallNotifier(IncomingCallNotifier incomingCallNotifier) {
@@ -4024,6 +4033,14 @@ public class CallsManager extends Call.ListenerBase
         } else {
             call.deflect(address);
         }
+    }
+
+    public boolean isWiredHandsetIn() {
+        return mWiredHeadsetManager.isPluggedIn();
+    }
+
+    public boolean isBtAvailable() {
+        return  mBluetoothRouteManager.isBluetoothAvailable();
     }
 
     /**

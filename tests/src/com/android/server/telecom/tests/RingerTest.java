@@ -21,12 +21,11 @@ import static android.provider.Settings.Global.ZEN_MODE_IMPORTANT_INTERRUPTIONS;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
-import static org.junit.Assume.assumeNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.junit.Assume.assumeTrue;
+import static org.junit.Assume.assumeNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -56,7 +55,6 @@ import android.media.VolumeShaper;
 import android.media.audio.Flags;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.InputConstants;
 import android.os.TestLooperManager;
 import android.os.UserHandle;
 import android.os.UserManager;
@@ -75,13 +73,13 @@ import android.util.Pair;
 
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.filters.SmallTest;
-import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.server.telecom.AnomalyReporterAdapter;
 import com.android.server.telecom.AsyncRingtonePlayer;
 import com.android.server.telecom.Call;
 import com.android.server.telecom.CallConnectedIndicatorSettings;
 import com.android.server.telecom.CallState;
+import com.android.server.telecom.CrsAudioController;
 import com.android.server.telecom.InCallController;
 import com.android.server.telecom.InCallTonePlayer;
 import com.android.server.telecom.Ringer;
@@ -96,21 +94,16 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Spy;
 
 import java.io.ByteArrayInputStream;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 
 @RunWith(JUnit4.class)
 public class RingerTest extends TelecomTestCase {
@@ -149,6 +142,7 @@ public class RingerTest extends TelecomTestCase {
     @Mock private FeatureFlags mFeatureFlags;
     @Mock private AnomalyReporterAdapter mAnomalyReporterAdapter;
     @Mock private CallConnectedIndicatorSettings mCallConnectedIndicatorSettings;
+    @Mock private CrsAudioController mCrsAudioController;
 
     @Spy Ringer.VibrationEffectProxy spyVibrationEffectProxy;
 
@@ -216,7 +210,7 @@ public class RingerTest extends TelecomTestCase {
                 asyncRingtonePlayer, mockRingtoneFactory, mockVibrator, spyVibrationEffectProxy,
                 mockInCallController, mockNotificationManager, mockAccessibilityManagerAdapter,
                 mFeatureFlags, mAnomalyReporterAdapter, mCallConnectedIndicatorSettings,
-                Runnable::run);
+                Runnable::run, mCrsAudioController);
         // This future is used to wait for AsyncRingtonePlayer to finish its part.
         mRingerUnderTest.setBlockOnRingingFuture(mRingCompletionFuture);
     }
@@ -1120,7 +1114,7 @@ public class RingerTest extends TelecomTestCase {
         Pair<Uri, Ringtone> ringtoneInfo = new Pair(
                 FAKE_RINGTONE_URI, mockRingtone);
         when(mockRingtoneFactory.getRingtone(
-                any(Call.class), nullable(VolumeShaper.Configuration.class), anyBoolean()))
+                any(Call.class), any(), anyBoolean()))
                 .thenReturn(ringtoneInfo);
         return mockRingtone;
     }
@@ -1133,5 +1127,46 @@ public class RingerTest extends TelecomTestCase {
         when(mMockResources.openRawResource(mockVibrationResId)).thenReturn(
                 new ByteArrayInputStream(defaultVibrationContent.getBytes(
                         StandardCharsets.UTF_8)));
+    }
+
+    @Test
+    public void testIsRinging_RingerAttributesNull() {
+        mRingerUnderTest.stopRinging();
+        assertFalse(mRingerUnderTest.isRinging());
+    }
+
+    @Test
+    public void testStartRinging_CrsCallConfiguresVolume() throws Exception {
+        when(mockCall1.isCrsCall()).thenReturn(true);
+        when(mCrsAudioController.getCrsRingToneType(mockCall1))
+                .thenReturn(Call.RINGTONE_SOURCE_NETWORK_RING_MODE);
+        ensureRingerIsAudible();
+        startRingingAndWaitForAsync(mockCall1, false);
+        verify(mCrsAudioController).configureCrsRingVolume(any());
+    }
+
+    @Test
+    public void testStartRinging_NonCrsCallPlaysRingtone() throws Exception {
+        when(mockCall1.isCrsCall()).thenReturn(false);
+        ensureRingtoneMocked();
+        ensureRingerIsAudible();
+        startRingingAndWaitForAsync(mockCall1, false);
+        verify(mockRingtoneFactory, atLeastOnce())
+                .getRingtone(any(Call.class), nullable(VolumeShaper.Configuration.class),
+                        anyBoolean());
+    }
+
+    @Test
+    public void testStartRinging_AfterRingtoneLogicOnlyOnceForCrs() throws Exception {
+        when(mockCall1.isCrsCall()).thenReturn(true);
+        when(mCrsAudioController.getCrsRingToneType(mockCall1))
+                .thenReturn(Call.RINGTONE_SOURCE_NETWORK_RING_MODE);
+        ensureRingerIsAudible();
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        mRingerUnderTest.setBlockOnRingingFuture(future);
+        mRingerUnderTest.startRinging(mockCall1, false);
+        future.get();
+        // The afterRingtoneLogic should only be called once.
+        // If it were called twice, the future would be completed twice, causing an exception.
     }
 }
