@@ -23,7 +23,7 @@ import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
-import android.telecom.Log;
+import android.util.Log;
 
 /**
  * Used to display an error dialog from within the Telecom service when an outgoing call fails

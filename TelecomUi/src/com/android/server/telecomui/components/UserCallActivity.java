@@ -26,7 +26,7 @@ import android.os.Bundle;
 import android.os.PowerManager;
 import android.os.UserHandle;
 import android.os.UserManager;
-import android.telecom.Log;
+import android.util.Log;
 import android.telecom.TelecomManager;
 
 /**
@@ -48,6 +48,8 @@ import android.telecom.TelecomManager;
  */
 public class UserCallActivity extends Activity {
 
+    private static final String TAG = UserCallActivity.class.getSimpleName();
+
     @Override
     protected void onCreate(Bundle bundle) {
         super.onCreate(bundle);
@@ -56,7 +58,6 @@ public class UserCallActivity extends Activity {
                 "UserCallActivity");
         wakelock.acquire();
 
-        Log.startSession("UCA.oC");
         try {
             // TODO: Figure out if there is something to restore from bundle.
             // See OutgoingCallBroadcaster in services/Telephony for more.
@@ -78,10 +79,9 @@ public class UserCallActivity extends Activity {
                     .processIntent(new Intent(intent), getLaunchedFromPackage(), false,
                             true /* hasCallAppOp*/, false /* isLocalInvocation */);
         } finally {
-            Log.endSession();
             wakelock.release();
         }
-        Log.i(this, "onCreate done");
+        Log.i(TAG, "onCreate done");
         finish();
     }
 
@@ -90,7 +90,7 @@ public class UserCallActivity extends Activity {
             // If we were launched directly from the CallActivity, not one of its more privileged
             // aliases, then make sure that only the non-privileged actions are allowed.
             if (!Intent.ACTION_CALL.equals(intent.getAction())) {
-                Log.w(this, "Attempt to deliver non-CALL action; forcing to CALL");
+                Log.w(TAG, "Attempt to deliver non-CALL action; forcing to CALL");
                 intent.setAction(Intent.ACTION_CALL);
             }
         }

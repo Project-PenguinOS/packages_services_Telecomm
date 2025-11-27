@@ -27,7 +27,7 @@ import android.provider.BlockedNumbersManager;
 import android.provider.BlockedNumberContract;
 import android.telephony.CarrierConfigManager;
 import android.telephony.SubscriptionManager;
-import android.telecom.Log;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -37,6 +37,7 @@ import com.android.server.telecomui.R;
 
 public class EnhancedCallBlockingFragment extends PreferenceFragment
         implements Preference.OnPreferenceChangeListener {
+    private static final String TAG = EnhancedCallBlockingFragment.class.getSimpleName();
     private static final String BLOCK_NUMBERS_NOT_IN_CONTACTS_KEY =
             "block_numbers_not_in_contacts_setting";
     private static final String BLOCK_RESTRICTED_NUMBERS_KEY =
@@ -91,7 +92,7 @@ public class EnhancedCallBlockingFragment extends PreferenceFragment
         if (!isShowingNotInContactsOption) {
             Preference pref = findPreference(BLOCK_NUMBERS_NOT_IN_CONTACTS_KEY);
             screen.removePreference(pref);
-            Log.i(this, "onCreate: removed block not in contacts preference.");
+            Log.i(TAG, "onCreate: removed block not in contacts preference.");
         }
 
         mIsCombiningRestrictedAndUnknownOption = getResources().getBoolean(
@@ -99,7 +100,7 @@ public class EnhancedCallBlockingFragment extends PreferenceFragment
         if (mIsCombiningRestrictedAndUnknownOption) {
             Preference restricted_pref = findPreference(BLOCK_RESTRICTED_NUMBERS_KEY);
             screen.removePreference(restricted_pref);
-            Log.i(this, "onCreate: removed block restricted preference.");
+            Log.i(TAG, "onCreate: removed block restricted preference.");
         }
 
         mIsCombiningUnavailableAndUnknownOption = getResources().getBoolean(
@@ -107,7 +108,7 @@ public class EnhancedCallBlockingFragment extends PreferenceFragment
         if (mIsCombiningUnavailableAndUnknownOption) {
             Preference unavailable_pref = findPreference(BLOCK_UNAVAILABLE_NUMBERS_KEY);
             screen.removePreference(unavailable_pref);
-            Log.i(this, "onCreate: removed block unavailable preference.");
+            Log.i(TAG, "onCreate: removed block unavailable preference.");
         }
     }
 
@@ -149,15 +150,15 @@ public class EnhancedCallBlockingFragment extends PreferenceFragment
     public boolean onPreferenceChange(Preference preference, Object objValue) {
         if (preference.getKey().equals(BLOCK_UNKNOWN_NUMBERS_KEY)) {
             if (mIsCombiningRestrictedAndUnknownOption) {
-                Log.i(this, "onPreferenceChange: changing %s and %s to %b",
-                        preference.getKey(), BLOCK_RESTRICTED_NUMBERS_KEY, (boolean) objValue);
+                Log.i(TAG, String.format("onPreferenceChange: changing %s and %s to %b",
+                        preference.getKey(), BLOCK_RESTRICTED_NUMBERS_KEY, (boolean) objValue));
                 BlockedNumberContract.SystemContract.setEnhancedBlockSetting(getActivity(),
                         BLOCK_RESTRICTED_NUMBERS_KEY, (boolean) objValue);
             }
 
             if (mIsCombiningUnavailableAndUnknownOption) {
-                Log.i(this, "onPreferenceChange: changing %s and %s to %b",
-                        preference.getKey(), BLOCK_UNAVAILABLE_NUMBERS_KEY, (boolean) objValue);
+                Log.i(TAG, String.format("onPreferenceChange: changing %s and %s to %b",
+                        preference.getKey(), BLOCK_UNAVAILABLE_NUMBERS_KEY, (boolean) objValue));
                 BlockedNumberContract.SystemContract.setEnhancedBlockSetting(getActivity(),
                         BLOCK_UNAVAILABLE_NUMBERS_KEY, (boolean) objValue);
             }
