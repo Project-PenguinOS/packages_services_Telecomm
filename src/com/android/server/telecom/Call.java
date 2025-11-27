@@ -4998,19 +4998,12 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         if ((oldState == CallState.DIALING && newState == CallState.ACTIVE)
                 || (oldState == CallState.RINGING && newState == CallState.ANSWERED)) {
             mVideoStateHistory = mVideoState;
-// QTI_BEGIN: 2023-03-28: Telephony: IMS: Show incorrect video icon in call history after answering
 
             // Video state is video type when answering Video CRS for VoLTE call
             if (isVideoCrsForVoLteCall()) {
                 mVideoStateHistory = VideoProfile.STATE_AUDIO_ONLY;
                 return;
             }
-        } else if ((oldState == CallState.RINGING && newState == CallState.DISCONNECTED)
-                && isVideoCrsForVoLteCall()) {
-            // For disconnecting Video CRS for VoLTE call by APM or other abnormal scenarios
-            mVideoStateHistory = VideoProfile.STATE_AUDIO_ONLY;
-            return;
-// QTI_END: 2023-06-05: Telephony: IMS: Fix incorrect video icon in call history after disconnecting
         }
 
         mVideoStateHistory |= mVideoState;
