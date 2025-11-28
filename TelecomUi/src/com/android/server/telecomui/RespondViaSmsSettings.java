@@ -32,7 +32,7 @@ import android.text.TextWatcher;
 import android.view.MenuItem;
 import android.widget.Button;
 
-import com.android.server.telecom.QuickResponseUtils;
+import com.android.server.telecomui.QuickResponseUtils;
 import com.android.server.telecomui.R;
 
 // TODO: This class is newly copied into Telecom (com.android.server.telecom) from it previous
