@@ -161,7 +161,6 @@ import com.android.server.telecom.ui.ToastFactory;
 import com.android.server.telecom.util.CallerInfo;
 import com.android.server.telecom.callsequencing.voip.VoipCallMonitor;
 import com.android.server.telecom.callsequencing.TransactionManager;
-import com.android.server.telecom.R;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -569,6 +568,7 @@ public class CallsManager extends Call.ListenerBase
     private CallLogIntegrationAdapter mCallLogIntegrationAdapter;
 
     private String mCrsCallId = null;
+    private CrsAudioController mCrsAudioController;
 
     private final ConnectionServiceFocusManager.CallsManagerRequester mRequester =
             new ConnectionServiceFocusManager.CallsManagerRequester() {
@@ -796,12 +796,17 @@ public class CallsManager extends Call.ListenerBase
         mCallDiagnosticServiceController = callDiagnosticServiceController;
         mCallDiagnosticServiceController.setInCallTonePlayerFactory(playerFactory);
         mCallConnectedIndicatorSettings = new CallConnectedIndicatorSettings(context, featureFlags);
+        if (android.telecom.flags.Flags.isUsingCrs()) {
+            mCrsAudioController = new CrsAudioController(context,
+                    context.getSystemService(AudioManager.class));
+        }
         mRinger = new Ringer(playerFactory, context, systemSettingsUtil, asyncRingtonePlayer,
                 ringtoneFactory, vibratorAdapter,
                 new Ringer.VibrationEffectProxy(), mInCallController,
                 mContext.getSystemService(NotificationManager.class),
                 accessibilityManagerAdapter, featureFlags, mAnomalyReporter,
-                mCallConnectedIndicatorSettings, asyncTaskExecutor);
+                mCallConnectedIndicatorSettings, asyncTaskExecutor,
+                mCrsAudioController);
         if (featureFlags.telecomResolveHiddenDependencies()) {
             // This is now deprecated
             mCallRecordingTonePlayer = null;
@@ -962,6 +967,10 @@ public class CallsManager extends Call.ListenerBase
                         ComponentName.unflattenFromString(oemCssComponentStr);
             }
         }
+    }
+
+    public CrsAudioController getCrsAudioController() {
+        return mCrsAudioController;
     }
 
     public void setIncomingCallNotifier(IncomingCallNotifier incomingCallNotifier) {
@@ -4026,6 +4035,14 @@ public class CallsManager extends Call.ListenerBase
         }
     }
 
+    public boolean isWiredHandsetIn() {
+        return mWiredHeadsetManager.isPluggedIn();
+    }
+
+    public boolean isBtAvailable() {
+        return  mBluetoothRouteManager.isBluetoothAvailable();
+    }
+
     /**
      * Determines if the speakerphone should be automatically enabled for the call.  Speakerphone
      * should be enabled if the call is a video call and bluetooth or the wired headset are not in
@@ -4496,7 +4513,10 @@ public class CallsManager extends Call.ListenerBase
       * Called by the in-call UI to change the audio route, for example to change from earpiece to
       * speaker phone.
       */
-    void setAudioRoute(int route, String bluetoothAddress) {
+    void setAudioRoute(int uid, int route, String bluetoothAddress) {
+        if (mFeatureFlags.telecomMetricsSupport()) {
+            mMetricsController.getCallEndpointStats().onRequested(uid, route, bluetoothAddress);
+        }
         mCallAudioManager.setAudioRoute(route, bluetoothAddress);
     }
 
@@ -4504,7 +4524,12 @@ public class CallsManager extends Call.ListenerBase
       * Called by the in-call UI to change the CallEndpoint
       */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public void requestCallEndpointChange(CallEndpoint endpoint, ResultReceiver callback) {
+    public void requestCallEndpointChange(int uid, CallEndpoint endpoint, ResultReceiver callback) {
+        if (mFeatureFlags.telecomMetricsSupport()) {
+            mMetricsController.getCallEndpointStats().onRequested(uid,
+                    mCallEndpointController.getRoute(endpoint),
+                    mCallEndpointController.getBluetoothAddress(endpoint));
+        }
         mCallEndpointController.requestCallEndpointChange(endpoint, callback);
     }
 
@@ -4529,7 +4554,7 @@ public class CallsManager extends Call.ListenerBase
         // force the audio route to SPEAKER
         if (audioState.getRoute() == CallAudioState.ROUTE_EARPIECE) {
             Log.i(this, "Rerouting audio for video upgrade for call: %s", call.getId());
-            setAudioRoute(CallAudioState.ROUTE_SPEAKER, null);
+            setAudioRoute(Process.myUid(), CallAudioState.ROUTE_SPEAKER, null);
         }
     }
 
@@ -4775,7 +4800,7 @@ public class CallsManager extends Call.ListenerBase
             // hasn't been created yet. We will end up with two active "child" calls (WAI from a
             // Telephony standpoint) and we want to skip sequencing in this case. We can also add
             // another check to ensure the active call we would end up holding isn't a child call.
-            if (mFeatureFlags.requestFocusForSetActive() && !Objects.equals(activeCall, call)
+            if (!Objects.equals(activeCall, call)
                     && call.isFocusable() && call.getState() != CallState.ON_HOLD
                     && (activeCall == null || activeCall.getParentCall() == null)) {
                 mCallSequencingAdapter.markCallAsActive(call);
@@ -6048,7 +6073,7 @@ public class CallsManager extends Call.ListenerBase
             return;
         }
         if (call.getStartWithSpeakerphoneOn()) {
-            setAudioRoute(CallAudioState.ROUTE_SPEAKER, null);
+            setAudioRoute(Process.myUid(), CallAudioState.ROUTE_SPEAKER, null);
             call.setStartWithSpeakerphoneOn(false);
         }
     }
@@ -7602,4 +7627,8 @@ public class CallsManager extends Call.ListenerBase
     public LocalVoicemailController getLocalVoicemailController() {
         return mLocalVoicemailController;
     }
-}
+
+    TelecomMetricsController getMetricsController() {
+        return mMetricsController;
+    }
+ }
