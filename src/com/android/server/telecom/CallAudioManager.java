@@ -1281,7 +1281,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
     }
 
     private void playToneAfterCallConnected(Call call) {
-        if (!mFeatureFlags.callConnectedIndicatorPreference()) {
+        if (!android.telecom.flags.Flags.callConnectedIndicatorPreference()) {
             Log.i(LOG_TAG, "Call connected indicator of playing tone is disabled.");
             return;
         }

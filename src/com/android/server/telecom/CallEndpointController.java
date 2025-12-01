@@ -92,17 +92,23 @@ public class CallEndpointController extends CallsManagerListenerBase {
 
     public void requestCallEndpointChange(CallEndpoint endpoint, ResultReceiver callback) {
         Log.i(this, "requestCallEndpointChange %s", endpoint);
-        int route = mTypeToRouteMap.get(endpoint.getEndpointType());
+        int route = getRoute(endpoint);
         String bluetoothAddress = getBluetoothAddress(endpoint);
 
         if (findMatchingTypeEndpoint(endpoint.getEndpointType()) == null ||
                 (route == CallAudioState.ROUTE_BLUETOOTH && bluetoothAddress == null)) {
+            if (mFeatureFlags.telecomMetricsSupport()) {
+                mCallsManager.getMetricsController().getCallEndpointStats().onException(false);
+            }
             callback.send(CallEndpoint.ENDPOINT_OPERATION_FAILED,
                     getErrorResult(RESULT_ENDPOINT_DOES_NOT_EXIST));
             return;
         }
 
         if (isCurrentEndpointRequestedEndpoint(route, bluetoothAddress)) {
+            if (mFeatureFlags.telecomMetricsSupport()) {
+                mCallsManager.getMetricsController().getCallEndpointStats().onException(true);
+            }
             callback.send(CallEndpoint.ENDPOINT_OPERATION_SUCCESS, new Bundle());
             return;
         }
@@ -199,6 +205,10 @@ public class CallEndpointController extends CallsManagerListenerBase {
         }
         mCallsManager.updateCallEndpoint(mActiveCallEndpoint);
 
+        if (mFeatureFlags.telecomMetricsSupport()) {
+            mCallsManager.getMetricsController().getCallEndpointStats().onNotified(
+                    getRoute(mActiveCallEndpoint), getBluetoothAddress(mActiveCallEndpoint));
+        }
         List<Call> calls = new ArrayList<>(mCallsManager.getTrackedCalls());
         for (Call call : calls) {
             onCallEndpointChangedOrCache(call);
@@ -434,5 +444,9 @@ public class CallEndpointController extends CallsManagerListenerBase {
             notifyCallEndpointChange();
             notifyMuteStateChange(newState.isMuted());
         }
+    }
+
+    int getRoute(CallEndpoint endpoint) {
+        return mTypeToRouteMap.getOrDefault(endpoint.getEndpointType(), 0);
     }
 }

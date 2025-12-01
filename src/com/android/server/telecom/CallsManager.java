@@ -4629,7 +4629,10 @@ public class CallsManager extends Call.ListenerBase
       * Called by the in-call UI to change the audio route, for example to change from earpiece to
       * speaker phone.
       */
-    void setAudioRoute(int route, String bluetoothAddress) {
+    void setAudioRoute(int uid, int route, String bluetoothAddress) {
+        if (mFeatureFlags.telecomMetricsSupport()) {
+            mMetricsController.getCallEndpointStats().onRequested(uid, route, bluetoothAddress);
+        }
         mCallAudioManager.setAudioRoute(route, bluetoothAddress);
     }
 
@@ -4637,7 +4640,12 @@ public class CallsManager extends Call.ListenerBase
       * Called by the in-call UI to change the CallEndpoint
       */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public void requestCallEndpointChange(CallEndpoint endpoint, ResultReceiver callback) {
+    public void requestCallEndpointChange(int uid, CallEndpoint endpoint, ResultReceiver callback) {
+        if (mFeatureFlags.telecomMetricsSupport()) {
+            mMetricsController.getCallEndpointStats().onRequested(uid,
+                    mCallEndpointController.getRoute(endpoint),
+                    mCallEndpointController.getBluetoothAddress(endpoint));
+        }
         mCallEndpointController.requestCallEndpointChange(endpoint, callback);
     }
 
@@ -4662,7 +4670,7 @@ public class CallsManager extends Call.ListenerBase
         // force the audio route to SPEAKER
         if (audioState.getRoute() == CallAudioState.ROUTE_EARPIECE) {
             Log.i(this, "Rerouting audio for video upgrade for call: %s", call.getId());
-            setAudioRoute(CallAudioState.ROUTE_SPEAKER, null);
+            setAudioRoute(Process.myUid(), CallAudioState.ROUTE_SPEAKER, null);
         }
     }
 
@@ -6314,7 +6322,7 @@ public class CallsManager extends Call.ListenerBase
             return;
         }
         if (call.getStartWithSpeakerphoneOn()) {
-            setAudioRoute(CallAudioState.ROUTE_SPEAKER, null);
+            setAudioRoute(Process.myUid(), CallAudioState.ROUTE_SPEAKER, null);
             call.setStartWithSpeakerphoneOn(false);
         }
     }
@@ -7905,4 +7913,8 @@ public class CallsManager extends Call.ListenerBase
     public LocalVoicemailController getLocalVoicemailController() {
         return mLocalVoicemailController;
     }
-}
+
+    TelecomMetricsController getMetricsController() {
+        return mMetricsController;
+    }
+ }
