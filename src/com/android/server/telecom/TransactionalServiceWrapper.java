@@ -325,11 +325,12 @@ public class TransactionalServiceWrapper implements
 
         @Override
         public void requestCallEndpointChange(CallEndpoint endpoint, ResultReceiver callback) {
+            int uid = Binder.getCallingUid();
             long token = Binder.clearCallingIdentity();
             try {
                 Log.startSession("TSW.rCEC");
                 addTransactionsToManager(CALL_ENDPOINT_CHANGE,
-                        new EndpointChangeTransaction(endpoint, mCallsManager), callback);
+                        new EndpointChangeTransaction(endpoint, mCallsManager, uid), callback);
             } finally {
                 Binder.restoreCallingIdentity(token);
                 Log.endSession();

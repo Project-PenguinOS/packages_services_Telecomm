@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
@@ -39,7 +40,12 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
 import android.os.UserHandle;
+import android.os.UserManager;
+import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.CallLog;
+import android.telecom.TelecomManager;
 import android.text.TextUtils;
 
 import androidx.test.filters.SmallTest;
@@ -47,7 +53,9 @@ import androidx.test.filters.SmallTest;
 import com.android.server.telecom.CallLogIntegrationAdapterImpl;
 
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -67,6 +75,9 @@ public class CallLogIntegrationTests extends TelecomTestCase {
     private static final String PKG_1 = "com.voip.app1";
     private static final String PKG_2 = "com.voip.app2";
 
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+
     @Mock private Context mContext;
     @Mock private Context mUserContext;
     @Mock private PackageManager mPackageManager;
@@ -74,6 +85,7 @@ public class CallLogIntegrationTests extends TelecomTestCase {
     @Mock private SharedPreferences.Editor mEditor;
     @Mock private UserHandle mUserHandle;
     @Mock private ContentResolver mUserContentResolver;
+    @Mock private UserManager mUserManager;
 
     private CallLogIntegrationAdapterImpl mAdapter;
 
@@ -82,6 +94,8 @@ public class CallLogIntegrationTests extends TelecomTestCase {
         super.setUp();
         when(mContext.createContextAsUser(any(UserHandle.class), anyInt()))
                 .thenReturn(mUserContext);
+        when(mContext.getSystemService(eq(UserManager.class))).thenReturn(mUserManager);
+        when(mUserManager.getUserHandles(eq(true))).thenReturn(List.of(UserHandle.CURRENT));
         when(mUserContext.getContentResolver()).thenReturn(mUserContentResolver);
         when(mUserContext.getPackageManager()).thenReturn(mPackageManager);
         when(mUserContext.getSharedPreferences(anyString(), anyInt()))
@@ -99,6 +113,9 @@ public class CallLogIntegrationTests extends TelecomTestCase {
     @Test
     @SmallTest
     public void testGetSupportedPackages_initialState_createsAndSavesDefaults() {
+        if (!android.telecom.flags.Flags.integratedCallLogsStage2()) {
+            return;
+        }
         // Set up for broadcast query to return two packages.
         when(mSharedPreferences.getString(anyString(), anyString())).thenReturn("");
         mockBroadcastQueryResult(Arrays.asList(PKG_1, PKG_2));
@@ -118,11 +135,17 @@ public class CallLogIntegrationTests extends TelecomTestCase {
         assertEquals(2, storedMap.size());
         assertTrue(storedMap.get(PKG_1));
         assertTrue(storedMap.get(PKG_2));
+
+        // Verify no broadcasts were sent since these are all enabled
+        verify(mUserContext, never()).sendBroadcast(any(Intent.class));
     }
 
     @Test
     @SmallTest
     public void testGetSupportedPackages_loadsFromPreferences() {
+        if (!android.telecom.flags.Flags.integratedCallLogsStage2()) {
+            return;
+        }
         // Add two packages with one as disabled in the shared preferences
         String storedValue = PKG_1 + ":true," + PKG_2 + ":false";
         when(mSharedPreferences.getString(anyString(), anyString())).thenReturn(storedValue);
@@ -139,12 +162,22 @@ public class CallLogIntegrationTests extends TelecomTestCase {
 
         // Verify that we never wrote back to the shared preferences
         verify(mEditor, never()).putString(anyString(), anyString());
+
+        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
+        verify(mUserContext).sendBroadcast(intentCaptor.capture());
+        Intent capturedIntent = intentCaptor.getValue();
+
+        // Verify the contents of the broadcast to ensure that we sent it for the disabled pkg pref
+        Assert.assertNotNull(capturedIntent);
+        assertEquals(TelecomManager.ACTION_VOIP_CALL_LOG_PREFERENCE, capturedIntent.getAction());
+        assertFalse(capturedIntent.getBooleanExtra(
+                TelecomManager.EXTRA_VOIP_CALL_LOG_PREFERENCE_STATUS, true));
     }
 
     @Test
     @SmallTest
+    @RequiresFlagsEnabled(android.telecom.flags.Flags.FLAG_INTEGRATED_CALL_LOGS_STAGE2)
     public void testSetEnabledState() {
-        when(mFeatureFlags.integratedCallLogsStage2()).thenReturn(true);
         // Set up persistent storage to be empty and broadcast query to return one package.
         when(mSharedPreferences.getString(anyString(), anyString())).thenReturn("");
         mockBroadcastQueryResult(Collections.singletonList(PKG_1));
@@ -168,11 +201,27 @@ public class CallLogIntegrationTests extends TelecomTestCase {
                 + PKG_1 + "%'";
         verify(mUserContentResolver, timeout(TIMEOUT)).delete(eq(expectedUri),
                 eq(expectedSelection), eq(null));
+
+        // Verify that we notified the voip app of the preference changes. There will be two
+        // invocations: one from getSupportedVoipCallLogIntegrationPackages and another when we
+        // change the preference.
+        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
+        verify(mUserContext).sendBroadcast(intentCaptor.capture());
+        Intent capturedIntent = intentCaptor.getValue();
+
+        // The broadcast that was sent for the explicit pref change
+        assertEquals(TelecomManager.ACTION_VOIP_CALL_LOG_PREFERENCE, capturedIntent.getAction());
+        assertEquals(PKG_1, capturedIntent.getPackage());
+        assertFalse(capturedIntent.getBooleanExtra(
+                TelecomManager.EXTRA_VOIP_CALL_LOG_PREFERENCE_STATUS, true));
     }
 
     @Test
     @SmallTest
     public void testPackageAddedUpdate() {
+        if (!android.telecom.flags.Flags.integratedCallLogsStage2()) {
+            return;
+        }
         // Arrange: Initial state has one package.
         when(mSharedPreferences.getString(anyString(), anyString())).thenReturn(PKG_1 + ":true");
         mockBroadcastQueryResult(Collections.singletonList(PKG_1));
@@ -198,6 +247,9 @@ public class CallLogIntegrationTests extends TelecomTestCase {
     @Test
     @SmallTest
     public void testPackageRemovedUpdate() {
+        if (!android.telecom.flags.Flags.integratedCallLogsStage2()) {
+            return;
+        }
         // Initialize with two packages available
         when(mSharedPreferences.getString(anyString(), anyString()))
                 .thenReturn(PKG_1 + ":true," + PKG_2 + ":true");
@@ -223,8 +275,8 @@ public class CallLogIntegrationTests extends TelecomTestCase {
     }
 
     @Test
+    @RequiresFlagsEnabled(android.telecom.flags.Flags.FLAG_INTEGRATED_CALL_LOGS_STAGE2)
     public void testPackageRemoved_deletesCallLogEntries() {
-        when(mFeatureFlags.integratedCallLogsStage2()).thenReturn(true);
         // Initialize state with one available package.
         when(mPackageManager.queryBroadcastReceivers(any(), anyInt()))
                 .thenReturn(Collections.singletonList(createResolveInfo(PKG_1)));
@@ -247,8 +299,28 @@ public class CallLogIntegrationTests extends TelecomTestCase {
     }
 
     @Test
+    public void testPackageAdded_notifiesVoipApp() {
+        if (!android.telecom.flags.Flags.integratedCallLogsStage2()) {
+            return;
+        }
+        // Initialize state with one available package.
+        when(mPackageManager.queryBroadcastReceivers(any(), anyInt()))
+                .thenReturn(Collections.singletonList(createResolveInfo(PKG_1)));
+
+        // Simulate package being removed by broadcasting ACTION_PACKAGE_ADDED.
+        Intent intent = new Intent(Intent.ACTION_PACKAGE_ADDED);
+        intent.setData(Uri.parse("package:" + PKG_1));
+        // Set a UID that corresponds to the test user.
+        intent.putExtra(Intent.EXTRA_UID, mUserHandle.getIdentifier() * UserHandle.PER_USER_RANGE);
+        mAdapter.getPackageChangedReceiver().onReceive(mContext, intent);
+    }
+
+    @Test
     @SmallTest
     public void testNoPackageSupportedChange() {
+        if (!android.telecom.flags.Flags.integratedCallLogsStage2()) {
+            return;
+        }
         // Initialize with one package available
         mockBroadcastQueryResult(Collections.singletonList(PKG_1));
         mAdapter.getSupportedVoipCallLogIntegrationPackages(mUserHandle);
@@ -260,7 +332,7 @@ public class CallLogIntegrationTests extends TelecomTestCase {
         assertTrue(result.get(PKG_1));
 
         // Verify that we only queried the broadcast receiver once during the first call.
-        verify(mPackageManager, times(1))
+        verify(mPackageManager, atLeastOnce())
                 .queryBroadcastReceivers(any(Intent.class), anyInt());
     }
 

@@ -1001,8 +1001,8 @@ public class RingerTest extends TelecomTestCase {
 
     @SmallTest
     @Test
+    @RequiresFlagsEnabled(android.telecom.flags.Flags.FLAG_CALL_CONNECTED_INDICATOR_PREFERENCE)
     public void testStartVibratingForOutgoingCallActive() throws Exception {
-        when(mFeatureFlags.callConnectedIndicatorPreference()).thenReturn(true);
         when(mCallConnectedIndicatorSettings.isCallConnectedVibrationEnabled()).thenReturn(true);
         createRingerUnderTest();
 

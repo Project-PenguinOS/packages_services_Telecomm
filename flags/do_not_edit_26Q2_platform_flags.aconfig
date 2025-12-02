@@ -7,7 +7,6 @@ container: "system"
 # OWNER=stevestatia TARGET=26Q2
 flag {
   name: "enable_audio_processing_use_case"
-  is_exported: true
   namespace: "telecom"
   description: "Introduce audio processing use case to improve call state synchronization."
   bug: "411205001"
@@ -16,128 +15,12 @@ flag {
   }
 }
 
-# OWNER=pengfeix TARGET=26Q2
-flag {
-  name: "is_using_video_ringback"
-  namespace: "telecom"
-  description: "Indicate that the call is a video color ring back tone call."
-  bug: "408116489"
-}
-
-# OWNER=arunvoddu TARGET=26Q2
-flag {
-  name: "is_using_unidirectional_video_service"
-  namespace: "telecom"
-  description: "Indicate that the call is a unidirectional video service call."
-  bug: "408116489"
-  metadata {
-      purpose: PURPOSE_FEATURE
-  }
-}
-
-# OWNER=tgunn TARGET=26Q2
-flag {
-  name: "call_connected_indicator_preference"
-  namespace: "telecom"
-  description: "Add call connected indicator support for playing a tone or starting a vibration"
-  bug: "146090790"
-  metadata {
-      purpose: PURPOSE_FEATURE
-  }
-}
-
-# OWNER=tgunn TARGET=26Q2
-flag {
-  name: "remotely_hosted_property"
-  namespace: "telecom"
-  description: "Add PROPERTY_REMOTELY_HOSTED to call to mirror what is in Connection."
-  bug: "430293079"
-  metadata {
-    purpose: PURPOSE_FEATURE
-  }
-}
-
-# OWNER=tjstuart TARGET=26Q2
-flag {
-  name: "promote_extra_do_not_log_call_to_system_api"
-  namespace: "telecom"
-  description: "Promoting the hidden extra DO_NOT_LOG call to a system API"
-  bug: "427477225"
-}
-
 # OWNER=pmadapurmath TARGET=26Q2
 flag {
   name: "filter_voip_call_logs"
   namespace: "telecom"
   description: "Add key to filter out voip call logs for dialer apps that don't support integrated call logs"
   bug: "434747530"
-}
-
-# OWNER=arunrajms TARGET=26Q2
-flag {
-  name: "send_original_number_on_place_call"
-  namespace: "telecom"
-  description: "Adds an API to send the original number when placing a call."
-  bug: "431102980"
-  metadata {
-      purpose: PURPOSE_FEATURE
-  }
-}
-
-# OWNER=tgunn TARGET=26Q2
-flag {
-  name: "get_last_known_cell_identity"
-  namespace: "telecom"
-  description: "Formalizes the getLastKnownCellIdentity API that Telecom reliees on as a system api"
-  bug: "327454165"
-}
-
-# OWNER=arunrajms TARGET=26Q2
-flag {
-  name: "place_call_to_alternate_number"
-  namespace: "telecom"
-  description: "Adds an API to display the alternate number dialed post redirection"
-  bug: "429255861"
-  metadata {
-      purpose: PURPOSE_FEATURE
-  }
-}
-
-# OWNER=grantmenke TARGET=26Q2
-flag {
-  name: "multi_party_anchor_conf"
-  namespace: "telecom"
-  description: "This flag guards the behavioral and API changes required to add support for multi-party anchor conference calling"
-  bug: "400811824"
-  # is_fixed_read_only is necessary for flags that guard a newly added carrier config
-  is_fixed_read_only: true
-}
-
-# OWNER=pmadapurmath TARGET=26Q2
-flag {
-  name: "integrated_call_logs_stage2"
-  namespace: "telecom"
-  description: "Stage 2 of integrating call logs - add user opt-out support + call icon support"
-  bug: "443306176"
-}
-
-# OWNER=tgunn TARGET=26Q2
-flag {
-  name: "local_voicemail"
-  namespace: "telecom"
-  description: "Support for local voicemail."
-  bug: "394367444"
-  metadata {
-      purpose: PURPOSE_FEATURE
-  }
-}
-
-# OWNER=grantmenke TARGET=26Q2
-flag {
-  name: "move_get_tty_mode_to_telephony_manager"
-  namespace: "telecom"
-  description: "Moving getTTYMode to TelephonyManager as part of Telecom mainline modularization"
-  bug: "433987834"
 }
 
 # OWNER=ntmyren TARGET=26Q2

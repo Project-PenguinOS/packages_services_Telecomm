@@ -247,6 +247,7 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
 
     @After
     public void tearDown() throws Exception {
+        BluetoothRouteManager.setWatchForTesting(null);
         Looper looper = mController.getAdapterHandler().getLooper();
         if (looper != Looper.getMainLooper()) {
             mController.getAdapterHandler().getLooper().quit();
@@ -855,8 +856,7 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testIgnoreAutoRouteToWatch() {
-        when(mBluetoothRouteManager.isWatch(any(BluetoothDevice.class))).thenReturn(true);
-
+        BluetoothRouteManager.setWatchForTesting(Boolean.TRUE);
         mController.initialize();
         mController.sendMessageWithSessionInfo(BT_DEVICE_ADDED, AudioRoute.TYPE_BLUETOOTH_SCO,
                 BLUETOOTH_DEVICE_1);
@@ -1044,7 +1044,7 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testRouteFromBtSwitchInRingingSelected() {
-        when(mBluetoothRouteManager.isWatch(any(BluetoothDevice.class))).thenReturn(true);
+        BluetoothRouteManager.setWatchForTesting(Boolean.TRUE);
         when(mBluetoothRouteManager.isInbandRingEnabled(eq(AudioRoute.TYPE_BLUETOOTH_SCO),
                 eq(BLUETOOTH_DEVICE_1))).thenReturn(false);
 
@@ -1359,7 +1359,7 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         // Connect another BT device.
         String scoDeviceAddress = "00:00:00:00:00:03";
         BluetoothDevice watchDevice = makeBluetoothDevice(scoDeviceAddress);
-        when(mBluetoothRouteManager.isWatch(eq(watchDevice))).thenReturn(true);
+        BluetoothRouteManager.setWatchForTesting(Boolean.TRUE);
         BLUETOOTH_DEVICES.add(watchDevice);
 
         mController.sendMessageWithSessionInfo(BT_DEVICE_ADDED, AudioRoute.TYPE_BLUETOOTH_SCO,

@@ -1433,7 +1433,7 @@ public class Ringer {
     }
 
     public void startVibratingForOutgoingCallActive() {
-        if (!mFlags.callConnectedIndicatorPreference()) {
+        if (!android.telecom.flags.Flags.callConnectedIndicatorPreference()) {
             Log.i(TAG, "Call connected indicator of vibration is disabled.");
             return;
         }

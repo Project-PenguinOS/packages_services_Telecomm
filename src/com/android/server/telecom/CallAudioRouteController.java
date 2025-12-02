@@ -1045,6 +1045,10 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             Log.i(this, "bluetooth route added: " + bluetoothRoute);
             updateAvailableRoutes(bluetoothRoute, true);
             mBluetoothRoutes.put(bluetoothRoute, bluetoothDevice);
+            if (mFeatureFlags.telecomMetricsSupport()) {
+                mMetricsController.getCallEndpointStats().updateBluetoothDevices(
+                        new HashMap<>(mBluetoothRoutes));
+            }
             onAvailableRoutesChanged();
         }
     }
@@ -1070,11 +1074,14 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                 Log.i(this, "bluetooth route removed: " + bluetoothRoute);
                 mBluetoothRoutes.remove(bluetoothRoute);
                 updateAvailableRoutes(bluetoothRoute, false);
-            }
-            else {
+            } else {
                 // If the route was updated for the HA case, then ensure that we update this
                 // new state in the available routes.
                 updateAvailableRoutes(adjustedHaRoute, true);
+            }
+            if (mFeatureFlags.telecomMetricsSupport()) {
+                mMetricsController.getCallEndpointStats().updateBluetoothDevices(
+                        new HashMap<>(mBluetoothRoutes));
             }
             onAvailableRoutesChanged();
         }
