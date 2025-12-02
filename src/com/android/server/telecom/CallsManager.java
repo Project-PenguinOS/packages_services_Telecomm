@@ -169,7 +169,6 @@ import com.android.server.telecom.ui.ToastFactory;
 import com.android.server.telecom.util.CallerInfo;
 import com.android.server.telecom.callsequencing.voip.VoipCallMonitor;
 import com.android.server.telecom.callsequencing.TransactionManager;
-import com.android.server.telecom.R;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -586,6 +585,7 @@ public class CallsManager extends Call.ListenerBase
     private CallLogIntegrationAdapter mCallLogIntegrationAdapter;
 
     private String mCrsCallId = null;
+    private CrsAudioController mCrsAudioController;
 
     private final ConnectionServiceFocusManager.CallsManagerRequester mRequester =
             new ConnectionServiceFocusManager.CallsManagerRequester() {
@@ -825,12 +825,17 @@ public class CallsManager extends Call.ListenerBase
         mCallDiagnosticServiceController = callDiagnosticServiceController;
         mCallDiagnosticServiceController.setInCallTonePlayerFactory(playerFactory);
         mCallConnectedIndicatorSettings = new CallConnectedIndicatorSettings(context, featureFlags);
+        if (android.telecom.flags.Flags.isUsingCrs()) {
+            mCrsAudioController = new CrsAudioController(context,
+                    context.getSystemService(AudioManager.class));
+        }
         mRinger = new Ringer(playerFactory, context, systemSettingsUtil, asyncRingtonePlayer,
                 ringtoneFactory, vibratorAdapter,
                 new Ringer.VibrationEffectProxy(), mInCallController,
                 mContext.getSystemService(NotificationManager.class),
                 accessibilityManagerAdapter, featureFlags, mAnomalyReporter,
-                mCallConnectedIndicatorSettings, asyncTaskExecutor);
+                mCallConnectedIndicatorSettings, asyncTaskExecutor,
+                mCrsAudioController);
         if (featureFlags.telecomResolveHiddenDependencies()) {
             // This is now deprecated
             mCallRecordingTonePlayer = null;
@@ -994,6 +999,10 @@ public class CallsManager extends Call.ListenerBase
 // QTI_BEGIN: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
         QtiCarrierConfigHelper.getInstance().setup(mContext);
 // QTI_END: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
+    }
+
+    public CrsAudioController getCrsAudioController() {
+        return mCrsAudioController;
     }
 
     public void setIncomingCallNotifier(IncomingCallNotifier incomingCallNotifier) {
@@ -4135,6 +4144,14 @@ public class CallsManager extends Call.ListenerBase
         }
     }
 
+    public boolean isWiredHandsetIn() {
+        return mWiredHeadsetManager.isPluggedIn();
+    }
+
+    public boolean isBtAvailable() {
+        return  mBluetoothRouteManager.isBluetoothAvailable();
+    }
+
     /**
      * Determines if the speakerphone should be automatically enabled for the call.  Speakerphone
      * should be enabled if the call is a video call and bluetooth or the wired headset are not in
@@ -4163,13 +4180,6 @@ public class CallsManager extends Call.ListenerBase
 
 // QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
 // QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
-     public boolean isWiredHandsetIn() {
-        return mWiredHeadsetManager.isPluggedIn();
-     }
-
-     public boolean isBtAvailble() {
-       return  mBluetoothRouteManager.isBluetoothAvailable();
-     }
 
 // QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
     /**
@@ -4950,7 +4960,7 @@ public class CallsManager extends Call.ListenerBase
             // hasn't been created yet. We will end up with two active "child" calls (WAI from a
             // Telephony standpoint) and we want to skip sequencing in this case. We can also add
             // another check to ensure the active call we would end up holding isn't a child call.
-            if (mFeatureFlags.requestFocusForSetActive() && !Objects.equals(activeCall, call)
+            if (!Objects.equals(activeCall, call)
                     && call.isFocusable() && call.getState() != CallState.ON_HOLD
                     && (activeCall == null || activeCall.getParentCall() == null)) {
                 mCallSequencingAdapter.markCallAsActive(call);

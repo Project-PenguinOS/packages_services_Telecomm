@@ -16,7 +16,7 @@
 
 package com.android.server.telecom;
 
-import static com.android.server.telecom.Call.RINGTONE_TYPE_MEDIA;
+import static com.android.server.telecom.Call.RINGTONE_SOURCE_LOCAL;
 
 import android.telecom.Log;
 
@@ -30,7 +30,7 @@ public class RingerAttributes {
         private boolean mShouldRingForContact;
         private boolean mSilentRingingRequested;
         private boolean mWorkProfileQuietMode;
-        private int mRingtoneType = RINGTONE_TYPE_MEDIA;
+        private int mRingtoneType = RINGTONE_SOURCE_LOCAL;
 
 
         public RingerAttributes.Builder setEndEarly(boolean endEarly) {

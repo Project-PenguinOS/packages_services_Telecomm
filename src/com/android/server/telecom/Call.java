@@ -246,8 +246,23 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      */
     private static final float MIN_BITRATE_FOR_HD_PLUS = 24.4f;
 
-    public static final int RINGTONE_TYPE_MEDIA = 0;
-    public static final int RINGTONE_TYPE_CRS = 1;
+    /**
+     * Indicates that the ringtone source is a standard, locally-stored media file.
+     * This is the default behavior.
+     */
+    public static final int RINGTONE_SOURCE_LOCAL = 0;
+    /**
+     * Indicates that the ringtone source is a network-provided ringtone or media, and the
+     * {@link android.media.AudioManager} mode should be set to
+     * {@link android.media.AudioManager#MODE_RINGTONE}.
+     */
+    public static final int RINGTONE_SOURCE_NETWORK_RING_MODE = 1;
+    /**
+     * Indicates that the ringtone source is a network-provided ringtone or media, and the
+     * {@link android.media.AudioManager} mode should be set to
+     * {@link android.media.AudioManager#MODE_IN_CALL}.
+     */
+    public static final int RINGTONE_SOURCE_NETWORK_IN_CALL_MODE = 2;
     /**
      * Listener for CallState changes which can be leveraged by a Transaction.
      */

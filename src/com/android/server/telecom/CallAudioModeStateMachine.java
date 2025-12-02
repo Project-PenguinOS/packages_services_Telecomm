@@ -679,10 +679,9 @@ public class CallAudioModeStateMachine extends StateMachine {
                 // Do not set MODE_RINGTONE if we were previously in the CALL_SCREENING mode --
                 // this trips up the audio system.
                 if (mAudioManager.getMode() != AudioManager.MODE_CALL_SCREENING) {
-                    Log.i(this, "enter: AudioManager#setMode(MODE_RINGTONE)");
-                    if (android.telecom.flags.Flags.isUsingCrs()
-                            && mCallAudioManager.isCrsInCallMode()) {
-                        mAudioManager.setMode(AudioManager.MODE_IN_CALL);
+                    if (mCallAudioManager.isCrsInCallMode()
+                            && mCallAudioManager.getCrsAudioController() != null) {
+                        mCallAudioManager.getCrsAudioController().setAudioModeForCrs();
                         mLocalLog.log("Mode MODE_IN_CALL , It is CRS CALL");
                     } else {
                         mAudioManager.setMode(AudioManager.MODE_RINGTONE);
@@ -708,6 +707,9 @@ public class CallAudioModeStateMachine extends StateMachine {
         @Override
         public void exit() {
             // Audio mode and audio stream will be set by the next state.
+            if (mCallAudioManager.getCrsAudioController() != null) {
+                mCallAudioManager.getCrsAudioController().removeListener();
+            }
             mCallAudioManager.stopRinging();
             mHasFocus = false;
         }
@@ -1217,7 +1219,6 @@ public class CallAudioModeStateMachine extends StateMachine {
         mSystemStateHelper = systemStateHelper;
         mMostRecentMode = AudioManager.MODE_NORMAL;
         mFeatureFlags = featureFlags;
-
         createStates();
     }
 
