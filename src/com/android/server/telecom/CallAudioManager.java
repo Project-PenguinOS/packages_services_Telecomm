@@ -28,8 +28,8 @@ package com.android.server.telecom;
 // QTI_END: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
 import android.annotation.NonNull;
 import android.content.Context;
-import android.media.AudioManager;
 import android.media.IAudioService;
+import android.media.AudioManager;
 // QTI_BEGIN: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
 // QTI_END: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
 import android.media.ToneGenerator;
@@ -87,7 +87,6 @@ public class CallAudioManager extends CallsManagerListenerBase {
     private final RingbackPlayer mRingbackPlayer;
     private final DtmfLocalTonePlayer mDtmfLocalTonePlayer;
     private final FeatureFlags mFeatureFlags;
-
     private Call mStreamingCall;
     private Call mForegroundCall;
     private CompletableFuture<Boolean> mCallRingingFuture;
@@ -155,7 +154,6 @@ public class CallAudioManager extends CallsManagerListenerBase {
         mHandler = new Handler(mHandlerThread.getLooper());
         mSilencedCalls = new HashSet<>();
         mFocusState = CallAudioRouteController.NO_FOCUS;
-
         mPlayerFactory.setCallAudioManager(this);
         mCallAudioModeStateMachine.setCallAudioManager(this);
         mCallAudioRouteAdapter.setCallAudioManager(this);
@@ -200,11 +198,12 @@ public class CallAudioManager extends CallsManagerListenerBase {
             playToneAfterCallConnected(call);
         }
 
-        if (mIsCrsInCallMode && (newState != CallState.RINGING)
-                &&  (call == mForegroundCall)) {
+        if (mIsCrsInCallMode && (newState != CallState.RINGING) && (call == mForegroundCall)
+                && getCrsAudioController() != null) {
+            getCrsAudioController().resetAudioDevices(this, mCallsManager, call, newState);
             mIsCrsInCallMode = false;
+            mSilencedCalls.remove(call);
         }
-
 // QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
         //reset CRS mode once call state changed.
 // QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
@@ -223,10 +222,10 @@ public class CallAudioManager extends CallsManagerListenerBase {
             //If original call type is voice call or VT accpeting as voice call,
             //then need to set audio path to earpiece.
             if (newState == CallState.ACTIVE) {
-                if (!mCallsManager.isWiredHandsetInOrBtAvailble()
+                if (!(mCallsManager.isWiredHandsetIn() || mCallsManager.isBtAvailable())
                         && (call.getVideoState() != VideoProfile.STATE_BIDIRECTIONAL)) {
                     setAudioRoute(CallAudioState.ROUTE_EARPIECE, null);
-                } else if (mCallsManager.isBtAvailble()) {
+                } else if (mCallsManager.isBtAvailable()) {
                     setAudioRoute(CallAudioState.ROUTE_BLUETOOTH, null);
                 } else if (mCallsManager.isWiredHandsetIn()) {
                     setAudioRoute(CallAudioState.ROUTE_WIRED_HEADSET, null);
@@ -628,7 +627,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
                 CallAudioRouteController.INCLUDE_BLUETOOTH_IN_BASELINE);
     }
 
-    Set<UserHandle> silenceRingers(Context context, UserHandle callingUser,
+    public Set<UserHandle> silenceRingers(Context context, UserHandle callingUser,
             boolean hasCrossUserPermission) {
         // Store all users from calls that were silenced so that we can silence the
         // InCallServices which are associated with those users.
@@ -674,12 +673,18 @@ public class CallAudioManager extends CallsManagerListenerBase {
         return mRinger.isRinging();
     }
 
+    public Context getContext() {
+        return mCallsManager.getContext();
+    }
+
     @VisibleForTesting
     public boolean startRinging() {
         synchronized (mCallsManager.getLock()) {
             Call localForegroundCall = mForegroundCall;
             if (localForegroundCall != null && localForegroundCall.isCrsCall()
                     && mSilencedCalls.contains(localForegroundCall)) {
+                // This case is when user put the CRS call in silent and then CRS call fallbacks
+                // to normal call, it should not ring.
                 Log.v(this, "Skip startRinging for silenced ringing call");
                 return false;
             }
@@ -719,9 +724,6 @@ public class CallAudioManager extends CallsManagerListenerBase {
 
 // QTI_END: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
 // QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
-    public Context getContext() {
-        return mCallsManager.getContext();
-    }
 
 // QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
     @VisibleForTesting
@@ -879,9 +881,11 @@ public class CallAudioManager extends CallsManagerListenerBase {
                 onCallEnteringActiveDialingOrConnecting();
                 break;
             case CallState.RINGING:
-                mIsCrsInCallMode = (call != null &&
-                        call.getCrsMode() == AudioManager.MODE_IN_CALL &&
-                        call.isCrsCall());
+                if (getCrsAudioController() != null &&
+                        getCrsAudioController().isCrsInCallMode(call)) {
+                    getCrsAudioController().setCrsAudioRoute(this);
+                    mIsCrsInCallMode = true;
+                }
             case CallState.SIMULATED_RINGING:
 // QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
                 mIsInCrsMode = call.isCrsCall();
@@ -1500,5 +1504,9 @@ public class CallAudioManager extends CallsManagerListenerBase {
 
     public boolean isFocusStateUnfocused() {
         return mFocusState == CallAudioRouteController.NO_FOCUS;
+    }
+
+    public CrsAudioController getCrsAudioController() {
+        return mCallsManager.getCrsAudioController();
     }
 }

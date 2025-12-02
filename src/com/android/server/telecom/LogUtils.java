@@ -134,8 +134,15 @@ public class LogUtils {
         public static final String START_DTMF = "START_DTMF";
         public static final String STOP_DTMF = "STOP_DTMF";
         public static final String START_RINGER = "START_RINGER";
-        public static final String START_CRS_RINGER = "START_CRS_RINGER";
         public static final String STOP_RINGER = "STOP_RINGER";
+        public static final String START_CRS_RINGER_IN_MODE_RINGTONE =
+                "START_CRS_RINGER_IN_MODE_RINGTONE";
+        public static final String STOP_CRS_RINGER_IN_MODE_RINGTONE =
+                "STOP_CRS_RINGER_IN_MODE_RINGTONE";
+        public static final String START_CRS_RINGER_IN_MODE_IN_CALL =
+                "START_CRS_RINGER_IN_MODE_IN_CALL";
+        public static final String STOP_CRS_RINGER_IN_MODE_IN_CALL =
+                "STOP_CRS_RINGER_IN_MODE_IN_CALL";
         public static final String START_VIBRATOR = "START_VIBRATOR";
         public static final String STOP_VIBRATOR = "STOP_VIBRATOR";
         public static final String SKIP_VIBRATION = "SKIP_VIBRATION";
