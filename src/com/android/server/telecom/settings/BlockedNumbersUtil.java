@@ -17,12 +17,12 @@
 package com.android.server.telecom.settings;
 
 import android.app.Notification;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.os.PersistableBundle;
 import android.os.UserHandle;
-import android.provider.BlockedNumberContract;
 import android.provider.BlockedNumbersManager;
 import android.telephony.CarrierConfigManager;
 import android.telephony.PhoneNumberUtils;
@@ -33,8 +33,6 @@ import android.text.TextDirectionHeuristics;
 import android.widget.Toast;
 
 import com.android.server.telecom.R;
-import com.android.server.telecom.UserUtil;
-import com.android.server.telecom.ui.NotificationChannelManager;
 import com.android.server.telecom.ui.UiConstants;
 
 import java.util.Locale;
@@ -42,7 +40,8 @@ import java.util.Locale;
 public final class BlockedNumbersUtil {
     private BlockedNumbersUtil() {}
 
-    private static final int EMERGENCY_CALL_NOTIFICATION = 150;
+  private static final String CHANNEL_ID_CALL_BLOCKING = "telecom_call_blocking";
+  private static final int EMERGENCY_CALL_NOTIFICATION = 150;
 
     /**
      * @return locale and default to US if no locale was returned.
@@ -91,6 +90,8 @@ public final class BlockedNumbersUtil {
      * @param showNotification if {@code true} show notification, {@code false} cancel notification.
      */
     public static void updateEmergencyCallNotification(Context context, boolean showNotification) {
+        NotificationManager notificationManager =
+                    context.getSystemService(NotificationManager.class);
         if (showNotification) {
             Intent intent = new Intent();
             intent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
@@ -103,22 +104,20 @@ public final class BlockedNumbersUtil {
                     R.string.phone_strings_call_blocking_turned_off_notification_title_txt);
             String message = context.getString(
                     R.string.phone_strings_call_blocking_turned_off_notification_text_txt);
-            Notification.Builder builder = new Notification.Builder(context);
+            Notification.Builder builder = new Notification.Builder(context,
+                    CHANNEL_ID_CALL_BLOCKING);
             Notification notification = builder.setSmallIcon(android.R.drawable.stat_sys_warning)
                     .setTicker(message)
                     .setContentTitle(title)
                     .setContentText(message)
                     .setContentIntent(pendingIntent)
                     .setShowWhen(true)
-                    .setChannelId(NotificationChannelManager.CHANNEL_ID_CALL_BLOCKING)
                     .build();
 
             notification.flags |= Notification.FLAG_NO_CLEAR;
-            UserUtil.processNotification(context, new UserHandle(UserHandle.USER_SYSTEM), null,
-                    EMERGENCY_CALL_NOTIFICATION, notification);
+            notificationManager.notify(null, EMERGENCY_CALL_NOTIFICATION, notification);
         } else {
-            UserUtil.processNotification(context, new UserHandle(UserHandle.USER_SYSTEM), null,
-                    EMERGENCY_CALL_NOTIFICATION, null /* notification */);
+            notificationManager.cancel(null, EMERGENCY_CALL_NOTIFICATION);
         }
     }
 

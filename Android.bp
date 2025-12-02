@@ -88,19 +88,38 @@ android_app {
         "TelecomUi/res",
     ],
     static_libs: [
-        "framework-annotations-lib", // For @Nullable, @VisibleForTesting
-        "telecom-strings", // All strings and translations
         "androidx.core_core",
+        "framework-annotations-lib", // For @Nullable, @VisibleForTesting
+        "shared-telecom-lib",
+        "telecom-strings", // All strings and translations
     ],
     libs: [
         "framework-telecom.stubs.module_lib",
     ],
+    certificate: "platform",
+    privileged: true,
     sdk_version: "module_current",
     optimize: {
         proguard_flags_files: ["proguard.flags"],
     },
 }
 
+android_library {
+    name: "shared-telecom-lib",
+    manifest: "AndroidManifestLib.xml",
+    srcs: [
+        "src/com/android/server/telecom/settings/BlockedNumbersUtil.java",
+        "src/com/android/server/telecom/ui/UiConstants.java",
+    ],
+    libs: [
+        "framework-annotations-lib",
+        "framework-telecom.stubs.module_lib",
+        "telecom-strings",
+    ],
+    sdk_version: "module_current",
+}
+
+// Contains all Strings and translations
 android_library {
     name: "telecom-strings",
     manifest: "AndroidManifestLib.xml",

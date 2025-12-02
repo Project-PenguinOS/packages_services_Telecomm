@@ -33,9 +33,12 @@ import com.android.server.telecom.settings.BlockedNumbersUtil;
 import com.android.server.telecomui.R;
 
 public class BlockedNumbersAdapter extends SimpleCursorAdapter {
+    private final Context mContext;
+
     public BlockedNumbersAdapter(Context context, int layout, Cursor c, String[] from, int[] to,
             int flags) {
         super(context, layout, c, from, to, flags);
+        mContext = context;
     }
 
     @Override
