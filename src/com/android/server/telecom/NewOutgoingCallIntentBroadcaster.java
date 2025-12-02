@@ -290,6 +290,7 @@ public class NewOutgoingCallIntentBroadcaster {
              */
             callRedirectionWithService = callRedirectionProcessor
                     .canMakeCallRedirectionWithServiceAsUser(mCall.getAssociatedUser());
+            Log.i(this, "processCall: callRedirectionWithService = %s", callRedirectionProcessor);
             if (callRedirectionWithService) {
                 callRedirectionProcessor.performCallRedirection(mCall.getAssociatedUser());
             }

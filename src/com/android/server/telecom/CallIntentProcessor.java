@@ -228,6 +228,7 @@ public class CallIntentProcessor {
         final Session logSubsession = Log.createSubsession();
         callFuture.thenAccept((call) -> {
             if (call != null) {
+                Log.i(CallIntentProcessor.class, "Call for outgoing call - %s", call);
                 Log.continueSession(logSubsession, "CIP.sNOCI");
                 try {
                     broadcaster.processCall(call, disposition);
@@ -235,7 +236,12 @@ public class CallIntentProcessor {
                     Log.endSession();
                 }
             }
-        });
+        }).exceptionally(
+                e -> {
+                    Log.e(CallIntentProcessor.class, e, "Failed to start outgoing call");
+                    return null;
+                }
+        );;
     }
 
     /**
