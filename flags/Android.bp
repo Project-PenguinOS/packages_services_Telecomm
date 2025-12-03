@@ -41,7 +41,6 @@ filegroup {
         "telecom_metrics_flags.aconfig",
         "telecom_integrated_call_log.aconfig",
         "telecom_platform_flags.aconfig",
-        "do_not_edit_26Q2_platform_flags.aconfig",
     ],
 }
 

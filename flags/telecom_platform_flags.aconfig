@@ -33,3 +33,11 @@ flag {
     is_fixed_read_only: true
     is_exported: true
 }
+
+# OWNER=pmadapurmath TARGET=26Q2
+flag {
+  name: "filter_voip_call_logs"
+  namespace: "telecom"
+  description: "Add key to filter out voip call logs for dialer apps that don't support integrated call logs"
+  bug: "434747530"
+}
