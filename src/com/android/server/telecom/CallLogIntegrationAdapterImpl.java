@@ -46,6 +46,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 /**
@@ -57,6 +58,9 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
     private static final String TAG = CallLogIntegrationAdapterImpl.class.getSimpleName();
     private static final String SHARED_PREFERENCES_KEY = "voip_call_log_integration_key";
     private static final Intent CALLBACK_INTENT = new Intent(TelecomManager.ACTION_CALL_BACK);
+    // We may need to force load from the shared preferences, i.e. when performing restore from
+    // backup. The local cache may need to be invalidated in this case.
+    private static final AtomicBoolean sForceSharedPrefLoading = new AtomicBoolean(true);
 
     private final Context mContext;
     // Store the enabled state for each supported VoIP package per user. This is used keeping track
@@ -104,8 +108,12 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
             final UserHandle userHandle = UserHandle.getUserHandleForUid(uid);
 
             // Check that the package received supports the callback intent before adding it to
-            // corresponding maps to signal that an update is needed.
-            if (doesPackageSupportCallback(packageName, userHandle)) {
+            // corresponding maps to signal that an update is needed. We may also need to see if the
+            // package is stored in our internal cache in the case that the application was
+            // uninstalled.
+            boolean containsCachedPackage = mEnabledPackageStates.containsKey(userHandle)
+                    && mEnabledPackageStates.get(userHandle).containsKey(packageName);
+            if (doesPackageSupportCallback(packageName, userHandle) || containsCachedPackage) {
                 synchronized (mLock) {
                     Log.i(TAG, "VoIP package %s changed for user %s with intent %s", packageName,
                             userHandle, intent.getAction());
@@ -143,7 +151,8 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
         Intent checkIntent = new Intent(TelecomManager.ACTION_CALL_BACK);
         checkIntent.setPackage(packageName);
         // Check if the package supports the callback
-        List<ResolveInfo> resolveInfoList = packageManager.queryBroadcastReceivers(checkIntent, 0);
+        List<ResolveInfo> resolveInfoList = packageManager.queryIntentActivities(checkIntent,
+                PackageManager.MATCH_ALL);
         return !resolveInfoList.isEmpty();
     }
 
@@ -252,12 +261,20 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
             // If we detect that the shared preferences mapping hasn't been defined yet or we
             // require a signal from the broadcast receiver that a package has been updated, then
             // update the mapping first.
-            if (!mEnabledPackageStates.containsKey(userHandle)
-                    || doSupportedPackagesNeedUpdate(userHandle)) {
+
+            // Todo: Replace with `!mEnabledPackageStates.containsKey(userHandle)
+            //  || doSupportedPackagesNeedUpdate(userHandle)` once apps have released versions of
+            //  call log integration support. For testing purposes, this becomes difficult to verify
+            // since we may need to overlay test apks with released versions. In the case of Meet,
+            // we cannot uninstall the app so when we initialize the prefs upon reboot, the pref
+            // will always be disabled and will not be changed if we don't force an update.
+            boolean shouldUpdate = true;
+            if (shouldUpdate) {
                 boolean preferenceStateNotDefined = !mEnabledPackageStates.containsKey(userHandle);
                 // Get all the packages for the user that have registered the ACTION_CALL_BACK
                 // intent. This is queried from the broadcast receivers.
-                Set<String> allSupportedPackages = getSupportedPackages(userContext, userHandle);
+                Set<String> allSupportedPackages = getSupportedPackages(userContext, userHandle,
+                        shouldUpdate);
                 // Try to load the pkg enabled states set for the user from the shared preferences
                 // if it doesn't already exist in the map.
                 loadSharedPrefForUser(userContext, userHandle);
@@ -283,6 +300,19 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
             // modification outside of the lock.
             return new HashMap<>(mEnabledPackageStates.get(userHandle));
         }
+    }
+
+    /**
+     * Returns whether the given package is enabled (by the user) for integrating its logs into the
+     * system call log.
+     * @return {@code true} if the package can integrate its call logs, {@code false} otherwise.
+     */
+    @Override
+    public boolean isCallLogPrefEnabledForPackage(UserHandle userHandle, String packageName) {
+        Map<String, Boolean> supportedPackagesForUser =
+                getSupportedVoipCallLogIntegrationPackages(userHandle);
+        return supportedPackagesForUser.containsKey(packageName)
+                && supportedPackagesForUser.get(packageName);
     }
 
     /**
@@ -314,10 +344,10 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
     }
 
     private Set<String> getSupportedPackages(Context userContext,
-            UserHandle userHandle) {
+            UserHandle userHandle, boolean shouldUpdate) {
         boolean performedQuery = false;
         Log.i(TAG, "Getting supported VoIP packages for user %s", userHandle);
-        if (!mSupportedPackages.containsKey(userHandle)) {
+        if (!mSupportedPackages.containsKey(userHandle) || shouldUpdate) {
             mSupportedPackages.put(userHandle, querySupportedPackages(userContext));
             performedQuery = true;
         }
@@ -342,10 +372,10 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
      * Manually query the supported packages for the user from the pkg manager.
      */
     private static Set<String> querySupportedPackages(Context userContext) {
-        Log.i(TAG, "Querying supported VoIP packages from broadcast receivers");
+        Log.i(TAG, "Querying supported VoIP packages");
         PackageManager packageManager = userContext.getPackageManager();
         List<ResolveInfo> resolveInfoList = packageManager
-                .queryBroadcastReceivers(CALLBACK_INTENT, 0);
+                .queryIntentActivities(CALLBACK_INTENT, PackageManager.MATCH_ALL);
 
         // Extract the package name from each ResolveInfo and return as a set.
         return resolveInfoList.stream()
@@ -364,8 +394,10 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
      * {key, value} pair is inserted.
      */
     private void loadSharedPrefForUser(Context userContext, UserHandle userHandle) {
-        // Skip if the map already contains a valid set for the user
-        if (mEnabledPackageStates.containsKey(userHandle)) {
+        // Skip if the map already contains a valid set for the user and a force update is not
+        // required.
+        if (mEnabledPackageStates.containsKey(userHandle)
+                && !sForceSharedPrefLoading.compareAndSet(true, false)) {
             return;
         }
         Map<String, Boolean> pkgEnabledStatesMap = getSharedPrefsForUser(userContext, userHandle);
@@ -436,7 +468,7 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
         Uri appendedUserUri = ContentProvider.createContentUriForUser(
                 CallLog.Calls.CONTENT_URI_WITH_VOIP_CALLS, userHandle);
         Context finalUserContext = userContext;
-        executor.execute(() -> {
+                executor.execute(() -> {
             try {
                 int rowsDeleted = finalUserContext.getContentResolver().delete(appendedUserUri,
                         selection, null);
@@ -492,6 +524,11 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
             userContext = context;
         }
         Map<String, Boolean> sharedPrefsForUser = getSharedPrefsForUser(userContext, userHandle);
+        // Next time the local cache is checked, make sure we invalidate it so that it's properly
+        // updated with the potentially new shared preferences that were restored from the backup.
+        if (!sharedPrefsForUser.isEmpty()) {
+            sForceSharedPrefLoading.set(true);
+        }
         Set<String> supportedPackages = querySupportedPackages(userContext);
         // This will modify the existing sharedPrefsForUser map.
         pruneSharedPreferences(userContext, sharedPrefsForUser, supportedPackages);
