@@ -33,9 +33,12 @@ import java.util.concurrent.Executors;
  */
 public class TelecomBackupAgent extends BackupAgentHelper {
 
-    // A key to uniquely identify the SharedPreferences data in the backup set.
+    // A key to uniquely identify the call log prefs SharedPreferences data in the backup set.
     public static final String CALL_LOG_INTEGRATION_BACKUP_KEY =
             "call_log_integration_backup_key";
+    // A key to uniquely identify the quick responses SharedPreferences data in the backup set.
+    public static final String QUICK_RESPONSES_BACKUP_KEY =
+            "quick_responses_backup_key";
     public final Executor mExecutor = Executors.newSingleThreadExecutor();
 
     @Override
@@ -50,6 +53,16 @@ public class TelecomBackupAgent extends BackupAgentHelper {
                             CallLogIntegrationAdapterImpl.SHARED_PREFERENCES_NAME);
             // Add the helper to the BackupAgentHelper with the backup key.
             addHelper(CALL_LOG_INTEGRATION_BACKUP_KEY, callLogIntegrationBackupHelper);
+        }
+        if (com.android.internal.telecom.flags.Flags.quickResponsesBackup()) {
+            Log.i(this, "Handle backup for quick responses");
+            // Instantiate SharedPreferencesBackupHelper to manage the backup/restore of the
+            // quick responses SharedPreferences file.
+            SharedPreferencesBackupHelper quickResponsesBackupHelper =
+                    new SharedPreferencesBackupHelper(this,
+                            QuickResponseUtils.SHARED_PREFERENCES_NAME);
+            // Add the helper to the BackupAgentHelper with the backup key.
+            addHelper(QUICK_RESPONSES_BACKUP_KEY, quickResponsesBackupHelper);
         }
     }
 

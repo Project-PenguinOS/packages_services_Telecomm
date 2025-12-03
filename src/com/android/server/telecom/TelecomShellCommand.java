@@ -74,9 +74,6 @@ public class TelecomShellCommand extends BasicShellCommandHandler {
             "wait-for-audio-ops-complete";
     private static final String COMMAND_WAIT_FOR_AUDIO_ACTIVE_COMPLETION =
             "wait-for-audio-active";
-    private static final String COMMAND_SET_OEM_CALL_SCREENING_SERVICE =
-            "set-oem-call-screening-service";
-
 
     /**
      * Change the system dialer package name if a package name was specified,
@@ -213,9 +210,6 @@ public class TelecomShellCommand extends BasicShellCommandHandler {
                 case COMMAND_SET_LOCAL_VOICEMAIL_SERVICE:
                     runSetLocalVoicemailService();
                     break;
-                case COMMAND_SET_OEM_CALL_SCREENING_SERVICE:
-                    runSetOemCallScreeningService();
-                    break;
                 case COMMAND_SET_LOCAL_VOICEMAIL_TIMEOUT:
                     runSetLocalVoicemailTimeout();
                     break;
@@ -301,8 +295,6 @@ public class TelecomShellCommand extends BasicShellCommandHandler {
                 + "telecom set-metrics-test-disabled: Disable the metrics test mode.\n"
                 + "telecom set-local-voicemail-service: Override the local voicemail service to the"
                 + " specified package. To remove the override, send \"default\"\n"
-                + "telecom set-oem-call-screening-service <COMPONENT>\n"
-
         );
     }
     private void runSetPhoneAccountEnabled(boolean enabled) throws RemoteException {
@@ -533,15 +525,6 @@ public class TelecomShellCommand extends BasicShellCommandHandler {
     private void runLogMark() throws RemoteException {
         String message = Arrays.stream(peekRemainingArgs()).collect(Collectors.joining(" "));
         mTelecomService.requestLogMark(message);
-    }
-
-    private void runSetOemCallScreeningService() throws RemoteException {
-        final String packageName = getNextArg();
-        final ComponentName componentName = (packageName == null || "default".equals(packageName))
-                ? null : parseComponentName(packageName);
-        mTelecomService.setTestOemCallScreeningService(componentName);
-        getOutPrintWriter().println("Success - OEM call screening service set to: " +
-                (componentName == null ? "default" : componentName.flattenToString()));
     }
 
     private UserHandle getUserHandleFromArgs() throws RemoteException {
