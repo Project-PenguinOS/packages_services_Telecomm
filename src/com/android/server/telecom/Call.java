@@ -2494,7 +2494,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 userHandle = mTargetPhoneAccountHandle.getUserHandle();
             }
             if (userHandle != null) {
-                isWorkCall = UserUtil.isManagedProfile(mContext, userHandle, mFlags);
+                isWorkCall = UserUtil.isManagedProfile(mContext, userHandle);
             }
 
             if (!mFlags.telecomResolveHiddenDependencies()) {

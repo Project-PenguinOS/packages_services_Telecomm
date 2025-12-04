@@ -464,7 +464,7 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
         long token = Binder.clearCallingIdentity();
         try {
             UserUtil.processNotification(mContext, userHandle, NOTIFICATION_TAG,
-                    MISSED_CALL_NOTIFICATION_ID, notification, mFeatureFlags);
+                    MISSED_CALL_NOTIFICATION_ID, notification);
         } finally {
             Binder.restoreCallingIdentity(token);
         }
@@ -488,7 +488,7 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
         long token = Binder.clearCallingIdentity();
         try {
             UserUtil.processNotification(mContext, userHandle, NOTIFICATION_TAG,
-                    MISSED_CALL_NOTIFICATION_ID, null /* notification */, mFeatureFlags);
+                    MISSED_CALL_NOTIFICATION_ID, null /* notification */);
         } finally {
             Binder.restoreCallingIdentity(token);
         }

@@ -14,9 +14,9 @@
  * limitations under the License
  */
 
-package com.android.server.telecom.ui;
+package com.android.server.telecomui.ui;
 
-import com.android.server.telecom.R;
+import com.android.server.telecomui.R;
 import com.android.server.telecom.TelecomBroadcastIntentProcessor;
 import com.android.server.telecom.components.TelecomBroadcastReceiver;
 

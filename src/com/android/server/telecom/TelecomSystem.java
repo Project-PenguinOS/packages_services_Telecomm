@@ -524,7 +524,7 @@ public class TelecomSystem {
                         @Override
                         public UserCallIntentProcessor create(Context context,
                                 UserHandle userHandle) {
-                            return new UserCallIntentProcessor(context, userHandle, featureFlags);
+                            return new UserCallIntentProcessor(context, userHandle);
                         }
                     },
                     defaultDialerCache,

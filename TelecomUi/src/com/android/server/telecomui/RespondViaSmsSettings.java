@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.server.telecom;
+package com.android.server.telecomui;
 
 import android.app.ActionBar;
 import android.app.Activity;
@@ -31,6 +31,9 @@ import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.view.MenuItem;
 import android.widget.Button;
+
+import com.android.server.telecom.QuickResponseUtils;
+import com.android.server.telecomui.R;
 
 // TODO: This class is newly copied into Telecom (com.android.server.telecom) from it previous
 // location in Telephony (com.android.phone). User's preferences stored in the old location
