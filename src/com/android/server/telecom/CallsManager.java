@@ -7627,10 +7627,8 @@ public class CallsManager extends Call.ListenerBase
     /**
      * Handles changes to a {@link PhoneAccount}.
      *
-// QTI_BEGIN: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
      * Invokes phone account changed handler for calls with matching
      * phone account.
-// QTI_END: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
      *
      * @param registrar The {@link PhoneAccountRegistrar} originating the change.
      * @param phoneAccount The {@link PhoneAccount} which changed.
@@ -7640,9 +7638,7 @@ public class CallsManager extends Call.ListenerBase
         Log.i(this, "handlePhoneAccountChanged: phoneAccount=%s", phoneAccount);
         mCalls.stream()
                 .filter(c -> phoneAccount.getAccountHandle().equals(c.getTargetPhoneAccount()))
-// QTI_BEGIN: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
                 .forEach(c -> c.handlePhoneAccountChanged(phoneAccount));
-// QTI_END: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
     }
 
     /**

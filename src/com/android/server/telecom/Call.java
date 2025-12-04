@@ -280,16 +280,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         return mCallStateListeners.remove(newListener);
     }
 
-// QTI_BEGIN: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
-    /**
-     * Connection event used to notify InCallService of phoneaccount changes.
-     * Dialer uses phone account capability to decide whether to enable
-     * some options like RTT. This event will be used for such cases.
-     */
-    private static final String EVENT_PHONE_ACCOUNT_CHANGED =
-            "org.codeaurora.telecom.event.EVENT_PHONE_ACCOUNT_CHANGED";
-
-// QTI_END: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
     /**
      * Listener for events on the call.
      */
@@ -2175,12 +2165,10 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 l.onTargetPhoneAccountChanged(this);
             }
             configureCallAttributes();
-// QTI_BEGIN: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
             if (this.getState() != CallState.NEW) {
                 // Don't send event when call object is created
                 notifyPhoneAccountChanged();
             }
-// QTI_END: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
         }
         checkIfVideoCapable();
         checkIfRttCapable();
@@ -2225,6 +2213,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     private void notifyPhoneAccountChanged() {
         onConnectionEvent(android.telecom.Call.EVENT_PHONE_ACCOUNT_CHANGED, null);
     }
+
     public CharSequence getTargetPhoneAccountLabel() {
         if (getTargetPhoneAccount() == null) {
             return null;
