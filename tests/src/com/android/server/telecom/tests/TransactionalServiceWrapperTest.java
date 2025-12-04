@@ -16,22 +16,29 @@
 
 package com.android.server.telecom.tests;
 
+import static android.telecom.CallException.CODE_CALL_IS_NOT_BEING_TRACKED;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.isA;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.isA;
 
 
 import android.content.ComponentName;
+import android.net.Uri;
+import android.os.Bundle;
 import android.os.IBinder;
 import android.os.OutcomeReceiver;
 import android.os.RemoteException;
 import android.os.ResultReceiver;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.telecom.CallException;
 import android.telecom.DisconnectCause;
 import android.telecom.PhoneAccountHandle;
@@ -46,13 +53,15 @@ import com.android.server.telecom.TransactionalServiceRepository;
 import com.android.server.telecom.TransactionalServiceWrapper;
 import com.android.server.telecom.callsequencing.CallSequencingController;
 import com.android.server.telecom.callsequencing.CallsManagerCallSequencingAdapter;
+import com.android.server.telecom.callsequencing.TransactionManager;
 import com.android.server.telecom.callsequencing.voip.EndCallTransaction;
 import com.android.server.telecom.callsequencing.voip.HoldCallTransaction;
 import com.android.server.telecom.callsequencing.voip.SerialTransaction;
-import com.android.server.telecom.callsequencing.TransactionManager;
+import com.android.server.telecom.callsequencing.voip.SetGroupCallStateTransaction;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -73,6 +82,8 @@ public class TransactionalServiceWrapperTest extends TelecomTestCase {
 
     TransactionalServiceWrapper mTransactionalServiceWrapper;
 
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+
     @Mock private Call mMockCall1;
     @Mock private Call mMockCall2;
     @Mock private CallsManager mCallsManager;
@@ -82,6 +93,7 @@ public class TransactionalServiceWrapperTest extends TelecomTestCase {
     @Mock private TransactionalServiceRepository mRepository;
     @Mock private AnomalyReporterAdapter mAnomalyReporterAdapter;
     @Mock private IBinder mIBinder;
+    @Mock private ResultReceiver mMockResultReceiver;
     private final TelecomSystem.SyncRoot mLock = new TelecomSystem.SyncRoot() {};
 
     @Override
@@ -200,5 +212,80 @@ public class TransactionalServiceWrapperTest extends TelecomTestCase {
         //THEN
         verify(mTransactionManager, times(1))
                 .addTransaction(isA(HoldCallTransaction.class), isA(OutcomeReceiver.class));
+    }
+
+    @Test
+    @EnableFlags(android.telecom.flags.Flags.FLAG_INTEGRATED_CALL_LOGS_STAGE2)
+    public void testSetGroupCallState() throws RemoteException {
+        // GIVEN a tracked call
+        mTransactionalServiceWrapper.trackCall(mMockCall1);
+
+        // WHEN setGroupCallState is called
+        ICallControl callControl = mTransactionalServiceWrapper.getICallControl();
+        callControl.setGroupCallState(CALL_ID_1, true, new ResultReceiver(null));
+
+        // THEN verify that a SetGroupCallStateTransaction is created and added to the manager
+        verify(mTransactionManager, times(1))
+                .addTransaction(
+                  isA(SetGroupCallStateTransaction.class), isA(OutcomeReceiver.class));
+    }
+
+    @Test
+    @EnableFlags(android.telecom.flags.Flags.FLAG_INTEGRATED_CALL_LOGS_STAGE2)
+    public void testSetGroupCallState_untrackedCall() throws RemoteException {
+        // GIVEN a call ID that is not being tracked and anomaly reporting is enabled
+        Mockito.when(mFeatureFlags.enableCallExceptionAnomReports()).thenReturn(true);
+
+        // WHEN setGroupCallState is called for the untracked call
+        ICallControl callControl = mTransactionalServiceWrapper.getICallControl();
+        callControl.setGroupCallState(CALL_ID_2, true, mMockResultReceiver);
+
+        // THEN verify the correct error is returned and logged
+        verifyUntrackedCallBehavior();
+    }
+
+    @Test
+    @EnableFlags(android.telecom.flags.Flags.FLAG_INTEGRATED_CALL_LOGS_STAGE2)
+    public void testSetContactUri() throws RemoteException {
+        // GIVEN a tracked call
+        mTransactionalServiceWrapper.trackCall(mMockCall1);
+        Uri uri = Uri.fromParts("sip", "foo@bar.com", null);
+
+        // WHEN setContactUri is called
+        ICallControl callControl = mTransactionalServiceWrapper.getICallControl();
+        callControl.setContactUri(CALL_ID_1, uri, new ResultReceiver(null));
+
+        // THEN verify that a transaction is created and added to the manager.
+        // Note: The source code incorrectly uses SetGroupCallStateTransaction for setContactUri.
+        // This test verifies the current (potentially incorrect) behavior.
+        verify(mTransactionManager, times(1))
+                .addTransaction(
+                  isA(SetGroupCallStateTransaction.class), isA(OutcomeReceiver.class));
+    }
+
+    @Test
+    @EnableFlags(android.telecom.flags.Flags.FLAG_INTEGRATED_CALL_LOGS_STAGE2)
+    public void testSetContactUri_untrackedCall() throws RemoteException {
+        // GIVEN a call ID that is not being tracked and anomaly reporting is enabled
+        Uri uri = Uri.fromParts("sip", "foo@bar.com", null);
+        Mockito.when(mFeatureFlags.enableCallExceptionAnomReports()).thenReturn(true);
+
+        // WHEN setContactUri is called for the untracked call
+        ICallControl callControl = mTransactionalServiceWrapper.getICallControl();
+        callControl.setContactUri(CALL_ID_2, uri, mMockResultReceiver);
+
+        // THEN verify the correct error is returned and logged
+        verifyUntrackedCallBehavior();
+    }
+
+    private void verifyUntrackedCallBehavior() {
+        // Verify no transaction is created
+        verify(mTransactionManager, never()).addTransaction(any(), any());
+        // Verify the callback receives an error
+        verify(mMockResultReceiver).send(eq(CODE_CALL_IS_NOT_BEING_TRACKED), any(Bundle.class));
+        // Verify an anomaly is reported
+        verify(mAnomalyReporterAdapter).reportAnomaly(
+                eq(TransactionalServiceWrapper.CALL_IS_NO_LONGER_BEING_TRACKED_ERROR_UUID),
+                eq(TransactionalServiceWrapper.CALL_IS_NO_LONGER_BEING_TRACKED_ERROR_MSG));
     }
 }
