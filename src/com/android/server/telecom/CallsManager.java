@@ -4069,7 +4069,7 @@ public class CallsManager extends Call.ListenerBase
      * the user opting to reject said call.
      */
     @VisibleForTesting
-    public void rejectCall(Call call, @android.telecom.Call.RejectReason int rejectReason) {
+    public void rejectCall(Call call, /*@android.telecom.Call.RejectReason*/ int rejectReason) {
         if (!mCalls.contains(call)) {
             Log.i(this, "Request to reject a non-existent call %s", call);
         } else {

@@ -369,9 +369,9 @@ public class CallStreamingController extends CallsManagerListenerBase {
     }
 
     private class CallStreamingStateChangeTransaction extends CallTransaction {
-        @StreamingCall.StreamingCallState int mState;
+        /*@StreamingCall.StreamingCallState*/ int mState;
 
-        public CallStreamingStateChangeTransaction(@StreamingCall.StreamingCallState int state) {
+        public CallStreamingStateChangeTransaction(/*@StreamingCall.StreamingCallState*/ int state) {
             super(mTelecomLock);
             mState = state;
         }

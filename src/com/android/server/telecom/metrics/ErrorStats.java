@@ -298,7 +298,7 @@ public class ErrorStats extends TelecomPulledAtom {
      * @return The matching {@link ErrorId} for logging in stats.
      */
     public static @ErrorStats.ErrorId int mapCallExceptionToErrorId(
-            @CallException.CallErrorCode int exceptionCode) {
+            /*@CallException.CallErrorCode*/ int exceptionCode) {
         switch (exceptionCode) {
             case CallException.CODE_CANNOT_HOLD_CURRENT_ACTIVE_CALL:
                 return ErrorStats.ERROR_CANNOT_HOLD_CALL;
