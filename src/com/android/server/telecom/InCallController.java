@@ -34,7 +34,6 @@ import android.content.IntentFilter;
 import android.content.PermissionChecker;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
-import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
 import android.hardware.SensorPrivacyManager;
@@ -53,6 +52,7 @@ import android.telecom.CallAudioState;
 import android.telecom.CallEndpoint;
 import android.telecom.Connection;
 import android.telecom.ConnectionService;
+import android.telecom.DisconnectCause;
 import android.telecom.InCallService;
 import android.telecom.Log;
 import android.telecom.Logging.Runnable;
@@ -62,11 +62,11 @@ import android.text.TextUtils;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.Pair;
+import android.util.IndentingPrintWriter;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telecom.IInCallService;
 import com.android.internal.util.ArrayUtils;
-import com.android.internal.util.IndentingPrintWriter;
 import com.android.server.telecom.SystemStateHelper.SystemStateListener;
 import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.ui.NotificationChannelManager;
@@ -1674,107 +1674,179 @@ public class InCallController extends CallsManagerListenerBase implements
         return false;
     }
 
+    /**
+     * Add a call to the incall services if it is not already tracked.
+     * Note: This is the same logic that used to be in onExternalCallStateChanged.
+     * @param call The call
+     * @param userFromCall The user applicable to the call.
+     * @return A list of components updated to include the call.
+     */
+    private List<ComponentName> maybeAddCallToInCallServices(Call call, UserHandle userFromCall) {
+        Map<UserHandle, Map<InCallController.InCallServiceInfo, IInCallService>> serviceMap =
+                getCombinedInCallServiceMap();
+        List<ComponentName> componentsUpdated = new ArrayList<>();
+        if (!serviceMap.containsKey(userFromCall)) {
+            return componentsUpdated;
+        }
+
+        for (Map.Entry<InCallServiceInfo, IInCallService> entry : serviceMap.
+                get(userFromCall).entrySet()) {
+            InCallServiceInfo info = entry.getKey();
+
+            if (info.isExternalCallsSupported()) {
+                // For InCallServices which support external calls, the call will have already
+                // been added to the connection service, so we do not need to add it again.
+                continue;
+            }
+
+            if (call.isSelfManaged() && !call.visibleToInCallService()
+                    && !info.isSelfManagedCallsSupported()) {
+                continue;
+            }
+
+            componentsUpdated.add(info.getComponentName());
+            IInCallService inCallService = entry.getValue();
+
+            // Only send the RTT call if it's a UI in-call service
+            boolean includeRttCall = info.equals(mInCallServiceConnections.
+                    get(userFromCall).getInfo());
+
+            ParcelableCall parcelableCall = ParcelableCallUtils.toParcelableCall(call,
+                    true /* includeVideoProvider */, mCallsManager.getPhoneAccountRegistrar(),
+                    info.isExternalCallsSupported(), includeRttCall,
+                    info.getType() == IN_CALL_SERVICE_TYPE_SYSTEM_UI
+                            || info.getType() == IN_CALL_SERVICE_TYPE_NON_UI
+                            || info.getType() == IN_CALL_SERVICE_TYPE_BLUETOOTH,
+                    info.getType() == IN_CALL_SERVICE_TYPE_BLUETOOTH);
+            try {
+                inCallService.addCall(sanitizeParcelableCallForService(info, parcelableCall));
+                updateCallTracking(call, info, true /* isAdd */);
+            } catch (RemoteException ignored) {
+            }
+        }
+        return componentsUpdated;
+    }
+
+    /**
+     * If a call is tracked by InCallServices, removes it from each.
+     * Note: This is formerly the logic which was in the onExternalCallChanged method.
+     * @param call the call to remove.
+     * @param userFromCall the user associated with the call.
+     * @param overrideDisconnectCause if {@code null}, the actual disconnect cause for the call is
+     *                                used, if {code non-null} this disconnect cause is communicated
+     *                                to the InCallServices.  The override is used in the case of
+     *                                local voicemail where we want the dialer to think the call was
+     *                                missed.
+     * @return list of component names where the call was removed.
+     */
+    private List<ComponentName> maybeRemoveCallFromInCallServices(Call call,
+            UserHandle userFromCall, DisconnectCause overrideDisconnectCause) {
+        Map<UserHandle, Map<InCallController.InCallServiceInfo, IInCallService>> serviceMap =
+                getCombinedInCallServiceMap();
+        List<ComponentName> componentsUpdated = new ArrayList<>();
+
+        if (!serviceMap.containsKey(userFromCall)) {
+            return componentsUpdated;
+        }
+
+        for (Map.Entry<InCallServiceInfo, IInCallService> entry :
+                serviceMap.get(userFromCall).entrySet()) {
+            InCallServiceInfo info = entry.getKey();
+            if (info.isExternalCallsSupported()) {
+                // For InCallServices which support external calls, we do not need to remove
+                // the call.
+                continue;
+            }
+
+            componentsUpdated.add(info.getComponentName());
+            IInCallService inCallService = entry.getValue();
+
+            ParcelableCall parcelableCall = ParcelableCallUtils.toParcelableCall(
+                    call,
+                    false /* includeVideoProvider */,
+                    mCallsManager.getPhoneAccountRegistrar(),
+                    false /* supportsExternalCalls */,
+                    android.telecom.Call.STATE_DISCONNECTED /* overrideState */,
+                    overrideDisconnectCause /* overrideDisconnectCause */,
+                    false /* includeRttCall */,
+                    info.getType() == IN_CALL_SERVICE_TYPE_SYSTEM_UI
+                            || info.getType() == IN_CALL_SERVICE_TYPE_NON_UI
+                            || info.getType() == IN_CALL_SERVICE_TYPE_BLUETOOTH,
+                    info.getType() == IN_CALL_SERVICE_TYPE_BLUETOOTH
+            );
+
+            try {
+                inCallService.updateCall(
+                        copyIfLocal(sanitizeParcelableCallForService(info, parcelableCall),
+                                inCallService));
+            } catch (RemoteException ignored) {
+            }
+        }
+        // Note: We do NOT call onCallRemoved; there is a possibility the user picks up a local
+        // voicemail call, so remaining bound lets us avoid the overhead of rebinding.  The call
+        // is InCallService#onCallRemoved at this point though.
+        return componentsUpdated;
+    }
+
     @Override
     public void onExternalCallChanged(Call call, boolean isExternalCall) {
         Log.i(this, "onExternalCallChanged: %s -> %b", call, isExternalCall);
 
-        List<ComponentName> componentsUpdated = new ArrayList<>();
         UserHandle userFromCall = getUserFromCall(call);
-        Map<UserHandle, Map<InCallController.InCallServiceInfo, IInCallService>> serviceMap =
-                getCombinedInCallServiceMap();
-        if (!isExternalCall && serviceMap.containsKey(userFromCall)) {
+
+        if (!isExternalCall) {
             // The call was external but it is no longer external.  We must now add it to any
             // InCallServices which do not support external calls.
-            for (Map.Entry<InCallServiceInfo, IInCallService> entry : serviceMap.
-                    get(userFromCall).entrySet()) {
-                InCallServiceInfo info = entry.getKey();
-
-                if (info.isExternalCallsSupported()) {
-                    // For InCallServices which support external calls, the call will have already
-                    // been added to the connection service, so we do not need to add it again.
-                    continue;
-                }
-
-                if (call.isSelfManaged() && !call.visibleToInCallService()
-                        && !info.isSelfManagedCallsSupported()) {
-                    continue;
-                }
-
-                componentsUpdated.add(info.getComponentName());
-                IInCallService inCallService = entry.getValue();
-
-                // Only send the RTT call if it's a UI in-call service
-                boolean includeRttCall = info.equals(mInCallServiceConnections.
-                        get(userFromCall).getInfo());
-
-                ParcelableCall parcelableCall = ParcelableCallUtils.toParcelableCall(call,
-                        true /* includeVideoProvider */, mCallsManager.getPhoneAccountRegistrar(),
-                        info.isExternalCallsSupported(), includeRttCall,
-                        info.getType() == IN_CALL_SERVICE_TYPE_SYSTEM_UI
-                                || info.getType() == IN_CALL_SERVICE_TYPE_NON_UI
-                                || info.getType() == IN_CALL_SERVICE_TYPE_BLUETOOTH,
-                        info.getType() == IN_CALL_SERVICE_TYPE_BLUETOOTH);
-                try {
-                    inCallService.addCall(sanitizeParcelableCallForService(info, parcelableCall));
-                    updateCallTracking(call, info, true /* isAdd */);
-                } catch (RemoteException ignored) {
-                }
-            }
-            Log.i(this, "Previously external call added to components: %s", componentsUpdated);
+            List<ComponentName> components = maybeAddCallToInCallServices(call, userFromCall);
+            Log.i(this, "Previously external call added to components: %s", components);
         } else {
             // The call was regular but it is now external.  We must now remove it from any
             // InCallServices which do not support external calls.
             // Remove the call by sending a call update indicating the call was disconnected.
             Log.i(this, "Removing external call %s", call);
-            if (serviceMap.containsKey(userFromCall)) {
-                for (Map.Entry<InCallServiceInfo, IInCallService> entry :
-                        serviceMap.get(userFromCall).entrySet()) {
-                    InCallServiceInfo info = entry.getKey();
-                    if (info.isExternalCallsSupported()) {
-                        // For InCallServices which support external calls, we do not need to remove
-                        // the call.
-                        continue;
-                    }
-
-                    componentsUpdated.add(info.getComponentName());
-                    IInCallService inCallService = entry.getValue();
-
-                    ParcelableCall parcelableCall = ParcelableCallUtils.toParcelableCall(
-                            call,
-                            false /* includeVideoProvider */,
-                            mCallsManager.getPhoneAccountRegistrar(),
-                            false /* supportsExternalCalls */,
-                            android.telecom.Call.STATE_DISCONNECTED /* overrideState */,
-                            false /* includeRttCall */,
-                            info.getType() == IN_CALL_SERVICE_TYPE_SYSTEM_UI
-                                    || info.getType() == IN_CALL_SERVICE_TYPE_NON_UI
-                                    || info.getType() == IN_CALL_SERVICE_TYPE_BLUETOOTH,
-                            info.getType() == IN_CALL_SERVICE_TYPE_BLUETOOTH
-                    );
-
-                    try {
-                        inCallService.updateCall(
-                                copyIfLocal(sanitizeParcelableCallForService(info, parcelableCall),
-                                        inCallService));
-                    } catch (RemoteException ignored) {
-                    }
-                }
-                Log.i(this, "External call removed from components: %s", componentsUpdated);
-            }
+            List<ComponentName> components = maybeRemoveCallFromInCallServices(call, userFromCall,
+                    null /* overrideDisconnectCause */);
+            Log.i(this, "External call removed from components: %s", components);
         }
         maybeTrackMicrophoneUse(isMuted());
     }
 
     @Override
     public void onCallStateChanged(Call call, int oldState, int newState) {
-        Log.i(this, "onCallStateChanged: Call state changed for TC@%s: %s -> %s", call.getId(),
+        Log.i(this, "onCallStateChanged: Call state changed for %s: %s -> %s", call.getId(),
                 CallState.toString(oldState), CallState.toString(newState));
         maybeTrackMicrophoneUse(isMuted());
 
-        // TODO(b/394367444): If a call moves to local voicemail state, we can remove it from the
-        // InCallServices listening to it.  Handle there here; for now in development it'll show up
-        // as an active call in the dialer, which is not the final desired state.
-        // This will take the same general shape as the logic above in onExternalCallChanged.
+        // Handle transition to and from local voicemail.  If we start local voicemail for a call,
+        // remove it from InCallService tracking.  If we stop local voicemail and go active again,
+        // add it back tp the InCallService (ie this is the "pickup voicemail call" usecase).
+        if (mFeatureFlags.localVoicemail()) {
+            if (oldState == CallState.ANSWERED_FOR_LOCAL_VOICEMAIL
+                    && newState == CallState.LOCAL_VOICEMAIL) {
+                UserHandle userFromCall = getUserFromCall(call);
+                // The call is being handled by a local VM service, so remove it from the ICS.
+                List<ComponentName> removedFrom = maybeRemoveCallFromInCallServices(call,
+                        userFromCall,
+                        // Override the disconnect cause to missed since this is effectively
+                        // going to VM; this will cause dialer to show it as missed.
+                        new DisconnectCause(DisconnectCause.MISSED));
+                Log.i(this, "onCallStateChanged: removing call %s answered for local voicemail: %s",
+                        call.getId(), removedFrom);
+                return;
+            } else if (oldState == CallState.LOCAL_VOICEMAIL
+                    && newState == CallState.ACTIVE) {
+                UserHandle userFromCall = getUserFromCall(call);
+                // The call went active once more, so add it to the ICS.
+                maybeAddCallToInCallServices(call, userFromCall);
+                return;
+            } else if (oldState == CallState.LOCAL_VOICEMAIL) {
+                // Ignore state transitions FROM local voicemail to anything else; it is likely just
+                // moving to disconnected and we don't want to send that update to the ICSes.
+                Log.i(this, "onCallStateChanged: skip call %s which is in local voicemail",
+                        call.getId());
+                return;
+            }
+        }
         updateCall(call);
     }
 
@@ -2426,16 +2498,11 @@ public class InCallController extends CallsManagerListenerBase implements
         if (list != null && !list.isEmpty()) {
             return list.get(0);
         } else {
-            return handleInCallServiceNotFound(componentName, type);
+            // Last Resort: Try to bind to the ComponentName given directly.
+            Log.e(this, new Exception(), "Package Manager could not find ComponentName: "
+                    + componentName + ". Trying to bind anyway.");
+            return new InCallServiceInfo(componentName, false, false, type, false);
         }
-    }
-
-    @VisibleForTesting
-    public InCallServiceInfo handleInCallServiceNotFound(ComponentName componentName, int type) {
-        // Last Resort: Try to bind to the ComponentName given directly.
-        Log.e(this, new Exception(), "Package Manager could not find ComponentName: "
-                + componentName + ". Trying to bind anyway.");
-        return new InCallServiceInfo(componentName, false, false, type, false);
     }
 
     private InCallServiceInfo getInCallServiceComponent(UserHandle userHandle,
@@ -2498,31 +2565,6 @@ public class InCallController extends CallsManagerListenerBase implements
                 || hasInteractAcrossProfilesAppOp);
     }
 
-    /**
-     * Verifies that the class for a given ServiceInfo exists within its package.
-     * This prevents a system crash if a service is declared in the manifest but its
-     * class was not included in the compiled code.
-     * @param serviceInfo The ServiceInfo of the service to check.
-     * @param userHandle The user under which to check for the service.
-     * @return {@code true} if the class exists, {@code false} otherwise.
-     */
-    private boolean serviceClassExists(ServiceInfo serviceInfo, UserHandle userHandle) {
-        try {
-            Context packageContext = mContext.createPackageContextAsUser(
-                    serviceInfo.packageName,
-                    Context.CONTEXT_INCLUDE_CODE | Context.CONTEXT_IGNORE_SECURITY, userHandle);
-            ClassLoader classLoader = packageContext.getClassLoader();
-            Class.forName(serviceInfo.name, false, classLoader);
-            return true;
-        } catch (NameNotFoundException | ClassNotFoundException e) {
-            Log.w(this, "Skipping InCallService: class not found for " + serviceInfo.name);
-            return false;
-        } catch (Exception e) {
-            Log.e(this, e, "Error checking for existence of " + serviceInfo.name);
-            return false;
-        }
-    }
-
     private List<InCallServiceInfo> getInCallServiceComponents(UserHandle userHandle,
             String packageName, ComponentName componentName,
             int requestedType, boolean ignoreDisabled) {
@@ -2559,11 +2601,6 @@ public class InCallController extends CallsManagerListenerBase implements
             ServiceInfo serviceInfo = entry.serviceInfo;
 
             if (serviceInfo != null) {
-                if (mFeatureFlags.enableIncallServiceClassCheck()) {
-                    if (!serviceClassExists(serviceInfo, userHandle)) {
-                        continue;
-                    }
-                }
                 boolean isExternalCallsSupported = serviceInfo.metaData != null &&
                         serviceInfo.metaData.getBoolean(
                                 TelecomManager.METADATA_INCLUDE_EXTERNAL_CALLS, false);
@@ -2913,6 +2950,11 @@ public class InCallController extends CallsManagerListenerBase implements
      */
     private void updateCall(Call call, boolean videoProviderChanged, boolean rttInfoChanged,
             String exceptPackageName) {
+        if (call.getState() == CallState.LOCAL_VOICEMAIL) {
+            // Skipping local VM call
+            Log.i(this, "updateCall: skip call=%s as it is local VM", call.getId());
+            return;
+        }
         UserHandle userFromCall = getUserFromCall(call);
         Map<UserHandle, Map<InCallController.InCallServiceInfo, IInCallService>> serviceMap =
                 getCombinedInCallServiceMap();

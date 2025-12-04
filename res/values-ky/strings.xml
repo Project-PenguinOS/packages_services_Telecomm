@@ -65,8 +65,7 @@
     <string name="change_default_call_screening_dialog_affirmative" msgid="7162433828280058647">"Демейки шартта колдонуу"</string>
     <string name="change_default_call_screening_dialog_negative" msgid="1839266125623106342">"Жок"</string>
     <string name="blocked_numbers" msgid="8322134197039865180">"Бөгөттөлгөн номерлер"</string>
-    <!-- no translation found for blocked_numbers_msg (141985883563301785) -->
-    <skip />
+    <string name="blocked_numbers_msg" msgid="141985883563301785">"Бөгөттөлгөн номерлерден эч ким чалып же билдирүү жөнөтө албайт. Шашылыш чалганыңызда четке кагуу параметрлери автоматтык түрдө өчүрүлөт."</string>
     <string name="block_number" msgid="3784343046852802722">"Номер кошуу"</string>
     <string name="unblock_dialog_body" msgid="2723393535797217261">"<xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g> бөгөттөн чыгарылсынбы?"</string>
     <string name="unblock_button" msgid="8732021675729981781">"Бөгөттөн чыгаруу"</string>
@@ -104,6 +103,12 @@
     <string name="notification_channel_disconnected_calls" msgid="8228636543997645757">"Ажыратылган чалуулар"</string>
     <string name="notification_channel_in_call_service_crash" msgid="7313237519166984267">"Катадан улам иштебей калган телефон колдонмолору"</string>
     <string name="notification_channel_call_streaming" msgid="5100510699787538991">"Чалууну берүү"</string>
+    <!-- no translation found for notification_local_voicemail_title (7886943892975348066) -->
+    <skip />
+    <!-- no translation found for notification_local_voicemail_details (8462904524686541516) -->
+    <skip />
+    <!-- no translation found for notification_local_voicemail_unknown_details (7688396653463660224) -->
+    <skip />
     <string name="alert_outgoing_call" msgid="5319895109298927431">"Эгер чалып баштасаңыз, <xliff:g id="OTHER_APP">%1$s</xliff:g> чалууңуз аяктайт."</string>
     <string name="alert_redirect_outgoing_call_or_not" msgid="665409645789521636">"Чалуу жолун тандаңыз"</string>
     <string name="alert_place_outgoing_call_with_redirection" msgid="5221065030959024121">"<xliff:g id="OTHER_APP">%1$s</xliff:g> аркылуу чалуу багытын буруу"</string>

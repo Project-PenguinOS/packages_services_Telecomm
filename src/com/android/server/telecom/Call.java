@@ -161,6 +161,13 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     public static final int CALL_DIRECTION_DUAL_DIFF_ACCOUNT = 4;
 
     /**
+     * Identifies call audio quality
+     */
+    private static final float MIN_BITRATE_FOR_HD_PLUS = 24.4f;
+
+    public static final int RINGTONE_TYPE_MEDIA = 0;
+    public static final int RINGTONE_TYPE_CRS = 1;
+    /**
      * Listener for CallState changes which can be leveraged by a Transaction.
      */
     public interface CallStateListener {
@@ -641,6 +648,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     private boolean mWasWifi = false;
     private boolean mWasVolte = false;
     private boolean mDestroyed = false;
+    private boolean mIsHdPlus = false;
 
     // For conferences which support merge/swap at their level, we retain a notion of an active
     // call. This is used for BluetoothPhoneService.  In order to support hold/merge, it must have
@@ -1515,7 +1523,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             mState = newState;
             maybeLoadCannedSmsResponses();
 
-            if (mState == CallState.ACTIVE || mState == CallState.ON_HOLD) {
+            if (mState == CallState.ACTIVE || mState == CallState.ON_HOLD
+                    || mState == CallState.LOCAL_VOICEMAIL) {
                 if (mConnectTimeMillis == 0) {
                     // We check to see if mConnectTime is already set to prevent the
                     // call from resetting active time when it goes in and out of
@@ -2067,7 +2076,10 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             }
             configureCallAttributes();
 // QTI_BEGIN: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
-            notifyPhoneAccountChanged();
+            if (this.getState() != CallState.NEW) {
+                // Don't send event when call object is created
+                notifyPhoneAccountChanged();
+            }
 // QTI_END: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
         }
         checkIfVideoCapable();
@@ -2101,7 +2113,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         return phoneAccount;
     }
 
-// QTI_BEGIN: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
     public void handlePhoneAccountChanged(PhoneAccount phoneAccount) {
         Log.i(this, "handlePhoneAccountChanged");
         boolean isVideoCapable = phoneAccount != null &&
@@ -2112,10 +2123,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     }
 
     private void notifyPhoneAccountChanged() {
-        onConnectionEvent(EVENT_PHONE_ACCOUNT_CHANGED, null);
+        onConnectionEvent(android.telecom.Call.EVENT_PHONE_ACCOUNT_CHANGED, null);
     }
-
-// QTI_END: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
     public CharSequence getTargetPhoneAccountLabel() {
         if (getTargetPhoneAccount() == null) {
             return null;
@@ -2197,7 +2206,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             return false;
         }
 
-        if (!PhoneAccount.SCHEME_SIP.equals(getHandle().getScheme()) &&
+        if (!isTransactionalCall() && !PhoneAccount.SCHEME_SIP.equals(getHandle().getScheme()) &&
                 !PhoneAccount.SCHEME_TEL.equals(getHandle().getScheme())) {
             // Can't log schemes other than SIP or TEL for now.
             return false;
@@ -2521,6 +2530,13 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      *     calls.
      */
     public long getCreationTimeMillis() {
+        if (mCreationTimeMillis == 0) {
+            // This should never happen since the constructor always sets the call creation time,
+            // however we've seen cases where calls go to the InCallService with a 0 creation time.
+            Log.w(this, "getCreationTimeMillis: creation time not set for callId=%s; setting now",
+                    mId);
+            mCreationTimeMillis = mClockProxy.currentTimeMillis();
+        }
         return mCreationTimeMillis;
     }
 
@@ -3128,7 +3144,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         if (mCreateConnectionProcessor != null &&
                 !mCreateConnectionProcessor.isProcessingComplete()) {
             mCreateConnectionProcessor.abort();
-        } else if (mFlags.echoAbortTransactionalOutgoing() && mIsTransactionalCall) {
+        } else if (mIsTransactionalCall) {
             CompletableFuture<Boolean> wasCompleted = mTransactionalService.onDisconnect(this,
                     new DisconnectCause(DisconnectCause.CANCELED));
             Log.d(this, "abort: wasTransactionCompleted=[%b", wasCompleted);
@@ -3186,7 +3202,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             // {@link ConnectionServiceAdapter#setActive} and other set* methods.
             if (mConnectionService != null) {
                 answerCallFuture = awaitCallStateChangeAndMaybeDisconnectCall(
-                        false /* shouldDisconnectUponTimeout */, "answer", CallState.ACTIVE);
+                        false /* shouldDisconnectUponTimeout */, "answer", CallState.ACTIVE,
+                        CallState.LOCAL_VOICEMAIL);
                 mConnectionService.answer(this, videoState);
             } else if (mTransactionalService != null) {
                 return mTransactionalService.onAnswer(this, videoState);
@@ -3539,17 +3556,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     }
 
 // QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-    public boolean isCrsCall() {
-        if (mExtras == null) {
-            return false;
-        }
-        int crsType = mExtras.getInt(QtiCallConstants.EXTRA_CRS_TYPE,
-                QtiCallConstants.CRS_TYPE_INVALID);
-        return (crsType == (QtiCallConstants.CRS_TYPE_VIDEO
-                    | QtiCallConstants.CRS_TYPE_AUDIO))
-            || (crsType == QtiCallConstants.CRS_TYPE_AUDIO);
-    }
-
     public int getOriginalCallType() {
         if (mExtras == null) {
             return CALL_TYPE_UNKNOWN;
@@ -3559,6 +3565,25 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     }
 
 // QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
+
+    public int getCrsMode() {
+        if (mExtras == null) {
+            return android.telecom.Call.CRS_MODE_IN_CALL;
+        }
+        return mExtras.getInt(android.telecom.Call.EXTRA_CRS_AUDIO_MODE,
+                android.telecom.Call.CRS_MODE_IN_CALL);
+    }
+
+    public boolean isCrsCall() {
+        if (mExtras == null) {
+            return false;
+        }
+        int crsMediaType = mExtras.getInt(
+                android.telecom.Call.EXTRA_CRS_MEDIA_TYPE,
+                android.telecom.Call.CRS_MEDIA_TYPE_NONE);
+        return mIsSimCall && ((crsMediaType & android.telecom.Call.CRS_MEDIA_TYPE_AUDIO) != 0);
+    }
+
     /**
      * Adds extras to the extras bundle associated with this {@link Call}, as made by a
      * {@link ConnectionService} or other non {@link android.telecom.InCallService} source.
@@ -3609,6 +3634,16 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
         for (Listener l : mListeners) {
             l.onExtrasChanged(this, source, extras, requestingPackageName);
+        }
+
+        // If mExtra contains info about HD+ call, record it with mIsHdPlus
+        int audioCodec =
+                mExtras.getInt(Connection.EXTRA_AUDIO_CODEC, Connection.AUDIO_CODEC_NONE);
+        if (audioCodec == Connection.AUDIO_CODEC_EVS_SWB) {
+            mIsHdPlus = true;
+        } else if (audioCodec == Connection.AUDIO_CODEC_EVS_FB) {
+            float bitRate = mExtras.getFloat(Connection.EXTRA_AUDIO_CODEC_BITRATE_KBPS, 0.0f);
+            mIsHdPlus = (bitRate >= MIN_BITRATE_FOR_HD_PLUS);
         }
 
         // If mExtra shows that the call using Volte, record it with mWasVolte
@@ -5013,6 +5048,15 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      */
     public boolean wasVolte() {
         return mWasVolte;
+    }
+
+    /**
+     * Returns whether or not the call is HD+.
+     *
+     * @return true if it's HD+, false otherwise.
+     */
+    public boolean isHdPlus() {
+        return mIsHdPlus;
     }
 
     /**

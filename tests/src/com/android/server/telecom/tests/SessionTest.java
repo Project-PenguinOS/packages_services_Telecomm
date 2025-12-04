@@ -25,8 +25,6 @@ import android.telecom.Logging.Session;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.server.telecom.flags.Flags;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -281,9 +279,6 @@ public class SessionTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testPrintTree_triggersNegativeDepthCrash() {
-        if(!Flags.fixSessionTreeLogging()){
-            return;
-        }
         // 1. Setup the tree structure that causes the crash:
         //      parent
         //      / | \

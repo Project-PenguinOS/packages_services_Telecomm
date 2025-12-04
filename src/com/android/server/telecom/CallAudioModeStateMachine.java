@@ -25,10 +25,11 @@ import android.os.Message;
 import android.telecom.Log;
 import android.telecom.Logging.Runnable;
 import android.telecom.Logging.Session;
+import android.util.IndentingPrintWriter;
 import android.util.LocalLog;
 import android.util.SparseArray;
+
 import com.android.internal.util.IState;
-import com.android.internal.util.IndentingPrintWriter;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
 import com.android.server.telecom.flags.FeatureFlags;
@@ -205,6 +206,8 @@ public class CallAudioModeStateMachine extends StateMachine {
     public static final int RINGING_CALLS_CHANGED = 5003;
 // QTI_END: 2021-10-14: Telephony: IMS: Update ringtone only if there is more than one incoming call
 
+    public static final int CRS_FALLBACK_TO_LOCAL_RINGING = 5002;
+
     // Used to indicate that Telecom is done doing things to the AudioManager and that it's safe
     // to release focus for other apps to take over.
     public static final int AUDIO_OPERATIONS_COMPLETE = 6001;
@@ -238,6 +241,7 @@ public class CallAudioModeStateMachine extends StateMachine {
         put(STOP_CALL_STREAMING, "STOP_CALL_STREAMING");
         put(NEW_LOCAL_VOICEMAIL_CALL, "START_LOCAL_VOICEMAIL");
         put(NO_MORE_LOCAL_VOICEMAIL_CALLS, "STOP_LOCAL_VOICEMAIL");
+        put(CRS_FALLBACK_TO_LOCAL_RINGING, "CRS_FALLBACK_TO_LOCAL_RINGING");
 // QTI_BEGIN: 2021-06-14: Telephony: IMS: Fix Video CRS audio issues
         put(CRS_CHANGE_SILENCE, "CRS_CHANGE_SILENCE");
 // QTI_END: 2021-06-14: Telephony: IMS: Fix Video CRS audio issues
@@ -676,15 +680,20 @@ public class CallAudioModeStateMachine extends StateMachine {
                 // this trips up the audio system.
                 if (mAudioManager.getMode() != AudioManager.MODE_CALL_SCREENING) {
                     Log.i(this, "enter: AudioManager#setMode(MODE_RINGTONE)");
-                    mAudioManager.setMode(AudioManager.MODE_RINGTONE);
-                    mLocalLog.log("Mode MODE_RINGTONE");
+                    if (android.telecom.flags.Flags.isUsingCrs()
+                            && mCallAudioManager.isCrsInCallMode()) {
+                        mAudioManager.setMode(AudioManager.MODE_IN_CALL);
+                        mLocalLog.log("Mode MODE_IN_CALL , It is CRS CALL");
+                    } else {
+                        mAudioManager.setMode(AudioManager.MODE_RINGTONE);
+                        mLocalLog.log("Mode MODE_RINGTONE");
+                    }
                 }
                 mCallAudioManager.setCallAudioRouteFocusState(
                         CallAudioRouteController.RINGING_FOCUS);
                 mHasFocus = true;
             } else {
-                Log.i(
-                    LOG_TAG, "RINGING state, try start ringing but not acquiring audio focus");
+                Log.i(LOG_TAG, "RINGING state, try start ringing but not acquiring audio focus");
             }
         }
 
@@ -753,6 +762,12 @@ public class CallAudioModeStateMachine extends StateMachine {
                 case AUDIO_OPERATIONS_COMPLETE:
                     Log.w(LOG_TAG, "Should not be seeing AUDIO_OPERATIONS_COMPLETE in a focused"
                             + " state");
+                    return HANDLED;
+                case CRS_FALLBACK_TO_LOCAL_RINGING:
+                    Log.i(LOG_TAG, "RINGING state, received CRS_FALLBACK_TO_LOCAL_RINGING");
+                    //Ringing call changed, so stop current ring first.
+                    mCallAudioManager.stopRinging();
+                    tryStartRinging();
                     return HANDLED;
 // QTI_BEGIN: 2021-10-14: Telephony: IMS: Update ringtone only if there is more than one incoming call
                 case RINGING_CALLS_CHANGED:

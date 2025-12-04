@@ -37,11 +37,11 @@ import android.os.Bundle;
 import android.telecom.CallAudioState;
 import android.telecom.Log;
 import android.util.ArraySet;
+import android.util.IndentingPrintWriter;
 import android.util.LocalLog;
 import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.util.IndentingPrintWriter;
 import com.android.server.telecom.AudioRoute;
 import com.android.server.telecom.CallAudioRouteAdapter;
 import com.android.server.telecom.CallAudioRouteController;
@@ -199,6 +199,8 @@ public class BluetoothDeviceManager {
                             LinkedHashMap<String, BluetoothDevice> lostServiceDevices;
                             String logString;
                             if (profile == BluetoothProfile.HEADSET) {
+                                // Complete the future to avoid potential timeout.
+                                mBluetoothHeadsetFuture.complete(null);
                                 mBluetoothHeadsetFuture = new CompletableFuture<>();
                                 mBluetoothHeadset = null;
                                 lostServiceDevices = mHfpDevicesByAddress;
@@ -526,9 +528,6 @@ public class BluetoothDeviceManager {
         synchronized (mLock) {
             LinkedHashMap<String, BluetoothDevice> targetDeviceMap;
             if (deviceType == DEVICE_TYPE_LE_AUDIO) {
-// QTI_BEGIN: 2023-08-15: Telephony: Update cache when LE device is disconnected
-                mGroupsByDevice.remove(device);
-// QTI_END: 2023-08-15: Telephony: Update cache when LE device is disconnected
                 targetDeviceMap = mLeAudioDevicesByAddress;
             } else if (deviceType == DEVICE_TYPE_HEARING_AID) {
                 mHearingAidDeviceSyncIds.remove(device);

@@ -18,13 +18,11 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
-aconfig_declarations {
-    name: "telecom_flags",
-    package: "com.android.server.telecom.flags",
-    exportable: true,
-    container: "system",
+// Only include 26Q2 flags in the system container while Telecom is not being
+// compiled into telephonycore
+filegroup {
+    name: "telecom_platform_flags_config_src",
     srcs: [
-        "telecom_broadcast_flags.aconfig",
         "telecom_ringer_flag_declarations.aconfig",
         "telecom_api_flags.aconfig",
         "telecom_call_filtering_flags.aconfig",
@@ -35,15 +33,24 @@ aconfig_declarations {
         "telecom_calls_manager_flags.aconfig",
         "telecom_anomaly_report_flags.aconfig",
         "telecom_resolve_hidden_dependencies.aconfig",
-        "telecom_bluetoothroutemanager_flags.aconfig",
         "telecom_work_profile_flags.aconfig",
         "telecom_connection_service_wrapper_flags.aconfig",
-        "telecom_remote_connection_service.aconfig",
-        "telecom_profile_user_flags.aconfig",
         "telecom_bluetoothdevicemanager_flags.aconfig",
         "telecom_non_critical_security_flags.aconfig",
         "telecom_headless_system_user_mode.aconfig",
         "telecom_metrics_flags.aconfig",
         "telecom_integrated_call_log.aconfig",
+        "telecom_platform_flags.aconfig",
+        "do_not_edit_26Q2_platform_flags.aconfig",
+    ],
+}
+
+aconfig_declarations {
+    name: "telecom_flags",
+    package: "com.android.server.telecom.flags",
+    exportable: true,
+    container: "system",
+    srcs: [
+        ":telecom_platform_flags_config_src",
     ],
 }

@@ -45,7 +45,6 @@ import android.content.IntentFilter;
 import android.content.PermissionChecker;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
-import android.content.pm.ParceledListSlice;
 import android.content.pm.ResolveInfo;
 import android.graphics.drawable.Icon;
 import android.net.Uri;
@@ -78,6 +77,7 @@ import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.EventLog;
+import android.util.IndentingPrintWriter;
 
 import androidx.annotation.NonNull;
 
@@ -85,7 +85,7 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telecom.ICallControl;
 import com.android.internal.telecom.ICallEventCallback;
 import com.android.internal.telecom.ITelecomService;
-import com.android.internal.util.IndentingPrintWriter;
+import com.android.modules.utils.ParceledListSlice;
 import com.android.server.telecom.callsequencing.voip.VoipCallMonitor;
 import com.android.server.telecom.components.UserCallIntentProcessorFactory;
 import com.android.server.telecom.flags.FeatureFlags;
@@ -104,6 +104,7 @@ import com.android.server.telecom.util.TelecomBundleUtils;
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -174,6 +175,7 @@ public class TelecomServiceImpl {
     private final TransactionalServiceRepository mTransactionalServiceRepository;
     private final BlockedNumbersManager mBlockedNumbersManager;
     private final FeatureFlags mFeatureFlags;
+    private final android.telecom.flags.FeatureFlags mModuleFeatureFlags;
     private final com.android.internal.telephony.flags.FeatureFlags mTelephonyFeatureFlags;
     private final TelecomMetricsController mMetricsController;
     private final String mSystemUiPackageName;
@@ -2525,9 +2527,15 @@ public class TelecomServiceImpl {
                 Analytics.dump(pw);
                 pw.decreaseIndent();
 
-                pw.println("Flag Configurations: ");
+                pw.println("Flag Configurations(framework): ");
                 pw.increaseIndent();
-                reflectAndPrintFlagConfigs(pw);
+                reflectAndPrintFlagConfigs(FeatureFlags.class.getMethods(), mFeatureFlags, pw);
+                pw.decreaseIndent();
+
+                pw.println("Flag Configurations(module): ");
+                pw.increaseIndent();
+                reflectAndPrintFlagConfigs(android.telecom.flags.FeatureFlags.class.getMethods(),
+                        mModuleFeatureFlags, pw);
                 pw.decreaseIndent();
 
                 pw.println("TransactionManager: ");
@@ -2553,12 +2561,9 @@ public class TelecomServiceImpl {
         /**
          * Print all feature flag configurations that Telecom is using for debugging purposes.
          */
-        private void reflectAndPrintFlagConfigs(IndentingPrintWriter pw) {
-
+        private void reflectAndPrintFlagConfigs(Method[] methods, Object target,
+                IndentingPrintWriter pw) {
             try {
-                // Look away, a forbidden technique (reflection) is being used to allow us to get
-                // all flag configs without having to add them manually to this method.
-                Method[] methods = FeatureFlags.class.getMethods();
                 int maxLength = Arrays.stream(methods)
                         .map(Method::getName)
                         .map(String::length)
@@ -2571,8 +2576,10 @@ public class TelecomServiceImpl {
                     return;
                 }
 
+                // Look away, a forbidden technique (reflection) is being used to allow us to get
+                // all flag configs without having to add them manually to this method.
                 for (Method m : methods) {
-                    String flagEnabled = (Boolean) m.invoke(mFeatureFlags) ? "[✅]" : "[❌]";
+                    String flagEnabled = (Boolean) m.invoke(target) ? "[✅]" : "[❌]";
                     String methodName = m.getName();
                     String camelCaseName = methodName.replaceAll("([a-z])([A-Z]+)", "$1_$2")
                             .toLowerCase(Locale.US);
@@ -2720,6 +2727,183 @@ public class TelecomServiceImpl {
                     long token = Binder.clearCallingIdentity();
                     try {
                         mPhoneAccountRegistrar.setTestPhoneAccountPackageNameFilter(packageName);
+                    } finally {
+                        Binder.restoreCallingIdentity(token);
+                    }
+                }
+            } finally {
+                Log.endSession();
+            }
+        }
+
+        @Override
+        public void setTestLocalVoicemailService(String packageName) {
+            try {
+                Log.startSession("TSI.sTLVS");
+                enforceModifyPermission();
+                enforceShellOnly(Binder.getCallingUid(),
+                        "setTestLocalVoicemailService");
+                synchronized (mLock) {
+                    long token = Binder.clearCallingIdentity();
+                    try {
+                        LocalVoicemailController lvc = mCallsManager.getLocalVoicemailController();
+                        if (lvc == null) {
+                            return;
+                        }
+                        lvc.setTestLocalVoicemailService(packageName);
+                    } finally {
+                        Binder.restoreCallingIdentity(token);
+                    }
+                }
+            } finally {
+                Log.endSession();
+            }
+        }
+
+        /**
+         * Determines if local voicemail is supported on this device; available if there is an
+         * active local voicemail service configured.
+         * @return {@code true} is local VM is supported on the device, {@code false} otherwise.
+         * @throws RemoteException
+         */
+        @Override
+        public boolean isLocalVoicemailSupported(String callingPackage) {
+            try {
+                Log.startSession("TSI.iLVS", Log.getPackageAbbreviation(callingPackage));
+                mContext.enforceCallingOrSelfPermission(READ_PRIVILEGED_PHONE_STATE,
+                        "READ_PRIVILEGED_PHONE_STATE required.");
+                // NOTE: This DOES NOT sync on `mLock` since we are just getting a single
+                // value from `LocalVoicemailController`.
+                long token = Binder.clearCallingIdentity();
+                try {
+                    return getLocalVoicemailSupported();
+                } finally {
+                    Binder.restoreCallingIdentity(token);
+                }
+            } finally {
+                Log.endSession();
+            }
+        }
+
+        /**
+         * @see android.telecom.TelecomManager#enableLocalVoicemail
+         * @param callingPackage the calling package.
+         * @param phoneAccountHandle the phone account handle.
+         * @param timeout the timeout.
+         */
+        @Override
+        public void enableLocalVoicemail(String callingPackage,
+                PhoneAccountHandle phoneAccountHandle, long timeout) {
+
+            Log.startSession("TSI.iLVS", Log.getPackageAbbreviation(callingPackage));
+            try {
+                enforceModifyPermission();
+                synchronized (mLock) {
+                    long token = Binder.clearCallingIdentity();
+                    try {
+                        if (!getLocalVoicemailSupported()) {
+                            throw new IllegalArgumentException("Local voicemail is disabled.");
+                        }
+
+                        mPhoneAccountRegistrar.setLocalVoicemailTimeout(phoneAccountHandle,
+                                Duration.ofMillis(timeout));
+                    } finally {
+                        Binder.restoreCallingIdentity(token);
+                    }
+                }
+            } finally {
+                Log.endSession();
+            }
+        }
+
+        /**
+         * @see android.telecom.TelecomManager#disableLocalVoicemail
+         * @param callingPackage the calling package.
+         * @param phoneAccountHandle the phone account handle.
+         */
+        @Override
+        public void disableLocalVoicemail(String callingPackage,
+                PhoneAccountHandle phoneAccountHandle) {
+            try {
+                Log.startSession("TSI.dLV", Log.getPackageAbbreviation(callingPackage));
+                enforceModifyPermission();
+                synchronized (mLock) {
+                    enforceModifyPermission();
+                    long token = Binder.clearCallingIdentity();
+                    try {
+                        if (!getLocalVoicemailSupported()) {
+                            throw new IllegalArgumentException("Local voicemail is disabled.");
+                        }
+
+                        mPhoneAccountRegistrar.setLocalVoicemailTimeout(phoneAccountHandle,
+                                null);
+                    } finally {
+                        Binder.restoreCallingIdentity(token);
+                    }
+                }
+            } finally {
+                Log.endSession();
+            }
+        }
+
+        /***
+         * @see android.telecom.TelecomManager#getLocalVoicemailTimeout
+         * @param callingPackage the calling package
+         * @param phoneAccountHandle the phone account handle
+         * @return the timeout duration.
+         */
+        @Override
+        public long getLocalVoicemailTimeout(String callingPackage,
+                PhoneAccountHandle phoneAccountHandle) {
+            try {
+                Log.startSession("TSI.gLVT", Log.getPackageAbbreviation(callingPackage));
+                mContext.enforceCallingOrSelfPermission(READ_PRIVILEGED_PHONE_STATE,
+                        "READ_PRIVILEGED_PHONE_STATE required.");
+                synchronized (mLock) {
+                    long token = Binder.clearCallingIdentity();
+                    try {
+                        if (!getLocalVoicemailSupported()) {
+                            throw new IllegalArgumentException("Local voicemail is disabled.");
+                        }
+
+                        Duration duration = mPhoneAccountRegistrar.getLocalVoicemailTimeout(
+                                phoneAccountHandle);
+                        if (duration == null) {
+                            throw new IllegalArgumentException("Local voicemail not enabled.");
+                        }
+                        return duration.toMillis();
+                    } finally {
+                        Binder.restoreCallingIdentity(token);
+                    }
+                }
+            } finally {
+                Log.endSession();
+            }
+        }
+
+        /**
+         * @see android.telecom.TelecomManager#isLocalVoicemailEnabled
+         * @param callingPackage the calling packager.
+         * @param phoneAccountHandle the phone account handle
+         * @return {@code true} if local vm is enabled, {@code false} otherwise.
+         */
+        @Override
+        public boolean isLocalVoicemailEnabled(String callingPackage,
+                PhoneAccountHandle phoneAccountHandle) {
+            try {
+                Log.startSession("TSI.iLVE", Log.getPackageAbbreviation(callingPackage));
+
+                synchronized (mLock) {
+                    if (!getLocalVoicemailSupported()) {
+                        throw new IllegalArgumentException("Local voicemail is disabled.");
+                    }
+
+                    mContext.enforceCallingOrSelfPermission(READ_PRIVILEGED_PHONE_STATE,
+                            "READ_PRIVILEGED_PHONE_STATE required.");
+                    long token = Binder.clearCallingIdentity();
+                    try {
+                        return mPhoneAccountRegistrar.getLocalVoicemailTimeout(phoneAccountHandle)
+                                != null;
                     } finally {
                         Binder.restoreCallingIdentity(token);
                     }
@@ -3187,8 +3371,8 @@ public class TelecomServiceImpl {
                 // registered the callback intent.
                 UserHandle userHandle = Binder.getCallingUserHandle();
                 if (!doesPackageSupportCallback(packageName, userHandle)) {
-                    throw new IllegalArgumentException("Package (%s) does not register the "
-                            + "TelecomManager.ACTION_CALL_BACK intent.");
+                    throw new IllegalArgumentException("Package" + packageName + " does not"
+                            + " registerthe TelecomManager.ACTION_CALL_BACK intent.");
                 }
 
                 Log.startSession("TSI.sVCLIE", Log.getPackageAbbreviation(callingPackage));
@@ -3205,7 +3389,41 @@ public class TelecomServiceImpl {
                 Log.endSession();
             }
         }
+
+        @Override
+        public void setTestOemCallScreeningService(ComponentName componentName) {
+            try {
+                Log.startSession("TSI.sTOCSS");
+                enforceModifyPermission();
+                enforceShellOnly(Binder.getCallingUid(), "setTestOemCallScreeningService");
+                synchronized (mLock) {
+                    long token = Binder.clearCallingIdentity();
+                    try {
+                        mCallsManager.setCallScreeningServiceComponentOverride(componentName);
+                    } finally {
+                        Binder.restoreCallingIdentity(token);
+                    }
+                }
+            } finally {
+                Log.endSession();
+            }
+        }
     };
+
+    /**
+     * Determines whether the local voicemail service is supported on this device.
+     * @return {@code true} if local voicemail is supported, {@code false} otherwise.
+     */
+    private boolean getLocalVoicemailSupported() {
+
+            LocalVoicemailController localVoicemailController =
+                    mCallsManager.getLocalVoicemailController();
+            if (localVoicemailController == null) {
+                return false;
+            }
+            return localVoicemailController.getActiveLocalVoicemailService() != null;
+    }
+
     public TelecomServiceImpl(
             Context context,
             CallsManager callsManager,
@@ -3216,6 +3434,7 @@ public class TelecomServiceImpl {
             SubscriptionManagerAdapter subscriptionManagerAdapter,
             SettingsSecureAdapter settingsSecureAdapter,
             FeatureFlags featureFlags,
+            android.telecom.flags.FeatureFlags moduleFeatureFlags,
             com.android.internal.telephony.flags.FeatureFlags telephonyFeatureFlags,
             TelecomSystem.SyncRoot lock, TelecomMetricsController metricsController,
             String sysUiPackageName) {
@@ -3227,6 +3446,7 @@ public class TelecomServiceImpl {
 
         mCallsManager = callsManager;
         mFeatureFlags = featureFlags;
+        mModuleFeatureFlags = moduleFeatureFlags;
         if (telephonyFeatureFlags != null) {
             mTelephonyFeatureFlags = telephonyFeatureFlags;
         } else {

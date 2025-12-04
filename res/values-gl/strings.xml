@@ -65,8 +65,7 @@
     <string name="change_default_call_screening_dialog_affirmative" msgid="7162433828280058647">"Establecer como predeterminada"</string>
     <string name="change_default_call_screening_dialog_negative" msgid="1839266125623106342">"Cancelar"</string>
     <string name="blocked_numbers" msgid="8322134197039865180">"Números bloqueados"</string>
-    <!-- no translation found for blocked_numbers_msg (141985883563301785) -->
-    <skip />
+    <string name="blocked_numbers_msg" msgid="141985883563301785">"Non recibirás ningunha chamada nin mensaxe de texto dos números bloqueados. Cando fagas unha chamada de emerxencia, as opcións de configuración de rexeitamento desactivaranse automaticamente."</string>
     <string name="block_number" msgid="3784343046852802722">"Engadir un número"</string>
     <string name="unblock_dialog_body" msgid="2723393535797217261">"Queres desbloquear o <xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g>?"</string>
     <string name="unblock_button" msgid="8732021675729981781">"Desbloquear"</string>
@@ -104,6 +103,9 @@
     <string name="notification_channel_disconnected_calls" msgid="8228636543997645757">"Chamadas desconectadas"</string>
     <string name="notification_channel_in_call_service_crash" msgid="7313237519166984267">"Fallaron as aplicacións de teléfono"</string>
     <string name="notification_channel_call_streaming" msgid="5100510699787538991">"Propagación de chamada"</string>
+    <string name="notification_local_voicemail_title" msgid="7886943892975348066">"Correo de voz"</string>
+    <string name="notification_local_voicemail_details" msgid="8462904524686541516">"<xliff:g id="APP_NAME">%1$s</xliff:g> está gravando un correo de voz para a chamada de <xliff:g id="CALLER_NAME">%2$s</xliff:g>."</string>
+    <string name="notification_local_voicemail_unknown_details" msgid="7688396653463660224">"<xliff:g id="APP_NAME">%1$s</xliff:g> está gravando o correo de voz para a chamada dun emisor descoñecido."</string>
     <string name="alert_outgoing_call" msgid="5319895109298927431">"Ao facer esta chamada, finalizarase o túa chamada de <xliff:g id="OTHER_APP">%1$s</xliff:g>."</string>
     <string name="alert_redirect_outgoing_call_or_not" msgid="665409645789521636">"Escolle como facer esta chamada"</string>
     <string name="alert_place_outgoing_call_with_redirection" msgid="5221065030959024121">"Redirixir a chamada con <xliff:g id="OTHER_APP">%1$s</xliff:g>"</string>

@@ -31,9 +31,9 @@ import android.os.UserHandle;
 import android.provider.Settings;
 import android.telecom.DefaultDialerManager;
 import android.telecom.Log;
+import android.util.IndentingPrintWriter;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.util.IndentingPrintWriter;
 import com.android.server.telecom.flags.FeatureFlags;
 
 import java.util.Objects;

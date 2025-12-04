@@ -21,9 +21,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.telecom.Log;
+import android.util.IndentingPrintWriter;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.util.IndentingPrintWriter;
 
 import java.util.Collections;
 import java.util.Set;

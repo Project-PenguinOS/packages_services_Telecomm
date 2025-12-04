@@ -2055,9 +2055,12 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                         if (mFlags.dontTimeoutDestroyedCalls()) {
                             maybeRemoveCleanupFuture(call);
                         }
-                        mPendingResponses.remove(callId).handleCreateConnectionFailure(
-                                new DisconnectCause(DisconnectCause.ERROR,
-                                        "CSW#oCC ServiceInterface is null"));
+                        CreateConnectionResponse response = mPendingResponses.remove(callId);
+                        if (response != null) {
+                            response.handleCreateConnectionFailure(
+                                    new DisconnectCause(DisconnectCause.ERROR,
+                                            "CSW#oCC ServiceInterface is null"));
+                        }
                     } else {
 // QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
                         mServiceInterface.createConnection(

@@ -135,12 +135,12 @@ public class CallsManagerCallSequencingAdapter {
     }
 
     /**
-     * Attempts to mark the self-managed call as active by first holding the active call and then
-     * requesting call focus for the self-managed call.
-     * @param call The self-managed call to set active
+     * Attempts to mark the call as active by first holding the active call and then requesting call
+     * focus for the respective call.
+     * @param call The call to set active
      */
-    public void markCallAsActiveSelfManagedCall(Call call) {
-        mSequencingController.handleSetSelfManagedCallActive(call);
+    public void markCallAsActive(Call call) {
+        mSequencingController.handleSetCallActive(call);
     }
 
     /**

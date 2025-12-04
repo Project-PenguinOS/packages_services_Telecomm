@@ -25,12 +25,12 @@ import android.os.Message;
 import android.telecom.Log;
 import android.telecom.Logging.Session;
 import android.text.TextUtils;
+import android.util.IndentingPrintWriter;
 import android.util.LocalLog;
 import android.util.LogPrinter;
 import android.util.Printer;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.util.IndentingPrintWriter;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -156,6 +156,10 @@ public final class CallLogManager extends CallsManagerListenerBase {
         }
 
         if (shouldLogDisconnectedCall(call, oldState, isCallCanceled)) {
+            Log.i(this, "onCallStateChanged: call=%s, newState=%s, disconnectCause=%s",
+                    call.getId(),
+                    CallState.toString(newState),
+                    DisconnectCause.disconnectCodeToString(disconnectCause));
             int type;
             if (!call.isIncoming()) {
                 type = Calls.OUTGOING_TYPE;
@@ -168,6 +172,7 @@ public final class CallLogManager extends CallsManagerListenerBase {
             } else {
                 type = Calls.INCOMING_TYPE;
             }
+
             // Always show the notification for managed calls. For self-managed calls, it is up to
             // the app to show the notification, so suppress the notification when logging the call.
             boolean showNotification = call.isManaged();
@@ -366,7 +371,8 @@ public final class CallLogManager extends CallsManagerListenerBase {
                 (call.getConnectionProperties() & Connection.PROPERTY_ASSISTED_DIALING) ==
                         Connection.PROPERTY_ASSISTED_DIALING,
                 call.wasEverRttCall(),
-                call.wasVolte()));
+                call.wasVolte(),
+                call.isHdPlus(), mFeatureFlags));
 
         if (result == null) {
             result = new CallFilteringResult.Builder()
@@ -489,7 +495,9 @@ public final class CallLogManager extends CallsManagerListenerBase {
                     logCallCompletedListener, call);
             Log.addEvent(call, LogUtils.Events.LOG_CALL, "number=" + Log.piiHandle(logNumber)
                     + ",postDial=" + Log.piiHandle(call.getPostDialDigits()) + ",pres="
-                    + call.getHandlePresentation());
+                    + call.getHandlePresentation()
+                    + ",code=" + DisconnectCause.disconnectCodeToString(
+                            call.getDisconnectCause().getCode()));
             logCallAsync(args);
         } else {
             Log.addEvent(call, LogUtils.Events.SKIP_CALL_LOG);
@@ -544,10 +552,13 @@ public final class CallLogManager extends CallsManagerListenerBase {
      * @param isStoreHd {@code true} if this call was used HD.
      * @param isWifi {@code true} if this call was used wifi.
      * @param isUsingAssistedDialing {@code true} if this call used assisted dialing.
+     * @param isHdPlus {@code true} if this is call audio quality is HD+
+     * @param featureFlags Feature flags.
      * @return The call features.
      */
     private static int getCallFeatures(int videoState, boolean isPulledCall, boolean isStoreHd,
-            boolean isWifi, boolean isUsingAssistedDialing, boolean isRtt, boolean isVolte) {
+            boolean isWifi, boolean isUsingAssistedDialing, boolean isRtt, boolean isVolte,
+            boolean isHdPlus, FeatureFlags featureFlags) {
         int features = 0;
         if (VideoProfile.isVideo(videoState)) {
             features |= Calls.FEATURES_VIDEO;
@@ -570,6 +581,10 @@ public final class CallLogManager extends CallsManagerListenerBase {
         if (isVolte) {
             features |= Calls.FEATURES_VOLTE;
         }
+        if (featureFlags.hdPlusCall() && isHdPlus) {
+            features |= Calls.FEATURES_HD_PLUS_CALL;
+        }
+
         return features;
     }
 
@@ -593,7 +608,7 @@ public final class CallLogManager extends CallsManagerListenerBase {
         if (TextUtils.isEmpty(handleString) && (PhoneAccount.SCHEME_VOICEMAIL.equals(scheme))) {
             // This is a voicemail.Get voicemail number for this voicemail call.
             final PhoneAccountHandle accountHandle = call.getTargetPhoneAccount();
-            TelecomManager tm = TelecomManager.from(mContext);
+            TelecomManager tm = mContext.getSystemService(TelecomManager.class);
             if (tm != null) {
                 handleString = tm.getVoiceMailNumber(accountHandle);
             }
