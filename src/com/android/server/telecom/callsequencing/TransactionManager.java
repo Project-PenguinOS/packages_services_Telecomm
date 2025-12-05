@@ -284,7 +284,7 @@ public class TransactionManager {
         return s.getTransactionResult().toString();
     }
 
-    private void reportExceptionToMetrics(@CallException.CallErrorCode int callExceptionCode) {
+    private void reportExceptionToMetrics(/*@CallException.CallErrorCode*/ int callExceptionCode) {
         TelecomSystem system = TelecomSystem.getInstance();
         if (system != null && system.getMetricsController() != null) {
             system.getMetricsController().getErrorStats().log(ErrorStats.SUB_VOIP_CALL,

@@ -554,7 +554,7 @@ public class CallDiagnosticServiceController extends CallsManagerListenerBase {
      * @param value The message value.
      */
     private void handleSendD2DMessage(@NonNull String callId,
-            @CallDiagnostics.MessageType int message, int value) {
+            /*@CallDiagnostics.MessageType*/ int message, int value) {
         Call call = mCallIdMapper.getCall(callId);
         if (call == null) {
             Log.w(this, "handleSendD2DMessage: callId=%s; msg=%d/%d; invalid call", callId,

@@ -138,7 +138,7 @@ class InCallAdapter extends IInCallAdapter.Stub {
 
     @Override
     public void rejectCallWithReason(String callId,
-            @android.telecom.Call.RejectReason int rejectReason) {
+            /*@android.telecom.Call.RejectReason*/ int rejectReason) {
         try {
             Log.startSession(LogUtils.Sessions.ICA_REJECT_CALL, mOwnerPackageAbbreviation);
 
