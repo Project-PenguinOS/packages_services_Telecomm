@@ -2943,6 +2943,7 @@ public class CallsManager extends Call.ListenerBase
         // outgoing call.
         CompletableFuture<Pair<PhoneAccountHandle, Boolean>> makeRoomForCall =
                 dialerSelectPhoneAccountFuture.thenComposeAsync(potentialCallAttr -> {
+                    Log.i(CallsManager.this, "make room for call stage");
                     Call callToPlace = potentialCallAttr.first;
                     PhoneAccountHandle callHandle = potentialCallAttr.second;
                     if (callToPlace == null) {
@@ -2982,6 +2983,7 @@ public class CallsManager extends Call.ListenerBase
         // future.
         CompletableFuture<Pair<Call, PhoneAccountHandle>> makeRoomSelfManagedConfirmation =
                 makeRoomForCall.thenComposeAsync((callAttr) -> {
+                    Log.i(CallsManager.this, "make room for SM confirmation stage");
                     if (callAttr == null) {
                         return CompletableFuture.completedFuture(null);
                     }
@@ -3081,7 +3083,7 @@ public class CallsManager extends Call.ListenerBase
         // Finally, after all user interaction is complete, we execute this code to finish setting
         // up the outgoing call. The inner method always returns a completed future containing the
         // call that we've finished setting up.
-        mLatestPostSelectionProcessingFuture = makeRoomSelfManagedConfirmation
+        CompletableFuture<Call> callToUseFuture = makeRoomSelfManagedConfirmation
                 .thenComposeAsync(args -> {
                     if (args == null) {
                         return CompletableFuture.completedFuture(null);
@@ -3100,6 +3102,7 @@ public class CallsManager extends Call.ListenerBase
                         }
                     }
 
+                    Log.i(CallsManager.this, "set call (%s) state to connecting", callToUse);
                     callToUse.setState(
                             CallState.CONNECTING,
                             phoneAccountHandle == null ? "no-handle"
@@ -3134,11 +3137,13 @@ public class CallsManager extends Call.ListenerBase
                         // We check if mCalls already contains the call because we could
                         // potentially be reusing
                         // a call which was previously added (See {@link #reuseOutgoingCall}).
+                        Log.i(CallsManager.this, "Adding call (%s) for tracking", callToUse);
                         addCall(callToUse);
                     }
                     return CompletableFuture.completedFuture(callToUse);
                 }, new LoggedHandlerExecutor(outgoingCallHandler, "CM.pASP", mLock));
-        return mLatestPostSelectionProcessingFuture;
+        mLatestPostSelectionProcessingFuture = callToUseFuture;
+        return callToUseFuture;
     }
 
     private static UserHandle getManagedProfileUserHandle(Context context, int userId,
