@@ -14,7 +14,7 @@
  * limitations under the License
  */
 
-package com.android.server.telecomui.settings;
+package com.android.server.telecom.settings;
 
 import android.app.AlertDialog;
 import android.content.ContentResolver;
@@ -29,8 +29,7 @@ import android.view.View;
 import android.widget.SimpleCursorAdapter;
 import android.widget.TextView;
 
-import com.android.server.telecom.settings.BlockedNumbersUtil;
-import com.android.server.telecomui.R;
+import com.android.server.telecom.R;
 
 public class BlockedNumbersAdapter extends SimpleCursorAdapter {
     public BlockedNumbersAdapter(Context context, int layout, Cursor c, String[] from, int[] to,

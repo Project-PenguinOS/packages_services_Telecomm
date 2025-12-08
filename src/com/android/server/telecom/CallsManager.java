@@ -140,6 +140,7 @@ import com.android.server.telecom.callredirection.CallRedirectionProcessor;
 import com.android.server.telecom.callsequencing.CallSequencingController;
 import com.android.server.telecom.callsequencing.CallTransaction;
 import com.android.server.telecom.callsequencing.voip.IncomingCallTransaction;
+import com.android.server.telecom.components.ErrorDialogActivity;
 import com.android.server.telecom.components.TelecomBroadcastReceiver;
 import com.android.server.telecom.callsequencing.CallsManagerCallSequencingAdapter;
 import com.android.server.telecom.flags.FeatureFlags;
@@ -147,12 +148,13 @@ import com.android.server.telecom.metrics.ErrorStats;
 import com.android.server.telecom.metrics.TelecomMetricsController;
 import com.android.server.telecom.stats.CallFailureCause;
 import com.android.server.telecom.ui.AudioProcessingNotification;
+import com.android.server.telecom.ui.CallRedirectionTimeoutDialogActivity;
 import com.android.server.telecom.ui.CallStreamingNotification;
+import com.android.server.telecom.ui.ConfirmCallDialogActivity;
 import com.android.server.telecom.ui.DisconnectedCallNotifier;
 import com.android.server.telecom.ui.IncomingCallNotifier;
 import com.android.server.telecom.ui.LocalVoicemailNotification;
 import com.android.server.telecom.ui.ToastFactory;
-import com.android.server.telecom.ui.UiConstants;
 import com.android.server.telecom.util.CallerInfo;
 import com.android.server.telecom.callsequencing.voip.VoipCallMonitor;
 import com.android.server.telecom.callsequencing.TransactionManager;
@@ -3249,7 +3251,7 @@ public class CallsManager extends Call.ListenerBase
          // Enforce outgoing call restriction for conference calls. This is handled via
          // UserCallIntentProcessor for normal MO calls.
          if (UserUtil.hasOutgoingCallsUserRestriction(mContext, initiatingUser, null,
-                 isSelfManaged, CallsManager.class.getCanonicalName())) {
+                 isSelfManaged, CallsManager.class.getCanonicalName(), mFeatureFlags)) {
              return;
          }
          CompletableFuture<Call> callFuture = startOutgoingCall(participants, phoneAccountHandle,
@@ -3478,11 +3480,10 @@ public class CallsManager extends Call.ListenerBase
             // is not needed to show if the call is disconnected (e.g. by the user)
             if (uiAction.equals(CallRedirectionProcessor.UI_TYPE_USER_DEFINED_TIMEOUT)
                     && !call.isDisconnected()) {
-                Intent timeoutIntent = new Intent();
-                timeoutIntent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
-                        UiConstants.COMPONENT_CALL_REDIRECTION_TIMEOUT_DIALOG);
+                Intent timeoutIntent = new Intent(mContext,
+                        CallRedirectionTimeoutDialogActivity.class);
                 timeoutIntent.putExtra(
-                        UiConstants.EXTRA_REDIRECTION_APP_NAME,
+                        CallRedirectionTimeoutDialogActivity.EXTRA_REDIRECTION_APP_NAME,
                         mRoleManagerAdapter.getApplicationLabelForPackageName(callRedirectionApp));
                 timeoutIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 mContext.startActivityAsUser(timeoutIntent, UserHandle.CURRENT);
@@ -6253,7 +6254,7 @@ public class CallsManager extends Call.ListenerBase
      * switched, we reload missed calls of profile that are just started here.
      */
     void onUserStarting(UserHandle userHandle) {
-        if (UserUtil.isProfile(mContext, userHandle)) {
+        if (UserUtil.isProfile(mContext, userHandle, mFeatureFlags)) {
             reloadMissedCallsOfUser(userHandle);
         }
     }
@@ -6466,11 +6467,9 @@ public class CallsManager extends Call.ListenerBase
             Log.i(this, "startCallConfirmation: callId=%s, ongoingApp=%s", call.getId(),
                     ongoingAppName);
 
-            Intent confirmIntent = new Intent();
-            confirmIntent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
-                UiConstants.COMPONENT_CONFIRM_CALL_DIALOG);
-            confirmIntent.putExtra(UiConstants.EXTRA_OUTGOING_CALL_ID, call.getId());
-            confirmIntent.putExtra(UiConstants.EXTRA_ONGOING_APP_NAME, ongoingAppName);
+            Intent confirmIntent = new Intent(mContext, ConfirmCallDialogActivity.class);
+            confirmIntent.putExtra(ConfirmCallDialogActivity.EXTRA_OUTGOING_CALL_ID, call.getId());
+            confirmIntent.putExtra(ConfirmCallDialogActivity.EXTRA_ONGOING_APP_NAME, ongoingAppName);
             confirmIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             mContext.startActivityAsUser(confirmIntent, UserHandle.CURRENT);
         }
@@ -6632,10 +6631,8 @@ public class CallsManager extends Call.ListenerBase
             if (!TextUtils.isEmpty(disconnectCause.getDescription()) && ((disconnectCause.getCode()
                     == DisconnectCause.ERROR) || (disconnectCause.getCode()
                     == DisconnectCause.RESTRICTED))) {
-                final Intent errorIntent = new Intent();
-                errorIntent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
-                        UiConstants.COMPONENT_ERROR_DIALOG);
-                errorIntent.putExtra(UiConstants.ERROR_MESSAGE_STRING_EXTRA,
+                Intent errorIntent = new Intent(mContext, ErrorDialogActivity.class);
+                errorIntent.putExtra(ErrorDialogActivity.ERROR_MESSAGE_STRING_EXTRA,
                         disconnectCause.getDescription());
                 errorIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 mContext.startActivityAsUser(errorIntent, UserHandle.CURRENT);
@@ -7338,10 +7335,8 @@ public class CallsManager extends Call.ListenerBase
      * @param messageId The string resource id.
      */
     private void showErrorMessage(int messageId) {
-        final Intent errorIntent = new Intent();
-        errorIntent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
-              UiConstants.COMPONENT_ERROR_DIALOG);
-        errorIntent.putExtra(UiConstants.ERROR_MESSAGE_ID_EXTRA, messageId);
+        final Intent errorIntent = new Intent(mContext, ErrorDialogActivity.class);
+        errorIntent.putExtra(ErrorDialogActivity.ERROR_MESSAGE_ID_EXTRA, messageId);
         errorIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         mContext.startActivityAsUser(errorIntent, UserHandle.CURRENT);
     }

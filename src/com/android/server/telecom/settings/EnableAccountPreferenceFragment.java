@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.server.telecomui.settings;
+package com.android.server.telecom.settings;
 
 import android.content.Context;
 import android.graphics.drawable.Icon;
@@ -23,12 +23,12 @@ import android.preference.Preference;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceScreen;
 import android.preference.SwitchPreference;
-import android.util.Log;
+import android.telecom.Log;
 import android.telecom.PhoneAccount;
 import android.telecom.PhoneAccountHandle;
 import android.telecom.TelecomManager;
 
-import com.android.server.telecomui.R;
+import com.android.server.telecom.R;
 
 import java.util.List;
 
@@ -39,8 +39,6 @@ import java.util.List;
  * default dialer UI.
  */
 public class EnableAccountPreferenceFragment extends PreferenceFragment {
-
-    private static final String TAG = EnableAccountPreferenceFragment.class.getSimpleName();
 
     private final class AccountSwitchPreference extends SwitchPreference {
         private final PhoneAccount mAccount;
@@ -60,9 +58,9 @@ public class EnableAccountPreferenceFragment extends PreferenceFragment {
         }
 
         private boolean onPreferenceChange(Preference preference, Object newValue) {
-            Log.d(TAG, String.format("onPreferenceChange: key = %s", preference.getKey()));
-            Log.d(TAG, String.format("  preference = '%s'", preference));
-            Log.d(TAG, String.format("  newValue = '%b'", newValue));
+            Log.d(this, "onPreferenceChange: key = %s", preference.getKey());
+            Log.d(this, "  preference = '%s'", preference);
+            Log.d(this, "  newValue = '%b'", newValue);
 
             mTelecomManager.enablePhoneAccount(mAccount.getAccountHandle(), (boolean) newValue);
             return true;

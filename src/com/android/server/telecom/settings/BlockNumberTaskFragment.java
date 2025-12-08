@@ -14,7 +14,7 @@
  * limitations under the License
  */
 
-package com.android.server.telecomui.settings;
+package com.android.server.telecom.settings;
 
 import android.annotation.Nullable;
 import android.app.Fragment;

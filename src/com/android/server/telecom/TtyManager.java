@@ -51,7 +51,7 @@ final class TtyManager implements WiredHeadsetManager.Listener {
                     mContext.getContentResolver(),
                     Settings.Secure.PREFERRED_TTY_MODE,
                     TelecomManager.TTY_MODE_OFF,
-                    UserUtil.getUserIdFromContext(context));
+                    UserUtil.getUserIdFromContext(context, featureFlags));
         }
 
         IntentFilter intentFilter = new IntentFilter(

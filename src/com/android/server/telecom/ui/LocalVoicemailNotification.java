@@ -235,7 +235,7 @@ public class LocalVoicemailNotification extends CallsManagerListenerBase {
             mNotificationUserHandle = userHandle;
             try {
                 UserUtil.processNotification(mContext, userHandle, NOTIFICATION_TAG,
-                        VOICEMAIL_NOTIFICATION_ID, notification);
+                        VOICEMAIL_NOTIFICATION_ID, notification, mFeatureFlags);
             } catch (Exception e) {
                 Log.e(this, e, "Notification post failed.");
             }
@@ -251,7 +251,7 @@ public class LocalVoicemailNotification extends CallsManagerListenerBase {
             if (mIsNotificationShowing) {
                 mIsNotificationShowing = false;
                 UserUtil.processNotification(mContext, mNotificationUserHandle, NOTIFICATION_TAG,
-                        VOICEMAIL_NOTIFICATION_ID, null /* notification */);
+                        VOICEMAIL_NOTIFICATION_ID, null /* notification */, mFeatureFlags);
             }
         }
     }

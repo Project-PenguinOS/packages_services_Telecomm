@@ -33,6 +33,7 @@ import android.os.UserHandle;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.telecom.settings.BlockedNumbersActivity;
 import com.android.server.telecom.settings.BlockedNumbersUtil;
 
 import org.junit.Before;
@@ -51,7 +52,7 @@ public class BlockedNumbersUtilTests extends TelecomTestCase {
     @SmallTest
     @Test
     public void testPostNotification() {
-        BlockedNumbersUtil.updateEmergencyCallNotification(mContext, true);
+        BlockedNumbersUtil.updateEmergencyCallNotification(mContext, true, mFeatureFlags);
         NotificationManager mgr = mComponentContextFixture.getNotificationManager();
         Context userContext = mock(Context.class);
         when(mContext.createContextAsUser(any(UserHandle.class), eq(0)))
@@ -64,7 +65,7 @@ public class BlockedNumbersUtilTests extends TelecomTestCase {
     @SmallTest
     @Test
     public void testDismissNotification() {
-        BlockedNumbersUtil.updateEmergencyCallNotification(mContext, false);
+        BlockedNumbersUtil.updateEmergencyCallNotification(mContext, false, mFeatureFlags);
         NotificationManager mgr = mComponentContextFixture.getNotificationManager();
         Context userContext = mock(Context.class);
         when(mContext.createContextAsUser(any(UserHandle.class), eq(0)))
@@ -72,5 +73,17 @@ public class BlockedNumbersUtilTests extends TelecomTestCase {
         when(userContext.getSystemService(eq(NotificationManager.class)))
                 .thenReturn(mgr);
         verify(mgr).cancel(isNull(), anyInt());
+    }
+
+    /**
+     * Verify that when Telephony isn't present we can still check if a number is an emergency
+     * number in the {@link BlockedNumbersActivity} and not crash.
+     */
+    @SmallTest
+    @Test
+    public void testBlockedNumbersActivityEmergencyCheckWithNoTelephony() {
+        when(mComponentContextFixture.getTelephonyManager().isEmergencyNumber(anyString()))
+                .thenThrow(new UnsupportedOperationException("Bee boop"));
+        assertFalse(BlockedNumbersActivity.isEmergencyNumber(mContext, "911"));
     }
 }

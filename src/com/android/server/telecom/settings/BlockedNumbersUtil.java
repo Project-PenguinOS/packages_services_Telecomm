@@ -34,8 +34,8 @@ import android.widget.Toast;
 
 import com.android.server.telecom.R;
 import com.android.server.telecom.UserUtil;
+import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.ui.NotificationChannelManager;
-import com.android.server.telecom.ui.UiConstants;
 
 import java.util.Locale;
 
@@ -90,11 +90,10 @@ public final class BlockedNumbersUtil {
      * @param context context to start CallBlockDisabledActivity.
      * @param showNotification if {@code true} show notification, {@code false} cancel notification.
      */
-    public static void updateEmergencyCallNotification(Context context, boolean showNotification) {
+    public static void updateEmergencyCallNotification(Context context, boolean showNotification,
+            FeatureFlags featureFlags) {
         if (showNotification) {
-            Intent intent = new Intent();
-            intent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
-                    UiConstants.COMPONENT_CALL_BLOCK_DISABLED_DIALOG);
+            Intent intent = new Intent(context, CallBlockDisabledActivity.class);
             PendingIntent pendingIntent = PendingIntent.getActivity(
                     context, 0, intent, PendingIntent.FLAG_CANCEL_CURRENT
                             | PendingIntent.FLAG_IMMUTABLE);
@@ -115,10 +114,10 @@ public final class BlockedNumbersUtil {
 
             notification.flags |= Notification.FLAG_NO_CLEAR;
             UserUtil.processNotification(context, new UserHandle(UserHandle.USER_SYSTEM), null,
-                    EMERGENCY_CALL_NOTIFICATION, notification);
+                    EMERGENCY_CALL_NOTIFICATION, notification, featureFlags);
         } else {
             UserUtil.processNotification(context, new UserHandle(UserHandle.USER_SYSTEM), null,
-                    EMERGENCY_CALL_NOTIFICATION, null /* notification */);
+                    EMERGENCY_CALL_NOTIFICATION, null /* notification */, featureFlags);
         }
     }
 
@@ -129,7 +128,7 @@ public final class BlockedNumbersUtil {
      * @return If {@code true} means enhanced call blocking enabled by platform,
      *            {@code false} otherwise.
      */
-    public static boolean isEnhancedCallBlockingEnabledByPlatform(Context context) {
+    public static boolean isEnhancedCallBlockingEnabledByPlatform(Context context, FeatureFlags f) {
         CarrierConfigManager configManager = (CarrierConfigManager) context.getSystemService(
                 Context.CARRIER_CONFIG_SERVICE);
         PersistableBundle carrierConfig = null;
@@ -151,8 +150,11 @@ public final class BlockedNumbersUtil {
      * @return If {@code true} means the key enabled in the SharedPreferences,
      *            {@code false} otherwise.
      */
-    public static boolean getBlockedNumberSetting(Context context, String key) {
-        return context.getSystemService(BlockedNumbersManager.class).getBlockedNumberSetting(key);
+    public static boolean getBlockedNumberSetting(Context context, String key,
+            FeatureFlags featureFlags) {
+        return featureFlags.telecomMainlineBlockedNumbersManager()
+                ? context.getSystemService(BlockedNumbersManager.class).getBlockedNumberSetting(key)
+                : BlockedNumberContract.SystemContract.getEnhancedBlockSetting(context, key);
     }
 
     /**
@@ -162,8 +164,13 @@ public final class BlockedNumbersUtil {
      * @param key preference key of SharedPreferences.
      * @param value the register value to the SharedPreferences.
      */
-    public static void setBlockedNumberSetting(Context context, String key, boolean value) {
-        context.getSystemService(BlockedNumbersManager.class).setBlockedNumberSetting(key, value);
-
+    public static void setBlockedNumberSetting(Context context, String key, boolean value,
+            FeatureFlags featureFlags) {
+        if (featureFlags.telecomMainlineBlockedNumbersManager()) {
+            context.getSystemService(BlockedNumbersManager.class).setBlockedNumberSetting(key,
+                    value);
+        } else {
+            BlockedNumberContract.SystemContract.setEnhancedBlockSetting(context, key, value);
+        }
     }
 }

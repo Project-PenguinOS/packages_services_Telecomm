@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.server.telecomui;
+package com.android.server.telecom;
 
 import android.app.ActionBar;
 import android.app.Activity;
@@ -25,15 +25,12 @@ import android.preference.EditTextPreference;
 import android.preference.Preference;
 import android.preference.PreferenceActivity;
 import android.preference.PreferenceScreen;
-import android.util.Log;
+import android.telecom.Log;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.view.MenuItem;
 import android.widget.Button;
-
-import com.android.server.telecomui.QuickResponseUtils;
-import com.android.server.telecomui.R;
 
 // TODO: This class is newly copied into Telecom (com.android.server.telecom) from it previous
 // location in Telephony (com.android.phone). User's preferences stored in the old location
@@ -46,14 +43,12 @@ import com.android.server.telecomui.R;
 public class RespondViaSmsSettings extends PreferenceActivity
         implements Preference.OnPreferenceChangeListener {
 
-    private static final String TAG = RespondViaSmsSettings.class.getSimpleName();
-
     private SharedPreferences mPrefs;
 
     @Override
     protected void onCreate(Bundle icicle) {
         super.onCreate(icicle);
-        Log.d(TAG, "Settings: onCreate()...");
+        Log.d(this, "Settings: onCreate()...");
 
         // This function guarantees that QuickResponses will be in our
         // SharedPreferences with the proper values considering there may be
@@ -103,9 +98,9 @@ public class RespondViaSmsSettings extends PreferenceActivity
     // Preference.OnPreferenceChangeListener implementation
     @Override
     public boolean onPreferenceChange(Preference preference, Object newValue) {
-        Log.d(TAG, String.format("onPreferenceChange: key = %s", preference.getKey()));
-        Log.d(TAG, String.format("  preference = '%s'", preference));
-        Log.d(TAG, String.format("  newValue = '%s'", newValue));
+        Log.d(this, "onPreferenceChange: key = %s", preference.getKey());
+        Log.d(this, "  preference = '%s'", preference);
+        Log.d(this, "  newValue = '%s'", newValue);
 
         EditTextPreference pref = (EditTextPreference)findPreference(preference.getKey());
 
@@ -178,7 +173,7 @@ public class RespondViaSmsSettings extends PreferenceActivity
                         button.setEnabled(true);
                     }
                 } catch (NullPointerException e) {
-                    Log.d(TAG, e.toString());
+                    Log.d(this, e.toString());
                 }
             }
         });
