@@ -79,7 +79,7 @@ public class CallIntentProcessorTest extends TelecomTestCase {
     @Mock
     private ComponentInfo mComponentInfo;
     @Mock
-    private CompletableFuture<Call> mCall;
+    private CompletableFuture<Call> mCallFuture;
     private CallIntentProcessor mCallIntentProcessor;
     private static final UserHandle PRIVATE_SPACE_USERHANDLE = new UserHandle(12);
     private static final String TEST_PACKAGE_NAME = "testPackageName";
@@ -101,8 +101,8 @@ public class CallIntentProcessorTest extends TelecomTestCase {
         when(mCallsManager.getPhoneNumberUtilsAdapter()).thenReturn(mPhoneNumberUtilsAdapter);
         when(mPhoneNumberUtilsAdapter.isUriNumber(anyString())).thenReturn(true);
         when(mCallsManager.startOutgoingCall(any(Uri.class), any(), any(Bundle.class),
-                any(UserHandle.class), any(Intent.class), anyString())).thenReturn(mCall);
-        when(mCall.thenAccept(any())).thenReturn(null);
+                any(UserHandle.class), any(Intent.class), anyString())).thenReturn(mCallFuture);
+        when(mCallFuture.thenAccept(any())).thenReturn(CompletableFuture.completedFuture(null));
     }
 
     @Test

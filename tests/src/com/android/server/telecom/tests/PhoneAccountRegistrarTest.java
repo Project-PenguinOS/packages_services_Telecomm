@@ -52,6 +52,7 @@ import android.os.PersistableBundle;
 import android.os.Process;
 import android.os.UserHandle;
 import android.os.UserManager;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.telecom.Log;
 import android.telecom.PhoneAccount;
 import android.telecom.PhoneAccountHandle;
@@ -76,6 +77,7 @@ import com.android.server.telecom.TelecomSystem;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -105,6 +107,9 @@ import java.util.UUID;
 
 @RunWith(JUnit4.class)
 public class PhoneAccountRegistrarTest extends TelecomTestCase {
+
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     private static final int MAX_VERSION = Integer.MAX_VALUE;
     private static final int INVALID_CHAR_LIMIT_COUNT =
@@ -1427,9 +1432,24 @@ public class PhoneAccountRegistrarTest extends TelecomTestCase {
         PhoneAccountRegistrar.State testState = makeQuickStateWithTelephonyPhoneAccountHandle();
         final int mTestPhoneAccountHandleSubIdInt = 123;
         // Mock SubscriptionManager
-        SubscriptionInfo subscriptionInfo = new SubscriptionInfo(
-                mTestPhoneAccountHandleSubIdInt, "id0", 1, "a", "b", 1, 1, "test",
-                        1, null, null, null, null, false, null, null);
+        SubscriptionInfo subscriptionInfo = new SubscriptionInfo.Builder()
+                .setId(mTestPhoneAccountHandleSubIdInt)
+                .setIccId("id0")
+                .setSimSlotIndex(1)
+                .setDisplayName("a")
+                .setCarrierName("b")
+                .setDisplayNameSource(1)
+                .setIconTint(1)
+                .setNumber("test")
+                .setDataRoaming(1)
+                .setIcon(null)
+                .setMcc(null)
+                .setMnc(null)
+                .setCountryIso(null)
+                .setEmbedded(false)
+                .setNativeAccessRules(null)
+                .setCardString(null)
+                .build();
         List<SubscriptionInfo> subscriptionInfoList = new ArrayList<>();
         subscriptionInfoList.add(subscriptionInfo);
         when(mSubscriptionManager.getAllSubscriptionInfoList()).thenReturn(subscriptionInfoList);
@@ -1950,6 +1970,38 @@ public class PhoneAccountRegistrarTest extends TelecomTestCase {
                 simAccount.getAccountHandle().getUserHandle());
 
         // There is nothing to verify, we just want to ensure that we didn't crash.
+    }
+
+    @MediumTest
+    @Test
+    public void testStateSerialization_LocalVoicemailFlag() throws Exception {
+        // --- Setup ---
+        // Create a state object with a local voicemail timeout entry.
+        PhoneAccountRegistrar.State input = makeQuickState();
+        PhoneAccountHandle testHandle = makeQuickAccountHandle("id_voicemail");
+        Duration testDuration = Duration.ofSeconds(30);
+        input.localVoicemailTimeout.put(testHandle, testDuration);
+
+        // --- Test with flag ENABLED ---
+        // Enable the local_voicemail flag to ensure the data is written to XML.
+        mSetFlagsRule.enableFlags("android.telecom.flags.local_voicemail");
+        PhoneAccountRegistrar.State resultWithFlag = roundTripXml(this, input,
+                PhoneAccountRegistrar.sStateXml, mContext, mTelephonyFeatureFlags, mFeatureFlags);
+
+        // Assert that voicemail timeout is correctly serialized and deserialized.
+        assertNotNull(resultWithFlag.localVoicemailTimeout);
+        assertEquals(1, resultWithFlag.localVoicemailTimeout.size());
+        assertEquals(testDuration, resultWithFlag.localVoicemailTimeout.get(testHandle));
+
+        // --- Test with flag DISABLED ---
+        // Disable the local_voicemail flag to ensure the data is NOT written to XML.
+        mSetFlagsRule.disableFlags("android.telecom.flags.local_voicemail");
+        PhoneAccountRegistrar.State resultWithoutFlag = roundTripXml(this, input,
+                PhoneAccountRegistrar.sStateXml, mContext, mTelephonyFeatureFlags, mFeatureFlags);
+
+        // Assert that the voicemail timeout map is empty after deserialization.
+        assertNotNull(resultWithoutFlag.localVoicemailTimeout);
+        assertTrue(resultWithoutFlag.localVoicemailTimeout.isEmpty());
     }
 
     @MediumTest

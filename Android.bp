@@ -78,6 +78,41 @@ android_app {
     },
 }
 
+android_app {
+    name: "TelecomUi",
+    manifest: "TelecomUi/AndroidManifest.xml",
+    srcs: [
+        "TelecomUi/src/**/*.java",
+    ],
+    resource_dirs: [
+        "TelecomUi/res",
+    ],
+    static_libs: [
+        "TelecomLib",
+        "framework-annotations-lib", // For @Nullable, @VisibleForTesting
+        "telecom-strings", // All strings and translations
+    ],
+    libs: [
+        "framework-telecom.stubs.module_lib",
+    ],
+    min_sdk_version: "36",
+    platform_apis: true,
+    certificate: "platform",
+    privileged: true,
+    optimize: {
+        proguard_flags_files: ["proguard.flags"],
+    },
+}
+
+android_library {
+    name: "telecom-strings",
+    manifest: "AndroidManifestLib.xml",
+    srcs: [
+        "res/values*/strings.xml",
+    ],
+    min_sdk_version: "36",
+}
+
 // Build telecom util static lib
 java_library_static {
     name: "telecom-util-lib",

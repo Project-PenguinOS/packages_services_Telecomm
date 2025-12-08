@@ -2429,7 +2429,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     }
 
     /** @see IConnectionService#reject(String, Session.Info) */
-    void rejectWithReason(Call call, @android.telecom.Call.RejectReason int rejectReason) {
+    void rejectWithReason(Call call, /*@android.telecom.Call.RejectReason*/ int rejectReason) {
         final String callId = mCallIdMapper.getCallId(call);
         if (callId != null && isServiceValid("rejectReason")) {
             try {

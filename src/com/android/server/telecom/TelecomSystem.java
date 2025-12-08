@@ -24,7 +24,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
-import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
 import android.os.BugreportManager;
@@ -71,21 +70,6 @@ import java.util.concurrent.ScheduledExecutorService;
  * Top-level Application class for Telecom.
  */
 public class TelecomSystem {
-
-    /**
-     * This interface is implemented by system-instantiated components (e.g., Services and
-     * Activity-s) that wish to use the TelecomSystem but would like to be testable. Such a
-     * component should implement the getTelecomSystem() method to return the global singleton,
-     * and use its own method. Tests can subclass the component to return a non-singleton.
-     *
-     * A refactoring goal for Telecom is to limit use of the TelecomSystem singleton to those
-     * system-instantiated components, and have all other parts of the system just take all their
-     * dependencies as explicit arguments to their constructor or other methods.
-     */
-    public interface Component {
-        TelecomSystem getTelecomSystem();
-    }
-
 
     /**
      * Tagging interface for the object used for synchronizing multi-threaded operations in
@@ -524,7 +508,7 @@ public class TelecomSystem {
                         @Override
                         public UserCallIntentProcessor create(Context context,
                                 UserHandle userHandle) {
-                            return new UserCallIntentProcessor(context, userHandle, featureFlags);
+                            return new UserCallIntentProcessor(context, userHandle);
                         }
                     },
                     defaultDialerCache,

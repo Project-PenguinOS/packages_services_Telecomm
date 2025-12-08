@@ -204,7 +204,7 @@ public class DefaultDialerCache {
 
     public String getDefaultDialerApplication() {
         return getDefaultDialerApplication(
-                new UserHandle(UserUtil.getUserIdFromContext(mContext, mFeatureFlags)));
+                new UserHandle(UserUtil.getUserIdFromContext(mContext)));
     }
 
     public void setSystemDialerComponentName(ComponentName testComponentName) {

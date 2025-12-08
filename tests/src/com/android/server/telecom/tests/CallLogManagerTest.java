@@ -670,6 +670,61 @@ public class CallLogManagerTest extends TelecomTestCase {
 
     @MediumTest
     @Test
+    public void testLogCallVonrFeature() {
+        when(mFeatureFlags.hdPlusCall()).thenReturn(true);
+        when(mMockPhoneAccountRegistrar.getPhoneAccountUnchecked(any(PhoneAccountHandle.class)))
+                .thenReturn(makeFakePhoneAccount(mDefaultAccountHandle, 0 /* capabilities */));
+        Call fakeVonrCall = makeFakeCall(
+                DisconnectCause.OTHER, // disconnectCauseCode
+                false, // isConference
+                true, // isIncoming
+                1L, // creationTimeMillis
+                1000L, // ageMillis
+                TEL_PHONEHANDLE, // callHandle
+                mDefaultAccountHandle, // phoneAccountHandle
+                NO_VIDEO_STATE, // callVideoState
+                POST_DIAL_STRING, // postDialDigits
+                VIA_NUMBER_STRING, // viaNumber
+                UserHandle.of(CURRENT_USER_ID)
+        );
+        when(fakeVonrCall.wasVonr()).thenReturn(true);
+
+        mCallLogManager.onCallStateChanged(fakeVonrCall, CallState.ACTIVE, CallState.DISCONNECTED);
+        ContentValues insertedValues = verifyInsertionWithCapture(CURRENT_USER_ID);
+        assertTrue((insertedValues.getAsInteger(CallLog.Calls.FEATURES)
+                & CallLog.Calls.FEATURES_VONR) == CallLog.Calls.FEATURES_VONR);
+    }
+
+    @MediumTest
+    @Test
+    public void testNoLogCallVonrFeatureWhenFlagDisabled() {
+        when(mFeatureFlags.hdPlusCall()).thenReturn(false);
+        when(mMockPhoneAccountRegistrar.getPhoneAccountUnchecked(any(PhoneAccountHandle.class)))
+                .thenReturn(makeFakePhoneAccount(mDefaultAccountHandle, 0 /* capabilities */));
+        Call fakeVonrCall = makeFakeCall(
+                DisconnectCause.OTHER, // disconnectCauseCode
+                false, // isConference
+                true, // isIncoming
+                1L, // creationTimeMillis
+                1000L, // ageMillis
+                TEL_PHONEHANDLE, // callHandle
+                mDefaultAccountHandle, // phoneAccountHandle
+                NO_VIDEO_STATE, // callVideoState
+                POST_DIAL_STRING, // postDialDigits
+                VIA_NUMBER_STRING, // viaNumber
+                UserHandle.of(CURRENT_USER_ID)
+        );
+        when(fakeVonrCall.wasVonr()).thenReturn(true);
+
+        mCallLogManager.onCallStateChanged(fakeVonrCall, CallState.ACTIVE, CallState.DISCONNECTED);
+        ContentValues insertedValues = verifyInsertionWithCapture(CURRENT_USER_ID);
+        Integer features = insertedValues.getAsInteger(CallLog.Calls.FEATURES);
+        if (features == null) {
+            features = 0;
+        }
+        assertFalse((features & CallLog.Calls.FEATURES_VONR) == CallLog.Calls.FEATURES_VONR);
+    }
+
     public void testLogGroupCallFeatures() {
         when(mMockPhoneAccountRegistrar.getPhoneAccountUnchecked(any(PhoneAccountHandle.class)))
                 .thenReturn(makeFakePhoneAccount(mDefaultAccountHandle, 0 /* capabilities */));
