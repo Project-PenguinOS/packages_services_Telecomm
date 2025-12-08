@@ -19,6 +19,7 @@ package com.android.server.telecom.tests;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -363,5 +364,56 @@ public class CallEndpointControllerTest extends TelecomTestCase {
         verify(mCallAudioManager, never()).setAudioRoute(eq(CallAudioState.ROUTE_BLUETOOTH),
                 eq(bluetoothDevice1.getAddress()));
         verify(mResultReceiver).send(eq(CallEndpoint.ENDPOINT_OPERATION_FAILED), any());
+    }
+
+    @Test
+    public void testFindMatchingRouteEndpoint_SuccessEarpiece() {
+        // Setup: Initialize with a state that supports all routes (Earpiece, Speaker, BT, etc).
+        mCallEndpointController.onCallAudioStateChanged(null, audioState1);
+
+        // Scenario 1: Find an existing endpoint (Earpiece).
+        CallEndpoint earpieceEndpoint = mCallEndpointController.findMatchingRouteEndpoint(
+                CallAudioState.ROUTE_EARPIECE);
+
+        assertNotNull(earpieceEndpoint);
+        assertEquals(CallEndpoint.TYPE_EARPIECE, earpieceEndpoint.getEndpointType());
+    }
+
+    @Test
+    public void testFindMatchingRouteEndpoint_SuccessSpeaker() {
+        // Setup: Initialize with a state that supports all routes (Earpiece, Speaker, BT, etc).
+        mCallEndpointController.onCallAudioStateChanged(null, audioState1);
+
+        // Scenario 2: Find another existing endpoint (Speaker).
+        CallEndpoint speakerEndpoint = mCallEndpointController.findMatchingRouteEndpoint(
+                CallAudioState.ROUTE_SPEAKER);
+
+        assertNotNull(speakerEndpoint);
+        assertEquals(CallEndpoint.TYPE_SPEAKER, speakerEndpoint.getEndpointType());
+    }
+
+    @Test
+    public void testFindMatchingRouteEndpoint_FailUnavailable() {
+        // Scenario 3: Try to find an endpoint that is not available.
+        // Setup: Change the state to one that only supports Earpiece.
+        mCallEndpointController.onCallAudioStateChanged(null, audioState6);
+
+        CallEndpoint nonExistentSpeaker = mCallEndpointController.findMatchingRouteEndpoint(
+                CallAudioState.ROUTE_SPEAKER);
+
+        assertNull(nonExistentSpeaker);
+    }
+
+    @Test
+    public void testFindMatchingRouteEndpoint_FailEmptyList() {
+        // Scenario 4: Try to find an endpoint when the available list is empty.
+        // Setup: The STREAMING-only state results in an empty available endpoint list.
+        mCallEndpointController.onCallAudioStateChanged(null, audioState7);
+        assertTrue(mCallEndpointController.getAvailableEndpoints().isEmpty());
+
+        CallEndpoint nonExistentEarpiece = mCallEndpointController.findMatchingRouteEndpoint(
+                CallAudioState.ROUTE_EARPIECE);
+
+        assertNull(nonExistentEarpiece);
     }
 }

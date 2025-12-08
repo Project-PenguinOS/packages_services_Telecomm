@@ -14,18 +14,17 @@
  * limitations under the License
  */
 
-package com.android.server.telecom.ui;
+package com.android.server.telecomui.ui;
 
-import com.android.server.telecom.R;
-import com.android.server.telecom.TelecomBroadcastIntentProcessor;
-import com.android.server.telecom.components.TelecomBroadcastReceiver;
+import com.android.server.telecomui.R;
+import com.android.server.telecom.ui.Constants;
 
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
-import android.telecom.Log;
+import android.util.Log;
 
 /**
  * Dialog activity used when there is an ongoing self-managed call and the user initiates a new
@@ -33,6 +32,7 @@ import android.telecom.Log;
  * self-managed call in order to place the new managed call.
  */
 public class ConfirmCallDialogActivity extends Activity {
+    private static final String TAG = ConfirmCallDialogActivity.class.getSimpleName();
     public static final String EXTRA_OUTGOING_CALL_ID = "android.telecom.extra.OUTGOING_CALL_ID";
     public static final String EXTRA_ONGOING_APP_NAME = "android.telecom.extra.ONGOING_APP_NAME";
 
@@ -46,17 +46,17 @@ public class ConfirmCallDialogActivity extends Activity {
     }
 
     private void showDialog(final String callId, CharSequence ongoingAppName) {
-        Log.i(this, "showDialog: confirming callId=%s, ongoing=%s", callId, ongoingAppName);
+        Log.i(TAG, String.format("showDialog: confirming callId=%s, ongoing=%s", callId,
+                ongoingAppName));
         CharSequence message = getString(R.string.alert_outgoing_call, ongoingAppName);
         final AlertDialog errorDialog = new AlertDialog.Builder(this)
                 .setMessage(message)
                 .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        Intent proceedWithCall = new Intent(
-                                TelecomBroadcastIntentProcessor.ACTION_PROCEED_WITH_CALL, null,
-                                ConfirmCallDialogActivity.this,
-                                TelecomBroadcastReceiver.class);
+                        Intent proceedWithCall = new Intent(Constants.ACTION_PROCEED_WITH_CALL);
+                        proceedWithCall.setClassName(Constants.TELECOM_PACKAGE,
+                                Constants.TELECOM_BROADCAST_RECEIVER_CLASS);
                         proceedWithCall.putExtra(EXTRA_OUTGOING_CALL_ID, callId);
                         sendBroadcast(proceedWithCall);
                         dialog.dismiss();
@@ -66,10 +66,9 @@ public class ConfirmCallDialogActivity extends Activity {
                 .setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        Intent cancelCall = new Intent(
-                                TelecomBroadcastIntentProcessor.ACTION_CANCEL_CALL, null,
-                                ConfirmCallDialogActivity.this,
-                                TelecomBroadcastReceiver.class);
+                        Intent cancelCall = new Intent(Constants.ACTION_CANCEL_CALL);
+                        cancelCall.setClassName(Constants.TELECOM_PACKAGE,
+                                Constants.TELECOM_BROADCAST_RECEIVER_CLASS);
                         cancelCall.putExtra(EXTRA_OUTGOING_CALL_ID, callId);
                         sendBroadcast(cancelCall);
                         dialog.dismiss();
@@ -79,10 +78,9 @@ public class ConfirmCallDialogActivity extends Activity {
                 .setOnCancelListener(new DialogInterface.OnCancelListener() {
                     @Override
                     public void onCancel(DialogInterface dialog) {
-                        Intent cancelCall = new Intent(
-                                TelecomBroadcastIntentProcessor.ACTION_CANCEL_CALL, null,
-                                ConfirmCallDialogActivity.this,
-                                TelecomBroadcastReceiver.class);
+                        Intent cancelCall = new Intent(Constants.ACTION_CANCEL_CALL);
+                        cancelCall.setClassName(Constants.TELECOM_PACKAGE,
+                                Constants.TELECOM_BROADCAST_RECEIVER_CLASS);
                         cancelCall.putExtra(EXTRA_OUTGOING_CALL_ID, callId);
                         sendBroadcast(cancelCall);
                         dialog.dismiss();

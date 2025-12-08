@@ -547,7 +547,7 @@ public class TransactionalServiceWrapper implements
     }
 
     public void onCallStreamingFailed(Call call,
-            @CallStreamingService.StreamingFailedReason int streamingFailedReason) {
+            /*@CallStreamingService.StreamingFailedReason*/ int streamingFailedReason) {
         if (call != null) {
             try {
                 mICallEventCallback.onCallStreamingFailed(call.getId(), streamingFailedReason);

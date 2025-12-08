@@ -96,14 +96,13 @@ public class AudioProcessingNotification extends CallsManagerListenerBase {
 
         Notification notification = builder.build();
         UserUtil.processNotification(mContext, mCallInAudioProcessing.getAssociatedUser(),
-                NOTIFICATION_TAG, AUDIO_PROCESSING_NOTIFICATION_ID, notification, mFeatureFlags);
+                NOTIFICATION_TAG, AUDIO_PROCESSING_NOTIFICATION_ID, notification);
     }
 
     /** Cancels the audio processing notification. */
     private void cancelAudioProcessingNotification(UserHandle userHandle) {
         Log.i(this, "cancelAudioProcessingNotification for user = %s", userHandle);
         UserUtil.processNotification(mContext, mCallInAudioProcessing.getAssociatedUser(),
-                NOTIFICATION_TAG, AUDIO_PROCESSING_NOTIFICATION_ID, null /* notification */,
-                mFeatureFlags);
+                NOTIFICATION_TAG, AUDIO_PROCESSING_NOTIFICATION_ID, null /* notification */);
     }
 }

@@ -2497,7 +2497,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     }
 
     /** @see IConnectionService#reject(String, Session.Info) */
-    void rejectWithReason(Call call, @android.telecom.Call.RejectReason int rejectReason) {
+    void rejectWithReason(Call call, /*@android.telecom.Call.RejectReason*/ int rejectReason) {
         final String callId = mCallIdMapper.getCallId(call);
 // QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("rejectReason") && mServiceInterface != null) {
