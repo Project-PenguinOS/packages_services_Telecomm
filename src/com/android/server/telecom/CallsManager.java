@@ -7595,6 +7595,10 @@ public class CallsManager extends Call.ListenerBase
                 isEnabled);
     }
 
+    public boolean isCallLogPrefEnabledForPackage(UserHandle userHandle, String packageName) {
+        return mCallLogIntegrationAdapter.isCallLogPrefEnabledForPackage(userHandle, packageName);
+    }
+
     public LocalVoicemailController getLocalVoicemailController() {
         return mLocalVoicemailController;
     }
