@@ -17,6 +17,12 @@
 <resources>
     <!--follows the dialer theme color-->
     <color name="theme_color">#2a56c6</color>
+    <color name="background_color">#fafafa</color>
+
+    <!--Use the one consistence with dialer-->
+    <color name="blocked_numbers_divider_color">#d8d8d8</color>
+    <color name="blocked_numbers_primary_text_color">#202124</color>
+    <color name="blocked_numbers_secondary_text_color">#5f6368</color>
 
     <!--follows dialer color-->
     <color name="notification_action_answer">#097138</color>

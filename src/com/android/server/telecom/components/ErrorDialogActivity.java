@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-package com.android.server.telecomui.components;
+package com.android.server.telecom.components;
 
-import com.android.server.telecomui.R;
+import com.android.server.telecom.R;
 
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
+import android.telecom.Log;
 
 /**
  * Used to display an error dialog from within the Telecom service when an outgoing call fails

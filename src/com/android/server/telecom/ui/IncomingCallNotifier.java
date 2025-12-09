@@ -180,13 +180,13 @@ public class IncomingCallNotifier extends CallsManagerListenerBase {
         Notification.Builder builder = getNotificationBuilder(call,
                 mCallsManagerProxy.getActiveCall());
         UserUtil.processNotification(mContext, call.getAssociatedUser(), NOTIFICATION_TAG,
-                NOTIFICATION_INCOMING_CALL, builder.build());
+                NOTIFICATION_INCOMING_CALL, builder.build(), mFeatureFlags);
     }
 
     private void hideIncomingCallNotification(UserHandle userHandle) {
         Log.i(this, "hideIncomingCallNotification for user = %s", userHandle);
         UserUtil.processNotification(mContext, userHandle, NOTIFICATION_TAG,
-                NOTIFICATION_INCOMING_CALL, null /* notification */);
+                NOTIFICATION_INCOMING_CALL, null /* notification */, mFeatureFlags);
     }
 
     private String getNotificationName(Call call) {

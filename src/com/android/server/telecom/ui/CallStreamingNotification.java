@@ -290,7 +290,7 @@ public class CallStreamingNotification extends CallsManagerListenerBase implemen
             mNotificationUserHandle = userHandle;
             try {
                 UserUtil.processNotification(mContext, userHandle, NOTIFICATION_TAG,
-                        STREAMING_NOTIFICATION_ID, notification);
+                        STREAMING_NOTIFICATION_ID, notification, mFeatureFlags);
             } catch (Exception e) {
                 // We don't want to crash Telecom if something changes with the requirements for the
                 // notification.
@@ -308,7 +308,7 @@ public class CallStreamingNotification extends CallsManagerListenerBase implemen
             if (mIsNotificationShowing) {
                 mIsNotificationShowing = false;
                 UserUtil.processNotification(mContext, mNotificationUserHandle, NOTIFICATION_TAG,
-                        STREAMING_NOTIFICATION_ID, null /* notification */);
+                        STREAMING_NOTIFICATION_ID, null /* notification */, mFeatureFlags);
             }
         }
     }

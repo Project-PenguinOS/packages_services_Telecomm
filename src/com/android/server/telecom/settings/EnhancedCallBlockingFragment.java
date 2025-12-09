@@ -14,7 +14,7 @@
  * limitations under the License
  */
 
-package com.android.server.telecomui.settings;
+package com.android.server.telecom.settings;
 
 import android.content.Context;
 import android.os.Bundle;
@@ -24,20 +24,19 @@ import android.preference.PreferenceFragment;
 import android.preference.PreferenceScreen;
 import android.preference.SwitchPreference;
 import android.provider.BlockedNumbersManager;
-import android.provider.BlockedNumberContract;
 import android.telephony.CarrierConfigManager;
 import android.telephony.SubscriptionManager;
-import android.util.Log;
+import android.telecom.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
-import com.android.server.telecom.settings.BlockedNumbersUtil;
-import com.android.server.telecomui.R;
+import com.android.server.telecom.R;
+import com.android.server.telecom.flags.FeatureFlags;
+import com.android.server.telecom.flags.FeatureFlagsImpl;
 
 public class EnhancedCallBlockingFragment extends PreferenceFragment
         implements Preference.OnPreferenceChangeListener {
-    private static final String TAG = EnhancedCallBlockingFragment.class.getSimpleName();
     private static final String BLOCK_NUMBERS_NOT_IN_CONTACTS_KEY =
             "block_numbers_not_in_contacts_setting";
     private static final String BLOCK_RESTRICTED_NUMBERS_KEY =
@@ -48,11 +47,13 @@ public class EnhancedCallBlockingFragment extends PreferenceFragment
             "block_unavailable_calls_setting";
     private boolean mIsCombiningRestrictedAndUnknownOption = false;
     private boolean mIsCombiningUnavailableAndUnknownOption = false;
+    private FeatureFlags mFeatureFlags;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         addPreferencesFromResource(R.xml.enhanced_call_blocking_settings);
+        mFeatureFlags = new FeatureFlagsImpl();
 
         maybeConfigureCallBlockingOptions();
 
@@ -92,7 +93,7 @@ public class EnhancedCallBlockingFragment extends PreferenceFragment
         if (!isShowingNotInContactsOption) {
             Preference pref = findPreference(BLOCK_NUMBERS_NOT_IN_CONTACTS_KEY);
             screen.removePreference(pref);
-            Log.i(TAG, "onCreate: removed block not in contacts preference.");
+            Log.i(this, "onCreate: removed block not in contacts preference.");
         }
 
         mIsCombiningRestrictedAndUnknownOption = getResources().getBoolean(
@@ -100,7 +101,7 @@ public class EnhancedCallBlockingFragment extends PreferenceFragment
         if (mIsCombiningRestrictedAndUnknownOption) {
             Preference restricted_pref = findPreference(BLOCK_RESTRICTED_NUMBERS_KEY);
             screen.removePreference(restricted_pref);
-            Log.i(TAG, "onCreate: removed block restricted preference.");
+            Log.i(this, "onCreate: removed block restricted preference.");
         }
 
         mIsCombiningUnavailableAndUnknownOption = getResources().getBoolean(
@@ -108,7 +109,7 @@ public class EnhancedCallBlockingFragment extends PreferenceFragment
         if (mIsCombiningUnavailableAndUnknownOption) {
             Preference unavailable_pref = findPreference(BLOCK_UNAVAILABLE_NUMBERS_KEY);
             screen.removePreference(unavailable_pref);
-            Log.i(TAG, "onCreate: removed block unavailable preference.");
+            Log.i(this, "onCreate: removed block unavailable preference.");
         }
     }
 
@@ -141,8 +142,8 @@ public class EnhancedCallBlockingFragment extends PreferenceFragment
     private void updateEnhancedBlockPref(String key) {
         SwitchPreference pref = (SwitchPreference) findPreference(key);
         if (pref != null) {
-          boolean isChecked = BlockedNumberContract.SystemContract.getEnhancedBlockSetting(
-                getActivity(), key);
+            pref.setChecked(BlockedNumbersUtil.getBlockedNumberSetting(
+                    getActivity(), key, mFeatureFlags));
         }
     }
 
@@ -150,22 +151,22 @@ public class EnhancedCallBlockingFragment extends PreferenceFragment
     public boolean onPreferenceChange(Preference preference, Object objValue) {
         if (preference.getKey().equals(BLOCK_UNKNOWN_NUMBERS_KEY)) {
             if (mIsCombiningRestrictedAndUnknownOption) {
-                Log.i(TAG, String.format("onPreferenceChange: changing %s and %s to %b",
-                        preference.getKey(), BLOCK_RESTRICTED_NUMBERS_KEY, (boolean) objValue));
-                BlockedNumberContract.SystemContract.setEnhancedBlockSetting(getActivity(),
-                        BLOCK_RESTRICTED_NUMBERS_KEY, (boolean) objValue);
+                Log.i(this, "onPreferenceChange: changing %s and %s to %b",
+                        preference.getKey(), BLOCK_RESTRICTED_NUMBERS_KEY, (boolean) objValue);
+                BlockedNumbersUtil.setBlockedNumberSetting(getActivity(),
+                        BLOCK_RESTRICTED_NUMBERS_KEY, (boolean) objValue, mFeatureFlags);
             }
 
             if (mIsCombiningUnavailableAndUnknownOption) {
-                Log.i(TAG, String.format("onPreferenceChange: changing %s and %s to %b",
-                        preference.getKey(), BLOCK_UNAVAILABLE_NUMBERS_KEY, (boolean) objValue));
-                BlockedNumberContract.SystemContract.setEnhancedBlockSetting(getActivity(),
-                        BLOCK_UNAVAILABLE_NUMBERS_KEY, (boolean) objValue);
+                Log.i(this, "onPreferenceChange: changing %s and %s to %b",
+                        preference.getKey(), BLOCK_UNAVAILABLE_NUMBERS_KEY, (boolean) objValue);
+                BlockedNumbersUtil.setBlockedNumberSetting(getActivity(),
+                        BLOCK_UNAVAILABLE_NUMBERS_KEY, (boolean) objValue, mFeatureFlags);
             }
         }
-        BlockedNumberContract.SystemContract.setEnhancedBlockSetting(getActivity(),
-              preference.getKey(), (boolean) objValue);
-      return true;
+        BlockedNumbersUtil.setBlockedNumberSetting(getActivity(), preference.getKey(),
+                (boolean) objValue, mFeatureFlags);
+        return true;
     }
 
     @Override

@@ -14,27 +14,29 @@
  * limitations under the License.
  */
 
-package com.android.server.telecomui.settings;
+package com.android.server.telecom.settings;
 
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.os.Bundle;
 import android.provider.BlockedNumbersManager;
-import android.provider.BlockedNumberContract;
 
-import com.android.server.telecom.settings.BlockedNumbersUtil;
-import com.android.server.telecomui.R;
+import com.android.server.telecom.R;
+import com.android.server.telecom.flags.FeatureFlags;
+import com.android.server.telecom.flags.FeatureFlagsImpl;
 
 /**
  * Shows a dialog when user taps an notification in notification tray.
  */
 public class CallBlockDisabledActivity extends Activity {
     private AlertDialog mDialog;
+    private FeatureFlags mFeatureFlags;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        mFeatureFlags = new FeatureFlagsImpl();
         showCallBlockingOffDialog();
     }
 
@@ -60,13 +62,13 @@ public class CallBlockDisabledActivity extends Activity {
                 .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        BlockedNumberContract.SystemContract.setEnhancedBlockSetting(
+                        BlockedNumbersUtil.setBlockedNumberSetting(
                                 CallBlockDisabledActivity.this,
                                 BlockedNumbersManager
                                         .ENHANCED_SETTING_KEY_SHOW_EMERGENCY_CALL_NOTIFICATION,
-                                false);
+                                false, mFeatureFlags);
                         BlockedNumbersUtil.updateEmergencyCallNotification(
-                                CallBlockDisabledActivity.this, false);
+                                CallBlockDisabledActivity.this, false, mFeatureFlags);
                         finish();
                     }
                 })
