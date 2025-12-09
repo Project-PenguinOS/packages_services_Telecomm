@@ -20,16 +20,13 @@ import android.app.Service;
 import android.app.role.RoleManager;
 import android.content.Context;
 import android.content.Intent;
-import android.media.AudioAttributes;
 import android.media.IAudioService;
 import android.media.ToneGenerator;
 import android.os.CombinedVibration;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.PowerManager;
-import android.os.ServiceManager;
 import android.os.SystemClock;
-import android.os.SystemVibrator;
 import android.os.VibrationAttributes;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
@@ -79,7 +76,7 @@ import java.util.concurrent.Executors;
 /**
  * Implementation of the ITelecom interface.
  */
-public class TelecomService extends Service implements TelecomSystem.Component {
+public class TelecomService extends Service {
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -267,7 +264,7 @@ public class TelecomService extends Service implements TelecomSystem.Component {
                                 public void updateEmergencyCallNotification(Context context,
                                         boolean showNotification) {
                                     BlockedNumbersUtil.updateEmergencyCallNotification(context,
-                                            showNotification, featureFlags);
+                                            showNotification);
                                 }
                             },
                             featureFlags,
@@ -279,7 +276,6 @@ public class TelecomService extends Service implements TelecomSystem.Component {
         }
     }
 
-    @Override
     public TelecomSystem getTelecomSystem() {
         return TelecomSystem.getInstance();
     }

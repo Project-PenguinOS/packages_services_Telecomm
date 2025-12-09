@@ -573,7 +573,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     /**
      * The verification status for an incoming call's number.
      */
-    private @Connection.VerificationStatus int mCallerNumberVerificationStatus;
+    private /*@Connection.VerificationStatus*/ int mCallerNumberVerificationStatus;
 
     /** The caller display name (CNAP) set by the connection service. */
     private String mCallerDisplayName;
@@ -2512,7 +2512,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 userHandle = mTargetPhoneAccountHandle.getUserHandle();
             }
             if (userHandle != null) {
-                isWorkCall = UserUtil.isManagedProfile(mContext, userHandle, mFlags);
+                isWorkCall = UserUtil.isManagedProfile(mContext, userHandle);
             }
 
             if (!mFlags.telecomResolveHiddenDependencies()) {
@@ -3495,7 +3495,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      * Reject this Telecom call with the user-indicated reason.
      * @param rejectReason The user-indicated reason fore rejecting the call.
      */
-    public CompletableFuture<Boolean> reject(@android.telecom.Call.RejectReason int rejectReason) {
+    public CompletableFuture<Boolean> reject(/*@android.telecom.Call.RejectReason*/
+                                             int rejectReason) {
         CompletableFuture<Boolean> rejectFutureHandler = CompletableFuture.completedFuture(false);
         if (mState == CallState.SIMULATED_RINGING) {
             Log.addEvent(this, LogUtils.Events.REQUEST_REJECT);
@@ -5248,7 +5249,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      * upgrade is from audio to video, potentially auto-engage the speakerphone.
      * @param newVideoState The proposed new video state for the call.
      */
-    public void maybeEnableSpeakerForVideoUpgrade(@VideoProfile.VideoState int newVideoState) {
+    public void maybeEnableSpeakerForVideoUpgrade(/*@VideoProfile.VideoState*/ int newVideoState) {
         if (mCallsManager.isSpeakerphoneAutoEnabledForVideoCalls(newVideoState)) {
             Log.i(this, "maybeEnableSpeakerForVideoCall; callId=%s, auto-enable speaker for call"
                             + " upgraded to video.");
@@ -5261,7 +5262,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      * @param message the message type to send.
      * @param value the value for the message.
      */
-    public void sendDeviceToDeviceMessage(@CallDiagnostics.MessageType int message, int value) {
+    public void sendDeviceToDeviceMessage(/*@CallDiagnostics.MessageType*/ int message, int value) {
         Log.i(this, "sendDeviceToDeviceMessage; callId=%s, msg=%d/%d", getId(), message, value);
         Bundle extras = new Bundle();
         extras.putInt(Connection.EXTRA_DEVICE_TO_DEVICE_MESSAGE_TYPE, message);
@@ -5301,7 +5302,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      * @return The direction using the constants in this class.
      */
     public static int getRemappedCallDirection(
-            @android.telecom.Call.Details.CallDirection int direction) {
+            /*@android.telecom.Call.Details.CallDirection*/ int direction) {
         switch(direction) {
             case android.telecom.Call.Details.DIRECTION_INCOMING:
                 return CALL_DIRECTION_INCOMING;

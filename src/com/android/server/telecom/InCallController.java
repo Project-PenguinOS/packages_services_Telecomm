@@ -383,7 +383,7 @@ public class InCallController extends CallsManagerListenerBase implements
             mIsConnected = true;
             mInCallServiceInfo.setBindingStartTime(mClockProxy.elapsedRealtime());
             boolean isManagedProfile = UserUtil.isManagedProfile(mContext,
-                    userFromCall, mFeatureFlags);
+                    userFromCall);
             // Note that UserHandle.CURRENT fails to capture the work profile, so we need to handle
             // it separately to ensure that the ICS is bound to the appropriate user. If ECBM is
             // active, we know that a work sim was previously used to place a MO emergency call. We
@@ -3597,7 +3597,7 @@ public class InCallController extends CallsManagerListenerBase implements
                         .bigText(mContext.getText(
                                 R.string.notification_incallservice_not_responding_body)));
         UserUtil.processNotification(mContext, userHandle, NOTIFICATION_TAG,
-                IN_CALL_SERVICE_NOTIFICATION_ID, builder.build(), mFeatureFlags);
+                IN_CALL_SERVICE_NOTIFICATION_ID, builder.build());
     }
 
     private void updateCallTracking(Call call, InCallServiceInfo info, boolean isAdd) {
