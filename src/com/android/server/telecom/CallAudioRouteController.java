@@ -1686,7 +1686,16 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             Log.i(this, "CallAudioManager is null");
             return false;
         }
-        if (mCallAudioManager.isCrsInCallMode()) {
+        CrsAudioController crsAudioController = mCallAudioManager.getCrsAudioController();
+        if (crsAudioController == null) {
+            Log.d(this, "crsAudioController is null");
+            return false;
+        }
+
+        final boolean isCrsControlledByHal = crsAudioController.shouldControlCrsWithParameters();
+        final boolean isCrsModeActive = mCallAudioManager.isCrsInCallMode();
+
+        if (isCrsModeActive && !isCrsControlledByHal) {
             Log.i(this, "Ignoring %s. Not allowed during CRS call.", actionDescription);
             return true;
         }

@@ -1259,8 +1259,8 @@ public class BasicCallTests extends TelecomSystemTest {
         assertFalse(mTelecomSystem.getCallsManager().getAudioState().isMuted());
 
         ArgumentCaptor<Boolean> muteValueCaptor = ArgumentCaptor.forClass(Boolean.class);
-        verify(mAudioService, times(2)).setMicrophoneMute(muteValueCaptor.capture(),
-                any(String.class), any(Integer.class), nullable(String.class));
+        verify(mComponentContextFixture.getAudioManager(), times(2)).setMicrophoneMute(
+                muteValueCaptor.capture());
         List<Boolean> muteValues = muteValueCaptor.getAllValues();
         // Check mute status was changed twice with true and false.
         assertTrue(muteValues.get(0));

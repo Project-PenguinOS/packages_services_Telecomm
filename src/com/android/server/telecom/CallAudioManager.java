@@ -173,7 +173,8 @@ public class CallAudioManager extends CallsManagerListenerBase {
             playToneAfterCallConnected(call);
         }
 
-        if (mIsCrsInCallMode && (newState != CallState.RINGING) && (call == mForegroundCall)
+        if (mIsCrsInCallMode && newState != CallState.RINGING
+                && (call == mForegroundCall || mForegroundCall == null)
                 && getCrsAudioController() != null) {
             getCrsAudioController().resetAudioDevices(this, mCallsManager, call, newState);
             mIsCrsInCallMode = false;
@@ -579,6 +580,11 @@ public class CallAudioManager extends CallsManagerListenerBase {
                 userHandles.add(userFromCall);
                 call.silence();
                 mSilencedCalls.add(call);
+                if (getCrsAudioController() != null
+                        && getCrsAudioController().shouldControlCrsWithParameters()) {
+                    // Send speech mute in case user explicitly mute the ring
+                    getCrsAudioController().setCrsSpeechMuted(true);
+                }
             }
 
             // If all the calls were silenced, we can stop the ringer.
