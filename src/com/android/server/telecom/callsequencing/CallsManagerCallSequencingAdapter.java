@@ -240,8 +240,7 @@ public class CallsManagerCallSequencingAdapter {
             Log.i(this, "maybeMoveHeldCallToForeground: Auto-unholding held foreground call (call "
                     + "doesn't support hold)");
             unholdForegroundCallFuture = foregroundCall.unhold();
-        } else if (mFeatureFlags.autoUnholdOnCallFail() && didCallDisconnectDuringSetup
-                && !isDisconnectingChildCall && isForegroundCallHeld
+        } else if (didCallDisconnectDuringSetup && !isDisconnectingChildCall && isForegroundCallHeld
                 && (removedCall.getDisconnectCause().getCode() == DisconnectCause.ERROR
                 || removedCall.getDisconnectCause().getCode() == DisconnectCause.CANCELED)) {
             // Auto-disconnect the held call if the call was disconnected with an error or canceled.
