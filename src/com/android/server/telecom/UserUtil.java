@@ -22,7 +22,6 @@ import android.app.admin.DevicePolicyManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.content.pm.UserInfo;
 import android.net.Uri;
 import android.os.UserHandle;
 import android.os.UserManager;
@@ -41,11 +40,6 @@ public final class UserUtil {
 
     public static int getUserIdFromContext(Context context){
         return context.getUser().getIdentifier();
-    }
-
-    private static UserInfo getUserInfoFromUserHandle(Context context, UserHandle userHandle) {
-        UserManager userManager = context.getSystemService(UserManager.class);
-        return userManager.getUserInfo(userHandle.getIdentifier());
     }
 
     private static UserManager getUserManagerFromUserHandle(Context context,
@@ -68,7 +62,6 @@ public final class UserUtil {
 
     public static boolean isManagedProfile(Context context, UserHandle userHandle) {
         UserManager userManager = getUserManagerFromUserHandle(context, userHandle);
-        UserInfo userInfo = getUserInfoFromUserHandle(context, userHandle);
         return userManager != null && userManager.isManagedProfile();
     }
 
@@ -79,7 +72,6 @@ public final class UserUtil {
 
     public static boolean isProfile(Context context, UserHandle userHandle) {
         UserManager userManager = getUserManagerFromUserHandle(context, userHandle);
-        UserInfo userInfo = getUserInfoFromUserHandle(context, userHandle);
         return userManager != null && userManager.isProfile();
     }
 
