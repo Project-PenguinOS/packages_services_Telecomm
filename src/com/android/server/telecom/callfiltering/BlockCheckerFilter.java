@@ -140,8 +140,7 @@ public class BlockCheckerFilter extends CallFilter {
         } else {
             userContext = mContext.createContextAsUser(mCall.getAssociatedUser(), 0);
         }
-        if (BlockedNumbersUtil.isEnhancedCallBlockingEnabledByPlatform(userContext,
-                mFeatureFlags)) {
+        if (BlockedNumbersUtil.isEnhancedCallBlockingEnabledByPlatform(userContext)) {
             int presentation = mCall.getHandlePresentation();
             extras.putInt(BlockedNumberContract.EXTRA_CALL_PRESENTATION, presentation);
             if (presentation == TelecomManager.PRESENTATION_ALLOWED) {
@@ -176,8 +175,7 @@ public class BlockCheckerFilter extends CallFilter {
         // exist in the extras to maintain existing behavior.
         int presentation;
         boolean isNumberInContacts;
-        if (BlockedNumbersUtil.isEnhancedCallBlockingEnabledByPlatform(userContext,
-                mFeatureFlags)) {
+        if (BlockedNumbersUtil.isEnhancedCallBlockingEnabledByPlatform(userContext)) {
             presentation = mCall.getHandlePresentation();
         } else {
             presentation = 0;

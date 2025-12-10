@@ -245,7 +245,7 @@ public class DisconnectedCallNotifier extends CallsManagerListenerBase {
             // TODO: Only support one notification right now, so if multiple are hung up, we only
             // show the last one. Support multiple in the future.
             UserUtil.processNotification(mContext, call.userHandle, NOTIFICATION_TAG,
-                    DISCONNECTED_CALL_NOTIFICATION_ID, notification, mFeatureFlags);
+                    DISCONNECTED_CALL_NOTIFICATION_ID, notification);
         } finally {
             Binder.restoreCallingIdentity(token);
         }
@@ -392,7 +392,7 @@ public class DisconnectedCallNotifier extends CallsManagerListenerBase {
         long token = Binder.clearCallingIdentity();
         try {
             UserUtil.processNotification(mContext, userHandle, NOTIFICATION_TAG,
-                    DISCONNECTED_CALL_NOTIFICATION_ID, null /* notification */, mFeatureFlags);
+                    DISCONNECTED_CALL_NOTIFICATION_ID, null /* notification */);
         } finally {
             Binder.restoreCallingIdentity(token);
         }

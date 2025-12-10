@@ -14,13 +14,13 @@
  * limitations under the License
  */
 
-package com.android.server.telecom.ui;
+package com.android.server.telecomui.ui;
 
 import android.app.Activity;
 import android.os.Bundle;
 import android.widget.Switch;
 
-import com.android.server.telecom.R;
+import com.android.server.telecomui.R;
 
 /**
  * Telecom Developer Settings Menu.

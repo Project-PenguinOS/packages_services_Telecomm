@@ -134,7 +134,7 @@
     <string name="callendpoint_name_bluetooth" msgid="210210953208913172">"بلوتوث"</string>
     <string name="callendpoint_name_wiredheadset" msgid="6860787176412079742">"هدست سیمی"</string>
     <string name="callendpoint_name_speaker" msgid="1971760468695323189">"بلندگو"</string>
-    <string name="callendpoint_name_streaming" msgid="2337595450408275576">"خارجی"</string>
+    <string name="callendpoint_name_streaming" msgid="2337595450408275576">"برون‌سازمانی"</string>
     <string name="callendpoint_name_unknown" msgid="2199074708477193852">"نامشخص"</string>
     <string name="call_streaming_notification_body" msgid="502216105683378263">"درحال جاری‌سازی صدا به دستگاه دیگر"</string>
     <string name="call_streaming_notification_action_hang_up" msgid="7017663335289063827">"قطع تماس"</string>

@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 
-package com.android.server.telecom.components;
+package com.android.server.telecomui.components;
 
 import com.android.server.telecom.CallIntentProcessor;
-import com.android.server.telecom.TelecomSystem;
-import com.android.server.telecom.flags.FeatureFlags;
-import com.android.server.telecom.flags.FeatureFlagsImpl;
+import com.android.server.telecom.components.UserCallIntentProcessor;
 
 import android.app.Activity;
 import android.content.Context;
@@ -28,7 +26,7 @@ import android.os.Bundle;
 import android.os.PowerManager;
 import android.os.UserHandle;
 import android.os.UserManager;
-import android.telecom.Log;
+import android.util.Log;
 import android.telecom.TelecomManager;
 
 /**
@@ -50,6 +48,8 @@ import android.telecom.TelecomManager;
  */
 public class UserCallActivity extends Activity {
 
+    private static final String TAG = UserCallActivity.class.getSimpleName();
+
     @Override
     protected void onCreate(Bundle bundle) {
         super.onCreate(bundle);
@@ -58,14 +58,11 @@ public class UserCallActivity extends Activity {
                 "UserCallActivity");
         wakelock.acquire();
 
-        Log.startSession("UCA.oC");
         try {
             // TODO: Figure out if there is something to restore from bundle.
             // See OutgoingCallBroadcaster in services/Telephony for more.
             Intent intent = getIntent();
             verifyCallAction(intent);
-            FeatureFlags featureFlags = new FeatureFlagsImpl();
-            final UserManager userManager = getSystemService(UserManager.class);
             final UserHandle userHandle = UserHandle.getUserHandleForUid(getLaunchedFromUid());
 
             // Once control flow has passed to this activity, it is no longer guaranteed that we can
@@ -78,14 +75,13 @@ public class UserCallActivity extends Activity {
             // Note: getCallingPackage() is not appropriate as it only works for activities launched
             // with startActivityForResult.  getLaunchedFromPackage() lets priv apps known who
             // launched in all cases.
-            new UserCallIntentProcessor(this, userHandle, featureFlags)
+            new UserCallIntentProcessor(this, userHandle)
                     .processIntent(new Intent(intent), getLaunchedFromPackage(), false,
                             true /* hasCallAppOp*/, false /* isLocalInvocation */);
         } finally {
-            Log.endSession();
             wakelock.release();
         }
-        Log.i(this, "onCreate done");
+        Log.i(TAG, "onCreate done");
         finish();
     }
 
@@ -94,7 +90,7 @@ public class UserCallActivity extends Activity {
             // If we were launched directly from the CallActivity, not one of its more privileged
             // aliases, then make sure that only the non-privileged actions are allowed.
             if (!Intent.ACTION_CALL.equals(intent.getAction())) {
-                Log.w(this, "Attempt to deliver non-CALL action; forcing to CALL");
+                Log.w(TAG, "Attempt to deliver non-CALL action; forcing to CALL");
                 intent.setAction(Intent.ACTION_CALL);
             }
         }

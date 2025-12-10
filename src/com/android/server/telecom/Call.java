@@ -2239,17 +2239,20 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             return false;
         }
         // Ensure that the application registers the intent (opt-in).
-        intent.setPackage(handle.getComponentName().getPackageName());
+        String packageName = handle.getComponentName().getPackageName();
+        intent.setPackage(packageName);
         boolean pkgSupportsIntent = !mContext.getPackageManager().queryIntentActivities(intent,
                 PackageManager.MATCH_ALL).isEmpty();
+        boolean userPrefEnabled = !android.telecom.flags.Flags.integratedCallLogsStage2()
+                || mCallsManager.isCallLogPrefEnabledForPackage(getAssociatedUser(), packageName);
 
         boolean shouldLogTransactionalCall = isTransactionalCall() && pkgSupportsIntent
-                && !isTransactionalLogExcluded();
+                && !isTransactionalLogExcluded() && userPrefEnabled;
         if (!shouldLogTransactionalCall) {
             Log.i(this, "isLoggedTransactional: isTransactionalCall: %b, pkg(%s) supports "
-                            + "intent: %b, is log excluded: %b", isTransactionalCall(),
-                    handle.getComponentName().getPackageName(), pkgSupportsIntent,
-                    isTransactionalLogExcluded());
+                            + "intent: %b, is log excluded: %b, user pref enabled: %b",
+                    isTransactionalCall(), packageName, pkgSupportsIntent,
+                    isTransactionalLogExcluded(), userPrefEnabled);
         }
         return isTransactionalCall() && pkgSupportsIntent && !isTransactionalLogExcluded();
     }
@@ -2494,7 +2497,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 userHandle = mTargetPhoneAccountHandle.getUserHandle();
             }
             if (userHandle != null) {
-                isWorkCall = UserUtil.isManagedProfile(mContext, userHandle, mFlags);
+                isWorkCall = UserUtil.isManagedProfile(mContext, userHandle);
             }
 
             if (!mFlags.telecomResolveHiddenDependencies()) {

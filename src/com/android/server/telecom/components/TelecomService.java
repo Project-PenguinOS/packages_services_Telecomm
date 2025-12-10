@@ -264,7 +264,7 @@ public class TelecomService extends Service {
                                 public void updateEmergencyCallNotification(Context context,
                                         boolean showNotification) {
                                     BlockedNumbersUtil.updateEmergencyCallNotification(context,
-                                            showNotification, featureFlags);
+                                            showNotification);
                                 }
                             },
                             featureFlags,
