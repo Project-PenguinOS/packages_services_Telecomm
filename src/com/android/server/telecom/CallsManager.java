@@ -67,7 +67,6 @@ import android.content.pm.UserInfo;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.media.AudioManager;
-import android.media.AudioSystem;
 import android.media.MediaPlayer;
 import android.media.ToneGenerator;
 import android.net.Uri;
@@ -502,8 +501,6 @@ public class CallsManager extends Call.ListenerBase
     private final InCallController mInCallController;
     private final CallDiagnosticServiceController mCallDiagnosticServiceController;
     private final CallAudioManager mCallAudioManager;
-    /** @deprecated not used any more */
-    private final CallRecordingTonePlayer mCallRecordingTonePlayer;
     private RespondViaSmsManager mRespondViaSmsManager;
     private final Ringer mRinger;
     private final InCallWakeLockController mInCallWakeLockController;
@@ -798,13 +795,6 @@ public class CallsManager extends Call.ListenerBase
                 accessibilityManagerAdapter, featureFlags, mAnomalyReporter,
                 mCallConnectedIndicatorSettings, asyncTaskExecutor,
                 mCrsAudioController);
-        if (featureFlags.telecomResolveHiddenDependencies()) {
-            // This is now deprecated
-            mCallRecordingTonePlayer = null;
-        } else {
-            mCallRecordingTonePlayer = new CallRecordingTonePlayer(mContext, audioManager,
-                    mTimeoutsAdapter, mLock, featureFlags);
-        }
         mCallAudioManager = new CallAudioManager(mCallAudioRouteAdapter,
                 this, callAudioModeStateMachineFactory.create(systemStateHelper,
                 (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE),
@@ -853,9 +843,6 @@ public class CallsManager extends Call.ListenerBase
         mListeners.add(mCallEndpointController);
         mListeners.add(mCallDiagnosticServiceController);
         mListeners.add(mCallAudioManager);
-        if (!featureFlags.telecomResolveHiddenDependencies()) {
-            mListeners.add(mCallRecordingTonePlayer);
-        }
         mListeners.add(missedCallNotifier);
         mListeners.add(mDisconnectedCallNotifier);
         mListeners.add(mHeadsetMediaButton);
