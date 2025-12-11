@@ -229,6 +229,8 @@ public class CallLogIntegrationTests extends TelecomTestCase {
 
         // Emulate adding a new package
         mAdapter.getPackagesToAdd().put(mUserHandle, Set.of(PKG_2));
+        // Can remove this once the pkg update condition check is back in place
+        mockBroadcastQueryResult(Arrays.asList(PKG_1, PKG_2));
         Map<String, Boolean> result = mAdapter
                 .getSupportedVoipCallLogIntegrationPackages(mUserHandle);
 
@@ -258,6 +260,8 @@ public class CallLogIntegrationTests extends TelecomTestCase {
 
         // Emulate a package removal update
         mAdapter.getPackagesToRemove().put(mUserHandle, Set.of(PKG_2));
+        // Can remove this once the pkg update condition check is back in place
+        mockBroadcastQueryResult(Collections.singletonList(PKG_1));
         Map<String, Boolean> result = mAdapter
                 .getSupportedVoipCallLogIntegrationPackages(mUserHandle);
 
@@ -278,7 +282,7 @@ public class CallLogIntegrationTests extends TelecomTestCase {
     @RequiresFlagsEnabled(android.telecom.flags.Flags.FLAG_INTEGRATED_CALL_LOGS_STAGE2)
     public void testPackageRemoved_deletesCallLogEntries() {
         // Initialize state with one available package.
-        when(mPackageManager.queryBroadcastReceivers(any(), anyInt()))
+        when(mPackageManager.queryIntentActivities(any(), anyInt()))
                 .thenReturn(Collections.singletonList(createResolveInfo(PKG_1)));
         mAdapter.getSupportedVoipCallLogIntegrationPackages(mUserHandle);
 
@@ -304,7 +308,7 @@ public class CallLogIntegrationTests extends TelecomTestCase {
             return;
         }
         // Initialize state with one available package.
-        when(mPackageManager.queryBroadcastReceivers(any(), anyInt()))
+        when(mPackageManager.queryIntentActivities(any(), anyInt()))
                 .thenReturn(Collections.singletonList(createResolveInfo(PKG_1)));
 
         // Simulate package being removed by broadcasting ACTION_PACKAGE_ADDED.
@@ -333,14 +337,14 @@ public class CallLogIntegrationTests extends TelecomTestCase {
 
         // Verify that we only queried the broadcast receiver once during the first call.
         verify(mPackageManager, atLeastOnce())
-                .queryBroadcastReceivers(any(Intent.class), anyInt());
+                .queryIntentActivities(any(Intent.class), anyInt());
     }
 
     private void mockBroadcastQueryResult(List<String> packageNames) {
         List<ResolveInfo> resolveInfos = packageNames.stream()
                 .map(this::createResolveInfo)
                 .collect(Collectors.toList());
-        when(mPackageManager.queryBroadcastReceivers(any(Intent.class), anyInt()))
+        when(mPackageManager.queryIntentActivities(any(Intent.class), anyInt()))
                 .thenReturn(resolveInfos);
     }
 
