@@ -1337,12 +1337,7 @@ public class CallsManager extends Call.ListenerBase
 
     private static boolean isIncomingVideoCall(Call call) {
         return (!VideoProfile.isAudioOnly(call.getVideoState()) &&
-// QTI_END: 2018-03-13: Telephony: IMS-VT: Add support for Low battery
-// QTI_BEGIN: 2023-02-07: Telephony: IMS: Don't reject CRS VoLTE call in low battery mode
-            call.getState() == CallState.RINGING) && !(call.isCrsCall() &&
-            (call.getOriginalCallType() == VideoProfile.STATE_AUDIO_ONLY));
-// QTI_END: 2023-02-07: Telephony: IMS: Don't reject CRS VoLTE call in low battery mode
-// QTI_BEGIN: 2018-03-13: Telephony: IMS-VT: Add support for Low battery
+            call.getState() == CallState.RINGING);
     }
 
 // QTI_END: 2018-03-13: Telephony: IMS-VT: Add support for Low battery
