@@ -33,6 +33,10 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 @RunWith(JUnit4.class)
 public class TelecomBackupAgentTest extends TelecomTestCase {
 
@@ -41,21 +45,19 @@ public class TelecomBackupAgentTest extends TelecomTestCase {
      * addHelper().
      */
     private static class TestableTelecomBackupAgent extends TelecomBackupAgent {
-        private String mBackupKey;
-        private BackupHelper mBackupHelper;
+        private Map<String, BackupHelper> mBackupHelpersMap = new HashMap<>();
 
         @Override
         public void addHelper(String key, BackupHelper helper) {
-            mBackupKey = key;
-            mBackupHelper = helper;
+            mBackupHelpersMap.put(key, helper);
         }
 
-        String getBackupKey() {
-            return mBackupKey;
+        boolean containsBackupKey(String key) {
+            return mBackupHelpersMap.containsKey(key);
         }
 
-        BackupHelper getBackupHelper() {
-            return mBackupHelper;
+        BackupHelper getBackupHelper(String key) {
+            return mBackupHelpersMap.get(key);
         }
     }
 
@@ -84,10 +86,28 @@ public class TelecomBackupAgentTest extends TelecomTestCase {
         }
         mTestBackupAgent.onCreate();
         // Verify that addHelper was called for call log integration backup key
-        assertEquals(TelecomBackupAgent.CALL_LOG_INTEGRATION_BACKUP_KEY,
-                mTestBackupAgent.getBackupKey());
+        assertTrue(mTestBackupAgent.containsBackupKey(
+                TelecomBackupAgent.CALL_LOG_INTEGRATION_BACKUP_KEY));
         // Verify the contents of the backup helper
-        BackupHelper addedHelper = mTestBackupAgent.getBackupHelper();
+        BackupHelper addedHelper = mTestBackupAgent
+                .getBackupHelper(TelecomBackupAgent.CALL_LOG_INTEGRATION_BACKUP_KEY);
+        assertNotNull(addedHelper);
+        assertTrue(addedHelper instanceof SharedPreferencesBackupHelper);
+    }
+
+    @Test
+    @SmallTest
+    public void testAddQuickResponsesSharedPrefBackup() {
+        if (!com.android.internal.telecom.flags.Flags.quickResponsesBackup()) {
+            return;
+        }
+        mTestBackupAgent.onCreate();
+        // Verify that addHelper was called for quick responses backup key
+        assertTrue(mTestBackupAgent.containsBackupKey(
+                TelecomBackupAgent.QUICK_RESPONSES_BACKUP_KEY));
+        // Verify the contents of the backup helper
+        BackupHelper addedHelper = mTestBackupAgent
+                .getBackupHelper(TelecomBackupAgent.QUICK_RESPONSES_BACKUP_KEY);
         assertNotNull(addedHelper);
         assertTrue(addedHelper instanceof SharedPreferencesBackupHelper);
     }
