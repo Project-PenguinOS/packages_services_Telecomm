@@ -17,11 +17,14 @@
 package com.android.server.telecom.tests;
 
 import static junit.framework.Assert.assertEquals;
+import static junit.framework.Assert.assertFalse;
+import static junit.framework.Assert.assertTrue;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -35,14 +38,21 @@ import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
+import android.os.Bundle;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.UserHandle;
+import android.telecom.BluetoothCallQualityReport;
+import android.telecom.CallAudioState;
+import android.telecom.DisconnectCause;
 import android.telecom.ParcelableCall;
+import android.telephony.CallQuality;
 
 import com.android.internal.telecom.ICallDiagnosticService;
+import com.android.internal.telecom.ICallDiagnosticServiceAdapter;
 import com.android.server.telecom.Call;
 import com.android.server.telecom.CallDiagnosticServiceController;
+import com.android.server.telecom.CallState;
 import com.android.server.telecom.TelecomSystem;
 
 import org.junit.Before;
@@ -55,6 +65,7 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @RunWith(JUnit4.class)
@@ -84,10 +95,13 @@ public class CallDiagnosticServiceControllerTest {
     private Call mCallTwo;
     @Mock
     private ICallDiagnosticService mICallDiagnosticService;
+    @Mock
+    private IBinder mMockBinder;
     private TelecomSystem.SyncRoot mLock = new TelecomSystem.SyncRoot() { };
 
-    private CallDiagnosticServiceController mCallDiagnosticService;
+    private CallDiagnosticServiceController mCallDiagnosticServiceController;
     private ServiceConnection mServiceConnection;
+    private ICallDiagnosticServiceAdapter mAdapter;
 
     @Before
     public void setUp() throws Exception {
@@ -109,7 +123,9 @@ public class CallDiagnosticServiceControllerTest {
                 anyInt(), any(UserHandle.class))).thenReturn(true);
         when(mContextProxy.getCurrentUserHandle()).thenReturn(UserHandle.CURRENT);
 
-        mCallDiagnosticService = new CallDiagnosticServiceController(mContextProxy,
+        when(mMockBinder.queryLocalInterface(anyString())).thenReturn(mICallDiagnosticService);
+
+        mCallDiagnosticServiceController = new CallDiagnosticServiceController(mContextProxy,
                 TEST_PACKAGE, mLock);
     }
 
@@ -121,7 +137,7 @@ public class CallDiagnosticServiceControllerTest {
         Call mockCall = Mockito.mock(Call.class);
         when(mockCall.isSimCall()).thenReturn(false);
 
-        mCallDiagnosticService.onCallAdded(mockCall);
+        mCallDiagnosticServiceController.onCallAdded(mockCall);
 
         verify(mContextProxy, never()).bindServiceAsUser(any(Intent.class),
                 any(ServiceConnection.class), anyInt(), any(UserHandle.class));
@@ -136,7 +152,7 @@ public class CallDiagnosticServiceControllerTest {
         when(mockCall.isSimCall()).thenReturn(true);
         when(mockCall.isExternalCall()).thenReturn(true);
 
-        mCallDiagnosticService.onCallAdded(mockCall);
+        mCallDiagnosticServiceController.onCallAdded(mockCall);
 
         verify(mContextProxy, never()).bindServiceAsUser(any(Intent.class),
                 any(ServiceConnection.class), anyInt(), any(UserHandle.class));
@@ -147,7 +163,7 @@ public class CallDiagnosticServiceControllerTest {
      */
     @Test
     public void testAddSimCallCausesBind() throws RemoteException {
-        mCallDiagnosticService.onCallAdded(mCall);
+        mCallDiagnosticServiceController.onCallAdded(mCall);
 
         ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
         ArgumentCaptor<ServiceConnection> serviceConnectionCaptor = ArgumentCaptor.forClass(
@@ -157,9 +173,7 @@ public class CallDiagnosticServiceControllerTest {
         assertEquals(TEST_PACKAGE, intentCaptor.getValue().getPackage());
 
         // Now we'll pretend bind completed and we sent back the binder.
-        IBinder mockBinder = mock(IBinder.class);
-        when(mockBinder.queryLocalInterface(anyString())).thenReturn(mICallDiagnosticService);
-        serviceConnectionCaptor.getValue().onServiceConnected(TEST_COMPONENT, mockBinder);
+        serviceConnectionCaptor.getValue().onServiceConnected(TEST_COMPONENT, mMockBinder);
         mServiceConnection = serviceConnectionCaptor.getValue();
 
         // Make sure it's sent
@@ -173,7 +187,7 @@ public class CallDiagnosticServiceControllerTest {
     @Test
     public void testRemoveSimCallCausesRemoveAndUnbind() throws RemoteException {
         testAddSimCallCausesBind();
-        mCallDiagnosticService.onCallRemoved(mCall);
+        mCallDiagnosticServiceController.onCallRemoved(mCall);
 
         verify(mICallDiagnosticService).removeDiagnosticCall(eq(ID_1));
         verify(mContextProxy).unbindService(eq(mServiceConnection));
@@ -185,15 +199,15 @@ public class CallDiagnosticServiceControllerTest {
     @Test
     public void testAddTwo() throws RemoteException {
         testAddSimCallCausesBind();
-        mCallDiagnosticService.onCallAdded(mCallTwo);
+        mCallDiagnosticServiceController.onCallAdded(mCallTwo);
         verify(mICallDiagnosticService, times(2)).initializeDiagnosticCall(
                 any(ParcelableCall.class));
 
-        mCallDiagnosticService.onCallRemoved(mCall);
+        mCallDiagnosticServiceController.onCallRemoved(mCall);
         // Not yet!
         verify(mContextProxy, never()).unbindService(eq(mServiceConnection));
 
-        mCallDiagnosticService.onCallRemoved(mCallTwo);
+        mCallDiagnosticServiceController.onCallRemoved(mCallTwo);
 
         verify(mICallDiagnosticService).removeDiagnosticCall(eq(ID_1));
         verify(mICallDiagnosticService).removeDiagnosticCall(eq(ID_2));
@@ -206,12 +220,190 @@ public class CallDiagnosticServiceControllerTest {
      */
     @Test
     public void testTestOverride() {
-        mCallDiagnosticService.setTestCallDiagnosticService(TEST_CDS_PACKAGE);
-        mCallDiagnosticService.onCallAdded(mCall);
+        mCallDiagnosticServiceController.setTestCallDiagnosticService(TEST_CDS_PACKAGE);
+        mCallDiagnosticServiceController.onCallAdded(mCall);
 
         ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
         verify(mContextProxy).bindServiceAsUser(intentCaptor.capture(),
                 any(ServiceConnection.class), anyInt(), any(UserHandle.class));
         assertEquals(TEST_CDS_PACKAGE, intentCaptor.getValue().getPackage());
+    }
+
+    /**
+     * Binds the service and captures the service connection and adapter for subsequent tests.
+     */
+    private void bindService() throws RemoteException {
+        mCallDiagnosticServiceController.onCallAdded(mCall);
+        ArgumentCaptor<ServiceConnection> serviceConnectionCaptor = ArgumentCaptor.forClass(
+                ServiceConnection.class);
+        verify(mContextProxy).bindServiceAsUser(any(Intent.class),
+                serviceConnectionCaptor.capture(), anyInt(), any(UserHandle.class));
+        mServiceConnection = serviceConnectionCaptor.getValue();
+
+        ArgumentCaptor<ICallDiagnosticServiceAdapter> adapterCaptor =
+                ArgumentCaptor.forClass(ICallDiagnosticServiceAdapter.class);
+        mServiceConnection.onServiceConnected(TEST_COMPONENT, mMockBinder);
+        verify(mICallDiagnosticService).setAdapter(adapterCaptor.capture());
+        mAdapter = adapterCaptor.getValue();
+    }
+
+    /**
+     * Verifies that when a call's state changes, the update is propagated to the CDS.
+     */
+    @Test
+    public void testCallStateChangeIsPropagated() throws RemoteException {
+        bindService();
+
+        mCallDiagnosticServiceController.onCallStateChanged(mCall, CallState.NEW,
+                CallState.DIALING);
+        verify(mICallDiagnosticService, times(1)).updateCall(any(ParcelableCall.class));
+    }
+
+    /**
+     * Verifies that when the CallAudioState changes, the update is propagated to the CDS.
+     */
+    @Test
+    public void testCallAudioStateChangeIsPropagated() throws RemoteException {
+        bindService();
+        CallAudioState newState = new CallAudioState(false, CallAudioState.ROUTE_SPEAKER, 0);
+        mCallDiagnosticServiceController.onCallAudioStateChanged(null, newState);
+        verify(mICallDiagnosticService).updateCallAudioState(eq(newState));
+    }
+
+    /**
+     * Verifies that a call quality report is forwarded to the CDS.
+     */
+    @Test
+    public void testCallQualityReportIsPropagated() throws RemoteException {
+        bindService();
+        Call.Listener listener = getCallListener();
+        CallQuality report = mock(CallQuality.class);
+        listener.onReceivedCallQualityReport(mCall, report);
+        verify(mICallDiagnosticService).callQualityChanged(eq(ID_1), eq(report));
+    }
+
+    /**
+     * Verifies that a bluetooth call quality report is forwarded to the CDS.
+     */
+    @Test
+    public void testBluetoothCallQualityReportIsPropagated() throws RemoteException {
+        bindService();
+        Call.Listener listener = getCallListener();
+        BluetoothCallQualityReport report = mock(BluetoothCallQualityReport.class);
+        listener.onBluetoothCallQualityReport(mCall, report);
+        verify(mICallDiagnosticService).receiveBluetoothCallQualityReport(eq(report));
+    }
+
+    /**
+     * Verifies that a D2D message received from the network is forwarded to the CDS.
+     */
+    @Test
+    public void testReceivedD2DMessageIsPropagated() throws RemoteException {
+        bindService();
+        Call.Listener listener = getCallListener();
+        listener.onReceivedDeviceToDeviceMessage(mCall, 1, 2);
+        verify(mICallDiagnosticService).receiveDeviceToDeviceMessage(eq(ID_1), eq(1), eq(2));
+    }
+
+    /**
+     * Verifies that a request from the CDS to display a message is passed to the correct call.
+     */
+    @Test
+    public void testDisplayDiagnosticMessageCallback() throws RemoteException {
+        bindService();
+        mAdapter.displayDiagnosticMessage(ID_1, 123, "test message");
+        verify(mCall).displayDiagnosticMessage(eq(123), eq("test message"));
+    }
+
+    /**
+     * Verifies that a request from the CDS to clear a message is passed to the correct call.
+     */
+    @Test
+    public void testClearDiagnosticMessageCallback() throws RemoteException {
+        bindService();
+        mAdapter.clearDiagnosticMessage(ID_1, 123);
+        verify(mCall).clearDiagnosticMessage(eq(123));
+    }
+
+    /**
+     * Verifies that a request from the CDS to send a D2D message is passed to the correct call.
+     */
+    @Test
+    public void testSendD2DMessageCallback() throws RemoteException {
+        bindService();
+        mAdapter.sendDeviceToDeviceMessage(ID_1, 1, 2);
+        verify(mCall).sendDeviceToDeviceMessage(eq(1), eq(2));
+    }
+
+    /**
+     * Verifies that a request from the CDS to override a disconnect message is passed to the call.
+     */
+    @Test
+    public void testOverrideDisconnectMessageCallback() throws RemoteException {
+        bindService();
+        mAdapter.overrideDisconnectMessage(ID_1, "new message");
+        verify(mCall).handleOverrideDisconnectMessage(eq("new message"));
+    }
+
+    /**
+     * Verifies that when a call is disconnected, the CDS is notified.
+     */
+    @Test
+    public void testOnCallDisconnected() throws RemoteException {
+        bindService();
+        DisconnectCause cause = new DisconnectCause(DisconnectCause.LOCAL);
+        assertTrue(mCallDiagnosticServiceController.onCallDisconnected(mCall, cause));
+        verify(mICallDiagnosticService).notifyCallDisconnected(eq(ID_1), eq(cause));
+    }
+
+    /**
+     * Verifies that the service is unbound when onBindingDied is called.
+     */
+    @Test
+    public void testOnBindingDied() throws RemoteException {
+        bindService();
+        mServiceConnection.onBindingDied(TEST_COMPONENT);
+        assertFalse(mCallDiagnosticServiceController.isConnected());
+        // Should not trigger an explicit unbind, as the binding is already dead.
+        verify(mContextProxy, never()).unbindService(any());
+    }
+
+    /**
+     * Verifies that the service is unbound when onNullBinding is called.
+     */
+    @Test
+    public void testOnNullBinding() throws RemoteException {
+        bindService();
+        mServiceConnection.onNullBinding(TEST_COMPONENT);
+        assertFalse(mCallDiagnosticServiceController.isConnected());
+        verify(mContextProxy).unbindService(eq(mServiceConnection));
+    }
+
+    /**
+     * Verifies that no binding occurs if the resolved service does not require the correct
+     * permission.
+     */
+    @Test
+    public void testBindFailsWithIncorrectPermission() {
+        ResolveInfo badResolveInfo = new ResolveInfo();
+        badResolveInfo.serviceInfo = new ServiceInfo();
+        badResolveInfo.serviceInfo.packageName = TEST_PACKAGE;
+        badResolveInfo.serviceInfo.name = TEST_CLASS;
+        badResolveInfo.serviceInfo.permission = "android.permission.INTERNET"; // Wrong permission
+        when(mContextProxy.queryIntentServicesAsUser(any(), anyInt(), anyInt()))
+                .thenReturn(Collections.singletonList(badResolveInfo));
+
+        mCallDiagnosticServiceController.onCallAdded(mCall);
+
+        verify(mContextProxy, never()).bindServiceAsUser(any(), any(), anyInt(), any());
+    }
+
+    /**
+     * Extracts the Call.Listener that the controller adds to calls.
+     */
+    private Call.Listener getCallListener() {
+        ArgumentCaptor<Call.Listener> captor = ArgumentCaptor.forClass(Call.Listener.class);
+        verify(mCall, atLeastOnce()).addListener(captor.capture());
+        return captor.getValue();
     }
 }
