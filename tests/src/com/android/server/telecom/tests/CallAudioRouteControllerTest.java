@@ -100,6 +100,7 @@ import com.android.server.telecom.Call;
 import com.android.server.telecom.CallAudioManager;
 import com.android.server.telecom.CallAudioRouteController;
 import com.android.server.telecom.CallsManager;
+import com.android.server.telecom.CrsAudioController;
 import com.android.server.telecom.PendingAudioRoute;
 import com.android.server.telecom.StatusBarNotifier;
 import com.android.server.telecom.TelecomSystem;
@@ -2360,6 +2361,7 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
 
     @Test
     public void testCrsCall_IgnoresWiredHeadsetConnection() {
+        turnOffShouldControlCrsWithParameters();
         when(mCallAudioManager.isCrsInCallMode()).thenReturn(true);
         mController.initialize();
         mController.sendMessageWithSessionInfo(CONNECT_WIRED_HEADSET);
@@ -2369,6 +2371,7 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
 
     @Test
     public void testCrsCall_IgnoresBluetoothConnection() {
+        turnOffShouldControlCrsWithParameters();
         when(mCallAudioManager.isCrsInCallMode()).thenReturn(true);
         mController.initialize();
         mController.sendMessageWithSessionInfo(BT_DEVICE_ADDED, AudioRoute.TYPE_BLUETOOTH_SCO,
@@ -2379,6 +2382,7 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
 
     @Test
     public void testCrsCall_IgnoresUserSwitchToBluetooth() {
+        turnOffShouldControlCrsWithParameters();
         when(mCallAudioManager.isCrsInCallMode()).thenReturn(true);
         mController.initialize();
         // Add the device so that the switch would otherwise work
@@ -2391,5 +2395,11 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
 
         verify(mCallsManager, never()).onCallAudioStateChanged(any(), any());
+    }
+
+    private void turnOffShouldControlCrsWithParameters() {
+        CrsAudioController mockCrsAudioController = mock(CrsAudioController.class);
+        when(mCallAudioManager.getCrsAudioController()).thenReturn(mockCrsAudioController);
+        when(mockCrsAudioController.shouldControlCrsWithParameters()).thenReturn(false);
     }
 }
