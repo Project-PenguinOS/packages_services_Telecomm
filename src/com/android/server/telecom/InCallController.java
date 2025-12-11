@@ -43,7 +43,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
-import android.os.PackageTagsList;
 import android.os.Parcel;
 import android.os.RemoteException;
 import android.os.UserHandle;
@@ -1183,15 +1182,6 @@ public class InCallController extends CallsManagerListenerBase implements
         }
     };
 
-    private final BroadcastReceiver mUserAddedReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (Intent.ACTION_USER_ADDED.equals(intent.getAction())) {
-                restrictPhoneCallOps();
-            }
-        }
-    };
-
     private final SystemStateListener mSystemStateListener = new SystemStateListener() {
         @Override
         public void onCarModeChanged(int priority, String packageName, boolean isCarMode) {
@@ -1260,7 +1250,6 @@ public class InCallController extends CallsManagerListenerBase implements
     private final Map<UserHandle, InCallServiceBindingConnection> mBTInCallServiceConnections =
             new ArrayMap<>();
     private final ClockProxy mClockProxy;
-    private final IBinder mToken = new Binder();
     private final FeatureFlags mFeatureFlags;
 
     // A set of known non-UI in call services on the device, including those that are disabled.
@@ -1341,24 +1330,10 @@ public class InCallController extends CallsManagerListenerBase implements
         mCarModeTracker = carModeTracker;
         mSystemStateHelper.addListener(mSystemStateListener);
         mClockProxy = clockProxy;
-        restrictPhoneCallOps();
-        IntentFilter userAddedFilter = new IntentFilter(Intent.ACTION_USER_ADDED);
-        userAddedFilter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
         // Important: Context must be retained or the receivers won't fire when the context is
         // garbage collected.
         mAllUsersContext = mContext.createContextAsUser(UserHandle.ALL, 0);
-        mContext.registerReceiver(mUserAddedReceiver, userAddedFilter);
         mFeatureFlags = featureFlags;
-    }
-
-    private void restrictPhoneCallOps() {
-        PackageTagsList packageRestriction = new PackageTagsList.Builder()
-                .add(mContext.getPackageName())
-                .build();
-        mAppOpsManager.setUserRestrictionForUser(AppOpsManager.OP_PHONE_CALL_MICROPHONE, true,
-                mToken, packageRestriction, UserHandle.USER_ALL);
-        mAppOpsManager.setUserRestrictionForUser(AppOpsManager.OP_PHONE_CALL_CAMERA, true,
-                mToken, packageRestriction, UserHandle.USER_ALL);
     }
 
     @Override
