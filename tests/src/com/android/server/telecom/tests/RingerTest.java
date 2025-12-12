@@ -141,6 +141,8 @@ public class RingerTest extends TelecomTestCase {
     @Mock NotificationManager mockNotificationManager;
     @Mock Ringer.AccessibilityManagerAdapter mockAccessibilityManagerAdapter;
     @Mock private FeatureFlags mFeatureFlags;
+    private com.android.internal.telecom.flags.FeatureFlags mModuleBugFixFlags =
+            new com.android.internal.telecom.flags.FeatureFlagsImpl();
     @Mock private AnomalyReporterAdapter mAnomalyReporterAdapter;
     @Mock private CallConnectedIndicatorSettings mCallConnectedIndicatorSettings;
     @Mock private CrsAudioController mCrsAudioController;
@@ -210,7 +212,8 @@ public class RingerTest extends TelecomTestCase {
         mRingerUnderTest = new Ringer(mockPlayerFactory, mContext, mockSystemSettingsUtil,
                 asyncRingtonePlayer, mockRingtoneFactory, mockVibrator, spyVibrationEffectProxy,
                 mockInCallController, mockNotificationManager, mockAccessibilityManagerAdapter,
-                mFeatureFlags, mAnomalyReporterAdapter, mCallConnectedIndicatorSettings,
+                mFeatureFlags, mModuleBugFixFlags, mAnomalyReporterAdapter,
+                mCallConnectedIndicatorSettings,
                 Runnable::run, mCrsAudioController);
         // This future is used to wait for AsyncRingtonePlayer to finish its part.
         mRingerUnderTest.setBlockOnRingingFuture(mRingCompletionFuture);
@@ -1091,13 +1094,13 @@ public class RingerTest extends TelecomTestCase {
     private void enableVibrationWhenRinging() {
         when(mockVibrator.hasVibrator()).thenReturn(true);
         when(mockSystemSettingsUtil.isRingVibrationEnabled(any(Context.class),
-                any(FeatureFlags.class))).thenReturn(true);
+                any(com.android.internal.telecom.flags.FeatureFlags.class))).thenReturn(true);
     }
 
     private void enableVibrationOnlyWhenNotRinging() {
         when(mockVibrator.hasVibrator()).thenReturn(true);
         when(mockSystemSettingsUtil.isRingVibrationEnabled(any(Context.class),
-                any(FeatureFlags.class))).thenReturn(false);
+                any(com.android.internal.telecom.flags.FeatureFlags.class))).thenReturn(false);
     }
 
     private void enableRampingRinger() {
