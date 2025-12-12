@@ -656,7 +656,6 @@ public class CallsManager extends Call.ListenerBase
             InCallWakeLockControllerFactory inCallWakeLockControllerFactory,
             ConnectionServiceFocusManager.ConnectionServiceFocusManagerFactory
                     connectionServiceFocusManagerFactory,
-            CallAudioManager.AudioServiceFactory audioServiceFactory,
             BluetoothRouteManager bluetoothManager,
             WiredHeadsetManager wiredHeadsetManager,
             SystemStateHelper systemStateHelper,
@@ -743,8 +742,8 @@ public class CallsManager extends Call.ListenerBase
         mDtmfLocalTonePlayer = new DtmfLocalTonePlayer(
                 new DtmfLocalTonePlayer.ToneGeneratorProxy(), volume, featureFlags);
         mCallAudioRouteAdapter = audioRouteControllerFactory.create(context, this,
-                audioServiceFactory, new AudioRoute.Factory(), wiredHeadsetManager,
-                mBluetoothRouteManager, statusBarNotifier, featureFlags, metricsController,
+                new AudioRoute.Factory(), wiredHeadsetManager,mBluetoothRouteManager,
+                statusBarNotifier, featureFlags, metricsController,
                 asyncRingtonePlayer, mAnomalyReporter);
         mCallAudioRouteAdapter.initialize();
         bluetoothStateReceiver.setCallAudioRouteAdapter(mCallAudioRouteAdapter);
