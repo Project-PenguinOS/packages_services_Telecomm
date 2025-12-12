@@ -91,6 +91,7 @@ android_app {
         "TelecomLib",
         "framework-annotations-lib", // For @Nullable, @VisibleForTesting
         "telecom-strings", // All strings and translations
+        "androidx.core_core",
     ],
     libs: [
         "framework-telecom.stubs.module_lib",

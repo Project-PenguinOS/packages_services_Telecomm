@@ -187,6 +187,16 @@ public class CallAudioManagerTest extends TelecomTestCase {
                 any(CallAudioModeStateMachine.MessageArgs.class));
     }
 
+    @Test
+    public void testSilenceRing_CrsWithParameters() {
+        Call call = createIncomingCall();
+        when(mCrsAudioController.shouldControlCrsWithParameters()).thenReturn(true);
+
+        mCallAudioManager.silenceRingers(mContext, null, true);
+
+        verify(mCrsAudioController).setCrsSpeechMuted(true);
+    }
+
 
     @Test
     public void testUnmuteOfSecondIncomingCall() {

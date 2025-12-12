@@ -34,6 +34,7 @@ import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.telecom.CallAudioState;
 import android.telecom.VideoProfile;
+import android.text.TextUtils;
 
 import com.android.server.telecom.Call;
 import com.android.server.telecom.CallAudioManager;
@@ -344,5 +345,81 @@ public class CrsAudioControllerTest extends TelecomTestCase {
     @Test
     public void testIsCrsInCallMode_nullCall() {
         assertEquals(false, mCrsAudioController.isCrsInCallMode(null));
+    }
+
+    @Test
+    public void testShouldControlCrsWithParameters_True() {
+        when(mResources.getString(
+                com.android.server.telecom.R.string.config_audio_parameter_key_crs_volume)).thenReturn(
+                "");
+        when(mResources.getString(
+                com.android.server.telecom.R.string.config_crs_speech_mute_param)).thenReturn(
+                "mute_param");
+        assertTrue(mCrsAudioController.shouldControlCrsWithParameters());
+    }
+
+    @Test
+    public void testSetAudioModeForCrs_WithParams() {
+        // Setup for shouldControlCrsWithParameters = true
+        when(mResources.getString(
+                com.android.server.telecom.R.string.config_audio_parameter_key_crs_volume)).thenReturn(
+                "");
+        when(mResources.getString(
+                com.android.server.telecom.R.string.config_crs_speech_mute_param)).thenReturn(
+                "mute_param");
+        when(mResources.getString(
+                com.android.server.telecom.R.string.config_crs_mode_on_param)).thenReturn(
+                "on_param");
+        mCrsAudioController.setAudioModeForCrs();
+
+        verify(mAudioManager).setParameters("on_param");
+        verify(mAudioManager).setMode(AudioManager.MODE_IN_CALL);
+    }
+
+    @Test
+    public void testSetCrsSpeechMuted() {
+        when(mResources.getString(
+                com.android.server.telecom.R.string.config_crs_speech_mute_param)).thenReturn(
+                "mute_param");
+        when(mResources.getString(
+                com.android.server.telecom.R.string.config_crs_speech_unmute_param)).thenReturn(
+                "unmute_param");
+
+        mCrsAudioController.setCrsSpeechMuted(true);
+        verify(mAudioManager).setParameters("mute_param");
+
+        mCrsAudioController.setCrsSpeechMuted(false);
+        verify(mAudioManager).setParameters("unmute_param");
+    }
+
+    @Test
+    public void testSetCrsModeParams() {
+        when(mResources.getString(
+                com.android.server.telecom.R.string.config_crs_mode_on_param)).thenReturn(
+                "on_param");
+        when(mResources.getString(
+                com.android.server.telecom.R.string.config_crs_mode_off_param)).thenReturn(
+                "off_param");
+
+        mCrsAudioController.setCrsModeParams(true);
+        verify(mAudioManager).setParameters("on_param");
+
+        mCrsAudioController.setCrsModeParams(false);
+        verify(mAudioManager).setParameters("off_param");
+    }
+
+    @Test
+    public void testSetCrsAudioRoute_WithParams() {
+        // Setup for shouldControlCrsWithParameters = true
+        when(mResources.getString(
+                com.android.server.telecom.R.string.config_audio_parameter_key_crs_volume)).thenReturn(
+                "");
+        when(mResources.getString(
+                com.android.server.telecom.R.string.config_crs_speech_mute_param)).thenReturn(
+                "mute_param");
+
+        mCrsAudioController.setCrsAudioRoute(mCallAudioManager);
+
+        verify(mCallAudioManager, never()).setAudioRoute(anyInt(), any());
     }
 }
