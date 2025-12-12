@@ -63,7 +63,6 @@ import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.pm.PackageManager.ResolveInfoFlags;
 import android.content.pm.ResolveInfo;
-import android.content.pm.UserInfo;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.media.AudioManager;
@@ -119,7 +118,6 @@ import android.view.WindowManager;
 import android.widget.Button;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.app.IntentForwarderActivity;
 import com.android.internal.telephony.flags.Flags;
 import com.android.server.telecom.bluetooth.BluetoothDeviceManager;
 import com.android.server.telecom.bluetooth.BluetoothRouteManager;
@@ -3047,27 +3045,16 @@ public class CallsManager extends Call.ListenerBase
                 ? context.createContextAsUser(userHandle, 0).getSystemService(UserManager.class)
                 : context.getSystemService(UserManager.class);
 
-        if (featureFlags.telecomResolveHiddenDependencies()) {
-            List<UserHandle> userProfiles = um.getAllProfiles();
-            for (UserHandle userProfile : userProfiles) {
-                UserManager profileUserManager = context.createContextAsUser(userProfile, 0)
-                        .getSystemService(UserManager.class);
-                if (userProfile.getIdentifier() == userId) {
-                    continue;
-                }
-                if (profileUserManager.isManagedProfile()) {
-                    return userProfile;
-                }
+        List<UserHandle> userProfiles = um.getAllProfiles();
+        for (UserHandle userProfile : userProfiles) {
+            UserManager profileUserManager = context.createContextAsUser(userProfile, 0)
+                   .getSystemService(UserManager.class);
+            if (userProfile.getIdentifier() == userId) {
+                continue;
             }
-        } else {
-            List<UserInfo> userInfoProfiles = um.getProfiles(userId);
-            for (UserInfo uInfo : userInfoProfiles) {
-                if (uInfo.id == userId) {
-                    continue;
-                }
-                if (uInfo.isManagedProfile()) {
-                    return uInfo.getUserHandle();
-                }
+
+            if (profileUserManager.isManagedProfile()) {
+                return userProfile;
             }
         }
         return new UserHandle(UserHandle.USER_NULL);
@@ -3173,7 +3160,7 @@ public class CallsManager extends Call.ListenerBase
                     .getComponentInfo()
                     .getComponentName()
                     .getShortClassName()
-                    .equals(IntentForwarderActivity.FORWARD_INTENT_TO_MANAGED_PROFILE)) {
+                    .equals(FORWARD_INTENT_TO_MANAGED_PROFILE)) {
             Log.w(
                     this,
                     "Work profile telephony: Intent would not resolve to forwarder activity.");
@@ -6222,16 +6209,9 @@ public class CallsManager extends Call.ListenerBase
                         UserManager.class)
                 : mContext.getSystemService(UserManager.class);
         List<UserHandle> profiles = userManager.getUserProfiles();
-        List<UserInfo> userInfoProfiles = userManager.getEnabledProfiles(
-                userHandle.getIdentifier());
-        if (mFeatureFlags.telecomResolveHiddenDependencies()) {
-            for (UserHandle profileUser : profiles) {
-                reloadMissedCallsOfUser(profileUser);
-            }
-        } else {
-            for (UserInfo profile : userInfoProfiles) {
-                reloadMissedCallsOfUser(profile.getUserHandle());
-            }
+
+        for (UserHandle profileUser : profiles) {
+            reloadMissedCallsOfUser(profileUser);
         }
     }
 
