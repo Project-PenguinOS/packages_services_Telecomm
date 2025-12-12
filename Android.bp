@@ -19,6 +19,34 @@ filegroup {
     path: "src",
 }
 
+filegroup {
+    name: "service-telecom-internal-srcs",
+    srcs: ["src/**/*.java"],
+    path: "src",
+}
+
+java_library {
+    name: "telecom-proto-enums",
+    srcs: [
+        ":srcs_telecom_proto_enums",
+    ],
+    libs: [
+        "framework-statsd.stubs.module_lib",
+    ],
+    apex_available: [
+        "com.android.telephonycore",
+        "//apex_available:platform",
+    ],
+    min_sdk_version: "36",
+    sdk_version: "system_server_current",
+    visibility: [
+        "//packages/modules/Telephony/telecom:__subpackages__",
+    ],
+    proto: {
+        type: "stream",
+    },
+}
+
 android_library {
     name: "TelecomLib",
     manifest: "AndroidManifestLib.xml",
