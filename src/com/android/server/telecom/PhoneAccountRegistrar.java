@@ -2780,12 +2780,6 @@ public class PhoneAccountRegistrar {
                             // UserManager#getMainUser requires either the MANAGE_USERS,
                             // CREATE_USERS, or QUERY_USERS permission.
                             UserHandle primaryUser = userManager.getMainUser();
-                            UserInfo primaryUserInfo = userManager.getPrimaryUser();
-                            if (!telecomFeatureFlags.telecomResolveHiddenDependencies()) {
-                                primaryUser = primaryUserInfo != null
-                                        ? primaryUserInfo.getUserHandle()
-                                        : null;
-                            }
                             if (primaryUser != null) {
                                 DefaultPhoneAccountHandle defaultPhoneAccountHandle
                                         = new DefaultPhoneAccountHandle(primaryUser,
