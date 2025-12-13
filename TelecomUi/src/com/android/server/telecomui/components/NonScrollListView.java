@@ -14,7 +14,7 @@
  * limitations under the License
  */
 
-package com.android.server.telecom.components;
+package com.android.server.telecomui.components;
 
 import android.content.Context;
 import android.util.AttributeSet;

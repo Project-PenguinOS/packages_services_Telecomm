@@ -40,7 +40,6 @@ import androidx.annotation.NonNull;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.flags.Flags;
-import com.android.server.telecom.CallAudioManager.AudioServiceFactory;
 import com.android.server.telecom.DefaultDialerCache.DefaultDialerManagerAdapter;
 import com.android.server.telecom.bluetooth.BluetoothDeviceManager;
 import com.android.server.telecom.bluetooth.BluetoothRouteManager;
@@ -209,7 +208,6 @@ public class TelecomSystem {
             HeadsetMediaButtonFactory headsetMediaButtonFactory,
             ProximitySensorManagerFactory proximitySensorManagerFactory,
             InCallWakeLockControllerFactory inCallWakeLockControllerFactory,
-            AudioServiceFactory audioServiceFactory,
             ConnectionServiceFocusManager.ConnectionServiceFocusManagerFactory
                     connectionServiceFocusManagerFactory,
             Timeouts.Adapter timeoutsAdapter,
@@ -408,7 +406,6 @@ public class TelecomSystem {
                     proximitySensorManagerFactory,
                     inCallWakeLockControllerFactory,
                     connectionServiceFocusManagerFactory,
-                    audioServiceFactory,
                     bluetoothRouteManager,
                     wiredHeadsetManager,
                     systemStateHelper,

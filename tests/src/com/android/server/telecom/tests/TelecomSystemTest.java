@@ -50,7 +50,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.media.AudioManager;
-import android.media.IAudioService;
 import android.media.ToneGenerator;
 import android.net.Uri;
 import android.os.Bundle;
@@ -354,8 +353,6 @@ public class TelecomSystemTest extends TelecomTestCase{
 
     CallerInfoAsyncQueryFactoryFixture mCallerInfoAsyncQueryFactoryFixture;
 
-    IAudioService mAudioService;
-
     TelecomSystem mTelecomSystem;
 
     Context mSpyContext;
@@ -521,7 +518,6 @@ public class TelecomSystemTest extends TelecomTestCase{
                 spy(new ProximitySensorManagerFactoryF());
         InCallWakeLockControllerFactory inCallWakeLockControllerFactory =
                 spy(new InCallWakeLockControllerFactoryF());
-        mAudioService = setupAudioService();
 
         mCallerInfoAsyncQueryFactoryFixture = new CallerInfoAsyncQueryFactoryFixture();
 
@@ -550,7 +546,6 @@ public class TelecomSystemTest extends TelecomTestCase{
                 headsetMediaButtonFactory,
                 proximitySensorManagerFactory,
                 inCallWakeLockControllerFactory,
-                () -> mAudioService,
                 mConnServFMFactory,
                 mTimeoutsAdapter,
                 mAsyncRingtonePlayer,
@@ -564,14 +559,12 @@ public class TelecomSystemTest extends TelecomTestCase{
                             BluetoothRouteManager bluetoothManager,
                             WiredHeadsetManager wiredHeadsetManager,
                             StatusBarNotifier statusBarNotifier,
-                            CallAudioManager.AudioServiceFactory audioServiceFactory,
                             FeatureFlags featureFlags,
                             TelecomMetricsController metricsController,
                             AsyncRingtonePlayer ringtonePlayer,
                             AnomalyReporterAdapter anomalyReporter) {
                         return new CallAudioRouteController(context,
                                 callsManager,
-                                audioServiceFactory,
                                 new AudioRoute.Factory(),
                                 wiredHeadsetManager,
                                 bluetoothManager,
@@ -670,36 +663,6 @@ public class TelecomSystemTest extends TelecomTestCase{
                 mInCallServiceFixtureX.getTestDouble(), SERVICE_X_UID);
         mComponentContextFixture.addInCallService(mInCallServiceComponentNameY,
                 mInCallServiceFixtureY.getTestDouble(), SERVICE_Y_UID);
-    }
-
-    /**
-     * Helper method for setting up the fake audio service.
-     * Calls to the fake audio service need to toggle the return
-     * value of AudioManager#isMicrophoneMute.
-     * @return mock of IAudioService
-     */
-    private IAudioService setupAudioService() {
-        IAudioService audioService = mock(IAudioService.class);
-
-        final AudioManager fakeAudioManager =
-                (AudioManager) mComponentContextFixture.getTestDouble()
-                        .getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
-
-        try {
-            doAnswer(new Answer() {
-                @Override
-                public Object answer(InvocationOnMock i) {
-                    Object[] args = i.getArguments();
-                    doReturn(args[0]).when(fakeAudioManager).isMicrophoneMute();
-                    return null;
-                }
-            }).when(audioService).setMicrophoneMute(any(Boolean.class), any(String.class),
-                    any(Integer.class), nullable(String.class));
-
-        } catch (android.os.RemoteException e) {
-            // Do nothing, leave the faked microphone state as-is
-        }
-        return audioService;
     }
 
     protected String startOutgoingPhoneCallWithNoPhoneAccount(String number,

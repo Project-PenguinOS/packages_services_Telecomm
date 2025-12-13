@@ -77,14 +77,12 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     public static class Factory {
         public CallAudioRouteController create(
                 Context context, CallsManager callsManager,
-                CallAudioManager.AudioServiceFactory audioServiceFactory,
                 AudioRoute.Factory audioRouteFactory, WiredHeadsetManager wiredHeadsetManager,
                 BluetoothRouteManager bluetoothRouteManager, StatusBarNotifier notifier,
                 FeatureFlags featureFlags, TelecomMetricsController metricsController,
                 AsyncRingtonePlayer ringtonePlayer, AnomalyReporterAdapter anomalyReporterAdapter) {
             return new CallAudioRouteController(context,
                     callsManager,
-                    audioServiceFactory,
                     audioRouteFactory,
                     wiredHeadsetManager,
                     bluetoothRouteManager,
@@ -125,7 +123,6 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     private AudioManager mAudioManager;
     private CallAudioManager mCallAudioManager;
     private final BluetoothRouteManager mBluetoothRouteManager;
-    private final CallAudioManager.AudioServiceFactory mAudioServiceFactory;
     private final Handler mHandler;
     private final WiredHeadsetManager mWiredHeadsetManager;
     private final AsyncRingtonePlayer mRingtonePlayer;
@@ -286,7 +283,6 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
 
     public CallAudioRouteController(
             Context context, CallsManager callsManager,
-            CallAudioManager.AudioServiceFactory audioServiceFactory,
             AudioRoute.Factory audioRouteFactory, WiredHeadsetManager wiredHeadsetManager,
             BluetoothRouteManager bluetoothRouteManager, StatusBarNotifier statusBarNotifier,
             FeatureFlags featureFlags, TelecomMetricsController metricsController,
@@ -294,7 +290,6 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         mContext = context;
         mCallsManager = callsManager;
         mAudioManager = context.getSystemService(AudioManager.class);
-        mAudioServiceFactory = audioServiceFactory;
         mAudioRouteFactory = audioRouteFactory;
         mWiredHeadsetManager = wiredHeadsetManager;
         mIsMute = false;

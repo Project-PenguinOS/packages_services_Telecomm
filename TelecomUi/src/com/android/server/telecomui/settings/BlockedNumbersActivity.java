@@ -181,13 +181,20 @@ public class BlockedNumbersActivity extends ListActivity
     }
 
     private void updateButterBar() {
-        boolean isBlockSuppressionEnabled = mBlockedNumbersManager != null
-                ? mBlockedNumbersManager.getBlockSuppressionStatus().getIsSuppressed()
-                : BlockedNumberContract.SystemContract.getBlockSuppressionStatus(this).isSuppressed;
+        if (mBlockedNumbersManager == null) {
+          mBlockedNumbersManager = getSystemService(BlockedNumbersManager.class);
+        }
+
+        boolean isBlockSuppressionEnabled = false;
+        if (mBlockedNumbersManager != null) {
+          isBlockSuppressionEnabled =
+                mBlockedNumbersManager.getBlockSuppressionStatus().getIsSuppressed();
+        }
+
         if (isBlockSuppressionEnabled) {
-            mButterBar.setVisibility(View.VISIBLE);
+          mButterBar.setVisibility(View.VISIBLE);
         } else {
-            mButterBar.setVisibility(View.GONE);
+          mButterBar.setVisibility(View.GONE);
         }
     }
 
@@ -239,10 +246,11 @@ public class BlockedNumbersActivity extends ListActivity
         if (view == mAddButton) {
             showAddBlockedNumberDialog();
         } else if (view == mReEnableButton) {
+            if (mBlockedNumbersManager == null) {
+              mBlockedNumbersManager = getSystemService(BlockedNumbersManager.class);
+            }
             if (mBlockedNumbersManager != null) {
                 mBlockedNumbersManager.endBlockSuppression();
-            } else {
-                BlockedNumberContract.SystemContract.endBlockSuppression(this);
             }
             mButterBar.setVisibility(View.GONE);
         }

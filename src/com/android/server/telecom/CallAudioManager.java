@@ -44,10 +44,6 @@ import java.util.stream.Collectors;
 
 public class CallAudioManager extends CallsManagerListenerBase {
 
-    public interface AudioServiceFactory {
-        IAudioService getAudioService();
-    }
-
     private final String LOG_TAG = CallAudioManager.class.getSimpleName();
 
     private final LinkedHashSet<Call> mActiveDialingOrConnectingCalls;
