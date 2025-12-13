@@ -175,7 +175,7 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
     private AudioRoute mSpeakerRoute;
     private boolean mOverrideSpeakerToBus;
     private boolean mIsScoManagedByAudio;
-    private UserHandle mCurrentUser = new UserHandle(UserHandle.USER_SYSTEM);
+    private UserHandle mCurrentUser = UserHandle.SYSTEM;
     AudioRoute.Factory mAudioRouteFactory = new AudioRoute.Factory() {
         @Override
         public AudioRoute create(@AudioRoute.AudioRouteType int type, String bluetoothAddress,

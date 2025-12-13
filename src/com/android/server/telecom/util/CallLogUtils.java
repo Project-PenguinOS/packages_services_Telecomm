@@ -397,7 +397,7 @@ public class CallLogUtils {
                 // Nothing further to do; just return null.
                 return null;
             }
-            if (UserHandle.USER_SYSTEM == currentUserId) {
+            if (userManager.isSystemUser()) {
                 result = uriForSystem;
             }
 
