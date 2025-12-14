@@ -94,7 +94,7 @@ public class Ringer {
 
     public interface AccessibilityManagerAdapter {
         boolean startFlashNotificationSequence(@NonNull Context context,
-                @AccessibilityManager.FlashNotificationReason int reason);
+                /* @AccessibilityManager.FlashNotificationReason */ int reason);
         boolean stopFlashNotificationSequence(@NonNull Context context);
     }
     /**

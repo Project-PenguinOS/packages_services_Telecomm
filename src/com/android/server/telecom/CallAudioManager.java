@@ -18,7 +18,6 @@ package com.android.server.telecom;
 
 import android.annotation.NonNull;
 import android.content.Context;
-import android.media.IAudioService;
 import android.media.ToneGenerator;
 import android.os.Handler;
 import android.os.HandlerThread;
