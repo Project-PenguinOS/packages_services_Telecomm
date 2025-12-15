@@ -4096,9 +4096,6 @@ public class CallsManager extends Call.ListenerBase
      }
 
 // QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
-
-// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
     /**
      * Determines if the speakerphone should be enabled for when docked.  Speakerphone
      * should be enabled if the device is docked and bluetooth or the wired headset are

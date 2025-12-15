@@ -36,9 +36,6 @@ import android.content.IntentFilter;
 // QTI_END: 2021-07-06: Telephony: IMS: Align CRS volume level to local ring volume level
 import android.content.res.Resources;
 import android.media.AudioAttributes;
-// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
-import android.media.AudioDeviceInfo;
-// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
 import android.content.res.Resources;
 import android.media.AudioAttributes;
 import android.media.AudioManager;
@@ -80,9 +77,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
 import java.util.concurrent.Executors;
-// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -274,10 +269,24 @@ public class Ringer {
     private volatile boolean mIsVibrating = false;
 
     private Handler mHandler = null;
-// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
-    private int mSavedSpeakerInCallVolume = -1;
-    private CommunicationDeviceChangedListener mCommunicationDeviceChangedListener = null;
-// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
+    private int mSavedInCallVolume = 0;
+
+    private final BroadcastReceiver mVolumeReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent == null ||
+                    !intent.getAction().equals(AudioManager.VOLUME_CHANGED_ACTION)) {
+                return;
+            }
+            if (intent.getIntExtra(AudioManager.EXTRA_VOLUME_STREAM_TYPE, -1)
+                    != AudioManager.STREAM_VOICE_CALL) {
+                return;
+            }
+            int index = intent.getIntExtra(AudioManager.EXTRA_VOLUME_STREAM_VALUE, 0);
+            Log.d(this, "VolumeReceiver and new index is " + index);
+            mSavedInCallVolume = index;
+        }
+    };
 
     /**
      * Use lock different from the Telecom sync because ringing process is asynchronous outside that
@@ -416,6 +425,8 @@ public class Ringer {
             return false;
         }
 
+        AudioManager audioManager =
+                mContext.getSystemService(AudioManager.class);
         LogUtils.EventTimer timer = new EventTimer();
 // QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
 // QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
@@ -493,149 +504,49 @@ public class Ringer {
         Log.i(this, "isHfpDeviceAttached=%s, isVibratorEnabled=%s, isRingerAudible=%s, ",
                 isHfpDeviceAttached, isVibratorEnabled, isRingerAudible);
 // QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
-        if (isRingerAudible) {
-            if (!mAudioManager.isSpeakerphoneOn()) {
-                mCommunicationDeviceChangedListener = new CommunicationDeviceChangedListener();
-                try {
-                    mAudioManager.addOnCommunicationDeviceChangedListener(
-                            mContext.getMainExecutor(), mCommunicationDeviceChangedListener);
-                } catch (Exception e) {
-                    Log.i(this, "addOnCommunicationDeviceChangedListener failed with exception: "
-                            + e);
-                }
-            } else {
-                Log.i(this,"Speaker is ON for CRS.");
-                setSystemSystemSpeakerInCallVolume();
-            }
-// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
-// QTI_BEGIN: 2021-07-06: Telephony: IMS: Align CRS volume level to local ring volume level
+        int ringVolumeLevel = audioManager.getStreamVolume(AudioManager.STREAM_RING);
+        if (ringVolumeLevel != 0 && isRingerAudible) {
+            Log.i(this, "Start play CRS with volume :: " + ringVolumeLevel);
+            // Set the CRS volume with local ring volume  and save the old volume setting.
+            mSavedInCallVolume = audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL);
+            final IntentFilter filter = new IntentFilter();
+            filter.addAction(AudioManager.VOLUME_CHANGED_ACTION);
+            mContext.registerReceiver(mVolumeReceiver, filter);
+            audioManager.setStreamVolume(
+                    AudioManager.STREAM_VOICE_CALL,
+                    convertVolumeLevelFromRingToCrs(ringVolumeLevel), 0);
         }
 // QTI_END: 2021-07-06: Telephony: IMS: Align CRS volume level to local ring volume level
 // QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
         if (mBlockOnRingingFuture != null) {
             mBlockOnRingingFuture.complete(null);
         }
-        maybeStartVibration(foregroundCall, shouldRingForContact,
-                effect, isVibratorEnabled, isRingerAudible);
 
         return shouldAcquireAudioFocus;
     }
 
-// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
-    class CommunicationDeviceChangedListener implements
-        AudioManager.OnCommunicationDeviceChangedListener {
-            @Override
-            public void onCommunicationDeviceChanged(AudioDeviceInfo device) {
-                if (device == null) {
-                    return;
-                }
-                Log.i(this,"onCommunicationDeviceChanged, Device type : "
-                        + device.getType());
-                if (device.getType() == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) {
-                    setSystemSystemSpeakerInCallVolume();
-                }
-            }
-     }
-
-    private void setSystemSystemSpeakerInCallVolume() {
-        int ringVolumeLevel = mAudioManager.getStreamVolume(AudioManager.STREAM_RING);
-        if (ringVolumeLevel > 0) {
-            Log.i(this, "Start play CRS with volume :: " + ringVolumeLevel);
-            // Set the CRS volume with local ring volume  and save the old volume setting.
-            mSavedSpeakerInCallVolume = mAudioManager.getStreamVolume(
-                    AudioManager.STREAM_VOICE_CALL);
-            Log.i(this, "mSavedSpeakerInCallVolume is :: " + mSavedSpeakerInCallVolume);
-            mAudioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL,
-                    convertVolumeLevelFromRingToCrs(ringVolumeLevel), 0);
+    private static int convertVolumeLevelFromRingToCrs(int ringVolume) {
+        //CRS volume is same as call volume, MinVolume is 1 and MaxVolume 5.
+        //The range of local ring volume is from 0 to 7, telephony needs to align
+        //volume level between local ring and CRS.
+        //local ring level <---> CRS volume level
+        // 7/6             <--->      5
+        // 5/4             <--->      4
+        // 3               <--->      3
+        // 2               <--->      2
+        // 1               <--->      1
+        // 0               <--->  silence CRS
+        final int upperBound  = 5;
+        final int middleBound = 4;
+        if (ringVolume < middleBound) { // Linear mapping for lower bound.
+            return ringVolume;
+        } else if (ringVolume > upperBound  ) {  // Saturating mapping upper bound.
+            return upperBound;
+        } else {
+            return middleBound;
         }
     }
 
-    public void restoreSystemSpeakerInCallVolume() {
-        boolean speakerOn = mAudioManager.isSpeakerphoneOn();
-        Log.i(this, "restoreSystemSpeakerInCallVolume :: speaker ON =  " + speakerOn
-                + ", mSavedSpeakerInCallVolume = " + mSavedSpeakerInCallVolume);
-        muteCrs(false);
-        if (speakerOn && (mSavedSpeakerInCallVolume != -1)) {
-            // Restore inCall volume after getting ACTIVE/DISCONNECTED state as
-            // CRS volume used the system ringing volume level.
-            // And set volume level for speaker only.
-            mAudioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL,
-                    mSavedSpeakerInCallVolume, 0);
-            mSavedSpeakerInCallVolume = -1;
-            Log.i(this, "restoreSystemSpeakerInCallVolume done");
-        }
-    }
-
-// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
-    private void maybeStartVibration(Call foregroundCall, boolean shouldRingForContact,
-        VibrationEffect effect, boolean isVibrationEnabled, boolean isRingerAudible) {
-        synchronized (mLock) {
-            mAudioManager = mContext.getSystemService(AudioManager.class);
-            if (isVibrationEnabled && !mIsVibrating && shouldRingForContact) {
-                Log.addEvent(foregroundCall, LogUtils.Events.START_VIBRATOR,
-                        "hasVibrator=%b, userRequestsVibrate=%b, ringerMode=%d, isVibrating=%b",
-                        mVibrator.hasVibrator(),
-                        mSystemSettingsUtil.isRingVibrationEnabled(mContext, mFlags),
-                        mAudioManager.getRingerMode(), mIsVibrating);
-                if (mSystemSettingsUtil.isRampingRingerEnabled(mContext) && isRingerAudible) {
-                    Log.i(this, "start vibration for ramping ringer.");
-                } else {
-                    Log.i(this, "start normal vibration.");
-                }
-                mIsVibrating = true;
-                mVibrator.vibrate(effect, VIBRATION_ATTRIBUTES);
-            } else {
-                foregroundCall.setUserMissed(USER_MISSED_NO_VIBRATE);
-                Log.addEvent(foregroundCall, LogUtils.Events.SKIP_VIBRATION,
-                        "hasVibrator=%b, userRequestsVibrate=%b, ringerMode=%d, isVibrating=%b",
-                        mVibrator.hasVibrator(),
-                        mSystemSettingsUtil.isRingVibrationEnabled(mContext, mFlags),
-                        mAudioManager.getRingerMode(), mIsVibrating);
-            }
-        }
-    }
-
-// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
-    private int convertVolumeLevelFromRingToCrs(int ringVolume) {
-        // CRS volume is same as voice call volume per design and telephony should
-        // adjust voice volume according to ring volume when playing CRS audio,
-        // however the range of local ring volume and voice call volume are different
-        // for different devices, telephony needs to align volume level between local
-        // ring and CRS(voice call volume) according to device audio configuration.
-        final int maxVoiceCallVolume = mAudioManager.getStreamMaxVolume(
-                AudioManager.STREAM_VOICE_CALL);
-        final int maxRingVolume = mAudioManager.getStreamMaxVolume(AudioManager.STREAM_RING);
-        final int minVoiceCallVolume = mAudioManager.getStreamMinVolume(
-                AudioManager.STREAM_VOICE_CALL);
-        final int minRingVolume = mAudioManager.getStreamMinVolume(AudioManager.STREAM_RING);
-        if (ringVolume >= maxRingVolume) {
-            return maxVoiceCallVolume;
-// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
-// QTI_BEGIN: 2021-07-06: Telephony: IMS: Align CRS volume level to local ring volume level
-        }
-// QTI_END: 2021-07-06: Telephony: IMS: Align CRS volume level to local ring volume level
-// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
-        final float ratio =(float) (maxVoiceCallVolume - minVoiceCallVolume) /
-            (maxRingVolume - minRingVolume);
-        int crsVolume = minVoiceCallVolume + (int)Math.round(ratio * (ringVolume - minRingVolume));
-        if (crsVolume >= maxVoiceCallVolume) {
-            crsVolume = maxVoiceCallVolume;
-        }
-        Log.i(this, "maxVoiceCallVol=%d, maxRingVol=%d, minVoiceCallVol=%d, "
-                + "minRingVol=%d, crsVolume=%d, ",
-                maxVoiceCallVolume,
-                maxRingVolume,
-                minVoiceCallVolume,
-                minRingVolume,
-                crsVolume);
-        return crsVolume;
-// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
-// QTI_BEGIN: 2021-07-06: Telephony: IMS: Align CRS volume level to local ring volume level
-    }
-
-// QTI_END: 2021-07-06: Telephony: IMS: Align CRS volume level to local ring volume level
     public boolean startRinging(Call foregroundCall, boolean isHfpDeviceAttached) {
         boolean deferBlockOnRingingFuture = false;
         // try-finally to ensure that the block on ringing future is always called.
@@ -1025,38 +936,17 @@ public class Ringer {
         }
     }
 
-// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
-    public void muteCrs(boolean mute) {
-        Log.i(this, "Mute CRS : " + mute);
-        mAudioManager.adjustStreamVolume(AudioManager.STREAM_VOICE_CALL,
-                mute ? AudioManager.ADJUST_MUTE : AudioManager.ADJUST_UNMUTE, 0);
-    }
-
-// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
-// QTI_BEGIN: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
     public void stopPlayingCrs() {
 // QTI_END: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
 // QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
         if (mRingingCall != null) {
             Log.addEvent(mRingingCall, LogUtils.Events.STOP_RINGER);
+            AudioManager audioManager =  mContext.getSystemService(AudioManager.class);
+            audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, mSavedInCallVolume, 0);
+            mContext.unregisterReceiver(mVolumeReceiver);
+            mSavedInCallVolume = 0;
             mRingingCall = null;
         }
-// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
-
-        if (mCommunicationDeviceChangedListener != null) {
-            try {
-                mAudioManager.removeOnCommunicationDeviceChangedListener(
-                        mCommunicationDeviceChangedListener);
-            } catch (Exception e) {
-                Log.i(this, "removeOnCommunicationDeviceChangedListener failed with exception: "
-                         + e);
-            }
-            mCommunicationDeviceChangedListener = null;
-
-        }
-// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
-// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
 
         if (mIsVibrating) {
             Log.addEvent(mVibratingCall, LogUtils.Events.STOP_VIBRATOR);

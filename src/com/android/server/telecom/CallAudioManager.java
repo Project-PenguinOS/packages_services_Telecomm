@@ -196,60 +196,22 @@ public class CallAudioManager extends CallsManagerListenerBase {
             mIsCrsInCallMode = false;
             mSilencedCalls.remove(call);
         }
-// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-        //reset CRS mode once call state changed.
-// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-        if ((call == mForegroundCall) && mIsInCrsMode &&
-                (newState == CallState.ACTIVE || newState == CallState.DISCONNECTED)) {
-// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
-            Log.i(this, "CRS call is finished");
-// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
-// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-            mIsInCrsMode = false;
-// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
-            mRinger.restoreSystemSpeakerInCallVolume();
-            //If original call type is voice call or VT accpeting as voice call,
-            //then need to set audio path to earpiece.
-            if (newState == CallState.ACTIVE) {
-                if (!(mCallsManager.isWiredHandsetIn() || mCallsManager.isBtAvailable())
-                        && (call.getVideoState() != VideoProfile.STATE_BIDIRECTIONAL)) {
-                    setAudioRoute(CallAudioState.ROUTE_EARPIECE, null);
-                } else if (mCallsManager.isBtAvailable()) {
-                    setAudioRoute(CallAudioState.ROUTE_BLUETOOTH, null);
-                } else if (mCallsManager.isWiredHandsetIn()) {
-                    setAudioRoute(CallAudioState.ROUTE_WIRED_HEADSET, null);
-                }
-// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
-// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-            }
-            mOriginalCallType = Call.CALL_TYPE_UNKNOWN;
-// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-        }
+
         onCallLeavingState(call, oldState);
         onCallEnteringState(call, newState);
 // QTI_END: 2020-03-27: Telephony: Ims: Clean-up old ConfURI implementation
     }
 
-// QTI_BEGIN: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
     @Override
     public void onCrsFallbackLocalRinging(Call call) {
-// QTI_END: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
-// QTI_BEGIN: 2024-03-28: Telephony: Skip startRinging for silenced ringing call
-        if (!mIsInCrsMode || mSilencedCalls.contains(call) || call != mForegroundCall) {
-// QTI_END: 2024-03-28: Telephony: Skip startRinging for silenced ringing call
-// QTI_BEGIN: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
+        if (mSilencedCalls.contains(call) || call != mForegroundCall) {
             return;
         }
-        Log.i(LOG_TAG, "onCrsFallbackLocalRinging :: Switch to play local ringing");
-        mIsInCrsMode = false;
         mCallAudioModeStateMachine.sendMessageWithArgs(
                 CallAudioModeStateMachine.CRS_FALLBACK_TO_LOCAL_RINGING,
                 makeArgsForModeStateMachine());
-        onRingingCallChanged();
     }
 
-// QTI_END: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
     @Override
     public void onCallAdded(Call call) {
         if (shouldIgnoreCallForAudio(call)) {
@@ -716,9 +678,6 @@ public class CallAudioManager extends CallsManagerListenerBase {
     }
 
 // QTI_END: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
-// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
-
-// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
     @VisibleForTesting
     public void startCallWaiting(String reason) {
         synchronized (mCallsManager.getLock()) {
@@ -1384,17 +1343,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
         synchronized (mCallsManager.getLock()) {
             if (mRingingCalls.size() == 0 ||
                     (mRingingCalls.size() == 1 && call == mRingingCalls.iterator().next())) {
-// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
-                //CRS call need to be restored inCall volume while call accepting or rejecting.
-                //To avoid CRS audio becomes loud/low when restore volume, mute CRS first.
-// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
-                if (mIsInCrsMode) {
-                    mRinger.muteCrs(true);
-                    mRinger.stopPlayingCrs();
-                } else {
-                    mRinger.stopRinging();
-                }
-// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
+                mRinger.stopRinging();
                 mRinger.stopCallWaiting();
             }
         }
