@@ -45,6 +45,12 @@ public class UiConstants {
         "com.android.server.telecomui.settings.CallBlockDisabledActivity";
 
     /**
+     * Missed call notification label, used when there's exactly one missed call from work
+     * contact.
+     */
+    public static final String NOTIFICATION_MISSED_WORK_CALL_TITLE =
+            "Telecomm.NOTIFICATION_MISSED_WORK_CALL_TITLE";
+    /**
      * Extras and errors.
      */
     public static final String ERROR_MESSAGE_ID_EXTRA = "error_message_id";
