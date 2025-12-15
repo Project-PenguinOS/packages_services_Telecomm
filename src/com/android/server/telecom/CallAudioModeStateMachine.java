@@ -479,11 +479,6 @@ public class CallAudioModeStateMachine extends StateMachine {
                         CallAudioRouteController.ACTIVE_FOCUS);
                 mHasFocus = true;
 // QTI_END: 2021-06-14: Telephony: IMS: Fix Video CRS audio issues
-// QTI_BEGIN: 2021-07-06: Telephony: IMS: Align CRS volume level to local ring volume level
-                if (mAudioManager.getStreamVolume(AudioManager.STREAM_RING) == 0) {
-                    silenceCrs();
-                }
-// QTI_END: 2021-07-06: Telephony: IMS: Align CRS volume level to local ring volume level
 // QTI_BEGIN: 2021-06-14: Telephony: IMS: Fix Video CRS audio issues
             } else {
                 Log.i(LOG_TAG, "RINGING state, try start ringing but not acquiring audio focus");

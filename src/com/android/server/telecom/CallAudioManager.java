@@ -612,6 +612,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
             if(mIsInCrsMode) {
                 Log.i(this, "Fire silence CRS.");
                 onCallSilenceCrs();
+                mRinger.stopPlayCrs();
             }
 // QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
 
@@ -673,7 +674,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
     public void stopPlayingCrs() {
         Log.i(this, "Stop playing CRS audio.");
         synchronized (mCallsManager.getLock()) {
-            mRinger.stopPlayingCrs();
+            mRinger.stopPlayCrs();
         }
     }
 

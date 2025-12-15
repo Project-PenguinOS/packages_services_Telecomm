@@ -26,14 +26,7 @@ import android.annotation.Nullable;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.Person;
-// QTI_BEGIN: 2021-07-06: Telephony: IMS: Align CRS volume level to local ring volume level
-import android.content.BroadcastReceiver;
-// QTI_END: 2021-07-06: Telephony: IMS: Align CRS volume level to local ring volume level
 import android.content.Context;
-// QTI_BEGIN: 2021-07-06: Telephony: IMS: Align CRS volume level to local ring volume level
-import android.content.Intent;
-import android.content.IntentFilter;
-// QTI_END: 2021-07-06: Telephony: IMS: Align CRS volume level to local ring volume level
 import android.content.res.Resources;
 import android.media.AudioAttributes;
 import android.content.res.Resources;
@@ -269,24 +262,6 @@ public class Ringer {
     private volatile boolean mIsVibrating = false;
 
     private Handler mHandler = null;
-    private int mSavedInCallVolume = 0;
-
-    private final BroadcastReceiver mVolumeReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (intent == null ||
-                    !intent.getAction().equals(AudioManager.VOLUME_CHANGED_ACTION)) {
-                return;
-            }
-            if (intent.getIntExtra(AudioManager.EXTRA_VOLUME_STREAM_TYPE, -1)
-                    != AudioManager.STREAM_VOICE_CALL) {
-                return;
-            }
-            int index = intent.getIntExtra(AudioManager.EXTRA_VOLUME_STREAM_VALUE, 0);
-            Log.d(this, "VolumeReceiver and new index is " + index);
-            mSavedInCallVolume = index;
-        }
-    };
 
     /**
      * Use lock different from the Telecom sync because ringing process is asynchronous outside that
@@ -503,48 +478,18 @@ public class Ringer {
 
         Log.i(this, "isHfpDeviceAttached=%s, isVibratorEnabled=%s, isRingerAudible=%s, ",
                 isHfpDeviceAttached, isVibratorEnabled, isRingerAudible);
-// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-        int ringVolumeLevel = audioManager.getStreamVolume(AudioManager.STREAM_RING);
-        if (ringVolumeLevel != 0 && isRingerAudible) {
-            Log.i(this, "Start play CRS with volume :: " + ringVolumeLevel);
-            // Set the CRS volume with local ring volume  and save the old volume setting.
-            mSavedInCallVolume = audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL);
-            final IntentFilter filter = new IntentFilter();
-            filter.addAction(AudioManager.VOLUME_CHANGED_ACTION);
-            mContext.registerReceiver(mVolumeReceiver, filter);
-            audioManager.setStreamVolume(
-                    AudioManager.STREAM_VOICE_CALL,
-                    convertVolumeLevelFromRingToCrs(ringVolumeLevel), 0);
-        }
-// QTI_END: 2021-07-06: Telephony: IMS: Align CRS volume level to local ring volume level
-// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
+        Log.i(this, "Start play CRS with volume :: "
+                + audioManager.getStreamVolume(AudioManager.STREAM_RING));
+        audioManager.setStreamVolume(
+                AudioManager.STREAM_SYSTEM,
+                audioManager.getStreamVolume(AudioManager.STREAM_RING),
+                AudioManager.FLAG_ALLOW_RINGER_MODES);
+
         if (mBlockOnRingingFuture != null) {
             mBlockOnRingingFuture.complete(null);
         }
 
         return shouldAcquireAudioFocus;
-    }
-
-    private static int convertVolumeLevelFromRingToCrs(int ringVolume) {
-        //CRS volume is same as call volume, MinVolume is 1 and MaxVolume 5.
-        //The range of local ring volume is from 0 to 7, telephony needs to align
-        //volume level between local ring and CRS.
-        //local ring level <---> CRS volume level
-        // 7/6             <--->      5
-        // 5/4             <--->      4
-        // 3               <--->      3
-        // 2               <--->      2
-        // 1               <--->      1
-        // 0               <--->  silence CRS
-        final int upperBound  = 5;
-        final int middleBound = 4;
-        if (ringVolume < middleBound) { // Linear mapping for lower bound.
-            return ringVolume;
-        } else if (ringVolume > upperBound  ) {  // Saturating mapping upper bound.
-            return upperBound;
-        } else {
-            return middleBound;
-        }
     }
 
     public boolean startRinging(Call foregroundCall, boolean isHfpDeviceAttached) {
@@ -936,15 +881,9 @@ public class Ringer {
         }
     }
 
-    public void stopPlayingCrs() {
-// QTI_END: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
-// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
+    public void stopPlayCrs() {
         if (mRingingCall != null) {
             Log.addEvent(mRingingCall, LogUtils.Events.STOP_RINGER);
-            AudioManager audioManager =  mContext.getSystemService(AudioManager.class);
-            audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, mSavedInCallVolume, 0);
-            mContext.unregisterReceiver(mVolumeReceiver);
-            mSavedInCallVolume = 0;
             mRingingCall = null;
         }
 
