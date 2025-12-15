@@ -19,7 +19,6 @@ package com.android.server.telecom;
 import android.annotation.Nullable;
 import android.content.Context;
 import android.content.pm.PackageManager;
-import android.content.pm.UserInfo;
 import android.media.AudioAttributes;
 import android.media.audio.Flags;
 import android.media.RingtoneManager;
@@ -182,28 +181,18 @@ public class RingtoneFactory {
                 ? userContext.getSystemService(UserManager.class)
                 : mContext.getSystemService(UserManager.class);
         List<UserHandle> profiles = um.getUserProfiles();
-        List<UserInfo> userInfoProfiles = um.getEnabledProfiles(userHandle.getIdentifier());
         UserHandle workProfileUser = null;
         int managedProfileCount = 0;
 
-        if (mFeatureFlags.telecomResolveHiddenDependencies()) {
-            for (UserHandle profileUser : profiles) {
-                UserManager userManager = mContext.createContextAsUser(profileUser, 0)
-                        .getSystemService(UserManager.class);
-                if (!userHandle.equals(profileUser) && userManager.isManagedProfile()) {
-                    managedProfileCount++;
-                    workProfileUser = profileUser;
-                }
-            }
-        } else {
-            for(UserInfo profile: userInfoProfiles) {
-                UserHandle profileUserHandle = profile.getUserHandle();
-                if (!profileUserHandle.equals(userHandle) && profile.isManagedProfile()) {
-                    managedProfileCount++;
-                    workProfileUser = profileUserHandle;
-                }
+        for (UserHandle profileUser : profiles) {
+            UserManager userManager = mContext.createContextAsUser(profileUser, 0)
+                    .getSystemService(UserManager.class);
+            if (!userHandle.equals(profileUser) && userManager.isManagedProfile()) {
+                managedProfileCount++;
+                workProfileUser = profileUser;
             }
         }
+
         // There may be many different types of profiles, so only count Managed (Work) Profiles.
         if(managedProfileCount == 1) {
             return getContextForUserHandle(workProfileUser);
