@@ -638,10 +638,6 @@ public class CallAudioModeStateMachine extends StateMachine {
                 case RINGING_CALLS_CHANGED:
                     Log.i(LOG_TAG, "CRS RINGING state, received RINGING_CALLS_CHANGED");
 // QTI_END: 2021-10-14: Telephony: IMS: Update ringtone only if there is more than one incoming call
-// QTI_BEGIN: 2023-04-03: Telephony: IMS: Support video CRS in RINGTONE
-                    //Ringing call changed, so stop current ring first.
-                    mCallAudioManager.stopRinging();
-// QTI_END: 2023-04-03: Telephony: IMS: Support video CRS in RINGTONE
 // QTI_BEGIN: 2021-10-14: Telephony: IMS: Update ringtone only if there is more than one incoming call
                     BaseState newDestState = calculateProperStateFromArgs(args);
                     transitionTo(newDestState);
@@ -771,19 +767,11 @@ public class CallAudioModeStateMachine extends StateMachine {
                     mCallAudioManager.stopRinging();
                     tryStartRinging();
                     return HANDLED;
-// QTI_BEGIN: 2021-10-14: Telephony: IMS: Update ringtone only if there is more than one incoming call
                 case RINGING_CALLS_CHANGED:
                     Log.i(LOG_TAG, "RINGING state, received RINGING_CALLS_CHANGED");
-// QTI_END: 2021-10-14: Telephony: IMS: Update ringtone only if there is more than one incoming call
-// QTI_BEGIN: 2023-04-03: Telephony: IMS: Support video CRS in RINGTONE
-                    //Ringing call changed, so stop current ring first.
-                    mCallAudioManager.stopRinging();
-// QTI_END: 2023-04-03: Telephony: IMS: Support video CRS in RINGTONE
-// QTI_BEGIN: 2021-10-14: Telephony: IMS: Update ringtone only if there is more than one incoming call
                     BaseState newDestState = calculateProperStateFromArgs(args);
                     transitionTo(newDestState);
                     return HANDLED;
-// QTI_END: 2021-10-14: Telephony: IMS: Update ringtone only if there is more than one incoming call
                 default:
                     // The forced focus switch commands are handled by BaseState.
                     return NOT_HANDLED;

@@ -259,9 +259,6 @@ public class Ringer {
     private AudioManager mAudioManager;
     private NotificationManager mNotificationManager;
     private AccessibilityManagerAdapter mAccessibilityManagerAdapter;
-// QTI_BEGIN: 2023-04-03: Telephony: IMS: Support video CRS in RINGTONE
-    private boolean mIsCrsCall = false;
-// QTI_END: 2023-04-03: Telephony: IMS: Support video CRS in RINGTONE
 
     /**
      * Call objects that are ringing, vibrating or call-waiting. These are used only for logging
@@ -388,18 +385,6 @@ public class Ringer {
         mNotificationManager = notificationManager;
     }
 
-// QTI_BEGIN: 2023-04-03: Telephony: IMS: Support video CRS in RINGTONE
-    public boolean isCrsSupportedFromAudioHal() {
-        if (mAudioManager == null) {
-            return false;
-        }
-        String isCrsSupported = mAudioManager.getParameters("isCRSsupported");
-        Log.i(this, "CRS is supported from audio HAL : " + isCrsSupported);
-        return isCrsSupported.equals("isCRSsupported=1");
-    }
-
-// QTI_END: 2023-04-03: Telephony: IMS: Support video CRS in RINGTONE
-// QTI_BEGIN: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
     public boolean startPlayingCrs(Call foregroundCall, boolean isHfpDeviceAttached) {
 // QTI_END: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
 // QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
@@ -713,9 +698,6 @@ public class Ringer {
                 return acquireAudioFocus;
             }
 
-// QTI_BEGIN: 2023-05-22: Telephony: IMS: Remove device to device patches for CRS
-            mIsCrsCall = foregroundCall.isCrsCall();
-// QTI_END: 2023-05-22: Telephony: IMS: Remove device to device patches for CRS
             stopCallWaiting();
 
             final boolean shouldFlash = mRingerAttributes.shouldRingForContact();
