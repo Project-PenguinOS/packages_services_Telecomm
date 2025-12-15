@@ -3575,10 +3575,7 @@ public class TelecomServiceImpl {
             }
 
             if (videoState == DEFAULT_VIDEO_STATE || !isValidAcceptVideoState(videoState)) {
-// QTI_BEGIN: 2023-09-13: Telephony: Fix video CRS for VoLTE call is answered as video call through KEYCODE_CALL
-                videoState = call.isVideoCrsForVoLteCall()
-                        ? VideoProfile.STATE_AUDIO_ONLY : call.getVideoState();
-// QTI_END: 2023-09-13: Telephony: Fix video CRS for VoLTE call is answered as video call through KEYCODE_CALL
+                videoState = call.getVideoState();
             }
             mCallsManager.answerCall(call, videoState);
         }
