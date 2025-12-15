@@ -63,8 +63,6 @@ import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
-import android.location.Country;
-import android.location.CountryDetector;
 import android.net.Uri;
 import android.os.UserHandle;
 import android.os.UserManager;
@@ -640,18 +638,6 @@ public class CallLogUtils {
             }
         }
         return accountAddress;
-    }
-
-    private static String getCurrentCountryIso(Context context) {
-        String countryIso = null;
-        final CountryDetector detector = context.getSystemService(CountryDetector.class);
-        if (detector != null) {
-            final Country country = detector.detectCountry();
-            if (country != null) {
-                countryIso = country.getCountryCode();
-            }
-        }
-        return countryIso;
     }
 
     /**
