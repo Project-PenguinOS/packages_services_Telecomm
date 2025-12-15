@@ -38,8 +38,11 @@ import android.os.Bundle;
 import android.os.AsyncTask;
 import android.os.PersistableBundle;
 import android.os.Process;
+import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.os.UserManager;
+import android.system.ErrnoException;
+import android.system.Os;
 import android.telecom.CallAudioState;
 import android.telecom.ConnectionService;
 import android.telecom.Log;
@@ -61,7 +64,9 @@ import android.util.Xml;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.flags.FeatureFlags;
-import com.android.internal.util.XmlUtils;
+import com.android.internal.util.FastXmlSerializer;
+import com.android.modules.utils.BinaryXmlPullParser;
+import com.android.modules.utils.BinaryXmlSerializer;
 import com.android.modules.utils.ModifiedUtf8;
 import com.android.server.telecom.flags.Flags;
 
@@ -69,13 +74,16 @@ import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlSerializer;
 
+import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.Integer;
 import java.lang.SecurityException;
 import java.lang.String;
@@ -2186,13 +2194,26 @@ public class PhoneAccountRegistrar {
         try {
             sortPhoneAccounts();
             ByteArrayOutputStream os = new ByteArrayOutputStream();
-            XmlSerializer serializer = Xml.resolveSerializer(os);
+            XmlSerializer serializer = resolveSerializer(os);
             writeToXml(mState, serializer, mContext, mTelephonyFeatureFlags, mTelecomFeatureFlags);
             serializer.flush();
             new AsyncXmlWriter().execute(os);
         } catch (IOException e) {
             Log.e(this, e, "Writing state to XML buffer");
         }
+    }
+
+    private XmlSerializer resolveSerializer(OutputStream out) throws IOException {
+        final boolean useBinary = SystemProperties.getBoolean("persist.sys.binary_xml", true);
+
+        XmlSerializer serializer;
+        if (useBinary) {
+            serializer = new BinaryXmlSerializer();
+        } else {
+            serializer = new FastXmlSerializer();
+        }
+       serializer.setOutput(out, "utf-8");
+        return serializer;
     }
 
     private void read() {
@@ -2206,7 +2227,7 @@ public class PhoneAccountRegistrar {
         boolean versionChanged = false;
 
         try {
-            XmlPullParser parser = Xml.resolvePullParser(is);
+            XmlPullParser parser = resolvePullParser(is);
             parser.nextTag();
             mState = readFromXml(parser, mContext, mTelephonyFeatureFlags, mTelecomFeatureFlags);
             migratePhoneAccountHandle(mState);
@@ -2241,6 +2262,34 @@ public class PhoneAccountRegistrar {
         if (versionChanged || !badAccounts.isEmpty()) {
             write();
         }
+    }
+
+    private XmlPullParser resolvePullParser(InputStream in)
+            throws IOException, XmlPullParserException {
+        final byte[] magic = new byte[4];
+        if (in instanceof FileInputStream) {
+            try {
+                Os.pread(((FileInputStream) in).getFD(), magic, 0, magic.length, 0);
+            } catch (ErrnoException e) {
+                throw e.rethrowAsIOException();
+            }
+        } else {
+            if (!in.markSupported()) {
+                in = new BufferedInputStream(in);
+            }
+            in.mark(8);
+            in.read(magic);
+            in.reset();
+        }
+
+        XmlPullParser parser;
+        if (Arrays.equals(magic, BinaryXmlSerializer.PROTOCOL_MAGIC_VERSION_0)) {
+            parser = new BinaryXmlPullParser();
+        } else {
+            parser = Xml.newPullParser();
+        }
+        parser.setInput(in, "utf-8");
+        return parser;
     }
 
     private static void writeToXml(State state, XmlSerializer serializer, Context context,
