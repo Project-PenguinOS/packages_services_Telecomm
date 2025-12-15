@@ -91,10 +91,6 @@ public class CallAudioManager extends CallsManagerListenerBase {
     private boolean mIsTonePlaying = false;
     private boolean mIsDisconnectedTonePlaying = false;
     private InCallTonePlayer mHoldTonePlayer;
-// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-    private boolean mIsInCrsMode = false;
-    private int mOriginalCallType = Call.CALL_TYPE_UNKNOWN;
-// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
     private final HandlerThread mHandlerThread;
     private final Handler mHandler;
     private final Set<Call> mSilencedCalls;
@@ -598,9 +594,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
                 }
                 userHandles.add(userFromCall);
                 call.silence();
-// QTI_BEGIN: 2024-03-28: Telephony: Skip startRinging for silenced ringing call
                 mSilencedCalls.add(call);
-// QTI_END: 2024-03-28: Telephony: Skip startRinging for silenced ringing call
                 if (getCrsAudioController() != null
                         && getCrsAudioController().shouldControlCrsWithParameters()) {
                     // Send speech mute in case user explicitly mute the ring
@@ -608,13 +602,6 @@ public class CallAudioManager extends CallsManagerListenerBase {
                 }
 
             }
-// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-            if(mIsInCrsMode) {
-                Log.i(this, "Fire silence CRS.");
-                onCallSilenceCrs();
-                mRinger.stopPlayCrs();
-            }
-// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
 
             // If all the calls were silenced, we can stop the ringer.
             if (allCallSilenced) {
@@ -653,32 +640,6 @@ public class CallAudioManager extends CallsManagerListenerBase {
         }
     }
 
-// QTI_BEGIN: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
-    public boolean startPlayingCrs() {
-        Log.i(this, "Start playing CRS audio.");
-        synchronized (mCallsManager.getLock()) {
-// QTI_END: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
-// QTI_BEGIN: 2024-03-28: Telephony: Skip startRinging for silenced ringing call
-            Call localForegroundCall = mForegroundCall;
-            if (mSilencedCalls.contains(localForegroundCall)) {
-                Log.v(this, "Skip startPlayingCrs for silenced ringing call");
-                return false;
-            }
-            return mRinger.startPlayingCrs(localForegroundCall,
-// QTI_END: 2024-03-28: Telephony: Skip startRinging for silenced ringing call
-                    mCallAudioRouteAdapter.isHfpDeviceAvailable());
-// QTI_BEGIN: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
-        }
-    }
-
-    public void stopPlayingCrs() {
-        Log.i(this, "Stop playing CRS audio.");
-        synchronized (mCallsManager.getLock()) {
-            mRinger.stopPlayCrs();
-        }
-    }
-
-// QTI_END: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
     @VisibleForTesting
     public void startCallWaiting(String reason) {
         synchronized (mCallsManager.getLock()) {
@@ -840,16 +801,6 @@ public class CallAudioManager extends CallsManagerListenerBase {
                     mIsCrsInCallMode = true;
                 }
             case CallState.SIMULATED_RINGING:
-// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-                mIsInCrsMode = call.isCrsCall();
-                mOriginalCallType = call.getOriginalCallType();
-// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-                if(mIsInCrsMode) {
-                    Log.i(LOG_TAG, "set Audio Route to SPEAKER");
-                    setAudioRoute(CallAudioState.ROUTE_SPEAKER, null);
-                }
-// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
                 onCallEnteringRinging();
                 break;
             case CallState.ON_HOLD:
@@ -924,28 +875,6 @@ public class CallAudioManager extends CallsManagerListenerBase {
         }
     }
 
-// QTI_BEGIN: 2021-10-14: Telephony: IMS: Update ringtone only if there is more than one incoming call
-    private void onRingingCallChanged() {
-        mCallAudioModeStateMachine.sendMessageWithArgs(
-                CallAudioModeStateMachine.RINGING_CALLS_CHANGED,
-                makeArgsForModeStateMachine());
-    }
-
-// QTI_END: 2021-10-14: Telephony: IMS: Update ringtone only if there is more than one incoming call
-// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-    private void onCallSilenceCrs() {
-        if (mRingingCalls.size() == 1) {
-            mCallAudioModeStateMachine.sendMessageWithArgs(
-// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-// QTI_BEGIN: 2021-06-14: Telephony: IMS: Fix Video CRS audio issues
-                    CallAudioModeStateMachine.CRS_CHANGE_SILENCE,
-// QTI_END: 2021-06-14: Telephony: IMS: Fix Video CRS audio issues
-// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-                    makeArgsForModeStateMachine());
-        }
-    }
-
-// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
     private void onCallLeavingHold() {
         if (mHoldingCalls.size() == 0) {
             mCallAudioModeStateMachine.sendMessageWithArgs(
@@ -1105,21 +1034,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
                         mActiveDialingOrConnectingCalls.iterator().next() : possibleConnectingCall;
             }
         } else if (mRingingCalls.size() > 0) {
-// QTI_BEGIN: 2021-10-14: Telephony: IMS: Update ringtone only if there is more than one incoming call
             mForegroundCall = mRingingCalls.iterator().next();
-            // If there is more than one incoming call, we stop and start the ringtone
-            // when foreground ringing call changes, e.g. the first incoming call is
-            // rejected or ended by remote.
-            if (mRingingCalls.size() == 1 && mForegroundCall != null && oldForegroundCall != null
-                && mForegroundCall != oldForegroundCall) {
-                Log.v(this, "Foreground call changes, start the new ringtone.");
-                if (oldForegroundCall.isCrsCall() && mIsInCrsMode) {
-                    Log.v(this, "Reset CRS mode");
-                    mIsInCrsMode = false;
-                }
-                onRingingCallChanged();
-            }
-// QTI_END: 2021-10-14: Telephony: IMS: Update ringtone only if there is more than one incoming call
         } else if (mHoldingCalls.size() > 0) {
             mForegroundCall = mHoldingCalls.iterator().next();
         } else {
@@ -1161,10 +1076,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
                 .setIsStreaming((mStreamingCall != null) && (!mStreamingCall.isDisconnected()))
                 .setForegroundCallIsVoip(
                         mForegroundCall != null && isCallVoip(mForegroundCall))
-// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-                .setSession(Log.createSubsession())
-// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-                .setIsCrsCall(mIsInCrsMode).build();
+                .setSession(Log.createSubsession()).build();
     }
 
     /**
