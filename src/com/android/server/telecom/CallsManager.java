@@ -20,11 +20,8 @@ import static android.provider.CallLog.Calls.AUTO_MISSED_EMERGENCY_CALL;
 import static android.provider.CallLog.Calls.AUTO_MISSED_MAXIMUM_DIALING;
 import static android.provider.CallLog.Calls.AUTO_MISSED_MAXIMUM_RINGING;
 import static android.provider.CallLog.Calls.MISSED_REASON_NOT_MISSED;
-import static android.provider.CallLog.Calls.SHORT_RING_THRESHOLD;
 import static android.provider.CallLog.Calls.USER_MISSED_CALL_FILTERS_TIMEOUT;
 import static android.provider.CallLog.Calls.USER_MISSED_CALL_SCREENING_SERVICE_SILENCED;
-import static android.provider.CallLog.Calls.USER_MISSED_NEVER_RANG;
-import static android.provider.CallLog.Calls.USER_MISSED_NOT_RUNNING;
 import static android.provider.CallLog.Calls.USER_MISSED_NO_ANSWER;
 import static android.provider.CallLog.Calls.USER_MISSED_SHORT_RING;
 import static android.telecom.Call.AUDIO_PROCESSING_USE_CASE_CALL_SCREENING;
@@ -84,6 +81,7 @@ import android.os.UserHandle;
 import android.os.UserManager;
 import android.provider.BlockedNumberContract;
 import android.provider.BlockedNumbersManager;
+import android.provider.CallLog;
 import android.provider.CallLog.Calls;
 import android.provider.Settings;
 import android.telecom.CallAttributes;
@@ -194,6 +192,22 @@ import java.util.stream.Stream;
  */
 public class CallsManager extends Call.ListenerBase
         implements VideoProviderProxy.Listener, CallFilterResultCallback, CurrentUserProxy {
+    /**
+     * When {@link CallLog.Calls#TYPE} is {@link CallLog.Calls#MISSED_TYPE}, when this call
+     * rings less than this defined time in millisecond, set
+     * {@link CallLog.Calls#USER_MISSED_SHORT_RING} bit.
+     */
+    public static final long SHORT_RING_THRESHOLD = 5000L;
+
+    // TODO(b/469123257) - make the hidden constant in CallLog public and refer to it here.
+    public static final long USER_MISSED_NEVER_RANG = 1 << 23;
+
+    /**
+     * Set this bit when the user receiving the call is not running (i.e. work profile paused).
+     * Note: This is only used for metrics unlike the other missed types
+     */
+    public static final long USER_MISSED_NOT_RUNNING = 1 << 24;
+
     /**
      * The origin of the request is not known.
      */

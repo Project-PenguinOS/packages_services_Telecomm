@@ -16,7 +16,6 @@
 
 package com.android.server.telecom.util;
 
-import static android.provider.CallLog.Calls.ADD_FOR_ALL_USERS;
 import static android.provider.CallLog.Calls.ASSERTED_DISPLAY_NAME;
 import static android.provider.CallLog.Calls.BLOCK_REASON;
 import static android.provider.CallLog.Calls.CACHED_LOOKUP_URI;
@@ -32,14 +31,12 @@ import static android.provider.CallLog.Calls.DEFAULT_SORT_ORDER;
 import static android.provider.CallLog.Calls.DURATION;
 import static android.provider.CallLog.Calls.FEATURES;
 import static android.provider.CallLog.Calls.IS_BUSINESS_CALL;
-import static android.provider.CallLog.Calls.IS_PHONE_ACCOUNT_MIGRATION_PENDING;
 import static android.provider.CallLog.Calls.IS_READ;
 import static android.provider.CallLog.Calls.MISSED_REASON;
 import static android.provider.CallLog.Calls.MISSED_TYPE;
 import static android.provider.CallLog.Calls.NEW;
 import static android.provider.CallLog.Calls.NUMBER;
 import static android.provider.CallLog.Calls.NUMBER_PRESENTATION;
-import static android.provider.CallLog.Calls.PHONE_ACCOUNT_ADDRESS;
 import static android.provider.CallLog.Calls.PHONE_ACCOUNT_COMPONENT_NAME;
 import static android.provider.CallLog.Calls.PHONE_ACCOUNT_ID;
 import static android.provider.CallLog.Calls.POST_DIAL_DIGITS;
@@ -89,6 +86,15 @@ import java.util.Locale;
  * Encapsulates the util methods to update the call log
  */
 public class CallLogUtils {
+    // TODO(b/469123257) - remap to call log version when exposed.
+    public static final String ADD_FOR_ALL_USERS = "add_for_all_users";
+
+    // TODO(b/469123257) - remap to call log version when exposed.
+    public static final String IS_PHONE_ACCOUNT_MIGRATION_PENDING =
+            "is_call_log_phone_account_migration_pending";
+
+    // TODO(b/469123257) - remap to call log version when exposed.
+    public static final String PHONE_ACCOUNT_ADDRESS = "phone_account_address";
 
     private static final String LOG_TAG = "CallLogUtils";
     private static final boolean VERBOSE_LOG = false; // DON'T SUBMIT WITH TRUE.
