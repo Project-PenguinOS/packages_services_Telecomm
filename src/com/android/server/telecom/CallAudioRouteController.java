@@ -1865,7 +1865,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     }
 
     private void trackHearingAidPair(AudioRoute existingHaRoute, BluetoothDevice newHaDevice) {
-        if (!mFeatureFlags.hearingAidPairFix() || newHaDevice == null || existingHaRoute == null
+        if (newHaDevice == null || existingHaRoute == null
                 || existingHaRoute.getType() != AudioRoute.TYPE_BLUETOOTH_HA) {
             return;
         }
@@ -1882,7 +1882,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     // no modifications were made.
     private AudioRoute maybeAdjustHearingAidRoute(@AudioRoute.AudioRouteType int type,
             BluetoothDevice bluetoothDevice, AudioRoute existingRoute) {
-        if (!mFeatureFlags.hearingAidPairFix() || type != AudioRoute.TYPE_BLUETOOTH_HA
+        if (type != AudioRoute.TYPE_BLUETOOTH_HA
                 || bluetoothDevice == null || existingRoute == null) {
             return null;
         }

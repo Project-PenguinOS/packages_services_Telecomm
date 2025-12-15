@@ -907,7 +907,6 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testConnectHearindAidPair_RemoveFirstConnected() {
-        when(mFeatureFlags.hearingAidPairFix()).thenReturn(true);
         // This will add the HA as a pair of MACs
         verifyConnectBluetoothDevice(AudioRoute.TYPE_BLUETOOTH_HA);
         mController.sendMessageWithSessionInfo(BT_DEVICE_REMOVED, AudioRoute.TYPE_BLUETOOTH_HA,
@@ -928,7 +927,6 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testConnectHearingAidPair_RemoveSecondConnected() {
-        when(mFeatureFlags.hearingAidPairFix()).thenReturn(true);
         // This will add the HA as a pair of MACs
         verifyConnectBluetoothDevice(AudioRoute.TYPE_BLUETOOTH_HA);
         mController.sendMessageWithSessionInfo(BT_DEVICE_REMOVED, AudioRoute.TYPE_BLUETOOTH_HA,
@@ -2198,16 +2196,11 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
             waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
             AudioRoute hearingAidRoute = mController.getBluetoothRoute(
                     AudioRoute.TYPE_BLUETOOTH_HA, HEARING_AID_PAIR_ADDRESS);
-            if (mFeatureFlags.hearingAidPairFix()) {
-                // A new route will not be added. Instead, the existing route will be updated to
-                // track the new hearing aid pair. Verify the details from the existing route.
-                assertEquals(BT_ADDRESS_1, hearingAidRoute.getBluetoothAddress());
-                assertEquals(HEARING_AID_PAIR_ADDRESS, hearingAidRoute.getBluetoothHaPairDevice()
-                        .getAddress());
-            } else {
-                // Verify no new route was added
-                assertNull(hearingAidRoute);
-            }
+            // A new route will not be added. Instead, the existing route will be updated to
+            // track the new hearing aid pair. Verify the details from the existing route.
+            assertEquals(BT_ADDRESS_1, hearingAidRoute.getBluetoothAddress());
+            assertEquals(HEARING_AID_PAIR_ADDRESS, hearingAidRoute.getBluetoothHaPairDevice()
+                    .getAddress());
         }
     }
 
@@ -2223,6 +2216,11 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         CallAudioState expectedState = new CallAudioState(false, CallAudioState.ROUTE_EARPIECE,
                 CallAudioState.ROUTE_EARPIECE | CallAudioState.ROUTE_SPEAKER, null,
                 new HashSet<>());
+        // Ensure both hearing aid pairs are removed
+        if (audioType == AudioRoute.TYPE_BLUETOOTH_HA) {
+            BluetoothDevice hearingAidDevice2 = makeBluetoothDevice(HEARING_AID_PAIR_ADDRESS);
+            mController.sendMessageWithSessionInfo(BT_DEVICE_REMOVED, audioType, hearingAidDevice2);
+        }
         if (audioType == AudioRoute.TYPE_BLUETOOTH_SCO && !mIsScoManagedByAudio) {
             verify(mBluetoothDeviceManager, timeout(TEST_TIMEOUT)).disconnectSco();
         } else {

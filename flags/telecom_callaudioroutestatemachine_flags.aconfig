@@ -30,14 +30,3 @@ flag {
     purpose: PURPOSE_BUGFIX
   }
 }
-
-# OWNER=pmadapurmath TARGET=26Q1
-flag {
-  name: "hearing_aid_pair_fix"
-  namespace: "telecom"
-  description: "Store both MACs for the HAs instead of only tracking the first connected device's address"
-  bug: "390523404"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
