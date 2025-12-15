@@ -869,8 +869,6 @@ public class CallsManager extends Call.ListenerBase
         mListeners.add(mPhoneStateBroadcaster);
         mListeners.add(mCallStreamingNotification);
         mListeners.add(mCallAudioWatchDog);
-
-        mVoipCallMonitor.registerNotificationListener();
         mListeners.add(mVoipCallMonitor);
 
         // Note this needs to be after mCallAudioManager so that the audio mode changes as needed
