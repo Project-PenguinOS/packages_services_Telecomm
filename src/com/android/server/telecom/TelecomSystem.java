@@ -77,11 +77,16 @@ public class TelecomSystem {
     public interface SyncRoot {
     }
 
+    /**
+     * Broadcast sent when the user is starting.
+     */
+    private static final String ACTION_USER_STARTING = "android.intent.action.USER_STARTING";
+
     private static final IntentFilter USER_SWITCHED_FILTER =
             new IntentFilter(Intent.ACTION_USER_SWITCHED);
 
     private static final IntentFilter USER_STARTING_FILTER =
-            new IntentFilter(Intent.ACTION_USER_STARTING);
+            new IntentFilter(ACTION_USER_STARTING);
 
     private static final IntentFilter BOOT_COMPLETE_FILTER =
             new IntentFilter(Intent.ACTION_BOOT_COMPLETED);
