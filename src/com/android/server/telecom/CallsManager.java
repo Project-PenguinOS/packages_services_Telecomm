@@ -177,6 +177,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -2242,13 +2243,15 @@ public class CallsManager extends Call.ListenerBase
         // findOutgoingPhoneAccount returns a CompletableFuture which is either already complete
         // (in the case where we don't need to do the per-contact lookup) or a CompletableFuture
         // that completes once the contact lookup via CallerInfoLookupHelper is complete.
-        CompletableFuture<List<PhoneAccountHandle>> accountsForCall =
+        CompletableFuture<List<PhoneAccountSuggestion>> suggestionFuture =
                 CompletableFuture.completedFuture((Void) null).thenComposeAsync((x) ->
-                                findOutgoingCallPhoneAccount(requestedAccountHandle, handle,
-                                        VideoProfile.isVideo(finalVideoState),
+                                findOutgoingCallPhoneAccountSuggestions(requestedAccountHandle,
+                                        handle, VideoProfile.isVideo(finalVideoState),
                                         finalCall.isEmergencyCall(), initiatingUser,
                                         isConference),
                         new LoggedHandlerExecutor(outgoingCallHandler, "CM.fOCP", mLock));
+        CompletableFuture<List<PhoneAccountHandle>> accountsForCall =
+                getPhoneAccountHandlesFromSuggestion(suggestionFuture);
 
         // This is a block of code that executes after the list of potential phone accts has been
         // retrieved.
@@ -2290,20 +2293,9 @@ public class CallsManager extends Call.ListenerBase
         // the suggestion service if necessary (i.e. if the list is longer than 1).
         // If the suggestion service is queried, the inner lambda will return a future that
         // completes when the suggestion service calls the callback.
-        CompletableFuture<List<PhoneAccountSuggestion>> suggestionFuture = accountsForCall.
-                thenComposeAsync(potentialPhoneAccounts -> {
-                    Log.i(CallsManager.this, "call outgoing call suggestion service stage");
-                    if (potentialPhoneAccounts.size() == 1) {
-                        PhoneAccountSuggestion suggestion =
-                                new PhoneAccountSuggestion(potentialPhoneAccounts.get(0),
-                                        PhoneAccountSuggestion.REASON_NONE, true);
-                        return CompletableFuture.completedFuture(
-                                Collections.singletonList(suggestion));
-                    }
-                    Context userContext = mContext.createContextAsUser(getCurrentUserHandle(), 0);
-                    return PhoneAccountSuggestionHelper.bindAndGetSuggestions(userContext,
-                            finalCall.getHandle(), potentialPhoneAccounts, mFeatureFlags);
-                }, new LoggedHandlerExecutor(outgoingCallHandler, "CM.cOCSS", mLock));
+        if (!com.android.internal.telecom.flags.Flags.delayRequestedHandleSelection()) {
+            suggestionFuture = getSuggestionFuture(accountsForCall, handle, outgoingCallHandler);
+        }
 
         if (mFeatureFlags.selectPhoneAccountBeforeMakingRoom()) {
             return selectOutgoingPhoneAccount(finalCall, handle, originalIntent, initiatingUser,
@@ -3046,6 +3038,36 @@ public class CallsManager extends Call.ListenerBase
         return callToUseFuture;
     }
 
+    private CompletableFuture<List<PhoneAccountSuggestion>> getSuggestionFuture(
+            CompletableFuture<List<PhoneAccountHandle>> possibleAccounts, Uri handle,
+            Handler handler) {
+        if (handler != null) {
+            return possibleAccounts.thenComposeAsync(potentialPhoneAccounts ->
+                    getAccountSuggestions(potentialPhoneAccounts, handle),
+                    new LoggedHandlerExecutor(handler, "CM.cOCSS", mLock));
+        } else {
+            return possibleAccounts.thenCompose(potentialPhoneAccounts ->
+                    getAccountSuggestions(potentialPhoneAccounts, handle));
+        }
+    }
+
+    @VisibleForTesting
+    public CompletableFuture<List<PhoneAccountSuggestion>> getAccountSuggestions(
+            List<PhoneAccountHandle> potentialPhoneAccounts, Uri handle) {
+        Log.i(CallsManager.this, "call outgoing call suggestion service stage");
+        if (potentialPhoneAccounts.size() == 1) {
+            PhoneAccountSuggestion suggestion =
+                    new PhoneAccountSuggestion(potentialPhoneAccounts.get(0),
+                            PhoneAccountSuggestion.REASON_NONE, true);
+            return CompletableFuture.completedFuture(
+                    Collections.singletonList(suggestion));
+        }
+        Context userContext = mContext.createContextAsUser(
+                getCurrentUserHandle(), 0);
+        return PhoneAccountSuggestionHelper.bindAndGetSuggestions(userContext,
+                handle, potentialPhoneAccounts, mFeatureFlags);
+    }
+
     private static UserHandle getManagedProfileUserHandle(Context context, int userId,
             FeatureFlags featureFlags) {
         UserManager um;
@@ -3312,16 +3334,33 @@ public class CallsManager extends Call.ListenerBase
     public CompletableFuture<List<PhoneAccountHandle>> findOutgoingCallPhoneAccount(
             PhoneAccountHandle targetPhoneAccountHandle, Uri handle, boolean isVideo,
             boolean isEmergency, UserHandle initiatingUser) {
-       return findOutgoingCallPhoneAccount(targetPhoneAccountHandle, handle, isVideo,
-               isEmergency, initiatingUser, false/* isConference */);
+       CompletableFuture<List<PhoneAccountSuggestion>> phoneAccountSuggestions =
+               findOutgoingCallPhoneAccountSuggestions(targetPhoneAccountHandle, handle, isVideo,
+                       isEmergency, initiatingUser, false/* isConference */);
+       return getPhoneAccountHandlesFromSuggestion(phoneAccountSuggestions);
     }
 
-    public CompletableFuture<List<PhoneAccountHandle>> findOutgoingCallPhoneAccount(
+    private CompletableFuture<List<PhoneAccountHandle>> getPhoneAccountHandlesFromSuggestion(
+            CompletableFuture<List<PhoneAccountSuggestion>> phoneAccountSuggestions) {
+        return phoneAccountSuggestions.thenApply((suggestions) ->
+                suggestions.stream()
+                        .map(PhoneAccountSuggestion::getPhoneAccountHandle)
+                        .collect(Collectors.toList())
+        );
+    }
+
+    public CompletableFuture<List<PhoneAccountSuggestion>> findOutgoingCallPhoneAccountSuggestions(
             PhoneAccountHandle targetPhoneAccountHandle, Uri handle, boolean isVideo,
             boolean isEmergency, UserHandle initiatingUser, boolean isConference) {
 
         if (isSelfManaged(targetPhoneAccountHandle, initiatingUser)) {
-            return CompletableFuture.completedFuture(Arrays.asList(targetPhoneAccountHandle));
+            if (com.android.internal.telecom.flags.Flags.delayRequestedHandleSelection()) {
+                return getSuggestionFuture(CompletableFuture.completedFuture(Arrays.asList(
+                                targetPhoneAccountHandle)), handle, null /* handler */);
+            } else {
+                return CompletableFuture.completedFuture(Arrays.asList(new PhoneAccountSuggestion(
+                        targetPhoneAccountHandle, PhoneAccountSuggestion.REASON_NONE, true)));
+            }
         }
 
         List<PhoneAccountHandle> accounts;
@@ -3336,24 +3375,58 @@ public class CallsManager extends Call.ListenerBase
                     false /* isVideo */, isEmergency /* isEmergency */, isConference);
         }
         Log.v(this, "findOutgoingCallPhoneAccount: accounts = " + accounts);
+        // This composes the future containing the potential phone accounts with code that queries
+        // the suggestion service if necessary (i.e. if the list is longer than 1).
+        // If the suggestion service is queried, the inner lambda will return a future that
+        // completes when the suggestion service calls the callback.
+        if (com.android.internal.telecom.flags.Flags.delayRequestedHandleSelection()) {
+            CompletableFuture<List<PhoneAccountSuggestion>> suggestionFuture = getSuggestionFuture(
+                    CompletableFuture.completedFuture(accounts), handle, null /* handler */);
+            // Ensure we check the PhoneAccountSuggestion service before proceeding to select
+            // another account (i.e. target account or the default outgoing account).
+            return suggestionFuture.thenCompose((suggestedAccounts) -> {
+                Log.i(this, "findOutgoingCallPhoneAccount: suggested accounts = %s",
+                        suggestedAccounts);
+                Map<PhoneAccountHandle, PhoneAccountSuggestion> suggestedAccountsMap =
+                        suggestedAccounts.stream().collect(Collectors.toMap(
+                                PhoneAccountSuggestion::getPhoneAccountHandle,
+                                Function.identity()));
+                return findOutgoingCallPhoneAccount(suggestedAccountsMap, targetPhoneAccountHandle,
+                        handle, initiatingUser);
+            });
+        } else {
+            Map<PhoneAccountHandle, PhoneAccountSuggestion> suggestedAccountsMap =
+                    accounts.stream().collect(Collectors.toMap(Function.identity(),
+                            accountHandle -> new PhoneAccountSuggestion(accountHandle,
+                                    PhoneAccountSuggestion.REASON_NONE, true)));
+            return findOutgoingCallPhoneAccount(suggestedAccountsMap, targetPhoneAccountHandle,
+                    handle, initiatingUser);
+        }
+    }
 
+    private CompletableFuture<List<PhoneAccountSuggestion>> findOutgoingCallPhoneAccount(
+            Map<PhoneAccountHandle, PhoneAccountSuggestion> suggestedAccountsMap,
+            PhoneAccountHandle targetPhoneAccountHandle, Uri handle, UserHandle initiatingUser) {
+        if (suggestedAccountsMap.isEmpty() || suggestedAccountsMap.size() == 1) {
+            return CompletableFuture.completedFuture(suggestedAccountsMap.values().stream()
+                    .toList());
+        }
         // Only dial with the requested phoneAccount if it is still valid. Otherwise treat this
         // call as if a phoneAccount was not specified (does the default behavior instead).
         // Note: We will not attempt to dial with a requested phoneAccount if it is disabled.
         if (targetPhoneAccountHandle != null) {
-            if (accounts.contains(targetPhoneAccountHandle)) {
+            if (suggestedAccountsMap.containsKey(targetPhoneAccountHandle)) {
                 // The target phone account is valid and was found.
-                return CompletableFuture.completedFuture(Arrays.asList(targetPhoneAccountHandle));
+                return CompletableFuture.completedFuture(Arrays.asList(suggestedAccountsMap
+                        .get(targetPhoneAccountHandle)));
             }
-        }
-        if (accounts.isEmpty() || accounts.size() == 1) {
-            return CompletableFuture.completedFuture(accounts);
         }
 
         // Do the query for whether there's a preferred contact
-        final CompletableFuture<PhoneAccountHandle> userPreferredAccountForContact =
+        final CompletableFuture<PhoneAccountSuggestion> userPreferredAccountForContact =
                 new CompletableFuture<>();
-        final List<PhoneAccountHandle> possibleAccounts = accounts;
+        final Set<PhoneAccountHandle> possibleAccounts =
+                suggestedAccountsMap.keySet();
         mCallerInfoLookupHelper.startLookup(handle,
                 new CallerInfoLookupHelper.OnQueryCompleteListener() {
                     @Override
@@ -3366,7 +3439,12 @@ public class CallsManager extends Call.ListenerBase
                                     info.preferredPhoneAccountComponent,
                                     info.preferredPhoneAccountId,
                                     initiatingUser);
-                            userPreferredAccountForContact.complete(contactDefaultHandle);
+                            PhoneAccountSuggestion suggestedAccount = suggestedAccountsMap
+                                    .containsKey(contactDefaultHandle)
+                                    ? suggestedAccountsMap.get(contactDefaultHandle)
+                                    : new PhoneAccountSuggestion(contactDefaultHandle,
+                                            PhoneAccountSuggestion.REASON_NONE, true);
+                            userPreferredAccountForContact.complete(suggestedAccount);
                         } else {
                             userPreferredAccountForContact.complete(null);
                         }
@@ -3378,11 +3456,11 @@ public class CallsManager extends Call.ListenerBase
                     }
                 });
 
-        return userPreferredAccountForContact.thenApply(phoneAccountHandle -> {
-            if (phoneAccountHandle != null) {
+        return userPreferredAccountForContact.thenApply((phoneAccountSuggestion) -> {
+            if (phoneAccountSuggestion != null) {
                 Log.i(CallsManager.this, "findOutgoingCallPhoneAccount; contactPrefAcct=%s",
-                        phoneAccountHandle);
-                return Collections.singletonList(phoneAccountHandle);
+                        phoneAccountSuggestion.getPhoneAccountHandle());
+                return Collections.singletonList(phoneAccountSuggestion);
             }
             // No preset account, check if default exists that supports the URI scheme for the
             // handle and verify it can be used.
@@ -3393,9 +3471,10 @@ public class CallsManager extends Call.ListenerBase
                     possibleAccounts.contains(defaultPhoneAccountHandle)) {
                 Log.i(CallsManager.this, "findOutgoingCallPhoneAccount; defaultAcctForScheme=%s",
                         defaultPhoneAccountHandle);
-                return Collections.singletonList(defaultPhoneAccountHandle);
+                return Collections.singletonList(suggestedAccountsMap
+                        .get(defaultPhoneAccountHandle));
             }
-            return possibleAccounts;
+            return suggestedAccountsMap.values().stream().toList();
         });
     }
 
