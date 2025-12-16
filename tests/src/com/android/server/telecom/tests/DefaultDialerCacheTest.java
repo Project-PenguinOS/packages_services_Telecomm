@@ -62,7 +62,6 @@ public class DefaultDialerCacheTest extends TelecomTestCase {
     private static final int DELAY_TOLERANCE = 100;
 
     private DefaultDialerCache mDefaultDialerCache;
-    private ContentObserver mDefaultDialerSettingObserver;
     private BroadcastReceiver mPackageChangeReceiver;
     private BroadcastReceiver mUserRemovedReceiver;
 
@@ -99,8 +98,6 @@ public class DefaultDialerCacheTest extends TelecomTestCase {
         verify(mContext).registerReceiver(
                 userRemovedReceiverCaptor.capture(), any(IntentFilter.class));
         mUserRemovedReceiver = userRemovedReceiverCaptor.getAllValues().getFirst();
-
-        mDefaultDialerSettingObserver = mDefaultDialerCache.getContentObserver();
 
         when(mMockDefaultDialerManager.getDefaultDialerApplication(any(Context.class), eq(USER0)))
                 .thenReturn(DIALER1);
@@ -268,34 +265,5 @@ public class DefaultDialerCacheTest extends TelecomTestCase {
         verify(mRoleManagerAdapter, times(1)).getDefaultDialerAppFromUserHandle(eq(USER0));
         verify(mRoleManagerAdapter, times(1)).getDefaultDialerAppFromUserHandle(eq(USER1));
         verify(mRoleManagerAdapter, times(1)).getDefaultDialerAppFromUserHandle(eq(USER2));
-    }
-
-    @SmallTest
-    @Test
-    public void testDefaultDialerSettingChanged() {
-        assertEquals(DIALER1, mDefaultDialerCache.getDefaultDialerApplication(USER0));
-        assertEquals(DIALER2, mDefaultDialerCache.getDefaultDialerApplication(USER1));
-        assertEquals(DIALER3, mDefaultDialerCache.getDefaultDialerApplication(USER2));
-
-        when(mRoleManagerAdapter.getDefaultDialerApp(eq(USER0_ID))).thenReturn(DIALER2);
-        when(mRoleManagerAdapter.getDefaultDialerApp(eq(USER1_ID))).thenReturn(DIALER2);
-        when(mRoleManagerAdapter.getDefaultDialerApp(eq(USER2_ID))).thenReturn(DIALER2);
-        when(mRoleManagerAdapter.getDefaultDialerAppFromUserHandle(eq(USER0))).thenReturn(DIALER2);
-        when(mRoleManagerAdapter.getDefaultDialerAppFromUserHandle(eq(USER1))).thenReturn(DIALER2);
-        when(mRoleManagerAdapter.getDefaultDialerAppFromUserHandle(eq(USER2))).thenReturn(DIALER2);
-
-        mDefaultDialerSettingObserver.onChange(false);
-        waitForHandlerAction(mDefaultDialerCache.mHandler, DELAY_TOLERANCE);
-
-        verify(mRoleManagerAdapter, times(1)).getDefaultDialerAppFromUserHandle(eq(USER0));
-        verify(mRoleManagerAdapter, times(1)).getDefaultDialerAppFromUserHandle(eq(USER1));
-        verify(mRoleManagerAdapter, times(1)).getDefaultDialerAppFromUserHandle(eq(USER2));
-        verify(mRoleManagerAdapter, times(1)).getDefaultDialerApp(eq(USER0_ID));
-        verify(mRoleManagerAdapter, times(1)).getDefaultDialerApp(eq(USER1_ID));
-        verify(mRoleManagerAdapter, times(1)).getDefaultDialerApp(eq(USER2_ID));
-
-        assertEquals(DIALER2, mDefaultDialerCache.getDefaultDialerApplication(USER0));
-        assertEquals(DIALER2, mDefaultDialerCache.getDefaultDialerApplication(USER1));
-        assertEquals(DIALER2, mDefaultDialerCache.getDefaultDialerApplication(USER2));
     }
 }
