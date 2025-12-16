@@ -107,8 +107,5 @@
             android:theme="@style/Theme.Telecomm.Transparent">
         </activity>
 
-        <activity android:name=".ui.TelecomDeveloperMenu"
-            android:label="@string/developer_title"
-            android:exported="false"/>
     </application>
 </manifest>
