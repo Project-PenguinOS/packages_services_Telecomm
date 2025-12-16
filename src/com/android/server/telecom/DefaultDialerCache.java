@@ -94,24 +94,7 @@ public class DefaultDialerCache {
             }
         }
     };
-    private final ContentObserver mDefaultDialerObserver = new ContentObserver(mHandler) {
-        @Override
-        public void onChange(boolean selfChange) {
-            Log.startSession("DDC.oC");
-            try {
-                // We don't get the user ID of the user that changed here, so we'll have to
-                // refresh all of the users.
-                refreshCachesForUsersWithPackage(null);
-            } finally {
-                Log.endSession();
-            }
-        }
 
-        @Override
-        public boolean deliverSelfNotifications() {
-            return true;
-        }
-    };
     private ComponentName mOverrideSystemDialerComponentName;
 
     public DefaultDialerCache(Context context,
@@ -147,13 +130,6 @@ public class DefaultDialerCache {
 
         IntentFilter userRemovedFilter = new IntentFilter(Intent.ACTION_USER_REMOVED);
         context.registerReceiver(mUserRemovedReceiver, userRemovedFilter);
-
-        Uri defaultDialerSetting =
-                Settings.Secure.getUriFor(Settings.Secure.DIALER_DEFAULT_APPLICATION);
-
-        context.getContentResolver()
-                .registerContentObserverAsUser(defaultDialerSetting, false,
-                        mDefaultDialerObserver, UserHandle.ALL);
     }
 
     public String[] getBTInCallServicePackages() {
@@ -293,17 +269,6 @@ public class DefaultDialerCache {
 
     private void removeUserFromCache(int userId) {
         mCurrentDefaultDialerPerUser.remove(userId);
-    }
-
-    /**
-     * registerContentObserver is really hard to mock out, so here is a getter method for the
-     * content observer for testing instead.
-     *
-     * @return The content observer
-     */
-    @VisibleForTesting
-    public ContentObserver getContentObserver() {
-        return mDefaultDialerObserver;
     }
 
     public RoleManagerAdapter getRoleManagerAdapter() {
