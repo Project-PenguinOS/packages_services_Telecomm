@@ -59,19 +59,13 @@ import android.content.ContentProvider;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
-import android.database.Cursor;
 import android.net.Uri;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.provider.CallLog;
-import android.provider.ContactsContract.CommonDataKinds.Callable;
-import android.provider.ContactsContract.CommonDataKinds.Phone;
-import android.provider.ContactsContract.Data;
-import android.provider.ContactsContract.DataUsageFeedback;
 import android.telecom.PhoneAccount;
 import android.telecom.PhoneAccountHandle;
 import android.telecom.TelecomManager;
-import android.telephony.PhoneNumberUtils;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -377,7 +371,7 @@ public class CallLogUtils {
         Uri result = null;
 
         final UserManager userManager = context.getSystemService(UserManager.class);
-        final int currentUserId = userManager.getProcessUserId();
+        final int currentUserId = UserHandle.myUserId();
 
         if (params.mAddForAllUsers) {
             if (userManager.isUserUnlocked(UserHandle.SYSTEM)) {
@@ -498,7 +492,7 @@ public class CallLogUtils {
         final String uuid = values.containsKey(UUID) ? values.getAsString(UUID) : null;
         // Adjust the URI depending on if we're adding a VOIP call log entry.
         boolean handlingVoipEntry = uuid != null;
-        final Uri uri = ContentProvider.maybeAddUserId(userManager.isUserUnlocked(user)
+        final Uri uri = maybeAddUserId(userManager.isUserUnlocked(user)
                         ? (handlingVoipEntry ? CONTENT_VOIP_URI : CONTENT_URI)
                         : SHADOW_CONTENT_URI,
                 user.getIdentifier());
@@ -1146,5 +1140,24 @@ public class CallLogUtils {
                 }
             }
         }
+    }
+
+    private static Uri maybeAddUserId(Uri uri, int userId) {
+        if (uri == null) return null;
+        if (userId != UserHandle.USER_CURRENT
+                && ContentResolver.SCHEME_CONTENT.equals(uri.getScheme())) {
+            if (!uriHasUserId(uri)) {
+                //We don't add the user Id if there's already one
+                Uri.Builder builder = uri.buildUpon();
+                builder.encodedAuthority("" + userId + "@" + uri.getEncodedAuthority());
+                return builder.build();
+            }
+        }
+        return uri;
+    }
+
+    private static boolean uriHasUserId(Uri uri) {
+        if (uri == null) return false;
+        return !TextUtils.isEmpty(uri.getUserInfo());
     }
 }
