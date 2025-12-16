@@ -1864,9 +1864,7 @@ public class CallsManager extends Call.ListenerBase
         // the call.
         UserManager currentUserManager = mContext.createContextAsUser(mCurrentUserHandle, 0)
                 .getSystemService(UserManager.class);
-        boolean isCurrentUserAdmin = mFeatureFlags.telecomResolveHiddenDependencies()
-                ? currentUserManager.isAdminUser()
-                : mUserManager.isUserAdmin(mCurrentUserHandle.getIdentifier());
+        boolean isCurrentUserAdmin = currentUserManager.isAdminUser();
         if (isCurrentUserAdmin) {
             isCallHiddenFromProfile &= mFeatureFlags.telecomResolveHiddenDependencies()
                     ? currentUserManager.isQuietModeEnabled(call.getAssociatedUser())
