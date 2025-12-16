@@ -111,6 +111,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
@@ -699,6 +700,8 @@ public class ComponentContextFixture implements TestFixture<Context> {
 
         // TODO: Move into actual tests
         doReturn(false).when(mAudioManager).isWiredHeadsetOn();
+        doReturn(AudioManager.AUDIOFOCUS_REQUEST_GRANTED).when(mAudioManager).requestAudioFocus(any(), any());
+        doReturn(AudioManager.AUDIOFOCUS_REQUEST_GRANTED).when(mAudioManager).abandonAudioFocusRequest(any());
 
         doAnswer(new Answer<List<ResolveInfo>>() {
             @Override
