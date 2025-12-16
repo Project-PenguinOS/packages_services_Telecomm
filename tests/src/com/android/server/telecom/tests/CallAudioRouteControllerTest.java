@@ -2086,7 +2086,11 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         // Verify that no SPEAKER_ON message is pending.
         PendingAudioRoute pendingRoute = mController.getPendingAudioRoute();
         assertTrue(pendingRoute.getPendingMessages().isEmpty());
-        assertEquals(AudioRoute.TYPE_SPEAKER, mController.getCurrentRoute().getType());
+        CallAudioState expectedState = new CallAudioState(false, CallAudioState.ROUTE_SPEAKER,
+                CallAudioState.ROUTE_EARPIECE | CallAudioState.ROUTE_SPEAKER,
+                null, new HashSet<>());
+        verify(mCallsManager, timeout(TEST_TIMEOUT)).onCallAudioStateChanged(
+                any(CallAudioState.class), eq(expectedState));
     }
 
     @Test
@@ -2128,7 +2132,11 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         // Verify that no BT_AUDIO_CONNECTED message is pending.
         PendingAudioRoute pendingRoute = mController.getPendingAudioRoute();
         assertTrue(pendingRoute.getPendingMessages().isEmpty());
-        assertEquals(AudioRoute.TYPE_BLUETOOTH_SCO, mController.getCurrentRoute().getType());
+        CallAudioState expectedState = new CallAudioState(false, CallAudioState.ROUTE_BLUETOOTH,
+                CallAudioState.ROUTE_EARPIECE | CallAudioState.ROUTE_BLUETOOTH
+                        | CallAudioState.ROUTE_SPEAKER, BLUETOOTH_DEVICE_1, BLUETOOTH_DEVICES);
+        verify(mCallsManager, timeout(TEST_TIMEOUT)).onCallAudioStateChanged(
+                any(CallAudioState.class), eq(expectedState));
     }
 
     @SmallTest
