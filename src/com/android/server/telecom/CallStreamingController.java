@@ -242,7 +242,7 @@ public class CallStreamingController extends CallsManagerListenerBase {
             mConnection = new CallStreamingServiceConnection(mCall, mWrapper, future);
             if (!mContext.bindServiceAsUser(intent, mConnection, Context.BIND_AUTO_CREATE
                     | Context.BIND_FOREGROUND_SERVICE
-                    | Context.BIND_SCHEDULE_LIKE_TOP_APP, mUserHandle)) {
+                    | Constants.BIND_SCHEDULE_LIKE_TOP_APP, mUserHandle)) {
                 Log.w(this, "Can't bind to streaming service");
                 future.complete(new CallTransactionResult(
                         CallException.CODE_ERROR_UNKNOWN /* TODO:: define error b/335703584 */,
