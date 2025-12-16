@@ -1304,7 +1304,6 @@ public class TelecomServiceImpl {
                     Binder.getCallingUid(), ApiStats.RESULT_NORMAL);
             try {
                 Log.startSession("TSI.gDDP", Log.getPackageAbbreviation(callingPackage));
-                int callerUserId = UserHandle.getCallingUserId();
                 UserHandle callerUser = Binder.getCallingUserHandle();
                 final long token = Binder.clearCallingIdentity();
                 try {
@@ -2397,7 +2396,6 @@ public class TelecomServiceImpl {
                 enforcePermission(MODIFY_PHONE_STATE);
                 enforcePermission(WRITE_SECURE_SETTINGS);
                 synchronized (mLock) {
-                    int callerUserId = UserHandle.getCallingUserId();
                     UserHandle callerUser = Binder.getCallingUserHandle();
                     long token = Binder.clearCallingIdentity();
                     event.setResult(ApiStats.RESULT_NORMAL);
