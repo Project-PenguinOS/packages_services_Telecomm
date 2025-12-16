@@ -21,6 +21,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.os.Handler;
 import android.os.IBinder;
@@ -215,8 +216,10 @@ public class CallScreeningServiceHelper {
                 .setPackage(packageName);
 
         List<ResolveInfo> entries;
-        entries = UserUtil.getPackageManagerFromUserHandler(context,
-                userHandle).queryIntentServicesAsUser(intent, 0, userHandle.getIdentifier());
+        Context userContext = context.createContextAsUser(userHandle, 0 /* flags */);
+        PackageManager userPackageManager = userContext != null ?
+                userContext.getPackageManager() : context.getPackageManager();
+        entries = userPackageManager.queryIntentServices(intent, 0 /* flags */);
 
         if (entries.isEmpty()) {
             Log.i(TAG, packageName + " has no call screening service defined.");
