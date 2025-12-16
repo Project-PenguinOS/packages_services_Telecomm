@@ -177,15 +177,9 @@ public class CallIntentProcessor {
             // Show the toast to warn user that it is a personal call though initiated in work
             // profile.
             if (fixedInitiatingUser) {
-                if (featureFlags.telecomResolveHiddenDependencies()) {
-                    context.getMainExecutor().execute(() ->
-                            Toast.makeText(context, context.getString(
-                                    R.string.toast_personal_call_msg), Toast.LENGTH_LONG).show());
-                } else {
-                    Toast.makeText(context, Looper.getMainLooper(),
-                            context.getString(R.string.toast_personal_call_msg),
-                            Toast.LENGTH_LONG).show();
-                }
+                context.getMainExecutor().execute(() ->
+                        Toast.makeText(context, context.getString(
+                                R.string.toast_personal_call_msg), Toast.LENGTH_LONG).show());
             }
         } else {
             Log.i(CallIntentProcessor.class,

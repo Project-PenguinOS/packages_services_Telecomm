@@ -347,23 +347,14 @@ public class TelecomSystem {
             ToastFactory toastFactory = new ToastFactory() {
                 @Override
                 public void makeText(Context context, int resId, int duration) {
-                    if (mFeatureFlags.telecomResolveHiddenDependencies()) {
-                        context.getMainExecutor().execute(() ->
-                                Toast.makeText(context, resId, duration).show());
-                    } else {
-                        Toast.makeText(context, context.getMainLooper(),
-                                context.getString(resId), duration).show();
-                    }
+                    context.getMainExecutor().execute(() ->
+                            Toast.makeText(context, resId, duration).show());
                 }
 
                 @Override
                 public void makeText(Context context, CharSequence text, int duration) {
-                    if (mFeatureFlags.telecomResolveHiddenDependencies()) {
-                        context.getMainExecutor().execute(() ->
-                                Toast.makeText(context, text, duration).show());
-                    } else {
-                        Toast.makeText(context, context.getMainLooper(), text, duration).show();
-                    }
+                    context.getMainExecutor().execute(() ->
+                            Toast.makeText(context, text, duration).show());
                 }
             };
 
