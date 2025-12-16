@@ -57,11 +57,12 @@ import static android.provider.CallLog.Calls.USER_MISSED_CALL_FILTERS_TIMEOUT;
 import static android.provider.CallLog.Calls.USER_MISSED_CALL_SCREENING_SERVICE_SILENCED;
 import static android.provider.CallLog.Calls.USER_MISSED_DND_MODE;
 import static android.provider.CallLog.Calls.USER_MISSED_LOW_RING_VOLUME;
-import static android.provider.CallLog.Calls.USER_MISSED_NEVER_RANG;
 import static android.provider.CallLog.Calls.USER_MISSED_NO_VIBRATE;
 import static android.provider.CallLog.Calls.USER_MISSED_SHORT_RING;
 import static android.telecom.ParcelableCallAnalytics.AnalyticsEvent;
 import static android.telecom.TelecomAnalytics.SessionTiming;
+
+import static com.android.server.telecom.CallsManager.USER_MISSED_NEVER_RANG;
 
 /**
  * A class that collects and stores data on how calls are being made, in order to
