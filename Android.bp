@@ -19,6 +19,34 @@ filegroup {
     path: "src",
 }
 
+filegroup {
+    name: "service-telecom-internal-srcs",
+    srcs: ["src/**/*.java"],
+    path: "src",
+}
+
+java_library {
+    name: "telecom-proto-enums",
+    srcs: [
+        ":srcs_telecom_proto_enums",
+    ],
+    libs: [
+        "framework-statsd.stubs.module_lib",
+    ],
+    apex_available: [
+        "com.android.telephonycore",
+        "//apex_available:platform",
+    ],
+    min_sdk_version: "36",
+    sdk_version: "system_server_current",
+    visibility: [
+        "//packages/modules/Telephony/telecom:__subpackages__",
+    ],
+    proto: {
+        type: "stream",
+    },
+}
+
 android_library {
     name: "TelecomLib",
     libs: [
@@ -93,30 +121,45 @@ android_app {
         "TelecomUi/res",
     ],
     static_libs: [
-        "TelecomLib",
-        "framework-annotations-lib", // For @Nullable, @VisibleForTesting
-        "telecom-strings", // All strings and translations
         "androidx.core_core",
+        "framework-annotations-lib", // For @Nullable, @VisibleForTesting
+        "shared-telecom-lib",
+        "telecom-strings", // All strings and translations
     ],
     libs: [
         "framework-telecom.stubs.module_lib",
     ],
-    min_sdk_version: "36",
-    platform_apis: true,
     certificate: "platform",
     privileged: true,
+    sdk_version: "module_current",
     optimize: {
         proguard_flags_files: ["proguard.flags"],
     },
 }
 
 android_library {
+    name: "shared-telecom-lib",
+    manifest: "AndroidManifestLib.xml",
+    srcs: [
+        "src/com/android/server/telecom/settings/BlockedNumbersUtil.java",
+        "src/com/android/server/telecom/ui/UiConstants.java",
+    ],
+    libs: [
+        "framework-annotations-lib",
+        "framework-telecom.stubs.module_lib",
+        "telecom-strings",
+    ],
+    sdk_version: "module_current",
+}
+
+// Contains all Strings and translations
+android_library {
     name: "telecom-strings",
     manifest: "AndroidManifestLib.xml",
     srcs: [
         "res/values*/strings.xml",
     ],
-    min_sdk_version: "36",
+    sdk_version: "module_current",
 }
 
 // Build telecom util static lib

@@ -80,7 +80,6 @@ import android.media.AudioAttributes;
 import android.media.AudioDeviceAttributes;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
-import android.media.IAudioService;
 import android.media.audiopolicy.AudioProductStrategy;
 import android.os.Looper;
 import android.os.Parcel;
@@ -150,10 +149,6 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
     @Mock
     CallsManager mCallsManager;
     @Mock
-    CallAudioManager.AudioServiceFactory mAudioServiceFactory;
-    @Mock
-    IAudioService mAudioService;
-    @Mock
     BluetoothRouteManager mBluetoothRouteManager;
     @Mock
     BluetoothDeviceManager mBluetoothDeviceManager;
@@ -208,7 +203,6 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         when(mAudioManager.getCommunicationDevice()).thenReturn(mAudioDeviceInfo);
         when(mAudioManager.setCommunicationDevice(any(AudioDeviceInfo.class)))
                 .thenReturn(true);
-        when(mAudioServiceFactory.getAudioService()).thenReturn(mAudioService);
         when(mContext.getAttributionTag()).thenReturn("");
         doNothing().when(mCallsManager).onCallAudioStateChanged(any(CallAudioState.class),
                 any(CallAudioState.class));
@@ -229,8 +223,8 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
                 .thenReturn(BLUETOOTH_DEVICE_1);
         when(mAudioDeviceInfo.getAddress()).thenReturn(BT_ADDRESS_1);
         mController = new CallAudioRouteController.Factory().create(mContext, mCallsManager,
-                mAudioServiceFactory, mAudioRouteFactory, mWiredHeadsetManager,
-                mBluetoothRouteManager, mockStatusBarNotifier, mFeatureFlags,
+                mAudioRouteFactory, mWiredHeadsetManager,mBluetoothRouteManager,
+                mockStatusBarNotifier, mFeatureFlags,
                 mMockTelecomMetricsController, mRingtonePlayer, mAnomalyReporterAdapter);
         mController.setAudioRouteFactory(mAudioRouteFactory);
         mController.setAudioManager(mAudioManager);

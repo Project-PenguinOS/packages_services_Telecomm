@@ -301,7 +301,6 @@ public class CallsManagerTest extends TelecomTestCase {
     @Mock private InCallWakeLockController mInCallWakeLockController;
     @Mock private ConnectionServiceFocusManagerFactory mConnSvrFocusManagerFactory;
     @Mock private InCallWakeLockControllerFactory mInCallWakeLockControllerFactory;
-    @Mock private CallAudioManager.AudioServiceFactory mAudioServiceFactory;
     @Mock private BluetoothRouteManager mBluetoothRouteManager;
     @Mock private WiredHeadsetManager mWiredHeadsetManager;
     @Mock private SystemStateHelper mSystemStateHelper;
@@ -362,7 +361,7 @@ public class CallsManagerTest extends TelecomTestCase {
                 any())).thenReturn(mInCallController);
         when(mCallEndpointControllerFactory.create(any(), any(), any())).thenReturn(
                 mCallEndpointController);
-        when(mCallAudioRouteControllerFactory.create(any(), any(), any(), any(), any(), any(),
+        when(mCallAudioRouteControllerFactory.create(any(), any(), any(), any(), any(),
                 any(), any(), any(), any(), any())).thenReturn(mCallAudioRouteController);
         when(mCallAudioModeStateMachineFactory.create(any(), any(), any()))
                 .thenReturn(mCallAudioModeStateMachine);
@@ -390,7 +389,6 @@ public class CallsManagerTest extends TelecomTestCase {
                 mProximitySensorManagerFactory,
                 mInCallWakeLockControllerFactory,
                 mConnSvrFocusManagerFactory,
-                mAudioServiceFactory,
                 mBluetoothRouteManager,
                 mWiredHeadsetManager,
                 mSystemStateHelper,
