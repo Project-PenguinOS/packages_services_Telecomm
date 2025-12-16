@@ -2449,7 +2449,7 @@ public class CallsManager extends Call.ListenerBase
                                             getManagedProfileUserHandle(mContext,
                                             initiatingUser.getIdentifier(), mFeatureFlags);
                                     if (managedProfileUserHandle.getIdentifier() !=
-                                            UserHandle.USER_NULL &&
+                                            UserUtil.USER_NULL &&
                                             mPhoneAccountRegistrar.getCallCapablePhoneAccounts(
                                                     handle.getScheme(), false,
                                                     managedProfileUserHandle, false).size() != 0) {
@@ -2745,7 +2745,7 @@ public class CallsManager extends Call.ListenerBase
                                             getManagedProfileUserHandle(mContext,
                                             initiatingUser.getIdentifier(), mFeatureFlags);
                                     if (managedProfileUserHandle.getIdentifier() !=
-                                            UserHandle.USER_NULL &&
+                                            UserUtil.USER_NULL &&
                                             mPhoneAccountRegistrar.getCallCapablePhoneAccounts(
                                                     handle.getScheme(), false,
                                                     managedProfileUserHandle, false).size()
@@ -3070,7 +3070,7 @@ public class CallsManager extends Call.ListenerBase
                 }
             }
         }
-        return new UserHandle(UserHandle.USER_NULL);
+        return new UserHandle(UserUtil.USER_NULL);
     }
 
     private boolean showSwitchToManagedProfileDialog(Uri callUri, UserHandle initiatingUser,

@@ -84,9 +84,8 @@ public class DefaultDialerCache {
         @Override
         public void onReceive(Context context, Intent intent) {
             if (Intent.ACTION_USER_REMOVED.equals(intent.getAction())) {
-                int removedUser = intent.getIntExtra(Intent.EXTRA_USER_HANDLE,
-                        UserHandle.USER_NULL);
-                if (removedUser == UserHandle.USER_NULL) {
+                int removedUser = intent.getIntExtra(Intent.EXTRA_USER_HANDLE, UserUtil.USER_NULL);
+                if (removedUser == UserUtil.USER_NULL) {
                     Log.w(LOG_TAG, "Expected EXTRA_USER_HANDLE with ACTION_USER_REMOVED");
                 } else {
                     removeUserFromCache(removedUser);
