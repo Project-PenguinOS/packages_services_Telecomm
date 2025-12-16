@@ -26,7 +26,7 @@ import android.telecom.TelecomManager;
 import android.view.MenuItem;
 import android.view.WindowManager;
 
-import com.android.server.telecom.settings.SettingsConstants;
+import com.android.server.telecomui.settings.SettingsConstants;
 
 public class EnableAccountPreferenceActivity extends Activity {
     @Override

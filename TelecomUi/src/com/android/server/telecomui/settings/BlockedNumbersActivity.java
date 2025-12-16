@@ -56,7 +56,7 @@ import android.widget.Toast;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.telecom.settings.BlockedNumbersUtil;
-import com.android.server.telecom.settings.SettingsConstants;
+import com.android.server.telecomui.settings.SettingsConstants;
 import com.android.server.telecomui.R;
 
 

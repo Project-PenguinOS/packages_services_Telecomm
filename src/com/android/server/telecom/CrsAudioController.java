@@ -50,6 +50,7 @@ public class CrsAudioController {
     // Use a SingleThreadScheduledExecutor to handle both the listener callback
     // and the timeout scheduling off the main thread.
     private final ScheduledExecutorService mExecutor;
+    private boolean mIsCrsModeSet = false;
 
     /**
      * Creates a new CrsAudioController.
@@ -193,7 +194,7 @@ public class CrsAudioController {
     /**
      * Sets the AudioManager mode to MODE_IN_CALL.
      */
-    public void setAudioManagerMode() {
+    public void setAudioManagerInCallMode() {
         mAudioManager.setMode(AudioManager.MODE_IN_CALL);
     }
 
@@ -201,14 +202,19 @@ public class CrsAudioController {
      * Sets the audio mode for CRS, ensuring the speaker is ready.
      */
     public void setAudioModeForCrs() {
-        runActionWhenSpeakerIsReady(this::setAudioManagerMode);
+        if(shouldControlCrsWithParameters()) {
+            setCrsModeParams(true);
+            setAudioManagerInCallMode();
+            return;
+        }
+        runActionWhenSpeakerIsReady(this::setAudioManagerInCallMode);
     }
 
     /**
      * Removes the CommunicationDeviceChangedListener.
      */
     public void removeListener() {
-        unregisterCommunicationDeviceChangedListener(this::setAudioManagerMode);
+        unregisterCommunicationDeviceChangedListener(this::setAudioManagerInCallMode);
     }
 
     /**
@@ -261,7 +267,7 @@ public class CrsAudioController {
      */
     public void setVolumeLevelForCrsInRingtoneMode(int volume) {
         String crsVolumeKeyPrefix = mContext.getResources().getString(
-                com.android.server.telecom.R.string.config_audio_parameter_key_crs_volume);
+                R.string.config_audio_parameter_key_crs_volume);
         Log.d(TAG, "CRS volume parameter key: " + crsVolumeKeyPrefix);
         if (!TextUtils.isEmpty(crsVolumeKeyPrefix)) {
             Log.i(TAG, "Applying CRS volume: " + crsVolumeKeyPrefix + volume);
@@ -280,6 +286,15 @@ public class CrsAudioController {
                     mAudioManager.getStreamVolume(AudioManager.STREAM_RING));
         } else if (ringerAttributes.getRingtoneType() == RINGTONE_SOURCE_NETWORK_IN_CALL_MODE) {
             Log.i(TAG, "CRS ringtone playing in IN-Call Mode");
+            if (shouldControlCrsWithParameters()) {
+                // Pass the mute parameter only if the ringer is not audible (e.g., volume is 0
+                // or Do Not Disturb is active).
+                if (!ringerAttributes.shouldAcquireAudioFocus()
+                        && !ringerAttributes.isRingerAudible()) {
+                    setCrsSpeechMuted(true);
+                }
+                return;
+            }
             runActionWhenSpeakerIsReady(this::setSystemSpeakerVolume);
         }
     }
@@ -300,8 +315,12 @@ public class CrsAudioController {
             setVolumeLevelForCrsInRingtoneMode(0);
             Log.addEvent(call, LogUtils.Events.STOP_CRS_RINGER_IN_MODE_RINGTONE);
         } else if (ringerAttributes.getRingtoneType() == RINGTONE_SOURCE_NETWORK_IN_CALL_MODE) {
-            unregisterCommunicationDeviceChangedListener(this::setSystemSpeakerVolume);
-            silenceInCallModeCrs(true);
+            if (shouldControlCrsWithParameters()) {
+                setCrsModeParams(false);
+            } else {
+                unregisterCommunicationDeviceChangedListener(this::setSystemSpeakerVolume);
+                silenceInCallModeCrs(true);
+            }
             Log.addEvent(call, LogUtils.Events.STOP_CRS_RINGER_IN_MODE_IN_CALL);
         }
     }
@@ -311,6 +330,13 @@ public class CrsAudioController {
      */
     public void resetAudioDevices(CallAudioManager callAudioManager, CallsManager callsManager,
             Call call, int newState) {
+        if (shouldControlCrsWithParameters()) {
+            Log.i(TAG, "Calling setCrsSpeechUnmuteParams");
+            // When user explicitly silenced the ring, we are passing the Speech Mute to modem,
+            // so it is required to pass unmute upon call state change only in this case.
+            setCrsSpeechMuted(false);
+            return;
+        }
         restoreSystemSpeakerVolume();
         // For voice calls or VT calls accepted as voice, the audio path should default to earpiece.
         // TODO b/463698834 check if we can send "SWITCH_BASELINE_ROUTE" instead below routing.
@@ -337,14 +363,57 @@ public class CrsAudioController {
      */
     public int getCrsRingToneType(Call call) {
         return call.getCrsMode() == AudioManager.MODE_RINGTONE
-                ? Call.RINGTONE_SOURCE_NETWORK_RING_MODE
-                : Call.RINGTONE_SOURCE_NETWORK_IN_CALL_MODE;
+                ? RINGTONE_SOURCE_NETWORK_RING_MODE
+                : RINGTONE_SOURCE_NETWORK_IN_CALL_MODE;
     }
 
     /**
      * Sets the audio route for CRS to speaker.
      */
     public void setCrsAudioRoute(CallAudioManager callAudioManager) {
+        if(shouldControlCrsWithParameters()) {
+            Log.w(TAG, "setCrsAudioRoute to Speaker is not required");
+            return;
+        }
         callAudioManager.setAudioRoute(CallAudioState.ROUTE_SPEAKER, null);
+    }
+
+    public void setCrsModeParams(boolean enable) {
+        String modeToken = "";
+        if (enable) {
+            modeToken = mContext.getResources().getString(R.string.config_crs_mode_on_param);
+            mIsCrsModeSet = true;
+        } else if (mIsCrsModeSet) {
+            modeToken = mContext.getResources().getString(R.string.config_crs_mode_off_param);
+            mIsCrsModeSet = false;
+        }
+        if (TextUtils.isEmpty(modeToken)) {
+            return;
+        }
+        mAudioManager.setParameters(modeToken);
+    }
+
+    public void setCrsSpeechMuted(boolean mute) {
+        String token;
+        if (mute) {
+            token = mContext.getResources().getString(R.string.config_crs_speech_mute_param);
+        } else {
+            token = mContext.getResources().getString(R.string.config_crs_speech_unmute_param);
+        }
+        if (TextUtils.isEmpty(token)) {
+            return;
+        }
+        mAudioManager.setParameters(token);
+    }
+
+    /**
+     * It checks whether the Audio routing is controlled by the Audio HAL or not.
+     * @return {@code true} if Audio HAL handling the audio routing else {@code false}.
+     */
+    public boolean shouldControlCrsWithParameters() {
+        return TextUtils.isEmpty(mContext.getResources().getString(
+                R.string.config_audio_parameter_key_crs_volume))
+                && !TextUtils.isEmpty(mContext.getResources().getString(
+                R.string.config_crs_speech_mute_param));
     }
 }
