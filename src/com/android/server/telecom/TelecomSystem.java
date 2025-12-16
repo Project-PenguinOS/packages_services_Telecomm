@@ -103,8 +103,6 @@ public class TelecomSystem {
                 .addDataAuthority(DialerCodeReceiver.TELECOM_SECRET_CODE_DEBUG_OFF, null);
         DIALER_SECRET_CODE_FILTER
                 .addDataAuthority(DialerCodeReceiver.TELECOM_SECRET_CODE_MARK, null);
-        DIALER_SECRET_CODE_FILTER
-                .addDataAuthority(DialerCodeReceiver.TELECOM_SECRET_CODE_MENU, null);
 
         USER_SWITCHED_FILTER.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
         USER_STARTING_FILTER.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
