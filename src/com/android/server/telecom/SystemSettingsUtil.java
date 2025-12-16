@@ -19,6 +19,7 @@ package com.android.server.telecom;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.media.AudioManager;
+import android.os.UserHandle;
 import android.os.VibrationAttributes;
 import android.os.Vibrator;
 import android.provider.DeviceConfig;
@@ -38,7 +39,7 @@ public class SystemSettingsUtil {
     @VisibleForTesting
     public interface SystemSettingsReader {
         int getInt(ContentResolver cr, String name, int def);
-        int getIntForUser(ContentResolver cr, String name, int def, int userHandle);
+        int getIntForUser(Context context, String name, int def, int userHandle);
     }
 
     private static class DefaultSystemSettingsReader implements SystemSettingsReader {
@@ -48,8 +49,10 @@ public class SystemSettingsUtil {
         }
 
         @Override
-        public int getIntForUser(ContentResolver cr, String name, int def, int userHandle) {
-            return Settings.System.getIntForUser(cr, name, def, userHandle);
+        public int getIntForUser(Context context, String name, int def, int userHandle) {
+            return Settings.System.getInt(
+                context.createContextAsUser(UserHandle.of(userHandle), 0).getContentResolver(),
+                name, def);
         }
     }
 
