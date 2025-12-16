@@ -169,7 +169,6 @@ public class TelecomServiceImpl {
     private final UserCallIntentProcessorFactory mUserCallIntentProcessorFactory;
     private final DefaultDialerCache mDefaultDialerCache;
     private final SubscriptionManagerAdapter mSubscriptionManagerAdapter;
-    private final SettingsSecureAdapter mSettingsSecureAdapter;
     private final TelecomSystem.SyncRoot mLock;
     private final TransactionalServiceRepository mTransactionalServiceRepository;
     private final BlockedNumbersManager mBlockedNumbersManager;
@@ -3385,7 +3384,6 @@ public class TelecomServiceImpl {
             UserCallIntentProcessorFactory userCallIntentProcessorFactory,
             DefaultDialerCache defaultDialerCache,
             SubscriptionManagerAdapter subscriptionManagerAdapter,
-            SettingsSecureAdapter settingsSecureAdapter,
             FeatureFlags featureFlags,
             android.telecom.flags.FeatureFlags moduleFeatureFlags,
             com.android.internal.telecom.flags.FeatureFlags moduleBugFixFeatureFlags,
@@ -3414,7 +3412,6 @@ public class TelecomServiceImpl {
         mDefaultDialerCache = defaultDialerCache;
         mCallIntentProcessorAdapter = callIntentProcessorAdapter;
         mSubscriptionManagerAdapter = subscriptionManagerAdapter;
-        mSettingsSecureAdapter = settingsSecureAdapter;
         mMetricsController = metricsController;
         mSystemUiPackageName = sysUiPackageName;
 
@@ -4249,12 +4246,6 @@ public class TelecomServiceImpl {
         int getDefaultVoiceSubId();
     }
 
-    public interface SettingsSecureAdapter {
-        void putStringForUser(ContentResolver resolver, String name, String value, int userHandle);
-
-        String getStringForUser(ContentResolver resolver, String name, int userHandle);
-    }
-
     static class SubscriptionManagerAdapterImpl implements SubscriptionManagerAdapter {
         @Override
         public int getDefaultVoiceSubId() {
@@ -4262,16 +4253,4 @@ public class TelecomServiceImpl {
         }
     }
 
-    static class SettingsSecureAdapterImpl implements SettingsSecureAdapter {
-        @Override
-        public void putStringForUser(ContentResolver resolver, String name, String value,
-                int userHandle) {
-            Settings.Secure.putStringForUser(resolver, name, value, userHandle);
-        }
-
-        @Override
-        public String getStringForUser(ContentResolver resolver, String name, int userHandle) {
-            return Settings.Secure.getStringForUser(resolver, name, userHandle);
-        }
-    }
 }

@@ -504,7 +504,6 @@ public class TelecomSystem {
                     },
                     defaultDialerCache,
                     new TelecomServiceImpl.SubscriptionManagerAdapterImpl(),
-                    new TelecomServiceImpl.SettingsSecureAdapterImpl(),
                     featureFlags,
                     moduleFeatureFlags,
                     moduleBugFixFeatureFlags,
