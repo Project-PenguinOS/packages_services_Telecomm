@@ -156,6 +156,14 @@ public class TelecomServiceImpl {
             "call is null or id mismatch";
     public static final UUID ADD_CALL_ON_ERROR_UUID =
             UUID.fromString("f8e7d6c5-b4a3-9210-8765-432109abcdef");
+    // TODO(b/469227855): This is a hidden constant in UiModeManager used by the resetCarMode().
+    // Redefined locally to remove hidden API dependency.
+    //
+    // Original documentation from UiModeManager:
+    // Flag for use with {@link #disableCarMode(int)}: Disables car mode at ALL priority levels.
+    // Primarily intended for use from {@link com.android.internal.app.DisableCarModeActivity} to
+    // provide the user with a means to exit car mode at all priority levels.
+    private static final int DISABLE_CAR_MODE_ALL_PRIORITIES = 0x0002;
 
     private static final String TAG = "TelecomServiceImpl";
     private static final String TIME_LINE_ARG = "timeline";
@@ -3037,7 +3045,7 @@ public class TelecomServiceImpl {
                     try {
                         UiModeManager uiModeManager =
                                 mContext.getSystemService(UiModeManager.class);
-                        uiModeManager.disableCarMode(UiModeManager.DISABLE_CAR_MODE_ALL_PRIORITIES);
+                        uiModeManager.disableCarMode(DISABLE_CAR_MODE_ALL_PRIORITIES);
                     } finally {
                         Binder.restoreCallingIdentity(token);
                     }
