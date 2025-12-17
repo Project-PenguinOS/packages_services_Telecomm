@@ -43,8 +43,6 @@ import android.os.UserManager;
 import android.os.VibrationAttributes;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
-import android.os.vibrator.persistence.ParsedVibration;
-import android.os.vibrator.persistence.VibrationXmlParser;
 import android.telecom.Log;
 import android.telecom.TelecomManager;
 import android.util.Pair;
@@ -107,7 +105,8 @@ public class Ringer {
         }
 
         public VibrationEffect get(Uri ringtoneUri, Context context) {
-            return VibrationEffect.get(ringtoneUri, context);
+            // TODO (b/469781444): Clean up the stale code
+            return null;
         }
     }
     @VisibleForTesting
@@ -1037,22 +1036,9 @@ public class Ringer {
     @Nullable
     private static VibrationEffect loadSerializedDefaultRingVibration(
             Resources resources, Vibrator vibrator) {
-        try {
-            int resourceId = Resources.getSystem().getIdentifier(
-                    "default_ringtone_vibration_effect", "raw", "android");
-            InputStream vibrationInputStream = resources.openRawResource(resourceId);
-            ParsedVibration parsedVibration = VibrationXmlParser
-                    .parseDocument(
-                            new InputStreamReader(vibrationInputStream, StandardCharsets.UTF_8));
-            if (parsedVibration == null) {
-                Log.w(TAG, "Got null parsed default ring vibration effect.");
-                return null;
-            }
-            return parsedVibration.resolve(vibrator);
-        } catch (IOException | Resources.NotFoundException e) {
-            Log.e(TAG, e, "Error parsing default ring vibration effect.");
-            return null;
-        }
+        // TODO (b/469781444): Clean up the stale code
+        Log.w(TAG, "Device-provided serialized ringer vibration is disabled.");
+        return null;
     }
 
     private static VibrationEffect loadDefaultRingVibrationEffect(
