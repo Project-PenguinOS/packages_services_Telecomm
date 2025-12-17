@@ -1878,9 +1878,8 @@ public class CallsManager extends Call.ListenerBase
                 .getSystemService(UserManager.class);
         boolean isCurrentUserAdmin = currentUserManager.isAdminUser();
         if (isCurrentUserAdmin) {
-            isCallHiddenFromProfile &= mFeatureFlags.telecomResolveHiddenDependencies()
-                    ? currentUserManager.isQuietModeEnabled(call.getAssociatedUser())
-                    : mUserManager.isQuietModeEnabled(call.getAssociatedUser());
+            isCallHiddenFromProfile &= currentUserManager.isQuietModeEnabled(
+                    call.getAssociatedUser());
         }
 
         boolean ignoreIncomingCallFailureOnSameNumber = false;
@@ -3075,9 +3074,7 @@ public class CallsManager extends Call.ListenerBase
             FeatureFlags featureFlags) {
         UserManager um;
         UserHandle userHandle = UserHandle.of(userId);
-        um = featureFlags.telecomResolveHiddenDependencies()
-                ? context.createContextAsUser(userHandle, 0).getSystemService(UserManager.class)
-                : context.getSystemService(UserManager.class);
+        um = context.createContextAsUser(userHandle, 0).getSystemService(UserManager.class);
 
         List<UserHandle> userProfiles = um.getAllProfiles();
         for (UserHandle userProfile : userProfiles) {
@@ -6201,10 +6198,8 @@ public class CallsManager extends Call.ListenerBase
         mCurrentUserHandle = userHandle;
         mMissedCallNotifier.setCurrentUserHandle(userHandle);
         mRoleManagerAdapter.setCurrentUserHandle(userHandle);
-        final UserManager userManager = mFeatureFlags.telecomResolveHiddenDependencies()
-                ? mContext.createContextAsUser(userHandle, 0).getSystemService(
-                        UserManager.class)
-                : mContext.getSystemService(UserManager.class);
+        final UserManager userManager = mContext.createContextAsUser(
+                userHandle, 0).getSystemService(UserManager.class);
         List<UserHandle> profiles = userManager.getUserProfiles();
 
         for (UserHandle profileUser : profiles) {
@@ -6326,9 +6321,8 @@ public class CallsManager extends Call.ListenerBase
         UserManager userManager = mContext.getSystemService(UserManager.class);
         KeyguardManager keyguardManager = mContext.getSystemService(KeyguardManager.class);
 
-        boolean hasUserRestriction = mFeatureFlags.telecomResolveHiddenDependencies()
-                ? userManager.hasUserRestrictionForUser(UserManager.DISALLOW_SMS, callingUserHandle)
-                : userManager.hasUserRestriction(UserManager.DISALLOW_SMS, callingUserHandle);
+        boolean hasUserRestriction = userManager.hasUserRestrictionForUser(UserManager.DISALLOW_SMS,
+                callingUserHandle);
         boolean isUserRestricted = userManager != null && hasUserRestriction;
         boolean isLockscreenRestricted = keyguardManager != null
                 && keyguardManager.isDeviceLocked();
