@@ -156,7 +156,7 @@ public class DefaultDialerCache {
     }
 
     public String getDefaultDialerApplicationLegacy(int userId) {
-        if (userId == UserHandle.USER_CURRENT) {
+        if (userId == UserHandle.CURRENT.getIdentifier()) {
             userId = ActivityManager.getCurrentUser();
         }
 
