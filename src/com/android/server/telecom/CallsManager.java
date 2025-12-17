@@ -392,6 +392,16 @@ public class CallsManager extends Call.ListenerBase
                     CallState.PULLING};
 
     /**
+     * Phone is via IMS.
+     */
+    private static final int PHONE_TYPE_THIRD_PARTY = 4;
+
+    /**
+     * Phone is via Third Party.
+     */
+    private static final int PHONE_TYPE_IMS = 5;
+
+    /**
      * These states are used by {@link #makeRoomForOutgoingCall(Call, boolean)} to determine which
      * call should be ended first to make room for a new outgoing call.
      */
@@ -423,13 +433,14 @@ public class CallsManager extends Call.ListenerBase
     // Maps call technologies in TelephonyManager to those in Analytics.
     private static final Map<Integer, Integer> sAnalyticsTechnologyMap;
     static {
+        // TODO (b/469802407): Create consistent constants.
+
         sAnalyticsTechnologyMap = new HashMap<>(5);
         sAnalyticsTechnologyMap.put(TelephonyManager.PHONE_TYPE_CDMA, Analytics.CDMA_PHONE);
         sAnalyticsTechnologyMap.put(TelephonyManager.PHONE_TYPE_GSM, Analytics.GSM_PHONE);
-        sAnalyticsTechnologyMap.put(TelephonyManager.PHONE_TYPE_IMS, Analytics.IMS_PHONE);
+        sAnalyticsTechnologyMap.put(PHONE_TYPE_IMS, Analytics.IMS_PHONE);
         sAnalyticsTechnologyMap.put(TelephonyManager.PHONE_TYPE_SIP, Analytics.SIP_PHONE);
-        sAnalyticsTechnologyMap.put(TelephonyManager.PHONE_TYPE_THIRD_PARTY,
-                Analytics.THIRD_PARTY_PHONE);
+        sAnalyticsTechnologyMap.put(PHONE_TYPE_THIRD_PARTY, Analytics.THIRD_PARTY_PHONE);
     }
 
     private static final long WAIT_FOR_AUDIO_UPDATE_TIMEOUT = 4000L;
