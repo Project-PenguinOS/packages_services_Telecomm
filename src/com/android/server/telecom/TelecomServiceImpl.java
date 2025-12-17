@@ -189,6 +189,7 @@ public class TelecomServiceImpl {
     private final String mSystemUiPackageName;
     private AnomalyReporterAdapter mAnomalyReporter = new AnomalyReporterAdapterImpl();
     private final Context mContext;
+    private Context mAllUsersContext;
     private final AppOpsManager mAppOpsManager;
     private final PackageManager mPackageManager;
     private final CallsManager mCallsManager;
@@ -3485,13 +3486,13 @@ public class TelecomServiceImpl {
         try {
             Log.v(TAG, "Registering PackageRemovedReceiver (local thread) for all users" +
                     " with RECEIVER_NOT_EXPORTED flag.");
-            mContext.registerReceiverAsUser(
-                    mPackageRemovedReceiver,
-                    UserHandle.ALL,
-                    filter,
-                    null,
-                    backgroundHandler, // Handler uses the local thread's Looper
-                    Context.RECEIVER_NOT_EXPORTED);
+            mAllUsersContext = mContext.createContextAsUser(UserHandle.ALL, 0 /* flags */);
+            mAllUsersContext.registerReceiver(
+                            mPackageRemovedReceiver,
+                            filter,
+                            null,
+                            backgroundHandler, // Handler uses the local thread's Looper
+                            Context.RECEIVER_NOT_EXPORTED);
             Log.v(TAG, "PackageRemovedReceiver (local thread) registered successfully.");
         } catch (Exception e) {
             if (localHandlerThread.isAlive()) {
