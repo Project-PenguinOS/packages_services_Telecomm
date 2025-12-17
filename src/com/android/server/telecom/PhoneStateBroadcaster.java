@@ -40,6 +40,9 @@ public final class PhoneStateBroadcaster extends CallsManagerListenerBase {
     private final CallsManager mCallsManager;
     private final TelephonyRegistryManager mRegistry;
     private int mCurrentState = TelephonyManager.CALL_STATE_IDLE;
+    // TODO(b/469251875): This constant is hidden in SubscriptionManager.
+    // Redefined locally to remove hidden API dependency.
+    private static final int DEFAULT_PHONE_INDEX = Integer.MAX_VALUE;
 
     public PhoneStateBroadcaster(CallsManager callsManager) {
         mCallsManager = callsManager;
@@ -154,7 +157,7 @@ public final class PhoneStateBroadcaster extends CallsManagerListenerBase {
                 subscriptionId = tm.getSubscriptionId(call.getTargetPhoneAccount());
                 SubscriptionManager subscriptionManager =
                         mCallsManager.getContext().getSystemService(SubscriptionManager.class);
-                simSlotIndex = SubscriptionManager.DEFAULT_PHONE_INDEX;
+                simSlotIndex = DEFAULT_PHONE_INDEX;
                 if (subscriptionManager != null) {
                     SubscriptionInfo subInfo =
                             subscriptionManager.getActiveSubscriptionInfo(subscriptionId);
