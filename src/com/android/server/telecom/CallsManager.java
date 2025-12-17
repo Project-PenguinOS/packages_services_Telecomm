@@ -3162,43 +3162,6 @@ public class CallsManager extends Call.ListenerBase
         throw new IllegalStateException("Missing ComponentInfo!");
     }
 
-    private boolean maybeRedirectToIntentForwarderLegacy(
-            Uri callUri,
-            UserHandle initiatingUser) {
-        // Note: This intent is selected to match the CALL_MANAGED_PROFILE filter in
-        // DefaultCrossProfileIntentFiltersUtils. This ensures that it is redirected to
-        // IntentForwarderActivity.
-        Intent forwardCallIntent = new Intent(Intent.ACTION_CALL, callUri);
-        forwardCallIntent.addCategory(Intent.CATEGORY_DEFAULT);
-        ResolveInfo resolveInfos =
-                mContext.getPackageManager()
-                        .resolveActivityAsUser(
-                                forwardCallIntent,
-                                ResolveInfoFlags.of(0),
-                                initiatingUser.getIdentifier());
-        // Check that the intent will actually open the resolver rather than looping to the personal
-        // profile. This should not happen due to the cross profile intent filters.
-        if (resolveInfos == null
-                || !resolveInfos
-                    .getComponentInfo()
-                    .getComponentName()
-                    .getShortClassName()
-                    .equals(FORWARD_INTENT_TO_MANAGED_PROFILE)) {
-            Log.w(
-                    this,
-                    "Work profile telephony: Intent would not resolve to forwarder activity.");
-            return false;
-        }
-
-        try {
-            mContext.startActivityAsUser(forwardCallIntent, initiatingUser);
-            return true;
-        } catch (ActivityNotFoundException e) {
-            Log.e(this, e, "Unable to start call intent for work telephony");
-            return false;
-        }
-    }
-
     private boolean maybeShowErrorDialog(
             Uri callUri,
             int managedProfileUserId,

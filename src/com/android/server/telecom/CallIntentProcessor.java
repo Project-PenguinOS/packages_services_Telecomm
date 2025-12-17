@@ -336,15 +336,14 @@ public class CallIntentProcessor {
         // intent forwarder activity.
         forwardCallIntent.setComponent(null);
         forwardCallIntent.setPackage(null);
-        ResolveInfo resolveInfos =
-                context.getPackageManager()
-                        .resolveActivityAsUser(
-                                forwardCallIntent,
-                                PackageManager.ResolveInfoFlags.of(MATCH_DEFAULT_ONLY),
-                                initiatingUser.getIdentifier());
+        Context userContext = context.createContextAsUser(initiatingUser, 0 /* flags */);
 
-        if (resolveInfos == null
-                || !resolveInfos
+        ResolveInfo resolveInfo = userContext.getPackageManager().resolveActivity(
+                forwardCallIntent,
+                PackageManager.ResolveInfoFlags.of(MATCH_DEFAULT_ONLY));
+
+        if (resolveInfo == null
+                || !resolveInfo
                 .getComponentInfo()
                 .getComponentName()
                 .getShortClassName()
@@ -353,7 +352,7 @@ public class CallIntentProcessor {
         }
 
         try {
-            context.startActivityAsUser(forwardCallIntent, initiatingUser);
+            userContext.startActivity(forwardCallIntent);
             return true;
         } catch (ActivityNotFoundException e) {
             Log.e(CallIntentProcessor.class, e, "Unable to start call intent in the main user");
