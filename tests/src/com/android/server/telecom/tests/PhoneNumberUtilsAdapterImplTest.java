@@ -110,7 +110,7 @@ public class PhoneNumberUtilsAdapterImplTest {
 
         // Verify: Should handle null service gracefully and not crash
         verify(mContext).getSystemService(TelephonyManager.class);
-        assertFalse("Should fall back to legacy compare if TM is null", result);
+        assertTrue("Numbers should match using legacy compare when service is null", result);
     }
 
     @Test
