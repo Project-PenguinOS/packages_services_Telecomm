@@ -316,10 +316,9 @@ public class AudioRoute {
                                         && mAudioRouteType
                                         == DEVICE_INFO_TYPE_TO_AUDIO_ROUTE_TYPE.getOrDefault(
                                         deviceInfo.getType(), TYPE_INVALID));
-                boolean isHearingAidPairConnected =
-                        pendingAudioRoute.getFeatureFlags().hearingAidPairFix()
-                        && mBluetoothHaPairDevice != null && Objects.equals(deviceInfo.getAddress(),
-                                mBluetoothHaPairDevice.getAddress());
+                boolean isHearingAidPairConnected = mBluetoothHaPairDevice != null
+                        && Objects.equals(deviceInfo.getAddress(),
+                        mBluetoothHaPairDevice.getAddress());
                 if (BT_AUDIO_ROUTE_TYPES.contains(mAudioRouteType)
                         && (mBluetoothAddress.equals(deviceInfo.getAddress())
                         || isHearingAidPairConnected)
