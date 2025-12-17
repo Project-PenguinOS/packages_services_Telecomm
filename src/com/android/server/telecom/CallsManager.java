@@ -105,6 +105,7 @@ import android.telecom.VideoProfile;
 import android.telephony.CarrierConfigManager;
 import android.telephony.CellIdentity;
 import android.telephony.PhoneNumberUtils;
+import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
@@ -2168,7 +2169,20 @@ public class CallsManager extends Call.ListenerBase
                         TelephonyManager tm = getTelephonyManager().createForSubscriptionId(
                                 defaultVoiceSubId);
                         CellIdentity cellIdentity = tm.getLastKnownCellIdentity();
-                        simNumeric = tm.getSimOperatorNumeric();
+
+                        SubscriptionManager sm =
+                                    mContext.getSystemService(SubscriptionManager.class);
+                        SubscriptionInfo subInfo =
+                                    sm.getActiveSubscriptionInfo(defaultVoiceSubId);
+
+                        if (subInfo != null) {
+                            String mcc = subInfo.getMccString();
+                            String mnc = subInfo.getMncString();
+                            if (mcc != null && mnc != null) {
+                                simNumeric = mcc + mnc;
+                            }
+                        }
+
                         networkNumeric = (cellIdentity != null) ? cellIdentity.getPlmn() : "";
                     }
                     TelecomStatsLog.write(TelecomStatsLog.EMERGENCY_NUMBER_DIALED,
