@@ -837,10 +837,52 @@ public class Ringer {
         boolean zenModeOn = mNotificationManager != null
                 && mNotificationManager.getCurrentInterruptionFilter()
                 != NotificationManager.INTERRUPTION_FILTER_ALL;
-        return mVibrator.hasVibrator()
-                && mSystemSettingsUtil.isRingVibrationEnabled(context, mFlags)
-                && (audioManager.getRingerMode() != AudioManager.RINGER_MODE_SILENT
-                || (zenModeOn && shouldRingForContact));
+
+        boolean hasVibrator = mVibrator.hasVibrator();
+        int ringerMode = audioManager.getRingerMode();
+        // Check if ring vibration is effectively enabled.
+        //   This verifies two layers of settings:
+        //   1. The specific 'Vibrate for calls' toggle (VIBRATE_WHEN_RINGING).
+        //   2. The global master 'Use vibration & haptics' toggle (VIBRATE_ON),
+        //      which overrides all others.
+        boolean isRingVibrationEnabled =
+            mSystemSettingsUtil.isRingVibrationEnabled(context, mFlags);
+        // Determine if the call should ring/vibrate even when Zen Mode (Do Not Disturb) is on,
+        // based on whether the contact is allowed to bypass DND.
+        boolean shouldRingForContactInZen = zenModeOn && shouldRingForContact;
+
+        boolean shouldVibrate;
+
+        if (!hasVibrator) {
+            shouldVibrate = false;
+        } else if (isRingVibrationEnabled) {
+            if (ringerMode != AudioManager.RINGER_MODE_SILENT) {
+                shouldVibrate = true;
+            } else {
+                shouldVibrate = shouldRingForContactInZen;
+            }
+        } else {
+            shouldVibrate = false;
+        }
+
+        String ringerModeString;
+        if (ringerMode == AudioManager.RINGER_MODE_SILENT) {
+            ringerModeString = "SILENT";
+        } else if (ringerMode == AudioManager.RINGER_MODE_VIBRATE) {
+            ringerModeString = "VIBRATE";
+        } else if (ringerMode == AudioManager.RINGER_MODE_NORMAL) {
+            ringerModeString = "NORMAL";
+        } else {
+            ringerModeString = "UNKNOWN (" + ringerMode + ")";
+        }
+
+        Log.i(this, "isVibratorEnabled: hasVibrator=%b, ringerMode=%s, isRingVibrationEnabled=%b, "
+                        + "zenModeOn=%b, shouldRingForContact=%b, shouldRingForContactInZen=%b"
+                        + " -> result=%b",
+                hasVibrator, ringerModeString, isRingVibrationEnabled, zenModeOn,
+                shouldRingForContact, shouldRingForContactInZen, shouldVibrate);
+
+        return shouldVibrate;
     }
 
     private RingerAttributes getRingerAttributes(Call call, boolean isHfpDeviceAttached) {
