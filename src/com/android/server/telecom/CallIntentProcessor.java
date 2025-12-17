@@ -70,6 +70,8 @@ public class CallIntentProcessor {
 
     public static final String KEY_IS_UNKNOWN_CALL = "is_unknown_call";
     public static final String KEY_IS_INCOMING_CALL = "is_incoming_call";
+    public static final String FORWARD_INTENT_TO_PARENT =
+            "com.android.internal.app.ForwardIntentToParent";
 
     /**
      * The user initiating the outgoing call.
@@ -354,7 +356,7 @@ public class CallIntentProcessor {
                 .getComponentInfo()
                 .getComponentName()
                 .getShortClassName()
-                .equals(IntentForwarderActivity.FORWARD_INTENT_TO_PARENT)) {
+                .equals(FORWARD_INTENT_TO_PARENT)) {
             return false;
         }
 

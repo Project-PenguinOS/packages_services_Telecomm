@@ -199,7 +199,7 @@ public class CallIntentProcessorTest extends TelecomTestCase {
 
     private void resolveAsIntentForwarderActivity() {
         when(mComponentName.getShortClassName()).thenReturn(
-                IntentForwarderActivity.FORWARD_INTENT_TO_PARENT);
+                mCallIntentProcessor.FORWARD_INTENT_TO_PARENT);
         when(mComponentInfo.getComponentName()).thenReturn(mComponentName);
         when(mResolveInfo.getComponentInfo()).thenReturn(mComponentInfo);
 
