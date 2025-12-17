@@ -42,7 +42,7 @@ import android.telecom.DisconnectCause;
 import android.telecom.Log;
 import android.telecom.PhoneAccount;
 import android.telecom.PhoneAccountHandle;
-import android.telephony.AnomalyReporter;
+
 import android.telephony.CarrierConfigManager;
 import android.util.Pair;
 
@@ -636,7 +636,7 @@ public class CallSequencingController {
 
         // If the live call is stuck in a connecting state, prompt the user to generate a bugreport.
         if (liveCall.getState() == CallState.CONNECTING) {
-            AnomalyReporter.reportAnomaly(LIVE_CALL_STUCK_CONNECTING_EMERGENCY_ERROR_UUID,
+            mAnomalyReporter.reportAnomaly(LIVE_CALL_STUCK_CONNECTING_EMERGENCY_ERROR_UUID,
                     LIVE_CALL_STUCK_CONNECTING_EMERGENCY_ERROR_MSG);
         }
 
