@@ -3091,7 +3091,7 @@ public class CallsManager extends Call.ListenerBase
                 return userProfile;
             }
         }
-        return new UserHandle(UserUtil.USER_NULL);
+        return UserHandle.of(UserUtil.USER_NULL);
     }
 
     private boolean showSwitchToManagedProfileDialog(Uri callUri, UserHandle initiatingUser,
