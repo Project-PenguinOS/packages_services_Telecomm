@@ -30,7 +30,6 @@ import android.os.VibrationAttributes;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorManager;
-import android.provider.BlockedNumberContract;
 import android.provider.BlockedNumbersManager;
 import android.telecom.Log;
 
@@ -47,6 +46,7 @@ import com.android.server.telecom.ClockProxy;
 import com.android.server.telecom.ConnectionServiceFocusManager;
 import com.android.server.telecom.ContactsAsyncHelper;
 import com.android.server.telecom.DefaultDialerCache;
+import com.android.server.telecom.SystemBlockedNumberContract;
 import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.HeadsetMediaButton;
 import com.android.server.telecom.HeadsetMediaButtonFactory;
@@ -249,7 +249,7 @@ public class TelecomService extends Service {
                                     return featureFlags.telecomMainlineBlockedNumbersManager()
                                             ? context.getSystemService(BlockedNumbersManager.class)
                                             .shouldShowEmergencyCallNotification()
-                                            : BlockedNumberContract.SystemContract
+                                            : SystemBlockedNumberContract
                                                     .shouldShowEmergencyCallNotification(context);
                                 }
 

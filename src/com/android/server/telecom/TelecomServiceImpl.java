@@ -60,7 +60,6 @@ import android.os.UserHandle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.permission.PermissionManager;
-import android.provider.BlockedNumberContract;
 import android.provider.BlockedNumbersManager;
 import android.provider.Settings;
 import android.telecom.CallAttributes;
@@ -2433,7 +2432,7 @@ public class TelecomServiceImpl {
                         if (mBlockedNumbersManager != null) {
                             mBlockedNumbersManager.endBlockSuppression();
                         } else {
-                            BlockedNumberContract.SystemContract.endBlockSuppression(mContext);
+                            SystemBlockedNumberContract.endBlockSuppression(mContext);
                         }
                     } finally {
                         Binder.restoreCallingIdentity(token);
