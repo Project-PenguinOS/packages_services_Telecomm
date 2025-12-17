@@ -59,10 +59,6 @@ import java.util.stream.Collectors;
 
 public class CallAudioManager extends CallsManagerListenerBase {
 
-    public interface AudioServiceFactory {
-        IAudioService getAudioService();
-    }
-
     private final String LOG_TAG = CallAudioManager.class.getSimpleName();
 
     private final LinkedHashSet<Call> mActiveDialingOrConnectingCalls;
@@ -198,7 +194,8 @@ public class CallAudioManager extends CallsManagerListenerBase {
             playToneAfterCallConnected(call);
         }
 
-        if (mIsCrsInCallMode && (newState != CallState.RINGING) && (call == mForegroundCall)
+        if (mIsCrsInCallMode && newState != CallState.RINGING
+                && (call == mForegroundCall || mForegroundCall == null)
                 && getCrsAudioController() != null) {
             getCrsAudioController().resetAudioDevices(this, mCallsManager, call, newState);
             mIsCrsInCallMode = false;
@@ -649,6 +646,12 @@ public class CallAudioManager extends CallsManagerListenerBase {
 // QTI_BEGIN: 2024-03-28: Telephony: Skip startRinging for silenced ringing call
                 mSilencedCalls.add(call);
 // QTI_END: 2024-03-28: Telephony: Skip startRinging for silenced ringing call
+                if (getCrsAudioController() != null
+                        && getCrsAudioController().shouldControlCrsWithParameters()) {
+                    // Send speech mute in case user explicitly mute the ring
+                    getCrsAudioController().setCrsSpeechMuted(true);
+                }
+
             }
 // QTI_BEGIN: 2023-04-03: Telephony: IMS: Support video CRS in RINGTONE
 

@@ -1096,13 +1096,12 @@ public class Ringer {
         synchronized (mLock) {
             if (mRingerAttributes != null
                     && mRingerAttributes.getRingtoneType() == Call.RINGTONE_SOURCE_LOCAL) {
-            if (mRingingCall != null) {
+                if (mRingingCall != null) {
                     Log.addEvent(mRingingCall, LogUtils.Events.STOP_RINGER);
                     mRingingCall = null;
                 }
                 mRingtonePlayer.stop();
             }
-
             if (foregroundCall != null && mCrsAudioController != null) {
                 mCrsAudioController.resetCrsAudioVolume(foregroundCall, mRingerAttributes);
             }
@@ -1465,5 +1464,4 @@ public class Ringer {
             });
         }
     }
-
 }

@@ -141,8 +141,7 @@ public class EnhancedCallBlockingFragment extends PreferenceFragment
     private void updateEnhancedBlockPref(String key) {
         SwitchPreference pref = (SwitchPreference) findPreference(key);
         if (pref != null) {
-          boolean isChecked = BlockedNumberContract.SystemContract.getEnhancedBlockSetting(
-                getActivity(), key);
+          boolean isChecked = BlockedNumbersUtil.getBlockedNumberSetting(getActivity(), key);
         }
     }
 
@@ -152,20 +151,20 @@ public class EnhancedCallBlockingFragment extends PreferenceFragment
             if (mIsCombiningRestrictedAndUnknownOption) {
                 Log.i(TAG, String.format("onPreferenceChange: changing %s and %s to %b",
                         preference.getKey(), BLOCK_RESTRICTED_NUMBERS_KEY, (boolean) objValue));
-                BlockedNumberContract.SystemContract.setEnhancedBlockSetting(getActivity(),
+                BlockedNumbersUtil.setBlockedNumberSetting(getActivity(),
                         BLOCK_RESTRICTED_NUMBERS_KEY, (boolean) objValue);
             }
 
             if (mIsCombiningUnavailableAndUnknownOption) {
                 Log.i(TAG, String.format("onPreferenceChange: changing %s and %s to %b",
                         preference.getKey(), BLOCK_UNAVAILABLE_NUMBERS_KEY, (boolean) objValue));
-                BlockedNumberContract.SystemContract.setEnhancedBlockSetting(getActivity(),
+               BlockedNumbersUtil.setBlockedNumberSetting(getActivity(),
                         BLOCK_UNAVAILABLE_NUMBERS_KEY, (boolean) objValue);
             }
         }
-        BlockedNumberContract.SystemContract.setEnhancedBlockSetting(getActivity(),
-              preference.getKey(), (boolean) objValue);
-      return true;
+        BlockedNumbersUtil.setBlockedNumberSetting(getActivity(), preference.getKey(),
+              (boolean) objValue);
+        return true;
     }
 
     @Override

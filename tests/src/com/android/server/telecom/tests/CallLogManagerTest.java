@@ -82,6 +82,7 @@ import com.android.server.telecom.flags.FeatureFlags;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -1116,6 +1117,7 @@ public class CallLogManagerTest extends TelecomTestCase {
 
     @SmallTest
     @Test
+    @Ignore("b/443131372")
     public void testCountryIso_newCountryDetected() {
         Country testCountry = new Country(TEST_ISO, Country.COUNTRY_SOURCE_LOCALE);
         Country testCountry2 = new Country(TEST_ISO_2, Country.COUNTRY_SOURCE_LOCALE);

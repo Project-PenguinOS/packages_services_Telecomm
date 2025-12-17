@@ -20,7 +20,6 @@ import android.app.Service;
 import android.app.role.RoleManager;
 import android.content.Context;
 import android.content.Intent;
-import android.media.IAudioService;
 import android.media.ToneGenerator;
 import android.os.CombinedVibration;
 import android.os.HandlerThread;
@@ -200,12 +199,6 @@ public class TelecomService extends Service {
                                                     PowerManager.FULL_WAKE_LOCK,
                                                     InCallWakeLockController.class.getSimpleName()),
                                             callsManager);
-                                }
-                            },
-                            new CallAudioManager.AudioServiceFactory() {
-                                @Override
-                                public IAudioService getAudioService() {
-                                    return null;
                                 }
                             },
                             ConnectionServiceFocusManager::new,

@@ -80,7 +80,6 @@ import android.media.AudioAttributes;
 import android.media.AudioDeviceAttributes;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
-import android.media.IAudioService;
 import android.media.audiopolicy.AudioProductStrategy;
 import android.os.Looper;
 import android.os.Parcel;
@@ -100,6 +99,7 @@ import com.android.server.telecom.Call;
 import com.android.server.telecom.CallAudioManager;
 import com.android.server.telecom.CallAudioRouteController;
 import com.android.server.telecom.CallsManager;
+import com.android.server.telecom.CrsAudioController;
 import com.android.server.telecom.PendingAudioRoute;
 import com.android.server.telecom.StatusBarNotifier;
 import com.android.server.telecom.TelecomSystem;
@@ -149,10 +149,6 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
     @Mock
     CallsManager mCallsManager;
     @Mock
-    CallAudioManager.AudioServiceFactory mAudioServiceFactory;
-    @Mock
-    IAudioService mAudioService;
-    @Mock
     BluetoothRouteManager mBluetoothRouteManager;
     @Mock
     BluetoothDeviceManager mBluetoothDeviceManager;
@@ -179,7 +175,7 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
     private AudioRoute mSpeakerRoute;
     private boolean mOverrideSpeakerToBus;
     private boolean mIsScoManagedByAudio;
-    private UserHandle mCurrentUser = new UserHandle(UserHandle.USER_SYSTEM);
+    private UserHandle mCurrentUser = UserHandle.SYSTEM;
     AudioRoute.Factory mAudioRouteFactory = new AudioRoute.Factory() {
         @Override
         public AudioRoute create(@AudioRoute.AudioRouteType int type, String bluetoothAddress,
@@ -207,7 +203,6 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         when(mAudioManager.getCommunicationDevice()).thenReturn(mAudioDeviceInfo);
         when(mAudioManager.setCommunicationDevice(any(AudioDeviceInfo.class)))
                 .thenReturn(true);
-        when(mAudioServiceFactory.getAudioService()).thenReturn(mAudioService);
         when(mContext.getAttributionTag()).thenReturn("");
         doNothing().when(mCallsManager).onCallAudioStateChanged(any(CallAudioState.class),
                 any(CallAudioState.class));
@@ -228,8 +223,8 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
                 .thenReturn(BLUETOOTH_DEVICE_1);
         when(mAudioDeviceInfo.getAddress()).thenReturn(BT_ADDRESS_1);
         mController = new CallAudioRouteController.Factory().create(mContext, mCallsManager,
-                mAudioServiceFactory, mAudioRouteFactory, mWiredHeadsetManager,
-                mBluetoothRouteManager, mockStatusBarNotifier, mFeatureFlags,
+                mAudioRouteFactory, mWiredHeadsetManager,mBluetoothRouteManager,
+                mockStatusBarNotifier, mFeatureFlags,
                 mMockTelecomMetricsController, mRingtonePlayer, mAnomalyReporterAdapter);
         mController.setAudioRouteFactory(mAudioRouteFactory);
         mController.setAudioManager(mAudioManager);
@@ -2360,6 +2355,7 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
 
     @Test
     public void testCrsCall_IgnoresWiredHeadsetConnection() {
+        turnOffShouldControlCrsWithParameters();
         when(mCallAudioManager.isCrsInCallMode()).thenReturn(true);
         mController.initialize();
         mController.sendMessageWithSessionInfo(CONNECT_WIRED_HEADSET);
@@ -2369,6 +2365,7 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
 
     @Test
     public void testCrsCall_IgnoresBluetoothConnection() {
+        turnOffShouldControlCrsWithParameters();
         when(mCallAudioManager.isCrsInCallMode()).thenReturn(true);
         mController.initialize();
         mController.sendMessageWithSessionInfo(BT_DEVICE_ADDED, AudioRoute.TYPE_BLUETOOTH_SCO,
@@ -2379,6 +2376,7 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
 
     @Test
     public void testCrsCall_IgnoresUserSwitchToBluetooth() {
+        turnOffShouldControlCrsWithParameters();
         when(mCallAudioManager.isCrsInCallMode()).thenReturn(true);
         mController.initialize();
         // Add the device so that the switch would otherwise work
@@ -2391,5 +2389,11 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
 
         verify(mCallsManager, never()).onCallAudioStateChanged(any(), any());
+    }
+
+    private void turnOffShouldControlCrsWithParameters() {
+        CrsAudioController mockCrsAudioController = mock(CrsAudioController.class);
+        when(mCallAudioManager.getCrsAudioController()).thenReturn(mockCrsAudioController);
+        when(mockCrsAudioController.shouldControlCrsWithParameters()).thenReturn(false);
     }
 }

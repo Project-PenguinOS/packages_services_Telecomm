@@ -102,6 +102,19 @@
          voicemail or not.  Some OEMs may wish to explicitly require the user to send a call to
          local voicemail. -->
     <bool name="decline_sends_to_local_voicemail">true</bool>
-
+    <!-- The below String constants are used to publish the CRS call
+          volume settings information to the AudioManager
+          These parameters are used only if the call is CRS-->
     <string name="config_audio_parameter_key_crs_volume" translatable="false"></string>
+    <!--
+    When CRS audio is controlled via parameters (i.e. config_audio_parameter_key_crs_volume
+    is empty), all of the following parameters for CRS control must be defined:
+     - config_crs_speech_mute_param
+     - config_crs_speech_unmute_param
+     - config_crs_mode_off_param
+     - config_crs_mode_on_param  -->
+    <string name="config_crs_speech_mute_param" translatable="false"></string>
+    <string name="config_crs_speech_unmute_param" translatable="false"></string>
+    <string name="config_crs_mode_off_param" translatable="false"></string>
+    <string name="config_crs_mode_on_param" translatable="false"></string>
 </resources>
