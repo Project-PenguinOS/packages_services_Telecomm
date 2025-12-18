@@ -426,7 +426,7 @@ public class Ringer {
                 Log.addEvent(foregroundCall, LogUtils.Events.FLASH_NOTIFICATION_START);
                 getExecutor().execute(() ->
                         mAccessibilityManagerAdapter.startFlashNotificationSequence(mContext,
-                                AccessibilityManager.FLASH_REASON_CALL));
+                                1 /* FLASH_REASON_CALL = 1 */));
             }
 
             Context userContext = null;
