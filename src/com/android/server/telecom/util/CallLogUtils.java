@@ -535,9 +535,7 @@ public class CallLogUtils {
             int maxCallLogSize = DEFAULT_MAX_CALL_LOG_SIZE;
             if (!TextUtils.isEmpty(phoneAccountId)
                 && !TextUtils.isEmpty(phoneAccountComponentName)) {
-                if (android.provider.Flags.allowConfigMaximumCallLogEntriesPerSim()
-                    && TELEPHONY_COMPONENT_NAME
-                    .flattenToString().equals(phoneAccountComponentName)) {
+                if (TELEPHONY_COMPONENT_NAME.flattenToString().equals(phoneAccountComponentName)) {
                     final int resId = context.getResources().getIdentifier(
                             "config_maximumCallLogEntriesPerSim", "integer", "android");
                     maxCallLogSize = context.getResources().getInteger(resId);
