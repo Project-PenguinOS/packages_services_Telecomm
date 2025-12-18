@@ -2,7 +2,6 @@ package com.android.server.telecom;
 
 import static android.content.pm.PackageManager.MATCH_DEFAULT_ONLY;
 
-import com.android.internal.app.IntentForwarderActivity;
 import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.ui.UiConstants;
 
