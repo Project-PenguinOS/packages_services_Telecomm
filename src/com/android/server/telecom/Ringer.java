@@ -204,11 +204,6 @@ public class Ringer {
 
     private static VolumeShaper.Configuration mVolumeShaperConfig;
 
-    public static final UUID GET_RINGER_MODE_ANOMALY_UUID =
-            UUID.fromString("eb10505b-4d7b-4fab-b4a1-a18186799065");
-    public static final String GET_RINGER_MODE_ANOMALY_MSG = "AM#GetRingerMode() and"
-            + " AM#GetRingerModeInternal() are returning diff values when DoNotDisturb is OFF!";
-
     /**
      * Used to keep ordering of unanswered incoming calls. There can easily exist multiple incoming
      * calls and explicit ordering is useful for maintaining the proper state of the ringer.
@@ -431,7 +426,7 @@ public class Ringer {
                 Log.addEvent(foregroundCall, LogUtils.Events.FLASH_NOTIFICATION_START);
                 getExecutor().execute(() ->
                         mAccessibilityManagerAdapter.startFlashNotificationSequence(mContext,
-                                AccessibilityManager.FLASH_REASON_CALL));
+                                1 /* FLASH_REASON_CALL = 1 */));
             }
 
             Context userContext = null;
@@ -818,20 +813,10 @@ public class Ringer {
             return !call.isCallSuppressedByDoNotDisturb();
         }
         Uri contactUri = call.getHandle();
-        if (mFlags.telecomResolveHiddenDependencies()) {
-            if (contactUri == null) {
-                contactUri = Uri.EMPTY;
-            }
-            return mNotificationManager.matchesCallFilter(contactUri);
-        } else {
-            final Bundle peopleExtras = new Bundle();
-            if (contactUri != null) {
-                ArrayList<Person> personList = new ArrayList<>();
-                personList.add(new Person.Builder().setUri(contactUri.toString()).build());
-                peopleExtras.putParcelableArrayList(Notification.EXTRA_PEOPLE_LIST, personList);
-            }
-            return mNotificationManager.matchesCallFilter(peopleExtras);
+        if (contactUri == null) {
+            contactUri = Uri.EMPTY;
         }
+        return mNotificationManager.matchesCallFilter(contactUri);
     }
 
     private boolean hasExternalRinger(Call foregroundCall) {
@@ -852,38 +837,52 @@ public class Ringer {
         boolean zenModeOn = mNotificationManager != null
                 && mNotificationManager.getCurrentInterruptionFilter()
                 != NotificationManager.INTERRUPTION_FILTER_ALL;
-        maybeGenAnomReportForGetRingerMode(zenModeOn, audioManager);
-        return mVibrator.hasVibrator()
-                && mSystemSettingsUtil.isRingVibrationEnabled(context, mFlags)
-                && (audioManager.getRingerMode() != AudioManager.RINGER_MODE_SILENT
-                || (zenModeOn && shouldRingForContact));
-    }
 
-    /**
-     * There are 3 settings for haptics:
-     * - AudioManager.RINGER_MODE_SILENT
-     * - AudioManager.RINGER_MODE_VIBRATE
-     * - AudioManager.RINGER_MODE_NORMAL
-     * If the user does not have {@link AudioManager#RINGER_MODE_SILENT} set, the user should
-     * have haptic feeback
-     *
-     * Note: If DND/ZEN_MODE is on, {@link AudioManager#getRingerMode()} will return
-     * {@link AudioManager#RINGER_MODE_SILENT}, regardless of the user setting. Therefore,
-     * getRingerModeInternal is the source of truth instead of {@link AudioManager#getRingerMode()}.
-     * However, if DND/ZEN_MOD is off, the APIs should return the same value.  Generate an anomaly
-     * report if they diverge.
-     */
-    private void maybeGenAnomReportForGetRingerMode(boolean isZenModeOn, AudioManager am) {
-        if (!isZenModeOn) {
-            int ringerMode = am.getRingerMode();
-            int ringerModeInternal = am.getRingerModeInternal();
-            if (ringerMode != ringerModeInternal) {
-                Log.i(this, "getRingerMode=[%d], getRingerModeInternal=[%d]",
-                        ringerMode, ringerModeInternal);
-                mAnomalyReporter.reportAnomaly(GET_RINGER_MODE_ANOMALY_UUID,
-                        GET_RINGER_MODE_ANOMALY_MSG);
+        boolean hasVibrator = mVibrator.hasVibrator();
+        int ringerMode = audioManager.getRingerMode();
+        // Check if ring vibration is effectively enabled.
+        //   This verifies two layers of settings:
+        //   1. The specific 'Vibrate for calls' toggle (VIBRATE_WHEN_RINGING).
+        //   2. The global master 'Use vibration & haptics' toggle (VIBRATE_ON),
+        //      which overrides all others.
+        boolean isRingVibrationEnabled =
+            mSystemSettingsUtil.isRingVibrationEnabled(context, mFlags);
+        // Determine if the call should ring/vibrate even when Zen Mode (Do Not Disturb) is on,
+        // based on whether the contact is allowed to bypass DND.
+        boolean shouldRingForContactInZen = zenModeOn && shouldRingForContact;
+
+        boolean shouldVibrate;
+
+        if (!hasVibrator) {
+            shouldVibrate = false;
+        } else if (isRingVibrationEnabled) {
+            if (ringerMode != AudioManager.RINGER_MODE_SILENT) {
+                shouldVibrate = true;
+            } else {
+                shouldVibrate = shouldRingForContactInZen;
             }
+        } else {
+            shouldVibrate = false;
         }
+
+        String ringerModeString;
+        if (ringerMode == AudioManager.RINGER_MODE_SILENT) {
+            ringerModeString = "SILENT";
+        } else if (ringerMode == AudioManager.RINGER_MODE_VIBRATE) {
+            ringerModeString = "VIBRATE";
+        } else if (ringerMode == AudioManager.RINGER_MODE_NORMAL) {
+            ringerModeString = "NORMAL";
+        } else {
+            ringerModeString = "UNKNOWN (" + ringerMode + ")";
+        }
+
+        Log.i(this, "isVibratorEnabled: hasVibrator=%b, ringerMode=%s, isRingVibrationEnabled=%b, "
+                        + "zenModeOn=%b, shouldRingForContact=%b, shouldRingForContactInZen=%b"
+                        + " -> result=%b",
+                hasVibrator, ringerModeString, isRingVibrationEnabled, zenModeOn,
+                shouldRingForContact, shouldRingForContactInZen, shouldVibrate);
+
+        return shouldVibrate;
     }
 
     private RingerAttributes getRingerAttributes(Call call, boolean isHfpDeviceAttached) {
@@ -1000,15 +999,6 @@ public class Ringer {
     private boolean isProfileInQuietMode(UserHandle user) {
         UserManager um = mContext.getSystemService(UserManager.class);
         return um.isManagedProfile(user.getIdentifier()) && um.isQuietModeEnabled(user);
-    }
-
-    private Handler getHandler() {
-        if (mHandler == null) {
-            HandlerThread handlerThread = new HandlerThread("Ringer");
-            handlerThread.start();
-            mHandler = handlerThread.getThreadHandler();
-        }
-        return mHandler;
     }
 
     private Executor getLoggedExecutor(String functionName) {

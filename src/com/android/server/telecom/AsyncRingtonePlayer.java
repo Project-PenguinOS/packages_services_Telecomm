@@ -219,19 +219,17 @@ public class AsyncRingtonePlayer {
         HandlerThread thread = new HandlerThread("ringtone-player");
         thread.start();
 
-        return new Handler(thread.getLooper(), null /*callback*/, true /*async*/) {
-            @Override
-            public void handleMessage(Message msg) {
-                switch (msg.what) {
-                    case EVENT_PLAY:
-                        handlePlay((SomeArgs) msg.obj);
-                        break;
-                    case EVENT_STOP:
-                        handleStop();
-                        break;
-                }
+        return Handler.createAsync(thread.getLooper(), msg -> {
+            switch (msg.what) {
+                case EVENT_PLAY:
+                    handlePlay((SomeArgs) msg.obj);
+                    break;
+                case EVENT_STOP:
+                    handleStop();
+                    break;
             }
-        };
+            return true;
+        });
     }
 
     /**

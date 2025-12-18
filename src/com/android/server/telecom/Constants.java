@@ -29,4 +29,8 @@ public class Constants {
     //
 
     public static final String SCHEME_SMSTO = "smsto";
+    // TODO(b/469327345): This is a hidden constant in Context.
+    // Redefined locally to remove hidden API dependency.
+    // Original value from android.content.Context: 0x00080000
+    public static final int BIND_SCHEDULE_LIKE_TOP_APP = 0x00080000;
 }
