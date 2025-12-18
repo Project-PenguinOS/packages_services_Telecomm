@@ -1345,7 +1345,7 @@ public class TelecomServiceImpl {
                 event.setResult(ApiStats.RESULT_NORMAL);
                 try {
                     return mDefaultDialerCache
-                            .getDefaultDialerApplication(new UserHandle(userId));
+                            .getDefaultDialerApplication(UserHandle.of(userId));
                 } finally {
                     Binder.restoreCallingIdentity(token);
                 }
@@ -3427,7 +3427,7 @@ public class TelecomServiceImpl {
 
         mDefaultDialerCache.observeDefaultDialerApplication(mContext.getMainExecutor(), userId -> {
             String defaultDialer = mDefaultDialerCache.getDefaultDialerApplication(
-                    new UserHandle(userId));
+                    UserHandle.of(userId));
             if (defaultDialer == null) {
                 // We are replacing the dialer, just wait for the upcoming callback.
                 return;
