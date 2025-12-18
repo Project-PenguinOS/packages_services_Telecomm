@@ -78,7 +78,6 @@ import android.os.SystemClock;
 import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.os.UserManager;
-import android.provider.BlockedNumberContract;
 import android.provider.BlockedNumbersManager;
 import android.provider.CallLog;
 import android.provider.CallLog.Calls;
@@ -3724,7 +3723,7 @@ public class CallsManager extends Call.ListenerBase
                 if (mBlockedNumbersManager != null) {
                     mBlockedNumbersManager.notifyEmergencyContact();
                 } else {
-                    BlockedNumberContract.SystemContract.notifyEmergencyContact(mContext);
+                    SystemBlockedNumberContract.notifyEmergencyContact(mContext);
                 }
             }).start();
         }
