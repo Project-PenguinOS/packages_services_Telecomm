@@ -110,7 +110,7 @@ public class DtmfLocalTonePlayer {
                         } else {
                             Log.d(this, "starting local tone: %c.", c);
                             int tone = getMappedTone(c);
-                            if (tone != ToneGenerator.TONE_UNKNOWN) {
+                            if (tone != TONE_UNKNOWN) {
                                 mToneGeneratorProxy.startTone(tone, -1 /* toneDuration */);
                             }
                         }
@@ -137,6 +137,9 @@ public class DtmfLocalTonePlayer {
      * Message codes to be used for creating and deleting ToneGenerator object in the tonegenerator
      * thread, as well as for actually playing the tones.
      */
+    // Redefined locally to remove hidden API dependency.
+    // Default value for an unknown or unspecified tone.
+    private static final int TONE_UNKNOWN = -1;
     private static final int EVENT_START_SESSION = 1;
     private static final int EVENT_END_SESSION = 2;
     private static final int EVENT_PLAY_TONE = 3;
@@ -260,6 +263,6 @@ public class DtmfLocalTonePlayer {
         } else if (digit == '*') {
             return ToneGenerator.TONE_DTMF_S;
         }
-        return ToneGenerator.TONE_UNKNOWN;
+        return TONE_UNKNOWN;
     }
 }
