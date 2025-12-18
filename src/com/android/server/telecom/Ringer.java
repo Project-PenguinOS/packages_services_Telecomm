@@ -619,8 +619,7 @@ public class Ringer {
     }
 
     private boolean useCustomVibration(@NonNull Call foregroundCall) {
-        return Flags.enableRingtoneHapticsCustomization() && mRingtoneVibrationSupported
-                && hasExplicitVibration(foregroundCall);
+        return mRingtoneVibrationSupported && hasExplicitVibration(foregroundCall);
     }
 
     private boolean hasExplicitVibration(@NonNull Call foregroundCall) {
@@ -670,7 +669,7 @@ public class Ringer {
             return;
         }
 
-        if (Flags.enableRingtoneHapticsCustomization() && mRingtoneVibrationSupported
+        if (mRingtoneVibrationSupported
                 && RingtoneVibrationUtils.hasVibrationParameter(ringtoneUri)) {
             Log.addEvent(
                     foregroundCall, LogUtils.Events.SKIP_VIBRATION, "using custom haptics");
