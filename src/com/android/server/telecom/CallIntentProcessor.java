@@ -193,15 +193,13 @@ public class CallIntentProcessor {
         boolean isPrivilegedDialer = defaultDialerCache.isDefaultOrSystemDialer(callingPackage,
                 initiatingUser.getIdentifier());
 
-        if (android.multiuser.Flags.enablePrivateSpaceIntentRedirection()) {
-            if (!callsManager.isSelfManaged(phoneAccountHandle, initiatingUser)
-                    && !TelephonyUtil.shouldProcessAsEmergency(context, handle)
-                    && UserUtil.isPrivateProfile(initiatingUser, context)) {
-                boolean dialogShown = maybeRedirectToIntentForwarderForPrivate(context, intent,
-                        initiatingUser);
-                if (dialogShown) {
-                    return;
-                }
+        if (!callsManager.isSelfManaged(phoneAccountHandle, initiatingUser)
+                && !TelephonyUtil.shouldProcessAsEmergency(context, handle)
+                && UserUtil.isPrivateProfile(initiatingUser, context)) {
+            boolean dialogShown = maybeRedirectToIntentForwarderForPrivate(context, intent,
+                    initiatingUser);
+            if (dialogShown) {
+                return;
             }
         }
 
