@@ -60,7 +60,6 @@ import android.os.UserHandle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.permission.PermissionManager;
-import android.provider.BlockedNumberContract;
 import android.provider.BlockedNumbersManager;
 import android.provider.Settings;
 import android.telecom.CallAttributes;
@@ -188,6 +187,7 @@ public class TelecomServiceImpl {
     private final String mSystemUiPackageName;
     private AnomalyReporterAdapter mAnomalyReporter = new AnomalyReporterAdapterImpl();
     private final Context mContext;
+    private Context mAllUsersContext;
     private final AppOpsManager mAppOpsManager;
     private final PackageManager mPackageManager;
     private final CallsManager mCallsManager;
@@ -1345,7 +1345,7 @@ public class TelecomServiceImpl {
                 event.setResult(ApiStats.RESULT_NORMAL);
                 try {
                     return mDefaultDialerCache
-                            .getDefaultDialerApplication(new UserHandle(userId));
+                            .getDefaultDialerApplication(UserHandle.of(userId));
                 } finally {
                     Binder.restoreCallingIdentity(token);
                 }
@@ -2433,7 +2433,7 @@ public class TelecomServiceImpl {
                         if (mBlockedNumbersManager != null) {
                             mBlockedNumbersManager.endBlockSuppression();
                         } else {
-                            BlockedNumberContract.SystemContract.endBlockSuppression(mContext);
+                            SystemBlockedNumberContract.endBlockSuppression(mContext);
                         }
                     } finally {
                         Binder.restoreCallingIdentity(token);
@@ -3427,7 +3427,7 @@ public class TelecomServiceImpl {
 
         mDefaultDialerCache.observeDefaultDialerApplication(mContext.getMainExecutor(), userId -> {
             String defaultDialer = mDefaultDialerCache.getDefaultDialerApplication(
-                    new UserHandle(userId));
+                    UserHandle.of(userId));
             if (defaultDialer == null) {
                 // We are replacing the dialer, just wait for the upcoming callback.
                 return;
@@ -3480,13 +3480,13 @@ public class TelecomServiceImpl {
         try {
             Log.v(TAG, "Registering PackageRemovedReceiver (local thread) for all users" +
                     " with RECEIVER_NOT_EXPORTED flag.");
-            mContext.registerReceiverAsUser(
-                    mPackageRemovedReceiver,
-                    UserHandle.ALL,
-                    filter,
-                    null,
-                    backgroundHandler, // Handler uses the local thread's Looper
-                    Context.RECEIVER_NOT_EXPORTED);
+            mAllUsersContext = mContext.createContextAsUser(UserHandle.ALL, 0 /* flags */);
+            mAllUsersContext.registerReceiver(
+                            mPackageRemovedReceiver,
+                            filter,
+                            null,
+                            backgroundHandler, // Handler uses the local thread's Looper
+                            Context.RECEIVER_NOT_EXPORTED);
             Log.v(TAG, "PackageRemovedReceiver (local thread) registered successfully.");
         } catch (Exception e) {
             if (localHandlerThread.isAlive()) {

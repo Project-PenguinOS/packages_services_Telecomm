@@ -78,7 +78,6 @@ import android.os.SystemClock;
 import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.os.UserManager;
-import android.provider.BlockedNumberContract;
 import android.provider.BlockedNumbersManager;
 import android.provider.CallLog;
 import android.provider.CallLog.Calls;
@@ -3088,7 +3087,7 @@ public class CallsManager extends Call.ListenerBase
                 return userProfile;
             }
         }
-        return new UserHandle(UserUtil.USER_NULL);
+        return UserHandle.of(UserUtil.USER_NULL);
     }
 
     private boolean showSwitchToManagedProfileDialog(Uri callUri, UserHandle initiatingUser,
@@ -3724,7 +3723,7 @@ public class CallsManager extends Call.ListenerBase
                 if (mBlockedNumbersManager != null) {
                     mBlockedNumbersManager.notifyEmergencyContact();
                 } else {
-                    BlockedNumberContract.SystemContract.notifyEmergencyContact(mContext);
+                    SystemBlockedNumberContract.notifyEmergencyContact(mContext);
                 }
             }).start();
         }

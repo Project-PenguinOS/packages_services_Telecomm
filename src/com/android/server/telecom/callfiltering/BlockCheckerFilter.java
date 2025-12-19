@@ -22,7 +22,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.UserManager;
-import android.provider.BlockedNumberContract;
 import android.provider.CallLog;
 import android.telecom.Log;
 import android.telecom.TelecomManager;
@@ -30,6 +29,7 @@ import android.telecom.TelecomManager;
 import com.android.internal.telecom.flags.Flags;
 import com.android.server.telecom.Call;
 import com.android.server.telecom.CallerInfoLookupHelper;
+import com.android.server.telecom.Constants;
 import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.LogUtils;
 import com.android.server.telecom.LoggedHandlerExecutor;
@@ -142,7 +142,7 @@ public class BlockCheckerFilter extends CallFilter {
         }
         if (BlockedNumbersUtil.isEnhancedCallBlockingEnabledByPlatform(userContext)) {
             int presentation = mCall.getHandlePresentation();
-            extras.putInt(BlockedNumberContract.EXTRA_CALL_PRESENTATION, presentation);
+            extras.putInt(Constants.EXTRA_CALL_PRESENTATION, presentation);
             if (presentation == TelecomManager.PRESENTATION_ALLOWED) {
                 mCallerInfoLookupHelper.startLookup(mCall.getHandle(),
                         new CallerInfoLookupHelper.OnQueryCompleteListener() {
