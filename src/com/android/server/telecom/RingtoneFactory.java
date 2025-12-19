@@ -94,9 +94,7 @@ public class RingtoneFactory {
             // ringtone for user or profile.
             Context contextToUse = hasDefaultRingtoneForUser(userContext) ? userContext : mContext;
             UserManager um = contextToUse.getSystemService(UserManager.class);
-            boolean isUserUnlocked = mFeatureFlags.telecomResolveHiddenDependencies()
-                    ? um.isUserUnlocked(contextToUse.getUser())
-                    : um.isUserUnlocked(contextToUse.getUserId());
+            boolean isUserUnlocked = um.isUserUnlocked(contextToUse.getUser());
             final PhoneAccountHandle accountHandle = incomingCall.getTargetPhoneAccount();
             Uri defaultRingtoneUri;
             if (isUserUnlocked) {
