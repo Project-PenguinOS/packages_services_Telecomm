@@ -896,10 +896,7 @@ public class Ringer {
 
         boolean isVolumeOverZero;
 
-        AudioAttributes aa = new AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build();
-        isVolumeOverZero = mAudioManager.shouldNotificationSoundPlay(aa);
+        isVolumeOverZero = mAudioManager.getStreamVolume(AudioManager.STREAM_RING) > 0;
 
         timer.record("isVolumeOverZero");
         boolean shouldRingForContact = shouldRingForContact(call);
