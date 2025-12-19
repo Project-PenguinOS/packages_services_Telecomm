@@ -263,9 +263,7 @@ public class CallsManager extends Call.ListenerBase
         void onConferenceStateChanged(Call call, boolean isConference);
         void onCdmaConferenceSwap(Call call);
         void onSetCamera(Call call, String cameraId);
-// QTI_BEGIN: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
         void onCrsFallbackLocalRinging(Call call);
-// QTI_END: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
     }
 
     /** Interface used to define the action which is executed delay under some condition. */
@@ -1691,8 +1689,7 @@ public class CallsManager extends Call.ListenerBase
 
     public boolean hasVideoCall() {
         for (Call call : mCalls) {
-            if (VideoProfile.isVideo(call.getVideoState())
-                    && !call.isVideoCrsForVoLteCall()) {
+            if (VideoProfile.isVideo(call.getVideoState())) {
                 return true;
             }
         }
@@ -4090,16 +4087,6 @@ public class CallsManager extends Call.ListenerBase
             isSpeakerEnabledForVideoCalls();
     }
 
-// QTI_BEGIN: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-     public boolean isWiredHandsetInOrBtAvailble() {
-        return mWiredHeadsetManager.isPluggedIn()
-            || mBluetoothRouteManager.isBluetoothAvailable();
-     }
-
-// QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
-// QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
-
-// QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
     /**
      * Determines if the speakerphone should be enabled for when docked.  Speakerphone
      * should be enabled if the device is docked and bluetooth or the wired headset are
@@ -4361,9 +4348,7 @@ public class CallsManager extends Call.ListenerBase
         handleCallTechnologyChange(c);
         handleChildAddressChange(c);
         updateCanAddCall();
-// QTI_BEGIN: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
         maybeUpdateVideoCrsCall(c);
-// QTI_END: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
     }
 
      /**
@@ -5609,9 +5594,7 @@ public class CallsManager extends Call.ListenerBase
         updateCanAddCall();
         updateHasActiveRttCall();
         updateExternalCallCanPullSupport();
-// QTI_BEGIN: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
         maybeUpdateVideoCrsCall(call);
-// QTI_END: 2021-12-17: Telephony: IMS: Fallback to play local ring if CRS video/audio RTP timeout
         // onCallAdded for calls which immediately take the foreground (like the first call).
         for (CallsManagerListener listener : mListeners) {
             listener.onCallAdded(call);
