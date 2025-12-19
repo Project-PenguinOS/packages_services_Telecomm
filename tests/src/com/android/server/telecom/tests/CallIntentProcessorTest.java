@@ -26,6 +26,7 @@ import static org.mockito.Mockito.when;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.content.pm.ComponentInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
@@ -198,10 +199,10 @@ public class CallIntentProcessorTest extends TelecomTestCase {
     }
 
     private void resolveAsIntentForwarderActivity() {
-        when(mComponentName.getShortClassName()).thenReturn(
-                mCallIntentProcessor.FORWARD_INTENT_TO_PARENT);
-        when(mComponentInfo.getComponentName()).thenReturn(mComponentName);
-        when(mResolveInfo.getComponentInfo()).thenReturn(mComponentInfo);
+        ActivityInfo activityInfo = new ActivityInfo();
+        activityInfo.packageName = TEST_PACKAGE_NAME;
+        activityInfo.name = mCallIntentProcessor.FORWARD_INTENT_TO_PARENT;
+        mResolveInfo.activityInfo = activityInfo;
 
         when(mContext.getPackageManager()).thenReturn(mPackageManager);
 

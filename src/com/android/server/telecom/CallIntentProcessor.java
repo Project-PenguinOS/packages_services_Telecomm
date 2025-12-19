@@ -6,6 +6,7 @@ import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.ui.UiConstants;
 
 import android.content.ActivityNotFoundException;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -343,13 +344,16 @@ public class CallIntentProcessor {
                 forwardCallIntent,
                 PackageManager.ResolveInfoFlags.of(MATCH_DEFAULT_ONLY));
 
-        if (resolveInfo == null
-                || !resolveInfo
-                .getComponentInfo()
-                .getComponentName()
-                .getShortClassName()
-                .equals(FORWARD_INTENT_TO_PARENT)) {
-            return false;
+        if (resolveInfo == null || resolveInfo.activityInfo == null) {
+          return false;
+        }
+
+        ComponentName componentName = new ComponentName(
+            resolveInfo.activityInfo.packageName,
+            resolveInfo.activityInfo.name);
+
+        if (!componentName.getShortClassName().equals(FORWARD_INTENT_TO_PARENT)) {
+          return false;
         }
 
         try {
