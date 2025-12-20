@@ -85,7 +85,7 @@
          Copied from frameworks/base/core/res/res/values/config.xml -->
     <string-array name="unloggable_phone_numbers" />
 
-    <!-- When true, logcat collection will be enabled for all emergency calls. -->
+    <!-- NOTE: THIS DOES NOTHING. -->
     <bool name="enable_logcat_collection_for_all_emergency_calls">false</bool>
 
     <!-- When true, the device is a headless dialer. -->

@@ -217,6 +217,7 @@ public class Ringer {
     private final VibrationEffectProxy mVibrationEffectProxy;
     private final boolean mIsHapticPlaybackSupportedByDevice;
     private final FeatureFlags mFlags;
+    private final com.android.internal.telecom.flags.FeatureFlags mModuleBugFixFeatureFlags;
     private final boolean mRingtoneVibrationSupported;
     private final AnomalyReporterAdapter mAnomalyReporter;
     private RingerAttributes mRingerAttributes;
@@ -290,6 +291,7 @@ public class Ringer {
             NotificationManager notificationManager,
             AccessibilityManagerAdapter accessibilityManagerAdapter,
             FeatureFlags featureFlags,
+            com.android.internal.telecom.flags.FeatureFlags moduleBugFixFeatureFlags,
             AnomalyReporterAdapter anomalyReporter,
             CallConnectedIndicatorSettings callConnectedIndicator,
             Executor asyncTaskExecutor,
@@ -319,6 +321,7 @@ public class Ringer {
 
         mAudioManager = mContext.getSystemService(AudioManager.class);
         mFlags = featureFlags;
+        mModuleBugFixFeatureFlags = moduleBugFixFeatureFlags;
         Resources res = mContext.getResources();
         int resourceId = Resources.getSystem().getIdentifier(
                 "config_ringtoneVibrationSettingsSupported", "bool", "android");
@@ -453,7 +456,8 @@ public class Ringer {
             String vibratorAttrs = String.format("hasVibrator=%b, userRequestsVibrate=%b, "
                             + "ringerMode=%d, isVibratorEnabled=%b",
                     mVibrator.hasVibrator(),
-                    mSystemSettingsUtil.isRingVibrationEnabled(userContext, mFlags),
+                    mSystemSettingsUtil.isRingVibrationEnabled(userContext,
+                            mModuleBugFixFeatureFlags),
                     mAudioManager.getRingerMode(), isVibratorEnabled);
 
             if (mRingerAttributes.isRingerAudible()) {
@@ -681,7 +685,8 @@ public class Ringer {
                 Log.addEvent(foregroundCall, LogUtils.Events.START_VIBRATOR,
                     "hasVibrator=%b, userRequestsVibrate=%b, ringerMode=%d, isVibrating=%b",
                         mVibrator.hasVibrator(),
-                        mSystemSettingsUtil.isRingVibrationEnabled(mContext, mFlags),
+                        mSystemSettingsUtil.isRingVibrationEnabled(mContext,
+                                mModuleBugFixFeatureFlags),
                     mAudioManager.getRingerMode(), mIsVibrating);
                 mIsVibrating = true;
                 mVibrator.vibrate(effect, VIBRATION_ATTRIBUTES);
@@ -844,7 +849,7 @@ public class Ringer {
         //   2. The global master 'Use vibration & haptics' toggle (VIBRATE_ON),
         //      which overrides all others.
         boolean isRingVibrationEnabled =
-            mSystemSettingsUtil.isRingVibrationEnabled(context, mFlags);
+            mSystemSettingsUtil.isRingVibrationEnabled(context, mModuleBugFixFeatureFlags);
         // Determine if the call should ring/vibrate even when Zen Mode (Do Not Disturb) is on,
         // based on whether the contact is allowed to bypass DND.
         boolean shouldRingForContactInZen = zenModeOn && shouldRingForContact;
@@ -891,10 +896,7 @@ public class Ringer {
 
         boolean isVolumeOverZero;
 
-        AudioAttributes aa = new AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build();
-        isVolumeOverZero = mAudioManager.shouldNotificationSoundPlay(aa);
+        isVolumeOverZero = mAudioManager.getStreamVolume(AudioManager.STREAM_RING) > 0;
 
         timer.record("isVolumeOverZero");
         boolean shouldRingForContact = shouldRingForContact(call);

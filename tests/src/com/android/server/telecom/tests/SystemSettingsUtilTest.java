@@ -53,6 +53,8 @@ public class SystemSettingsUtilTest extends TelecomTestCase {
     public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     private FeatureFlags mFeatureFlags;
+    private com.android.internal.telecom.flags.FeatureFlags mModuleBugfixFlags;
+
     @Mock private SystemSettingsUtil.SystemSettingsReader mMockSystemSettingsReader;
     private Context mContext;
     private SystemSettingsUtil mSystemSettingsUtil;
@@ -62,6 +64,7 @@ public class SystemSettingsUtilTest extends TelecomTestCase {
     public void setUp() throws Exception {
         super.setUp();
         mFeatureFlags = new FeatureFlagsImpl();
+        mModuleBugfixFlags = new com.android.internal.telecom.flags.FeatureFlagsImpl();
 
         mContext = mComponentContextFixture.getTestDouble().getApplicationContext();
         // Instantiate with the mocked reader to isolate from static Settings.System calls.
@@ -70,44 +73,46 @@ public class SystemSettingsUtilTest extends TelecomTestCase {
 
     @Test
     @SmallTest
-    @RequiresFlagsEnabled(com.android.server.telecom.flags.Flags
+    @RequiresFlagsEnabled(com.android.internal.telecom.flags.Flags
             .FLAG_VIBRATION_ACCOUNTS_FOR_MAIN_SETTING)
     public void testIsRingVibrationEnabled_BothSettingsOn_ReturnsTrue() throws Exception {
         when(mMockSystemSettingsReader.getInt(any(), eq(Settings.System.VIBRATE_ON), anyInt()))
                 .thenReturn(1);
+        when(mMockSystemSettingsReader.getInt(any(), eq(Settings.System.VIBRATE_WHEN_RINGING),
+                anyInt())).thenReturn(1);
         when(mMockSystemSettingsReader.getInt(any(), eq(Settings.System.RING_VIBRATION_INTENSITY),
                 anyInt())).thenReturn(Vibrator.VIBRATION_INTENSITY_MEDIUM);
-        assertTrue(mSystemSettingsUtil.isRingVibrationEnabled(mContext, mFeatureFlags));
+        assertTrue(mSystemSettingsUtil.isRingVibrationEnabled(mContext, mModuleBugfixFlags));
     }
 
     @Test
     @SmallTest
-    @RequiresFlagsEnabled(com.android.server.telecom.flags.Flags
+    @RequiresFlagsEnabled(com.android.internal.telecom.flags.Flags
             .FLAG_VIBRATION_ACCOUNTS_FOR_MAIN_SETTING)
     public void testIsRingVibrationEnabled_RingVibrationOff_ReturnsFalse() {
         when(mMockSystemSettingsReader.getInt(any(), eq(Settings.System.VIBRATE_ON), anyInt()))
                 .thenReturn(1);
         when(mMockSystemSettingsReader.getInt(any(), eq(Settings.System.RING_VIBRATION_INTENSITY),
                 anyInt())).thenReturn(Vibrator.VIBRATION_INTENSITY_OFF);
-        assertFalse(mSystemSettingsUtil.isRingVibrationEnabled(mContext, mFeatureFlags));
+        assertFalse(mSystemSettingsUtil.isRingVibrationEnabled(mContext, mModuleBugfixFlags));
     }
 
     @Test
     @SmallTest
-    @RequiresFlagsEnabled(com.android.server.telecom.flags.Flags
+    @RequiresFlagsEnabled(com.android.internal.telecom.flags.Flags
             .FLAG_VIBRATION_ACCOUNTS_FOR_MAIN_SETTING)
     public void testIsRingVibrationEnabled_MainVibrationOff_ReturnsFalse() {
         when(mMockSystemSettingsReader.getInt(any(), eq(Settings.System.VIBRATE_ON), anyInt()))
                 .thenReturn(0);
         when(mMockSystemSettingsReader.getInt(any(), eq(Settings.System.RING_VIBRATION_INTENSITY),
                 anyInt())).thenReturn(Vibrator.VIBRATION_INTENSITY_MEDIUM);
-        assertFalse(mSystemSettingsUtil.isRingVibrationEnabled(mContext, mFeatureFlags));
+        assertFalse(mSystemSettingsUtil.isRingVibrationEnabled(mContext, mModuleBugfixFlags));
     }
 
 
     @Test
     @SmallTest
-    @RequiresFlagsEnabled(com.android.server.telecom.flags.Flags
+    @RequiresFlagsEnabled(com.android.internal.telecom.flags.Flags
             .FLAG_VIBRATION_ACCOUNTS_FOR_MAIN_SETTING)
     public void testIsRingVibrationEnabled_DefaultIntensityOff_ReturnsFalse() {
         when(mMockSystemSettingsReader.getInt(any(), eq(Settings.System.VIBRATE_ON), anyInt()))
@@ -117,6 +122,6 @@ public class SystemSettingsUtilTest extends TelecomTestCase {
         when(mComponentContextFixture.getVibrator().getDefaultVibrationIntensity(
                 VibrationAttributes.USAGE_RINGTONE))
                 .thenReturn(Vibrator.VIBRATION_INTENSITY_OFF);
-        assertFalse(mSystemSettingsUtil.isRingVibrationEnabled(mContext, mFeatureFlags));
+        assertFalse(mSystemSettingsUtil.isRingVibrationEnabled(mContext, mModuleBugfixFlags));
     }
 }
