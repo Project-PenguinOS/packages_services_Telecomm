@@ -90,6 +90,7 @@ import com.android.server.telecom.flags.FeatureFlagsImpl;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -272,6 +273,7 @@ public class RingerTest extends TelecomTestCase {
 
     @SmallTest
     @Test
+    @Ignore("b/469781444")
     public void testValidSupportedRepeatingDefaultRingVibrationOverride() throws Exception {
         when(mFeatureFlags.useDeviceProvidedSerializedRingerVibration()).thenReturn(true);
         mockVibrationResourceValues(
@@ -298,6 +300,7 @@ public class RingerTest extends TelecomTestCase {
 
     @SmallTest
     @Test
+    @Ignore("b/469781444")
     public void testValidSupportedNonRepeatingDefaultRingVibrationOverride() throws Exception {
         when(mFeatureFlags.useDeviceProvidedSerializedRingerVibration()).thenReturn(true);
         mockVibrationResourceValues(

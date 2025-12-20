@@ -415,8 +415,7 @@ public class NewOutgoingCallIntentBroadcasterTest extends TelecomTestCase {
         verify(mContext).sendBroadcastAsUser(
                 intentArgumentCaptor.capture(),
                 eq(UserHandle.CURRENT),
-                eq(android.Manifest.permission.PROCESS_OUTGOING_CALLS),
-                eq(AppOpsManager.OP_PROCESS_OUTGOING_CALLS));
+                eq(android.Manifest.permission.PROCESS_OUTGOING_CALLS));
         Intent capturedIntent = intentArgumentCaptor.getValue();
         assertEquals(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND, capturedIntent.getFlags());
     }
@@ -464,18 +463,10 @@ public class NewOutgoingCallIntentBroadcasterTest extends TelecomTestCase {
     private void verifyBroadcastSent(String number, Bundle expectedExtras) {
         ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
 
-        if (mFeatureFlags.telecomResolveHiddenDependencies()) {
-            verify(mContext).sendBroadcastAsUser(
-                    intentCaptor.capture(),
-                    eq(UserHandle.CURRENT),
-                    eq(Manifest.permission.PROCESS_OUTGOING_CALLS));
-        } else {
-            verify(mContext).sendBroadcastAsUser(
-                    intentCaptor.capture(),
-                    eq(UserHandle.CURRENT),
-                    eq(Manifest.permission.PROCESS_OUTGOING_CALLS),
-                    anyInt());
-        }
+        verify(mContext).sendBroadcastAsUser(
+                intentCaptor.capture(),
+                eq(UserHandle.CURRENT),
+                eq(Manifest.permission.PROCESS_OUTGOING_CALLS));
 
         Intent capturedIntent = intentCaptor.getValue();
         assertEquals(Intent.ACTION_NEW_OUTGOING_CALL, capturedIntent.getAction());
