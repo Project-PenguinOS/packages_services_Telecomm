@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.server.telecom;
+package com.android.server.telecomui.ui;
 
 import android.content.Context;
 import android.preference.EditTextPreference;
