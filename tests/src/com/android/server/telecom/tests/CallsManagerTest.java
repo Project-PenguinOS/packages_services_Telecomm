@@ -17,11 +17,12 @@
 package com.android.server.telecom.tests;
 
 import static android.provider.CallLog.Calls.MISSED_REASON_NOT_MISSED;
-import static android.provider.CallLog.Calls.USER_MISSED_NOT_RUNNING;
 import static android.telecom.Call.AUDIO_PROCESSING_USE_CASE_UNKNOWN;
 import static android.telecom.Call.AUDIO_PROCESSING_USE_CASE_VOICEMAIL;
 import static android.telecom.Call.AUDIO_PROCESSING_USE_CASE_CALL_SCREENING;
 import static android.telecom.Call.AUDIO_PROCESSING_USE_CASE_ASK_TO_HOLD;
+
+import static com.android.server.telecom.CallsManager.USER_MISSED_NOT_RUNNING;
 
 import static junit.framework.Assert.assertNotNull;
 import static junit.framework.TestCase.fail;

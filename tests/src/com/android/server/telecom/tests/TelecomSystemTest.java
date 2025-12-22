@@ -420,10 +420,6 @@ public class TelecomSystemTest extends TelecomTestCase{
             }
             handlerThreads.clear();
 
-            VoipCallMonitor vcm = mTelecomSystem.getCallsManager().getVoipCallMonitor();
-            if (vcm != null) {
-                vcm.unregisterNotificationListener();
-            }
             if (mTelecomSystem.getCallsManager().getCallAudioManager() != null
                     && mTelecomSystem.getCallsManager().getCallAudioManager()
                     .getCallAudioRouteAdapter() != null) {

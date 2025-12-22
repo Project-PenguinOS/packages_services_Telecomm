@@ -183,9 +183,7 @@
             <item type="string" name="phone_strings_call_blocking_turned_off_notification_text_txt" />
             <item type="string" name="phone_strings_emergency_call_made_dialog_title_txt" />
             <item type="string" name="phone_strings_emergency_call_made_dialog_call_blocking_text_txt" />
-            <item type="string" name="developer_title" />
             <item type="string" name="toast_emergency_can_not_pull_call" />
-            <item type="string" name="developer_enhanced_call_blocking" />
             <item type="string" name="cancel" />
             <item type="string" name="back" />
             <item type="string" name="callendpoint_name_earpiece" />

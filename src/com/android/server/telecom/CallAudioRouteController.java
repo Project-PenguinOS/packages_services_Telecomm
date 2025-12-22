@@ -101,6 +101,17 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                     anomalyReporterAdapter);
         }
     }
+
+    // TODO(b/469161729) - this is used to know when the ringing volume is increased from a muted
+    // to a non-muted state to start playing the ringtone again.  We need an alternative.
+    public static final String STREAM_MUTE_CHANGED_ACTION =
+            "android.media.STREAM_MUTE_CHANGED_ACTION";
+    // TODO(b/469161729) - this is used to know when the ringing volume is increased from a muted
+    // to a non-muted state to start playing the ringtone again.  We need an alternative.
+    public static final String EXTRA_STREAM_VOLUME_MUTED =
+            "android.media.EXTRA_STREAM_VOLUME_MUTED";
+
+
     private static final AudioRoute DUMMY_ROUTE = new AudioRoute(TYPE_INVALID, null, null);
     private static final UUID AUDIO_ROUTING_EXTERNAL_CHANGE_UUID =
             UUID.fromString("d9b38771-ff36-417b-8723-2363a870c702");
@@ -261,10 +272,10 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                     } else {
                         sendMessageWithSessionInfo(MUTE_EXTERNALLY_CHANGED);
                     }
-                } else if (AudioManager.STREAM_MUTE_CHANGED_ACTION.equals(intent.getAction())) {
+                } else if (STREAM_MUTE_CHANGED_ACTION.equals(intent.getAction())) {
                     int streamType = intent.getIntExtra(AudioManager.EXTRA_VOLUME_STREAM_TYPE, -1);
                     boolean isStreamMuted = intent.getBooleanExtra(
-                            AudioManager.EXTRA_STREAM_VOLUME_MUTED, false);
+                            EXTRA_STREAM_VOLUME_MUTED, false);
 
                     if (streamType == AudioManager.STREAM_RING && !isStreamMuted
                             && mCallAudioManager != null) {
@@ -325,7 +336,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         micMuteChangedFilter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
         context.registerReceiver(mMuteChangeReceiver, micMuteChangedFilter);
 
-        IntentFilter muteChangedFilter = new IntentFilter(AudioManager.STREAM_MUTE_CHANGED_ACTION);
+        IntentFilter muteChangedFilter = new IntentFilter(STREAM_MUTE_CHANGED_ACTION);
         muteChangedFilter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
         context.registerReceiver(mMuteChangeReceiver, muteChangedFilter);
 
@@ -1875,7 +1886,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     }
 
     private void trackHearingAidPair(AudioRoute existingHaRoute, BluetoothDevice newHaDevice) {
-        if (!mFeatureFlags.hearingAidPairFix() || newHaDevice == null || existingHaRoute == null
+        if (newHaDevice == null || existingHaRoute == null
                 || existingHaRoute.getType() != AudioRoute.TYPE_BLUETOOTH_HA) {
             return;
         }
@@ -1892,7 +1903,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     // no modifications were made.
     private AudioRoute maybeAdjustHearingAidRoute(@AudioRoute.AudioRouteType int type,
             BluetoothDevice bluetoothDevice, AudioRoute existingRoute) {
-        if (!mFeatureFlags.hearingAidPairFix() || type != AudioRoute.TYPE_BLUETOOTH_HA
+        if (type != AudioRoute.TYPE_BLUETOOTH_HA
                 || bluetoothDevice == null || existingRoute == null) {
             return null;
         }

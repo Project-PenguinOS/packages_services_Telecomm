@@ -33,7 +33,7 @@ import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.media.Ringtone;
 import android.media.RingtoneManager;
-import android.media.Utils;
+import android.media.RingtoneVibrationUtils;
 import android.media.VolumeShaper;
 import android.media.audio.Flags;
 import android.net.Uri;
@@ -637,14 +637,16 @@ public class Ringer {
     private boolean hasExplicitVibration(@NonNull Call foregroundCall) {
         final Uri ringtoneUri = foregroundCall.getRingtone();
         if (ringtoneUri != null) {
-            return Utils.hasVibrationParameter(ringtoneUri);
+            return RingtoneVibrationUtils.hasVibrationParameter(ringtoneUri);
         }
-        if (Flags.supportPerPhoneAccountRingtone()){
-            return Utils.hasVibrationParameter(RingtoneManager.getRingtoneUriForPhoneAccountHandle(
-                    mContext, foregroundCall.getTargetPhoneAccount()));
+        if (Flags.supportPerPhoneAccountRingtone()) {
+            return RingtoneVibrationUtils.hasVibrationParameter(
+                    RingtoneManager.getRingtoneUriForPhoneAccountHandle(
+                            mContext, foregroundCall.getTargetPhoneAccount()));
         } else {
-            return Utils.hasVibrationParameter(RingtoneManager.getActualDefaultRingtoneUri(
-                    mContext, RingtoneManager.TYPE_RINGTONE));
+            return RingtoneVibrationUtils.hasVibrationParameter(
+                    RingtoneManager.getActualDefaultRingtoneUri(
+                            mContext, RingtoneManager.TYPE_RINGTONE));
         }
     }
 
@@ -680,7 +682,7 @@ public class Ringer {
         }
 
         if (Flags.enableRingtoneHapticsCustomization() && mRingtoneVibrationSupported
-                && Utils.hasVibrationParameter(ringtoneUri)) {
+                && RingtoneVibrationUtils.hasVibrationParameter(ringtoneUri)) {
             Log.addEvent(
                     foregroundCall, LogUtils.Events.SKIP_VIBRATION, "using custom haptics");
             return;
