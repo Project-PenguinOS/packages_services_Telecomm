@@ -237,7 +237,7 @@ public class CallStreamingController extends CallsManagerListenerBase {
                 return future;
             }
             Intent intent = new Intent(CallStreamingService.SERVICE_INTERFACE);
-            intent.setComponent(serviceInfo.getComponentName());
+            intent.setComponent(new ComponentName(serviceInfo.packageName, serviceInfo.name));
 
             mConnection = new CallStreamingServiceConnection(mCall, mWrapper, future);
             if (!mContext.bindServiceAsUser(intent, mConnection, Context.BIND_AUTO_CREATE
