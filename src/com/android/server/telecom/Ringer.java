@@ -19,7 +19,6 @@ package com.android.server.telecom;
 import static android.provider.CallLog.Calls.USER_MISSED_DND_MODE;
 import static android.provider.CallLog.Calls.USER_MISSED_LOW_RING_VOLUME;
 import static android.provider.CallLog.Calls.USER_MISSED_NO_VIBRATE;
-import static android.provider.Settings.Global.ZEN_MODE_OFF;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -98,7 +97,7 @@ public class Ringer {
 
     public interface AccessibilityManagerAdapter {
         boolean startFlashNotificationSequence(@NonNull Context context,
-                @AccessibilityManager.FlashNotificationReason int reason);
+                /* @AccessibilityManager.FlashNotificationReason */ int reason);
         boolean stopFlashNotificationSequence(@NonNull Context context);
     }
     /**

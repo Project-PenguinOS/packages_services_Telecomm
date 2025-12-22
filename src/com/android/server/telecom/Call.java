@@ -938,7 +938,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     /**
      * Call missed information code.
      */
-    @CallLog.Calls.MissedReason private long mMissedReason;
+    /* @CallLog.Calls.MissedReason */ private long mMissedReason;
 
     /**
      * Time that this call start ringing or simulated ringing.

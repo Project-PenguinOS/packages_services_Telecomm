@@ -28,7 +28,6 @@ package com.android.server.telecom;
 // QTI_END: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
 import android.annotation.NonNull;
 import android.content.Context;
-import android.media.IAudioService;
 import android.media.AudioManager;
 // QTI_BEGIN: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
 // QTI_END: 2020-05-15: Telephony: FR30706: Playing tone after mo call accepted.
