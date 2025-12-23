@@ -33,6 +33,10 @@ import com.android.server.telecom.ui.UiConstants;
 
 public final class UserUtil {
 
+    // TODO(b/469208831): This is a direct copy from `UserHandle`; we need to formalize this as an
+    // API.
+    public static final int USER_NULL = -10000;
+
     private UserUtil() {
     }
 

@@ -31,7 +31,6 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.PermissionChecker;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
@@ -43,7 +42,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
-import android.os.PackageTagsList;
 import android.os.Parcel;
 import android.os.RemoteException;
 import android.os.UserHandle;
@@ -67,7 +65,6 @@ import android.util.IndentingPrintWriter;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telecom.IInCallService;
-import com.android.internal.util.ArrayUtils;
 import com.android.server.telecom.SystemStateHelper.SystemStateListener;
 import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.ui.NotificationChannelManager;
@@ -1197,15 +1194,6 @@ public class InCallController extends CallsManagerListenerBase implements
         }
     };
 
-    private final BroadcastReceiver mUserAddedReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (Intent.ACTION_USER_ADDED.equals(intent.getAction())) {
-                restrictPhoneCallOps();
-            }
-        }
-    };
-
     private final SystemStateListener mSystemStateListener = new SystemStateListener() {
         @Override
         public void onCarModeChanged(int priority, String packageName, boolean isCarMode) {
@@ -1274,7 +1262,6 @@ public class InCallController extends CallsManagerListenerBase implements
     private final Map<UserHandle, InCallServiceBindingConnection> mBTInCallServiceConnections =
             new ArrayMap<>();
     private final ClockProxy mClockProxy;
-    private final IBinder mToken = new Binder();
     private final FeatureFlags mFeatureFlags;
 
     // A set of known non-UI in call services on the device, including those that are disabled.
@@ -1355,24 +1342,10 @@ public class InCallController extends CallsManagerListenerBase implements
         mCarModeTracker = carModeTracker;
         mSystemStateHelper.addListener(mSystemStateListener);
         mClockProxy = clockProxy;
-        restrictPhoneCallOps();
-        IntentFilter userAddedFilter = new IntentFilter(Intent.ACTION_USER_ADDED);
-        userAddedFilter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
         // Important: Context must be retained or the receivers won't fire when the context is
         // garbage collected.
         mAllUsersContext = mContext.createContextAsUser(UserHandle.ALL, 0);
-        mContext.registerReceiver(mUserAddedReceiver, userAddedFilter);
         mFeatureFlags = featureFlags;
-    }
-
-    private void restrictPhoneCallOps() {
-        PackageTagsList packageRestriction = new PackageTagsList.Builder()
-                .add(mContext.getPackageName())
-                .build();
-        mAppOpsManager.setUserRestrictionForUser(AppOpsManager.OP_PHONE_CALL_MICROPHONE, true,
-                mToken, packageRestriction, UserHandle.USER_ALL);
-        mAppOpsManager.setUserRestrictionForUser(AppOpsManager.OP_PHONE_CALL_CAMERA, true,
-                mToken, packageRestriction, UserHandle.USER_ALL);
     }
 
     @Override
@@ -3617,13 +3590,9 @@ public class InCallController extends CallsManagerListenerBase implements
             UserHandle currentUser = mCallsManager.getCurrentUserHandle() != null
                 ? mCallsManager.getCurrentUserHandle() : UserHandle.CURRENT;
 
-            UserManager userManager = mFeatureFlags.telecomResolveHiddenDependencies()
-                    ? mContext.createContextAsUser(currentUser, 0)
-                            .getSystemService(UserManager.class)
-                    : mContext.getSystemService(UserManager.class);
-            boolean isCurrentUserAdmin = mFeatureFlags.telecomResolveHiddenDependencies()
-                    ? userManager.isAdminUser()
-                    : userManager.isUserAdmin(currentUser.getIdentifier());
+            UserManager userManager = mContext.createContextAsUser(currentUser, 0)
+                            .getSystemService(UserManager.class);
+            boolean isCurrentUserAdmin = userManager.isAdminUser();
 
             // Emergency call should never be blocked, so if the user associated with the target
             // phone account handle user is in quiet mode, use the current user for the ecall.

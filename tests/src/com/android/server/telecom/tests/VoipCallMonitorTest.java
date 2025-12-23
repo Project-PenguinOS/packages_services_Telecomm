@@ -42,6 +42,7 @@ import static org.mockito.Mockito.when;
 import android.app.ActivityManagerInternal;
 import android.app.ForegroundServiceDelegationOptions;
 import android.app.Notification;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Person;
 import android.content.ComponentName;
@@ -75,6 +76,7 @@ import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -94,6 +96,7 @@ public class VoipCallMonitorTest extends TelecomTestCase {
     @Mock private TelecomSystem.SyncRoot mLock;
     @Mock private ActivityManagerInternal mActivityManagerInternal;
     @Mock private IBinder mServiceConnection;
+    @Mock private NotificationManager mNotificationManager;
     @Mock FeatureFlags mFlags;
     private final PhoneAccountHandle mHandle1User1 = new PhoneAccountHandle(
             new ComponentName(PKG_NAME_1, CLS_NAME), ID_1, USER_HANDLE_1);
@@ -105,10 +108,13 @@ public class VoipCallMonitorTest extends TelecomTestCase {
     public void setUp() throws Exception {
         super.setUp();
         mHandler = mock(Handler.class);
+        mNotificationManager = mock(NotificationManager.class);
+        when(mContext.getSystemService(NotificationManager.class)).thenReturn(mNotificationManager);
+        when(mContext.getSystemService(Context.NOTIFICATION_SERVICE)).thenReturn(
+                mNotificationManager);
         mMonitor = new VoipCallMonitor(mContext, mHandler, mFlags, mLock);
         mActivityManagerInternal = mock(ActivityManagerInternal.class);
         mMonitor.setActivityManagerInternal(mActivityManagerInternal);
-        mMonitor.registerNotificationListener();
         when(mActivityManagerInternal.startForegroundServiceDelegate(any(
                 ForegroundServiceDelegationOptions.class), any(ServiceConnection.class)))
                 .thenReturn(true);
@@ -118,7 +124,6 @@ public class VoipCallMonitorTest extends TelecomTestCase {
     @Override
     @After
     public void tearDown() throws Exception {
-        mMonitor.unregisterNotificationListener();
         super.tearDown();
     }
 
@@ -181,7 +186,7 @@ public class VoipCallMonitorTest extends TelecomTestCase {
         // WHEN - the Voip call is added and a notification is posted, verify FGS is gained
         addCallAndVerifyFgsIsGained(call);
         mMonitor.postNotification(sbn);
-        assertNotificationTimeoutTriggered();
+        assertNotificationTimeoutTriggered(0);
         assertFalse(mMonitor.getNewCallsMissingCallStyleNotificationQueue().contains(call));
 
         // THEN - when the Voip call is removed, verify that FGS is revoked for the app
@@ -208,19 +213,19 @@ public class VoipCallMonitorTest extends TelecomTestCase {
         addCallAndVerifyFgsIsGained(call1);
         assertTrue(mMonitor.getNewCallsMissingCallStyleNotificationQueue().contains(call1));
         mMonitor.postNotification(sbn1);
-        assertNotificationTimeoutTriggered();
+        assertNotificationTimeoutTriggered(0);
         assertFalse(mMonitor.getNewCallsMissingCallStyleNotificationQueue().contains(call1));
         // -- add the second call and post the corresponding notification
         mMonitor.onCallAdded(call2);
         assertTrue(mMonitor.getNewCallsMissingCallStyleNotificationQueue().contains(call2));
         mMonitor.postNotification(sbn2);
-        assertNotificationTimeoutTriggered();
+        assertNotificationTimeoutTriggered(1);
         assertFalse(mMonitor.getNewCallsMissingCallStyleNotificationQueue().contains(call2));
 
         // THEN - assert FGS is maintained for the process since there is still an ongoing call
         mMonitor.onCallRemoved(call1);
         mMonitor.removeNotification(sbn1);
-        assertNotificationTimeoutTriggered();
+        assertNotificationTimeoutTriggered(0);
         verify(mActivityManagerInternal, times(0))
                 .stopForegroundServiceDelegate(any(ServiceConnection.class));
         // once all calls are removed, verify FGS is stopped
@@ -289,7 +294,7 @@ public class VoipCallMonitorTest extends TelecomTestCase {
         // shortly after posting the notification, simulate the user dismissing it
         mMonitor.removeNotification(sbn);
         // FGS should be removed once the notification is removed
-        assertNotificationTimeoutTriggered();
+        assertNotificationTimeoutTriggered(0);
         verify(mActivityManagerInternal, times(1)).stopForegroundServiceDelegate(c);
     }
 
@@ -332,14 +337,14 @@ public class VoipCallMonitorTest extends TelecomTestCase {
         mMonitor.postNotification(sbn1);
         assertFalse(mMonitor.getNewCallsMissingCallStyleNotificationQueue().contains(call1));
         mMonitor.removeNotification(sbn1);
-        assertNotificationTimeoutTriggered();
+        assertNotificationTimeoutTriggered(0);
 
         // -- keep the second notification up since the call will continue
         mMonitor.postNotification(sbn2);
         assertFalse(mMonitor.getNewCallsMissingCallStyleNotificationQueue().contains(call2));
 
         // THEN - assert FGS is maintained for the process since there is still an ongoing call
-        assertNotificationTimeoutTriggered();
+        assertNotificationTimeoutTriggered(1);
         verify(mActivityManagerInternal, times(0))
                 .stopForegroundServiceDelegate(any(ServiceConnection.class));
 
@@ -529,13 +534,20 @@ public class VoipCallMonitorTest extends TelecomTestCase {
      * Verifies that a delayed runnable is posted to the handler to handle the notification timeout.
      * This also executes the captured runnable to simulate the timeout occurring.
      */
-    private void assertNotificationTimeoutTriggered() {
+    private void assertNotificationTimeoutTriggered(int runnableIndex) {
         ArgumentCaptor<Runnable> runnableCaptor = ArgumentCaptor.forClass(Runnable.class);
+        // Capture all calls to postDelayed
         verify(mHandler, atLeastOnce()).postDelayed(
                 runnableCaptor.capture(),
                 eq(VoipCallMonitor.NOTIFICATION_NOT_POSTED_IN_TIME_TIMEOUT));
-        Runnable capturedRunnable = runnableCaptor.getValue();
-        capturedRunnable.run();
+
+        // Get all captured runnables
+        List<Runnable> allRunnables = runnableCaptor.getAllValues();
+
+        // Run the specific one we are interested in (e.g., 0 for Call 1, 1 for Call 2)
+        if (runnableIndex < allRunnables.size()) {
+            allRunnables.get(runnableIndex).run();
+        }
     }
 
 }

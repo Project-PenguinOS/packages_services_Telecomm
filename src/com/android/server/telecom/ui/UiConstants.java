@@ -38,12 +38,15 @@ public class UiConstants {
     public static final String COMPONENT_CONFIRM_CALL_DIALOG =
         "com.android.server.telecomui.ui.ConfirmCallDialogActivity";
 
-    public static final String COMPONENT_TELECOM_DEVELOPER_MENU =
-        "com.android.server.telecomui.ui.TelecomDeveloperMenu";
-
     public static final String COMPONENT_CALL_BLOCK_DISABLED_DIALOG =
         "com.android.server.telecomui.settings.CallBlockDisabledActivity";
 
+    /**
+     * Missed call notification label, used when there's exactly one missed call from work
+     * contact.
+     */
+    public static final String NOTIFICATION_MISSED_WORK_CALL_TITLE =
+            "Telecomm.NOTIFICATION_MISSED_WORK_CALL_TITLE";
     /**
      * Extras and errors.
      */
