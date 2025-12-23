@@ -40,4 +40,5 @@ flag {
   namespace: "telecom"
   description: "Add key to filter out voip call logs for dialer apps that don't support integrated call logs"
   bug: "434747530"
+  is_exported: true
 }
