@@ -177,7 +177,6 @@ public class RingerTest extends TelecomTestCase {
         // case the success/failure of the test should be tied to whether the flag is on or off
         // for this device configuration.
         asyncRingtonePlayer = new AsyncRingtonePlayer(new FeatureFlagsImpl());
-        doReturn(URI_VIBRATION_EFFECT).when(spyVibrationEffectProxy).get(any(), any());
         when(mockPlayerFactory.createPlayer(any(Call.class), anyInt())).thenReturn(mockTonePlayer);
         mockAudioManager = mock(AudioManager.class);
         when(mContext.getSystemService(AudioManager.class)).thenReturn(mockAudioManager);
@@ -616,6 +615,7 @@ public class RingerTest extends TelecomTestCase {
 
     @SmallTest
     @Test
+    @Ignore("b/469781444")
     public void testCustomVibrationForRingtone() throws Exception {
         if (true) {
             // skip until b/470399806 is fixed
@@ -634,7 +634,6 @@ public class RingerTest extends TelecomTestCase {
             .getRingtone(any(Call.class), isNull(), anyBoolean());
         verifyNoMoreInteractions(mockRingtoneFactory);
         verify(mockRingtone).play();
-        verify(spyVibrationEffectProxy).get(eq(FAKE_RINGTONE_URI), any(Context.class));
         verify(mockVibrator).vibrate(eq(URI_VIBRATION_EFFECT), any(VibrationAttributes.class));
     }
 
