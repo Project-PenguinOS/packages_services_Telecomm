@@ -356,6 +356,55 @@ public class VoipCallMonitorTest extends TelecomTestCase {
     }
 
     /**
+     * Verifies that if FGS delegation is stopped for an app, it can be re-granted for a
+     * subsequent call. This tests the scenario where a stale ServiceConnection could prevent
+     * a new FGS delegation from being created.
+     */
+    @SmallTest
+    @Test
+    public void testFgsIsReGrantedAfterStopping() {
+        // GIVEN: A voip call is added and FGS delegation is granted.
+        Call call1 = createTestCall("testCall1", mHandle1User1);
+        ArgumentCaptor<ServiceConnection> connCaptor =
+                ArgumentCaptor.forClass(ServiceConnection.class);
+
+        // Add the first call
+        mMonitor.onCallAdded(call1);
+
+        // Verify FGS is started and capture the connection
+        verify(mActivityManagerInternal, timeout(TIMEOUT).times(1))
+                .startForegroundServiceDelegate(any(ForegroundServiceDelegationOptions.class),
+                        connCaptor.capture());
+        ServiceConnection conn1 = connCaptor.getValue();
+        conn1.onServiceConnected(mHandle1User1.getComponentName(), mServiceConnection);
+        assertTrue(mMonitor.hasForegroundServiceDelegation(mHandle1User1));
+
+        // WHEN: The call is removed, which should stop FGS delegation.
+        mMonitor.onCallRemoved(call1);
+
+        // THEN: Verify FGS delegation is stopped and the internal state is cleaned up.
+        verify(mActivityManagerInternal).stopForegroundServiceDelegate(eq(conn1));
+        assertFalse("FGS delegation should be removed after the only call is removed",
+                mMonitor.hasForegroundServiceDelegation(mHandle1User1));
+
+        // WHEN: A new call from the same app is added.
+        Call call2 = createTestCall("testCall2", mHandle1User1);
+        mMonitor.onCallAdded(call2);
+
+        // THEN: FGS delegation should be granted again for the new call.
+        verify(mActivityManagerInternal, timeout(TIMEOUT).times(2))
+                .startForegroundServiceDelegate(any(ForegroundServiceDelegationOptions.class),
+                        connCaptor.capture());
+
+        // Simulate the second connection being established
+        ServiceConnection conn2 = connCaptor.getAllValues().get(1);
+        conn2.onServiceConnected(mHandle1User1.getComponentName(), mServiceConnection);
+
+        assertTrue("FGS delegation should be re-granted for the new call",
+                mMonitor.hasForegroundServiceDelegation(mHandle1User1));
+    }
+
+    /**
      * Tests the "Happy Path":
      * 1. An Answer Request comes in.
      * 2. The Monitor binds to the Jetpack ConnectionService.
