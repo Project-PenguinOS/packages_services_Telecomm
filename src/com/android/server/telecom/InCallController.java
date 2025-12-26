@@ -34,6 +34,7 @@ import android.content.IntentFilter;
 import android.content.PermissionChecker;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
+import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
 import android.hardware.SensorPrivacyManager;
@@ -1400,12 +1401,8 @@ public class InCallController extends CallsManagerListenerBase implements
 
                 int uid;
                 try {
-                    if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-                        uid = UserUtil.getPackageManagerFromUserHandler(mContext,
-                                user).getPackageUid(pkg, 0/*flags*/);
-                    } else {
-                        uid = pkgManager.getPackageUidAsUser(pkg, user.getIdentifier());
-                    }
+                    uid = UserUtil.getPackageManagerFromUserHandler(mContext,
+                            user).getPackageUid(pkg, 0/*flags*/);
                 } catch (PackageManager.NameNotFoundException e) {
                     continue;
                 }
@@ -1537,8 +1534,7 @@ public class InCallController extends CallsManagerListenerBase implements
             /** Let's add a 2 second delay before we send unbind to the services to hopefully
              *  give them enough time to process all the pending messages.
              */
-            if (mCallRemovedRunnable != null
-                    && mFeatureFlags.preventRedundantLocationPermissionGrantAndRevoke()) {
+            if (mCallRemovedRunnable != null) {
                 mHandler.removeCallbacks(mCallRemovedRunnable);
             }
             mCallRemovedRunnable = new Runnable("ICC.oCR", mLock) {
@@ -1820,7 +1816,7 @@ public class InCallController extends CallsManagerListenerBase implements
         // Handle transition to and from local voicemail.  If we start local voicemail for a call,
         // remove it from InCallService tracking.  If we stop local voicemail and go active again,
         // add it back tp the InCallService (ie this is the "pickup voicemail call" usecase).
-        if (mFeatureFlags.localVoicemail()) {
+        if (android.telecom.flags.Flags.localVoicemail()) {
             if (oldState == CallState.ANSWERED_FOR_LOCAL_VOICEMAIL
                     && newState == CallState.LOCAL_VOICEMAIL) {
                 UserHandle userFromCall = getUserFromCall(call);
@@ -2019,28 +2015,16 @@ public class InCallController extends CallsManagerListenerBase implements
             mCallsUsingCamera.add(call.getId());
 
             if (shouldStart) {
-                if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-                    // Note, not checking return value, as this op call is merely for tracing use
-                    mAppOpsManager.startOp(AppOpsManager.OPSTR_PHONE_CALL_CAMERA, myUid(),
-                            mContext.getOpPackageName(), null, null);
-                } else {
-                    // Note, not checking return value, as this op call is merely for tracing use
-                    mAppOpsManager.startOp(AppOpsManager.OP_PHONE_CALL_CAMERA, myUid(),
-                            mContext.getOpPackageName(), false, null, null);
-                    mSensorPrivacyManager.showSensorUseDialog(SensorPrivacyManager.Sensors.CAMERA);
-                }
+                // Note, not checking return value, as this op call is merely for tracing use
+                mAppOpsManager.startOp(AppOpsManager.OPSTR_PHONE_CALL_CAMERA, myUid(),
+                        mContext.getOpPackageName(), null, null);
             }
         } else {
             boolean hadCall = !mCallsUsingCamera.isEmpty();
             mCallsUsingCamera.remove(call.getId());
             if (hadCall && mCallsUsingCamera.isEmpty()) {
-                if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-                    mAppOpsManager.finishOp(AppOpsManager.OPSTR_PHONE_CALL_CAMERA, myUid(),
-                            mContext.getOpPackageName(), null);
-                } else {
-                    mAppOpsManager.finishOp(AppOpsManager.OP_PHONE_CALL_CAMERA, myUid(),
-                            mContext.getOpPackageName(), null);
-                }
+                mAppOpsManager.finishOp(AppOpsManager.OPSTR_PHONE_CALL_CAMERA, myUid(),
+                        mContext.getOpPackageName(), null);
             }
         }
     }
@@ -2391,13 +2375,8 @@ public class InCallController extends CallsManagerListenerBase implements
         // Important: Context must be retained or the receivers won't fire when the context is
         // garbage collected.
         mAllUsersContext = mContext.createContextAsUser(UserHandle.ALL, 0);
-        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            mAllUsersContext.registerReceiver(mPackageChangedReceiver, packageChangedFilter,
-                    null, null);
-        } else {
-            mContext.registerReceiverAsUser(mPackageChangedReceiver, UserHandle.ALL,
-                    packageChangedFilter, null, null);
-        }
+        mAllUsersContext.registerReceiver(mPackageChangedReceiver, packageChangedFilter,
+                null, null);
     }
 
     private void updateNonUiInCallServices(Call call) {
@@ -2458,9 +2437,7 @@ public class InCallController extends CallsManagerListenerBase implements
     }
 
     private @Nullable InCallServiceInfo getDefaultDialerComponent(UserHandle userHandle) {
-        String defaultPhoneAppName = mFeatureFlags.resolveHiddenDependenciesTwo() ?
-                mDefaultDialerCache.getDefaultDialerApplication(userHandle) :
-                mDefaultDialerCache.getDefaultDialerApplicationLegacy(userHandle.getIdentifier());
+        String defaultPhoneAppName = mDefaultDialerCache.getDefaultDialerApplication(userHandle);
         String systemPhoneAppName = mDefaultDialerCache.getSystemDialerApplication();
 
         Log.d(this, "getDefaultDialerComponent: defaultPhoneAppName=[%s]", defaultPhoneAppName);
@@ -2498,11 +2475,16 @@ public class InCallController extends CallsManagerListenerBase implements
         if (list != null && !list.isEmpty()) {
             return list.get(0);
         } else {
-            // Last Resort: Try to bind to the ComponentName given directly.
-            Log.e(this, new Exception(), "Package Manager could not find ComponentName: "
-                    + componentName + ". Trying to bind anyway.");
-            return new InCallServiceInfo(componentName, false, false, type, false);
+            return handleInCallServiceNotFound(componentName, type);
         }
+    }
+
+    @VisibleForTesting
+    public InCallServiceInfo handleInCallServiceNotFound(ComponentName componentName, int type) {
+        // Last Resort: Try to bind to the ComponentName given directly.
+        Log.e(this, new Exception(), "Package Manager could not find ComponentName: "
+                + componentName + ". Trying to bind anyway.");
+        return new InCallServiceInfo(componentName, false, false, type, false);
     }
 
     private InCallServiceInfo getInCallServiceComponent(UserHandle userHandle,
@@ -2565,6 +2547,32 @@ public class InCallController extends CallsManagerListenerBase implements
                 || hasInteractAcrossProfilesAppOp);
     }
 
+    /**
+     * Verifies that the class for a given ServiceInfo exists within its package.
+     * This prevents a system crash if a service is declared in the manifest but its
+     * class was not included in the compiled code.
+     * @param serviceInfo The ServiceInfo of the service to check.
+     * @param userHandle The user under which to check for the service.
+     * @return {@code true} if the class exists, {@code false} otherwise.
+     */
+    private boolean serviceClassExists(ServiceInfo serviceInfo, UserHandle userHandle) {
+        Log.i(this, "serviceClassExists check");
+        try {
+            Context packageContext = mContext.createPackageContextAsUser(
+                    serviceInfo.packageName,
+                    Context.CONTEXT_INCLUDE_CODE | Context.CONTEXT_IGNORE_SECURITY, userHandle);
+            ClassLoader classLoader = packageContext.getClassLoader();
+            Class.forName(serviceInfo.name, false, classLoader);
+            return true;
+        } catch (NameNotFoundException | ClassNotFoundException e) {
+            Log.w(this, "Skipping InCallService: class not found for " + serviceInfo.name);
+            return false;
+        } catch (Exception e) {
+            Log.e(this, e, "Error checking for existence of " + serviceInfo.name);
+            return false;
+        }
+    }
+
     private List<InCallServiceInfo> getInCallServiceComponents(UserHandle userHandle,
             String packageName, ComponentName componentName,
             int requestedType, boolean ignoreDisabled) {
@@ -2587,20 +2595,21 @@ public class InCallController extends CallsManagerListenerBase implements
                 userContext.getPackageManager() : packageManager;
 
         List<ResolveInfo> entries;
-        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            entries = userPackageManager.queryIntentServices(
-                    serviceIntent,
-                    PackageManager.GET_META_DATA | PackageManager.MATCH_DISABLED_COMPONENTS);
-        } else {
-            entries = packageManager.queryIntentServicesAsUser(
-                    serviceIntent,
-                    PackageManager.GET_META_DATA | PackageManager.MATCH_DISABLED_COMPONENTS,
-                    userHandle.getIdentifier());
-        }
+        entries = userPackageManager.queryIntentServices(
+                serviceIntent,
+                PackageManager.GET_META_DATA | PackageManager.MATCH_DISABLED_COMPONENTS);
         for (ResolveInfo entry : entries) {
             ServiceInfo serviceInfo = entry.serviceInfo;
 
             if (serviceInfo != null) {
+                if (mFeatureFlags.enableIncallServiceClassCheck()) {
+                    boolean isMetaFlag = serviceInfo.metaData != null &&
+                            serviceInfo.metaData.getBoolean(
+                                    "android.telecom.CLASS_EXISTENCE_CHECK", false);
+                    if (isMetaFlag && !serviceClassExists(serviceInfo, userHandle)) {
+                        continue;
+                    }
+                }
                 boolean isExternalCallsSupported = serviceInfo.metaData != null &&
                         serviceInfo.metaData.getBoolean(
                                 TelecomManager.METADATA_INCLUDE_EXTERNAL_CALLS, false);
@@ -2722,9 +2731,7 @@ public class InCallController extends CallsManagerListenerBase implements
         }
 
         // Check to see that it is the default dialer package
-        String defaultDialer = mFeatureFlags.resolveHiddenDependenciesTwo() ?
-                mDefaultDialerCache.getDefaultDialerApplication(userHandle) :
-                mDefaultDialerCache.getDefaultDialerApplicationLegacy(userHandle.getIdentifier());
+        String defaultDialer = mDefaultDialerCache.getDefaultDialerApplication(userHandle);
         boolean isDefaultDialerPackage = Objects.equals(serviceInfo.packageName, defaultDialer);
         if (isDefaultDialerPackage && isUIService) {
             return IN_CALL_SERVICE_TYPE_DEFAULT_DIALER_UI;
@@ -2830,6 +2837,10 @@ public class InCallController extends CallsManagerListenerBase implements
         try {
             inCallService.onCallAudioStateChanged(mCallsManager.getAudioState());
             inCallService.onCanAddCallChanged(mCallsManager.canAddCall());
+            if (mFeatureFlags.notifyAvailableEndpointsOnIcsConnected()) {
+                inCallService.onAvailableCallEndpointsChanged(new ArrayList<>(
+                        mCallsManager.getCallEndpointController().getAvailableEndpoints()));
+            }
             inCallService.onCallEndpointChanged(mCallsManager.getCallEndpointController()
                     .getCurrentCallEndpoint());
         } catch (RemoteException ignored) {
@@ -2926,12 +2937,60 @@ public class InCallController extends CallsManagerListenerBase implements
         }
     }
 
+    public void onCallEndpointRequested(String requestingPackageName, CallEndpoint callEndpoint,
+            Call call) {
+        UserHandle userFromCall = getUserFromCall(call);
+        Map<UserHandle, Map<InCallController.InCallServiceInfo, IInCallService>> serviceMap =
+                getCombinedInCallServiceMap();
+        if (serviceMap.containsKey(userFromCall)) {
+            for (Map.Entry<InCallServiceInfo, IInCallService> entry : serviceMap.
+                    get(userFromCall).entrySet()) {
+                InCallServiceInfo info = entry.getKey();
+                ComponentName componentName = info.getComponentName();
+
+                // If specified, skip ICS if it matches the package name.  Used for cases where on
+                // ICS requests the audio route and we want to skip notifying the same ICS that
+                // requested the audio route.
+                if (requestingPackageName != null
+                        && componentName.getPackageName().equals(requestingPackageName)) {
+                    Log.i(this, "skipping requestingPackageName: %s",
+                            requestingPackageName);
+                    continue;
+                }
+
+                IInCallService inCallService = entry.getValue();
+                onCallEndpointRequestedToIcs(inCallService, callEndpoint, componentName);
+            }
+        } else {
+            Log.i(this, "Unable to propagate onCallEndpointRequested. "
+                    + "InCallService not found for user: %s", userFromCall);
+        }
+    }
+
+    private void onCallEndpointRequestedToIcs(IInCallService inCallService,
+            CallEndpoint callEndpoint, ComponentName componentName) {
+        try {
+            inCallService.onCallEndpointRequested(callEndpoint);
+        } catch (RemoteException exception) {
+            Log.w(this, "Call status update did not send to: "
+                    + componentName + " successfully with error " + exception);
+        }
+    }
+
     /**
      * Informs all {@link InCallService} instances of the updated call information.
      *
      * @param call The {@link Call}.
      */
     private void updateCall(Call call) {
+        // If a bulk state update is in progress,
+        // defer sending the call update to the InCallUi.
+        if (mFeatureFlags.bulkStateUpdateCall() &&
+                call.isBulkStateUpdateInProgress()) {
+            Log.d(this, "Call is still setting its initial state. " +
+                    "Do not send update to InCallUi yet - " + call.getId());
+            return;
+        }
         updateCall(call, false /* videoProviderChanged */, false, null);
     }
 
@@ -3191,15 +3250,9 @@ public class InCallController extends CallsManagerListenerBase implements
         Intent intent = new Intent(InCallService.SERVICE_INTERFACE)
                 .setPackage(ringingPackage);
         List<ResolveInfo> entries;
-        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            entries = UserUtil.getPackageManagerFromUserHandler(mContext,
-                    userHandle).queryIntentServices(
-                    intent, PackageManager.GET_META_DATA);
-        } else {
-            entries = mContext.getPackageManager().queryIntentServicesAsUser(
-                    intent, PackageManager.GET_META_DATA,
-                    userHandle.getIdentifier());
-        }
+        entries = UserUtil.getPackageManagerFromUserHandler(mContext,
+                userHandle).queryIntentServices(
+                intent, PackageManager.GET_META_DATA);
         if (entries.isEmpty()) {
             Log.w(this, "doesConnectedDialerSupportRinging: couldn't find dialer's package info"
                     + " <sad trombone>");
@@ -3434,23 +3487,11 @@ public class InCallController extends CallsManagerListenerBase implements
             int opPackageUid = getOpPackageUid();
             if (mIsCallUsingMicrophone) {
                 // Note, not checking return value, as this op call is merely for tracing use
-                if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-                    mAppOpsManager.startOp(AppOpsManager.OPSTR_PHONE_CALL_MICROPHONE, opPackageUid,
-                            mContext.getOpPackageName(), null /* attribution */, null /* msg */);
-                } else {
-                    mAppOpsManager.startOp(AppOpsManager.OP_PHONE_CALL_MICROPHONE, opPackageUid,
-                            mContext.getOpPackageName(), false, null, null);
-                    mSensorPrivacyManager
-                            .showSensorUseDialog(SensorPrivacyManager.Sensors.MICROPHONE);
-                }
+                mAppOpsManager.startOp(AppOpsManager.OPSTR_PHONE_CALL_MICROPHONE, opPackageUid,
+                        mContext.getOpPackageName(), null /* attribution */, null /* msg */);
             } else {
-                if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-                    mAppOpsManager.finishOp(AppOpsManager.OPSTR_PHONE_CALL_MICROPHONE, opPackageUid,
-                            mContext.getOpPackageName(), null /* attribution */);
-                } else {
-                    mAppOpsManager.finishOp(AppOpsManager.OP_PHONE_CALL_MICROPHONE, opPackageUid,
-                            mContext.getOpPackageName(), null);
-                }
+                mAppOpsManager.finishOp(AppOpsManager.OPSTR_PHONE_CALL_MICROPHONE, opPackageUid,
+                        mContext.getOpPackageName(), null /* attribution */);
             }
         }
     }
@@ -3463,14 +3504,8 @@ public class InCallController extends CallsManagerListenerBase implements
 
         try {
             int uid;
-            if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-                uid = UserUtil.getPackageManagerFromUserHandler(mContext,
-                        user).getPackageUid(mContext.getOpPackageName(), 0/*flags*/);
-            } else {
-                PackageManager pkgManager = mContext.getPackageManager();
-                uid = pkgManager.getPackageUidAsUser(mContext.getOpPackageName(),
-                        user.getIdentifier());
-            }
+            uid = UserUtil.getPackageManagerFromUserHandler(mContext,
+                    user).getPackageUid(mContext.getOpPackageName(), 0/*flags*/);
             return uid;
         } catch (PackageManager.NameNotFoundException e) {
             Log.e(this, e, "getPackageForAssociatedUser: could not find package %s"
@@ -3490,11 +3525,7 @@ public class InCallController extends CallsManagerListenerBase implements
     }
 
     private boolean isCallInLiveCallState(Call call) {
-        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            return IntStream.of(LIVE_CALL_STATES).anyMatch(element -> element == call.getState());
-        } else {
-            return ArrayUtils.contains(LIVE_CALL_STATES, call.getState());
-        }
+        return IntStream.of(LIVE_CALL_STATES).anyMatch(element -> element == call.getState());
     }
 
     private boolean isCarrierPrivilegedUsingMicDuringVoipCall() {
@@ -3513,29 +3544,19 @@ public class InCallController extends CallsManagerListenerBase implements
     }
 
     private boolean isAppOpsPermittedManageOngoingCalls(int uid, String callingPackage) {
-        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            // checkPermissionForDataDelivery is intended for use when we are checking the
-            // permission for the purpose of actually sending data to the recipient; this is in
-            // contrast to in TelecomServiceImpl#hasManageOngoingCallsPermission which calls
-            // checkPermissionForPreflight since that is not actually going to result in data
-            // delivery to the app.
-            int result = mPermissionManager.checkPermissionForDataDelivery(
-                    Manifest.permission.MANAGE_ONGOING_CALLS, new AttributionSource.Builder(uid)
-                            .setPackageName(callingPackage)
-                            .build(),
-                    "Reporting ongoing calls to app.");
-            Log.d(this, "isAppOpsPermittedManageOngoingCalls: uid=%d, pkg=%s, res=%d", uid,
-                    callingPackage, result);
-            return result == PermissionManager.PERMISSION_GRANTED;
-        } else {
-            return PermissionChecker.checkPermissionForDataDeliveryFromDataSource(mContext,
-                    Manifest.permission.MANAGE_ONGOING_CALLS, PermissionChecker.PID_UNKNOWN,
-                    new AttributionSource(mContext.getAttributionSource(),
-                            new AttributionSource(uid, callingPackage,
-                                    /*attributionTag*/ null)), "Checking whether the app has"
-                            + " MANAGE_ONGOING_CALLS permission")
-                    == PermissionChecker.PERMISSION_GRANTED;
-        }
+        // checkPermissionForDataDelivery is intended for use when we are checking the
+        // permission for the purpose of actually sending data to the recipient; this is in
+        // contrast to in TelecomServiceImpl#hasManageOngoingCallsPermission which calls
+        // checkPermissionForPreflight since that is not actually going to result in data
+        // delivery to the app.
+        int result = mPermissionManager.checkPermissionForDataDelivery(
+                Manifest.permission.MANAGE_ONGOING_CALLS, new AttributionSource.Builder(uid)
+                        .setPackageName(callingPackage)
+                        .build(),
+                "Reporting ongoing calls to app.");
+        Log.d(this, "isAppOpsPermittedManageOngoingCalls: uid=%d, pkg=%s, res=%d", uid,
+                callingPackage, result);
+        return result == PermissionManager.PERMISSION_GRANTED;
     }
 
     private void sendCrashedInCallServiceNotification(String packageName, UserHandle userHandle) {

@@ -295,15 +295,8 @@ public final class TelecomBroadcastIntentProcessor {
         Intent callIntent = new Intent(Intent.ACTION_SENDTO, intent.getData());
         callIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         List<ResolveInfo> activities;
-        if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-            activities = UserUtil.getPackageManagerFromUserHandler(mContext,
-                    userHandle).queryIntentActivities(callIntent,
-                    PackageManager.MATCH_DEFAULT_ONLY);
-        } else {
-            PackageManager packageManager = mContext.getPackageManager();
-            activities = packageManager.queryIntentActivitiesAsUser(
-                    callIntent, PackageManager.MATCH_DEFAULT_ONLY, userHandle.getIdentifier());
-        }
+        activities = UserUtil.getPackageManagerFromUserHandler(mContext, userHandle)
+                .queryIntentActivities(callIntent, PackageManager.MATCH_DEFAULT_ONLY);
         if (activities.size() > 0) {
             mContext.startActivityAsUser(callIntent, userHandle);
         } else {

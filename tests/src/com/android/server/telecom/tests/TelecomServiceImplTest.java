@@ -209,6 +209,7 @@ public class TelecomServiceImplTest extends TelecomTestCase {
     @Mock private FeatureFlags mFeatureFlags;
     @Mock private android.telecom.flags.FeatureFlags mModuleFeatureFlags;
     @Mock private com.android.internal.telephony.flags.FeatureFlags mTelephonyFeatureFlags;
+    @Mock private com.android.internal.telecom.flags.FeatureFlags mModuleBugFixFeatureFlags;
 
     @Mock private InCallController mInCallController;
     @Mock private TelecomMetricsController mMockTelecomMetricsController;
@@ -269,6 +270,7 @@ public class TelecomServiceImplTest extends TelecomTestCase {
                 mSettingsSecureAdapter,
                 mFeatureFlags,
                 mModuleFeatureFlags,
+                mModuleBugFixFeatureFlags,
                 mTelephonyFeatureFlags,
                 mLock,
                 mMockTelecomMetricsController,
@@ -413,7 +415,7 @@ public class TelecomServiceImplTest extends TelecomTestCase {
                 .thenReturn(TEL_PA_HANDLE_16);
         when(mFakePhoneAccountRegistrar.getPhoneAccountUnchecked(TEL_PA_HANDLE_16)).thenReturn(
                 makePhoneAccount(TEL_PA_HANDLE_16).build());
-        when(mAppOpsManager.noteOp(eq(AppOpsManager.OP_READ_PHONE_STATE), anyInt(), anyString(),
+        when(mAppOpsManager.noteOp(eq(AppOpsManager.OPSTR_READ_PHONE_STATE), anyInt(), anyString(),
                 nullable(String.class), nullable(String.class)))
                 .thenReturn(AppOpsManager.MODE_IGNORED);
         PhoneAccount phoneAccount = makePhoneAccount(TEL_PA_HANDLE_CURRENT).build();
@@ -871,7 +873,6 @@ public class TelecomServiceImplTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testRegisterPhoneAccountSimultaneousCallingVerification() throws RemoteException {
-        doReturn(true).when(mTelephonyFeatureFlags).simultaneousCallingIndications();
         doReturn(PackageManager.PERMISSION_GRANTED)
                 .when(mContext).checkCallingOrSelfPermission(MODIFY_PHONE_STATE);
         String packageNameToUse = "com.android.officialpackage";
@@ -1544,7 +1545,7 @@ public class TelecomServiceImplTest extends TelecomTestCase {
         doNothing().when(mContext).enforceCallingOrSelfPermission(eq(CALL_PHONE), anyString());
         doReturn(PackageManager.PERMISSION_DENIED)
                 .when(mContext).checkCallingOrSelfPermission(CALL_PRIVILEGED);
-        when(mAppOpsManager.noteOp(eq(AppOpsManager.OP_CALL_PHONE), anyInt(), anyString(),
+        when(mAppOpsManager.noteOp(eq(AppOpsManager.OPSTR_CALL_PHONE), anyInt(), anyString(),
                 nullable(String.class), nullable(String.class)))
                 .thenReturn(AppOpsManager.MODE_ERRORED);
         try {
@@ -1653,7 +1654,7 @@ public class TelecomServiceImplTest extends TelecomTestCase {
         doReturn(PackageManager.PERMISSION_DENIED)
                 .when(mContext).checkCallingOrSelfPermission(CALL_PRIVILEGED);
         doNothing().when(mContext).enforceCallingOrSelfPermission(eq(CALL_PHONE), anyString());
-        when(mAppOpsManager.noteOp(eq(AppOpsManager.OP_CALL_PHONE), anyInt(), anyString(),
+        when(mAppOpsManager.noteOp(eq(AppOpsManager.OPSTR_CALL_PHONE), anyInt(), anyString(),
                 nullable(String.class), nullable(String.class)))
                 .thenReturn(AppOpsManager.MODE_ERRORED);
 
@@ -1771,10 +1772,9 @@ public class TelecomServiceImplTest extends TelecomTestCase {
     public void testPlaceCallWithAppOpsOff() throws Exception {
         Uri handle = Uri.parse("tel:6505551234");
         Bundle extras = createSampleExtras();
-
         // We have passed in the DEFAULT_DIALER_PACKAGE for this test, so canCallPhone is always
         // true.
-        when(mAppOpsManager.noteOp(eq(AppOpsManager.OP_CALL_PHONE), anyInt(), anyString(),
+        when(mAppOpsManager.noteOp(eq(AppOpsManager.OPSTR_CALL_PHONE), anyInt(), anyString(),
                 nullable(String.class), nullable(String.class)))
                 .thenReturn(AppOpsManager.MODE_IGNORED);
         doReturn(PackageManager.PERMISSION_GRANTED)
@@ -1874,7 +1874,7 @@ public class TelecomServiceImplTest extends TelecomTestCase {
         doNothing().when(mContext).enforceCallingOrSelfPermission(eq(CALL_PHONE), anyString());
         doReturn(PackageManager.PERMISSION_DENIED)
                 .when(mContext).checkCallingOrSelfPermission(CALL_PRIVILEGED);
-        when(mAppOpsManager.noteOp(eq(AppOpsManager.OP_CALL_PHONE), anyInt(), anyString(),
+        when(mAppOpsManager.noteOp(eq(AppOpsManager.OPSTR_CALL_PHONE), anyInt(), anyString(),
                 nullable(String.class), nullable(String.class)))
                 .thenReturn(AppOpsManager.MODE_IGNORED);
 
@@ -1892,8 +1892,6 @@ public class TelecomServiceImplTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testSetDefaultDialer() throws Exception {
-        when(mFeatureFlags.resolveHiddenDependenciesTwo()).thenReturn(true);
-
         String packageName = "sample.package";
         int currentUserId = ActivityManager.getCurrentUser();
         UserHandle currentUser = new UserHandle(currentUserId);
@@ -2207,8 +2205,6 @@ public class TelecomServiceImplTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testGetDefaultDialerPackageForUser() throws Exception {
-        when(mFeatureFlags.resolveHiddenDependenciesTwo()).thenReturn(true);
-
         final int userId = 1;
         final String packageName = "some.package";
 

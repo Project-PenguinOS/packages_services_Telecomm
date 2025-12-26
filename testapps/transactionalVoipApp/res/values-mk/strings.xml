@@ -28,6 +28,7 @@
     <string name="call_attributes_empty_error" msgid="6921783379546938037">"Атрибутите за јавување не треба да бидат празни. Сепак се иницијализираат стандардните вредности."</string>
     <string name="back_to_voip_main" msgid="2500173767939494261">"Назад кон главната активност на VoIP"</string>
     <string name="clear_voip_call_logs" msgid="2402471290566644149">"Расчистете ја евиденцијата на повици за VoIP-тестот"</string>
+    <string name="refresh_call_logs" msgid="4633143020852759545">"Освежете ја евиденцијата на повици"</string>
     <string name="call_log" msgid="2664639384522572724">"Евиденција на повици"</string>
     <string name="voip_callback" msgid="9213402996514282039">"Тестирајте повратен повик"</string>
     <string name="get_call_id" msgid="5513943242738347108">"не е поставен ID на повикувач"</string>

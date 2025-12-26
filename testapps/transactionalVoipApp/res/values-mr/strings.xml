@@ -28,6 +28,7 @@
     <string name="call_attributes_empty_error" msgid="6921783379546938037">"कॉलचे ॲट्रिब्यूट रिक्त नसावेत. तरीही डीफॉल्ट सुरू करत आहे."</string>
     <string name="back_to_voip_main" msgid="2500173767939494261">"VoIP च्या मुख्य अ‍ॅक्टिव्हिटीवर परत जा"</string>
     <string name="clear_voip_call_logs" msgid="2402471290566644149">"VOIP चाचणी कॉल लॉग साफ करा"</string>
+    <string name="refresh_call_logs" msgid="4633143020852759545">"कॉल लॉग रिफ्रेश करा"</string>
     <string name="call_log" msgid="2664639384522572724">"कॉल लॉग"</string>
     <string name="voip_callback" msgid="9213402996514282039">"कॉलबॅकची चाचणी घ्या"</string>
     <string name="get_call_id" msgid="5513943242738347108">"कॉल आयडी सेट केलेला नाही"</string>

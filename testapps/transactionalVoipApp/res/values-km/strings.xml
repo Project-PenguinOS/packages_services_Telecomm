@@ -28,6 +28,7 @@
     <string name="call_attributes_empty_error" msgid="6921783379546938037">"លក្ខណៈ​នៃការហៅទូរសព្ទ​មិនគួរ​ទទេឡើយ។ នៅតែ​ចាប់ផ្ដើម​លំនាំដើម។"</string>
     <string name="back_to_voip_main" msgid="2500173767939494261">"ត្រឡប់ទៅ​សកម្មភាព​ចម្បងរបស់ VOIP"</string>
     <string name="clear_voip_call_logs" msgid="2402471290566644149">"សម្អាត​កំណត់​ហេតុ​ហៅ​ទូរសព្ទ​សម្រាប់​តេស្ត VOIP"</string>
+    <string name="refresh_call_logs" msgid="4633143020852759545">"ផ្ទុក​កំណត់​ហេតុ​ហៅ​ទូរសព្ទ​ឡើងវិញ"</string>
     <string name="call_log" msgid="2664639384522572724">"កំណត់​ហេតុ​ហៅ​ទូរសព្ទ"</string>
     <string name="voip_callback" msgid="9213402996514282039">"ធ្វើតេស្ត​ការហៅ​ត្រឡប់​វិញ"</string>
     <string name="get_call_id" msgid="5513943242738347108">"មិនបានកំណត់​លេខសម្គាល់​ការហៅទូរសព្ទទេ"</string>

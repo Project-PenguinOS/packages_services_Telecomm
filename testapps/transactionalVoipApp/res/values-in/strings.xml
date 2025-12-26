@@ -28,6 +28,7 @@
     <string name="call_attributes_empty_error" msgid="6921783379546938037">"Atribut panggilan wajib diisi. Tetap menginisialisasi default."</string>
     <string name="back_to_voip_main" msgid="2500173767939494261">"Kembali ke aktivitas utama VOIP"</string>
     <string name="clear_voip_call_logs" msgid="2402471290566644149">"Hapus log panggilan uji VOIP"</string>
+    <string name="refresh_call_logs" msgid="4633143020852759545">"Muat ulang log panggilan"</string>
     <string name="call_log" msgid="2664639384522572724">"Log Panggilan"</string>
     <string name="voip_callback" msgid="9213402996514282039">"Uji callback"</string>
     <string name="get_call_id" msgid="5513943242738347108">"id panggilan tidak ditetapkan"</string>

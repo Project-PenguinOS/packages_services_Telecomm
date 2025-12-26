@@ -24,6 +24,7 @@ android_library {
     libs: [
       "ims-ext-common",
       "services",
+      "framework-telecom.impl",
     ],
     uses_libs: [
       "ims-ext-common",
@@ -33,21 +34,32 @@ android_library {
         "src/**/*.java",
         ":statslog-telecom-java-gen",
         "proto/**/*.proto",
+        ":framework-telecom-aidl-internal-sources",
+        ":framework-telecom-aidl-export-sources",
     ],
+    aidl: {
+        include_dirs: [
+            "frameworks/native/aidl/gui", // For Surface.java
+            "frameworks/libs/modules-utils/java", // ParceledListSlice
+        ],
+    },
     static_libs: [
         "androidx.annotation_annotation",
         "androidx.core_core",
         "modules-utils-handlerexecutor",
         "modules-utils-list-slice",
-        "telecom_module_flags-export-java",
+        "telecom_module_bugfix_flags-java",
     ],
+    min_sdk_version: "36",
     resource_dirs: ["res"],
     proto: {
         type: "nano",
         local_include_dirs: ["proto/"],
         output_params: ["optional_field_style=accessors"],
     },
-    platform_apis: true,
+    lint: {
+        baseline_filename: "lint-baseline.xml",
+    },
 }
 
 // Build the Telecom service.
@@ -62,6 +74,7 @@ android_app {
         "services",
     ],
     resource_dirs: [],
+    min_sdk_version: "36",
     platform_apis: true,
     certificate: "platform",
     privileged: true,
@@ -121,6 +134,7 @@ android_test {
     optimize: {
         enabled: false,
     },
+    min_sdk_version: "36",
     platform_apis: true,
     certificate: "platform",
     jacoco: {
@@ -128,5 +142,4 @@ android_test {
         exclude_filter: ["com.android.server.telecom.tests.**"],
     },
     test_suites: ["device-tests"],
-    defaults: ["SettingsLibDefaults"],
 }

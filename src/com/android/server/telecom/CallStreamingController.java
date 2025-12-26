@@ -215,13 +215,8 @@ public class CallStreamingController extends CallsManagerListenerBase {
             Intent serviceIntent = new Intent(CallStreamingService.SERVICE_INTERFACE);
             serviceIntent.setPackage(holders.get(0));
             List<ResolveInfo> infos;
-            if (Flags.resolveHiddenDependenciesTwo()) {
-                infos = UserUtil.getPackageManagerFromUserHandler(mContext, mUserHandle).
-                        queryIntentServices(serviceIntent, PackageManager.GET_META_DATA);
-            } else {
-                infos = packageManager.queryIntentServicesAsUser(serviceIntent,
-                        PackageManager.GET_META_DATA, mUserHandle);
-            }
+            infos = UserUtil.getPackageManagerFromUserHandler(mContext, mUserHandle)
+                    .queryIntentServices(serviceIntent, PackageManager.GET_META_DATA);
             if (infos.isEmpty()) {
                 Log.w(this, "processTransaction: Can't find streaming service");
                 future.complete(new CallTransactionResult(

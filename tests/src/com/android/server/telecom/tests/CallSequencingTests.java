@@ -211,11 +211,26 @@ public class CallSequencingTests extends TelecomTestCase {
 
     @SmallTest
     @Test
-    public void testAnswerCallAcceptedFromTelecom() {
+    public void testAnswerCallAcceptedFromTelecom_HoldableManaged() {
         setPhoneAccounts(mNewCall, mActiveCall, false);
         setActiveCallFocus(mActiveCall);
         when(mCallsManager.canHold(mActiveCall)).thenReturn(true);
         when(mActiveCall.hold(anyString())).thenReturn(CompletableFuture.completedFuture(true));
+
+        when(mHeldCall.isSelfManaged()).thenReturn(false);
+        when(mNewCall.isSelfManaged()).thenReturn(true);
+        mController.answerCall(mNewCall, 0, CallsManager.REQUEST_ORIGIN_TELECOM_DISAMBIGUATION);
+        verify(mCallsManager, timeout(SEQUENCING_TIMEOUT_MS).times(1))
+                .requestFocusActionAnswerCall(eq(mNewCall), eq(0),
+                        eq(CallsManager.REQUEST_ORIGIN_TELECOM_DISAMBIGUATION));
+    }
+
+    @SmallTest
+    @Test
+    public void testAnswerCallAcceptedFromTelecom_NonholdableManaged() {
+        setPhoneAccounts(mNewCall, mActiveCall, false);
+        setActiveCallFocus(mActiveCall);
+        when(mCallsManager.canHold(mActiveCall)).thenReturn(false);
 
         when(mHeldCall.isSelfManaged()).thenReturn(false);
         when(mNewCall.isSelfManaged()).thenReturn(true);

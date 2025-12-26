@@ -28,6 +28,7 @@
     <string name="call_attributes_empty_error" msgid="6921783379546938037">"የጥሪ መገለጫ ባህሪያት ባዶ መሆን የለባቸውም። ለማንኛውም ነባሪዎችን በማስጀመር ላይ።"</string>
     <string name="back_to_voip_main" msgid="2500173767939494261">"ወደ VOIP ዋና እንቅስቃሴ ይመለሱ"</string>
     <string name="clear_voip_call_logs" msgid="2402471290566644149">"የVOIP ሙከራ የጥሪ ምዝገባ ማስታወሻዎችን ያጽዱ"</string>
+    <string name="refresh_call_logs" msgid="4633143020852759545">"የጥሪ ምዝግብ ማስታወሻዎችን አድስ"</string>
     <string name="call_log" msgid="2664639384522572724">"የጥሪ ምዝገባ ማስታወሻዎች"</string>
     <string name="voip_callback" msgid="9213402996514282039">"መልሶ ጥሪን ይፈትሹ"</string>
     <string name="get_call_id" msgid="5513943242738347108">"የደዋይ መታወቂያ አልተቀናበረም"</string>

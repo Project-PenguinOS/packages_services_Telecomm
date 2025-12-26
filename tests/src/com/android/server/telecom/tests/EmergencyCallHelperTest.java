@@ -189,8 +189,6 @@ public class EmergencyCallHelperTest extends TelecomTestCase {
   @Test
   public void testPermGrantAndRevokeForEmergencyCall() {
 
-    when(mFeatureFlags.preventRedundantLocationPermissionGrantAndRevoke()).thenReturn(true);
-
     mEmergencyCallHelper.maybeGrantTemporaryLocationPermission(mCall, mUserHandle);
     mEmergencyCallHelper.maybeRevokeTemporaryLocationPermission();
 
@@ -204,8 +202,6 @@ public class EmergencyCallHelperTest extends TelecomTestCase {
   @SmallTest
   @Test
   public void testPermGrantAndRevokeForMultiEmergencyCall() {
-
-    when(mFeatureFlags.preventRedundantLocationPermissionGrantAndRevoke()).thenReturn(true);
 
     //first call is emergency call
     mEmergencyCallHelper.maybeGrantTemporaryLocationPermission(mCall, mUserHandle);
@@ -223,8 +219,6 @@ public class EmergencyCallHelperTest extends TelecomTestCase {
   @SmallTest
   @Test
   public void testPermGrantAndRevokeForEmergencyCallAndNormalCall() {
-
-    when(mFeatureFlags.preventRedundantLocationPermissionGrantAndRevoke()).thenReturn(true);
 
     //first call is emergency call
     mEmergencyCallHelper.maybeGrantTemporaryLocationPermission(mCall, mUserHandle);

@@ -27,6 +27,7 @@ import android.provider.CallLog;
 import android.telecom.Log;
 import android.telecom.TelecomManager;
 
+import com.android.internal.telecom.flags.Flags;
 import com.android.server.telecom.Call;
 import com.android.server.telecom.CallerInfoLookupHelper;
 import com.android.server.telecom.flags.FeatureFlags;
@@ -126,10 +127,18 @@ public class BlockCheckerFilter extends CallFilter {
         CompletableFuture<CallFilteringResult> resultFuture = new CompletableFuture<>();
         Bundle extras = new Bundle();
         final Context userContext;
-        if (mFeatureFlags.telecomMainUserInBlockCheck()) {
-            userContext = mContext.createContextAsUser(mCall.getAssociatedUser(), 0);
+
+        if (Flags.getMainUserForBlockChecker()) {
+            UserManager userManager = mContext.getSystemService(UserManager.class);
+            // UserManager#getMainUser requires either the MANAGE_USERS,
+            // CREATE_USERS, or QUERY_USERS permission.
+            if (userManager != null && userManager.getMainUser() != null) {
+                userContext = mContext.createContextAsUser(userManager.getMainUser(), 0);
+            } else {
+                userContext = mContext;
+            }
         } else {
-            userContext = mContext;
+            userContext = mContext.createContextAsUser(mCall.getAssociatedUser(), 0);
         }
         if (BlockedNumbersUtil.isEnhancedCallBlockingEnabledByPlatform(userContext,
                 mFeatureFlags)) {

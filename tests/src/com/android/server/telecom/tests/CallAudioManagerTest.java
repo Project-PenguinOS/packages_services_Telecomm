@@ -76,6 +76,7 @@ import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @RunWith(JUnit4.class)
@@ -367,7 +368,6 @@ public class CallAudioManagerTest extends TelecomTestCase {
     @Test
     public void testOutgoingCall_SwitchFocus_WaitForBtIcs_OnlyOnce() {
         when(mFlags.delayFocusSwitchForBtIcs()).thenReturn(true);
-        when(mFlags.sendNewRingingCallSync()).thenReturn(true);
         Call call = mock(Call.class);
         // When the call is ringing
         when(call.getState()).thenReturn(CallState.RINGING);
@@ -407,6 +407,122 @@ public class CallAudioManagerTest extends TelecomTestCase {
         stopTone(call);
         mCallAudioManager.onCallRemoved(call);
         verifyProperCleanup();
+    }
+
+    @MediumTest
+    @Test
+    public void testOutgoingCall_SwitchFocus_WaitForBtIcs_CallRemoved() {
+        when(mFlags.delayFocusSwitchForBtIcs()).thenReturn(true);
+        Call call = mock(Call.class);
+        when(call.getState()).thenReturn(CallState.CONNECTING);
+        CompletableFuture<Boolean> btIcsFuture = new CompletableFuture<>();
+        when(call.getBtIcsFuture()).thenReturn(btIcsFuture);
+
+        // Add new call in connecting state
+        mCallAudioManager.onCallAdded(call);
+        // Verify that we don't send the update to the mode state machine yet if the BT ICS future
+        // hasn't completed yet.
+        verify(mCallAudioModeStateMachine, never()).sendMessageWithArgs(
+                eq(CallAudioModeStateMachine.NEW_ACTIVE_OR_DIALING_CALL),
+                any(CallAudioModeStateMachine.MessageArgs.class));
+
+        // Now, remove the call (e.g. it became external) before the future completes.
+        mCallAudioManager.onCallRemoved(call);
+
+        // Complete the future and verify the update was NOT sent because the call is gone.
+        btIcsFuture.complete(true);
+        verify(mCallAudioModeStateMachine, never()).sendMessageWithArgs(
+                eq(CallAudioModeStateMachine.NEW_ACTIVE_OR_DIALING_CALL),
+                any(CallAudioModeStateMachine.MessageArgs.class));
+    }
+
+    @MediumTest
+    @Test
+    public void testRingingCall_SwitchFocus_WaitForBtIcs_CallRemoved() {
+        when(mFlags.delayFocusSwitchForBtIcs()).thenReturn(true);
+        Call call = mock(Call.class);
+        when(call.getState()).thenReturn(CallState.RINGING);
+        CompletableFuture<Boolean> btIcsFuture = new CompletableFuture<>();
+        when(call.getBtIcsFuture()).thenReturn(btIcsFuture);
+
+        // Add new ringing call
+        mCallAudioManager.onCallAdded(call);
+        // Verify that we don't send the update to the mode state machine yet if the BT ICS future
+        // hasn't completed yet.
+        verify(mCallAudioModeStateMachine, never()).sendMessageWithArgs(
+                eq(CallAudioModeStateMachine.NEW_RINGING_CALL),
+                any(CallAudioModeStateMachine.MessageArgs.class));
+
+        // Now, remove the call (e.g. it became external) before the future completes.
+        mCallAudioManager.onCallRemoved(call);
+
+        // Complete the future and verify the update was NOT sent because the call is gone.
+        btIcsFuture.complete(true);
+        verify(mCallAudioModeStateMachine, never()).sendMessageWithArgs(
+                eq(CallAudioModeStateMachine.NEW_RINGING_CALL),
+                any(CallAudioModeStateMachine.MessageArgs.class));
+    }
+
+    @MediumTest
+    @Test
+    public void testOutgoingCall_SwitchFocus_WaitForBtIcs_Exceptional_CallRemoved()
+            throws Exception {
+        when(mFlags.delayFocusSwitchForBtIcs()).thenReturn(true);
+        Call call = mock(Call.class);
+        when(call.getState()).thenReturn(CallState.CONNECTING);
+        CompletableFuture<Boolean> btIcsFuture = new CompletableFuture<>();
+        when(call.getBtIcsFuture()).thenReturn(btIcsFuture);
+
+        // Add new call in connecting state
+        mCallAudioManager.onCallAdded(call);
+        verify(mCallAudioModeStateMachine, never()).sendMessageWithArgs(
+                eq(CallAudioModeStateMachine.NEW_ACTIVE_OR_DIALING_CALL),
+                any(CallAudioModeStateMachine.MessageArgs.class));
+
+        // Remove the call before the future completes.
+        mCallAudioManager.onCallRemoved(call);
+
+        // Complete the future exceptionally and verify the update was NOT sent.
+        btIcsFuture.completeExceptionally(new Exception("BT Error"));
+        // Wait for the exceptionally-handler thread to finish.
+        // The future should complete with null.
+        assertNull(mCallAudioManager.getCallDialingActiveOrConnectingFuture().get(TEST_TIMEOUT,
+                TimeUnit.MILLISECONDS));
+
+        verify(mCallAudioModeStateMachine, never()).sendMessageWithArgs(
+                eq(CallAudioModeStateMachine.NEW_ACTIVE_OR_DIALING_CALL),
+                any(CallAudioModeStateMachine.MessageArgs.class));
+    }
+
+    @MediumTest
+    @Test
+    public void testRingingCall_SwitchFocus_WaitForBtIcs_Exceptional_CallRemoved()
+            throws Exception {
+        when(mFlags.delayFocusSwitchForBtIcs()).thenReturn(true);
+        Call call = mock(Call.class);
+        when(call.getState()).thenReturn(CallState.RINGING);
+        CompletableFuture<Boolean> btIcsFuture = new CompletableFuture<>();
+        when(call.getBtIcsFuture()).thenReturn(btIcsFuture);
+
+        // Add new ringing call
+        mCallAudioManager.onCallAdded(call);
+        verify(mCallAudioModeStateMachine, never()).sendMessageWithArgs(
+                eq(CallAudioModeStateMachine.NEW_RINGING_CALL),
+                any(CallAudioModeStateMachine.MessageArgs.class));
+
+        // Remove the call before the future completes.
+        mCallAudioManager.onCallRemoved(call);
+
+        // Complete the future exceptionally and verify the update was NOT sent.
+        btIcsFuture.completeExceptionally(new Exception("BT Error"));
+        // Wait for the exceptionally-handler thread to finish.
+        // The future should complete with null.
+        assertNull(mCallAudioManager.getCallRingingFuture().get(TEST_TIMEOUT,
+                TimeUnit.MILLISECONDS));
+
+        verify(mCallAudioModeStateMachine, never()).sendMessageWithArgs(
+                eq(CallAudioModeStateMachine.NEW_RINGING_CALL),
+                any(CallAudioModeStateMachine.MessageArgs.class));
     }
 
     @Test

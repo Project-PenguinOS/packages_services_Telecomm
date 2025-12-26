@@ -28,6 +28,7 @@
     <string name="call_attributes_empty_error" msgid="6921783379546938037">"Call attributes should not be empty. Initialising defaults anyway."</string>
     <string name="back_to_voip_main" msgid="2500173767939494261">"Back to VoIP main activity"</string>
     <string name="clear_voip_call_logs" msgid="2402471290566644149">"Clear VoIP test call logs"</string>
+    <string name="refresh_call_logs" msgid="4633143020852759545">"Refresh call logs"</string>
     <string name="call_log" msgid="2664639384522572724">"Call log"</string>
     <string name="voip_callback" msgid="9213402996514282039">"Test callback"</string>
     <string name="get_call_id" msgid="5513943242738347108">"call ID not set"</string>

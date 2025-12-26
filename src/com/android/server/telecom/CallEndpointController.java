@@ -318,7 +318,16 @@ public class CallEndpointController extends CallsManagerListenerBase {
         return null;
     }
 
-    private CallEndpoint findMatchingBluetoothEndpoint(BluetoothDevice device) {
+    public CallEndpoint findMatchingRouteEndpoint(int targetRoute) {
+        for (CallEndpoint endpoint : mAvailableCallEndpoints) {
+            if (endpoint.getEndpointType() == mRouteToTypeMap.get(targetRoute)) {
+                return endpoint;
+            }
+        }
+        return null;
+    }
+
+    public CallEndpoint findMatchingBluetoothEndpoint(BluetoothDevice device) {
         final String targetAddress = device.getAddress();
         if (targetAddress != null) {
             for (CallEndpoint endpoint : mAvailableCallEndpoints) {

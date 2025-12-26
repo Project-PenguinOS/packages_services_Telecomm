@@ -26,6 +26,7 @@ package com.android.server.telecom;
 
 import static com.android.server.telecom.AudioRoute.BT_AUDIO_ROUTE_TYPES;
 import static com.android.server.telecom.AudioRoute.DEVICE_INFO_TYPE_TO_AUDIO_ROUTE_TYPE;
+import static com.android.server.telecom.AudioRoute.TYPE_BLUETOOTH_HA;
 import static com.android.server.telecom.AudioRoute.TYPE_BLUETOOTH_SCO;
 import static com.android.server.telecom.AudioRoute.TYPE_INVALID;
 import static com.android.server.telecom.AudioRoute.TYPE_SPEAKER;
@@ -775,11 +776,20 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
      */
     private void maybeClearPendingMessage() {
         AudioRoute pendingDestRoute = mPendingAudioRoute.getDestRoute();
-        if (pendingDestRoute != null && isCurrentCommunicationDevice(pendingDestRoute)) {
-            if (pendingDestRoute.getType() == TYPE_BLUETOOTH_SCO) {
+        if (pendingDestRoute != null) {
+            if (isCurrentCommunicationDevice(pendingDestRoute)) {
+                if (pendingDestRoute.getType() == TYPE_BLUETOOTH_SCO) {
+                    mPendingAudioRoute.clearPendingMessage(new Pair<>(BT_AUDIO_CONNECTED,
+                            pendingDestRoute.getBluetoothAddress()));
+                } else if (pendingDestRoute.getType() == TYPE_SPEAKER) {
+                    mPendingAudioRoute.clearPendingMessage(new Pair<>(SPEAKER_ON, null));
+                }
+            } else if (pendingDestRoute.getType() != TYPE_BLUETOOTH_SCO) {
+                // Don't wait for BT_AUDIO_CONNECTED msg if pending route is not BT_SCO.
                 mPendingAudioRoute.clearPendingMessage(new Pair<>(BT_AUDIO_CONNECTED,
-                        pendingDestRoute.getBluetoothAddress()));
-            } else if (pendingDestRoute.getType() == TYPE_SPEAKER) {
+                            pendingDestRoute.getBluetoothAddress()));
+            } else if (pendingDestRoute.getType() != TYPE_SPEAKER) {
+                // Don't wait for SPEAKER_ON msg if pending route is not SPEAKER.
                 mPendingAudioRoute.clearPendingMessage(new Pair<>(SPEAKER_ON, null));
             }
         }
@@ -1051,11 +1061,21 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             BluetoothDevice bluetoothDevice) {
         // Clean up unavailable routes
         AudioRoute bluetoothRoute = getBluetoothRoute(type, bluetoothDevice.getAddress());
-        if (!maybeAdjustHearingAidRoute(type, bluetoothDevice, bluetoothRoute)
-                && bluetoothRoute != null) {
-            Log.i(this, "bluetooth route removed: " + bluetoothRoute);
-            mBluetoothRoutes.remove(bluetoothRoute);
-            updateAvailableRoutes(bluetoothRoute, false);
+        // Get the potentially modified route for if a hearing aid was removed.
+        AudioRoute adjustedHaRoute = maybeAdjustHearingAidRoute(type, bluetoothDevice,
+                bluetoothRoute);
+        if (bluetoothRoute != null) {
+            // Remove the audio route for the passed in BT device
+            if (adjustedHaRoute == null) {
+                Log.i(this, "bluetooth route removed: " + bluetoothRoute);
+                mBluetoothRoutes.remove(bluetoothRoute);
+                updateAvailableRoutes(bluetoothRoute, false);
+            }
+            else {
+                // If the route was updated for the HA case, then ensure that we update this
+                // new state in the available routes.
+                updateAvailableRoutes(adjustedHaRoute, true);
+            }
             onAvailableRoutesChanged();
         }
 
@@ -1124,34 +1144,13 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     private void handleMuteChanged(boolean mute) {
         mIsMute = mute;
         if (mIsMute != mAudioManager.isMicrophoneMute() && mIsActive) {
-            if (mFeatureFlags.resolveHiddenDependenciesTwo()) {
-                Context userContext = mContext.createContextAsUser(
-                        mCallsManager.getCurrentUserHandle(), 0);
-                AudioManager userAudioManager =
-                        (AudioManager) userContext.getSystemService(Context.AUDIO_SERVICE);
-                Log.i(this, "changing microphone mute state to: %b "
-                        + "[userAudioManagerIsNull=%b]", mute, userAudioManager == null);
-                if (userAudioManager != null) {
-                    userAudioManager.setMicrophoneMute(mute);
-                }
-            } else {
-                IAudioService audioService = mAudioServiceFactory.getAudioService();
-                Log.i(this, "changing microphone mute state to: %b [serviceIsNull=%b]", mute,
-                        audioService == null);
-                if (audioService != null) {
-                    try {
-                        audioService.setMicrophoneMute(mute, mContext.getOpPackageName(),
-                                mCallsManager.getCurrentUserHandle().getIdentifier(),
-                                mContext.getAttributionTag());
-                    } catch (RemoteException e) {
-                        if (mFeatureFlags.telecomMetricsSupport()) {
-                            mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_AUDIO,
-                                    ErrorStats.ERROR_EXTERNAL_EXCEPTION);
-                        }
-                        Log.e(this, e, "Remote exception while toggling mute.");
-                        return;
-                    }
-                }
+            Context userContext = mContext.createContextAsUser(
+                    mCallsManager.getCurrentUserHandle(), 0);
+            AudioManager userAudioManager = userContext.getSystemService(AudioManager.class);
+            Log.i(this, "changing microphone mute state to: %b "
+                    + "[userAudioManagerIsNull=%b]", mute, userAudioManager == null);
+            if (userAudioManager != null) {
+                userAudioManager.setMicrophoneMute(mute);
             }
         }
         onMuteStateChanged(mIsMute);
@@ -1478,6 +1477,8 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         synchronized (mLock) {
             int routeMask = 0;
             Set<BluetoothDevice> availableBluetoothDevices = new HashSet<>();
+            boolean isCurrentRouteOnHa = getCurrentRoute().getType() == TYPE_BLUETOOTH_HA;
+            BluetoothDevice haDevice = null;
             for (AudioRoute route : getCallSupportedRoutes()) {
                 routeMask |= ROUTE_MAP.get(route.getType());
                 if (BT_AUDIO_ROUTE_TYPES.contains(route.getType())) {
@@ -1495,12 +1496,22 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                     // try to obtain the lead device for the 2nd bud.
                     if (deviceToAdd != null) {
                         availableBluetoothDevices.add(deviceToAdd);
+                        if (route.getType() == TYPE_BLUETOOTH_HA) {
+                            haDevice = deviceToAdd;
+                        }
                     }
                 }
             }
+            // We may have to change which active device is displayed if a hearing aid pair was
+            // removed and replaced as the main active device.
+            BluetoothDevice activeDevice = mCallAudioState.getActiveBluetoothDevice();
+            if (isCurrentRouteOnHa && activeDevice != null && haDevice != null
+                    && !Objects.equals(haDevice.getAddress(), activeDevice.getAddress())) {
+                activeDevice = haDevice;
+            }
 
             updateCallAudioState(new CallAudioState(mIsMute, mCallAudioState.getRoute(), routeMask,
-                    mCallAudioState.getActiveBluetoothDevice(), availableBluetoothDevices));
+                    activeDevice, availableBluetoothDevices));
         }
     }
 
@@ -1521,11 +1532,15 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             mCallAudioState = new CallAudioState(mIsMute, mCallAudioState.getRoute(),
                     mCallSupportedRouteMask, mCallAudioState.getActiveBluetoothDevice(),
                     mCallAudioState.getSupportedBluetoothDevices());
+            // Update audio route when the foreground call changes. This ensures, for example, that
+            // if we have an ongoing video call + new PSTN call that the PSTN call doesn't get
+            // placed on the speaker. Don't recalculate the route if the foreground call is not
+            // defined (e.g. when a call is disconnected). This ensures that we don't change the
+            // route when playing the disconnect tone.
+            // Todo: b/455395635 - Routing recalculation should be based on phone accounts. We
+            // should only update the route for calls on different phone accounts.
+            routeTo(mIsActive, getBaseRoute(true, null));
         }
-        // Update audio route when the foreground call changes. This ensures, for example, that if
-        // we have an ongoing video call + new PSTN call that the PSTN call doesn't get placed on
-        // the speaker.
-        routeTo(mIsActive, getBaseRoute(true, null));
     }
 
     /**
@@ -1723,7 +1738,8 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         }
         for (AudioRoute route : mBluetoothRoutes.keySet()) {
             boolean checkHearingAidPair = audioRouteType == AudioRoute.TYPE_BLUETOOTH_HA
-                    && Objects.equals(address, route.getBluetoothHaPair());
+                    && route.getBluetoothHaPairDevice() != null
+                    && Objects.equals(address, route.getBluetoothHaPairDevice().getAddress());
             if (route.getType() == audioRouteType && (route.getBluetoothAddress().equals(address)
                     || checkHearingAidPair)) {
                 return route;
@@ -1822,42 +1838,57 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                 || existingHaRoute.getType() != AudioRoute.TYPE_BLUETOOTH_HA) {
             return;
         }
-        existingHaRoute.setBluetoothHaPair(newHaDevice.getAddress());
+        // This is critical to avoid an inconsistent hash state.
+        updateAvailableRoutes(existingHaRoute, false);
+        existingHaRoute.setBluetoothHaPairDevice(newHaDevice);
+        // Add the new modified route back into the available routes.
+        updateAvailableRoutes(existingHaRoute, true);
         Log.i(this, "trackHearingAidPair: tracking hearing aid pair (%s) in existing route. "
                 + "New route: %s", newHaDevice.getAddress(), existingHaRoute);
     }
 
-    private boolean maybeAdjustHearingAidRoute(@AudioRoute.AudioRouteType int type,
+    // Returns the modified bluetooth route if a hearing aid device (pair) was removed or null if
+    // no modifications were made.
+    private AudioRoute maybeAdjustHearingAidRoute(@AudioRoute.AudioRouteType int type,
             BluetoothDevice bluetoothDevice, AudioRoute existingRoute) {
         if (!mFeatureFlags.hearingAidPairFix() || type != AudioRoute.TYPE_BLUETOOTH_HA
                 || bluetoothDevice == null || existingRoute == null) {
-            return false;
+            return null;
         }
         String removedDeviceAddress = bluetoothDevice.getAddress();
+        BluetoothDevice remainingDevice = existingRoute.getBluetoothHaPairDevice();
         // The device removed is either being tracked as a route in Telecom or we are storing the
         // address as part of AudioRoute#mBluetoothHaPair. Update the route information accordingly.
         if (Objects.equals(existingRoute.getBluetoothAddress(), removedDeviceAddress)
-                && existingRoute.getBluetoothHaPair() != null) {
+                && remainingDevice != null) {
             // If the primary route's BT address got removed, move the stored HA pair address as
             // the primary BT address.
             String mainHaAddress = existingRoute.getBluetoothAddress();
-            String haPairAddress = existingRoute.getBluetoothHaPair();
-            existingRoute.setBluetoothAddress(existingRoute.getBluetoothHaPair());
-            existingRoute.setBluetoothHaPair(null);
+            String haPairAddress = remainingDevice.getAddress();
+            // Replace the existing route's BT device mapping to the new device
+            mBluetoothRoutes.remove(existingRoute);
+            updateAvailableRoutes(existingRoute, false);
+            existingRoute.setBluetoothAddress(haPairAddress);
+            existingRoute.setBluetoothHaPairDevice(null);
+            mBluetoothRoutes.put(existingRoute, remainingDevice);
             Log.i(this, "maybeAdjustHearingAidRoute: Replacing removed device (address: %s) with "
-                    + "the pair (address: %s). Updated route: %s",
-                    mainHaAddress, haPairAddress, existingRoute);
-            return true;
-        } else if (Objects.equals(existingRoute.getBluetoothHaPair(), removedDeviceAddress)) {
+                    + "the pair (address: %s). Updated route: %s with new device mapping in "
+                    + "mBluetoothRoutes is %s", mainHaAddress, haPairAddress, existingRoute,
+                    mBluetoothRoutes.get(existingRoute));
+            return existingRoute;
+        } else if (remainingDevice != null && Objects.equals(
+                existingRoute.getBluetoothHaPairDevice().getAddress(), removedDeviceAddress)) {
             // If the HA pair was the device that got disconnected, all we need to do is reset
             // the stored HA pair address.
-            String haPairAddress = existingRoute.getBluetoothHaPair();
-            existingRoute.setBluetoothHaPair(null);
+            String haPairAddress = remainingDevice.getAddress();
+            updateAvailableRoutes(existingRoute, false);
+            existingRoute.setBluetoothHaPairDevice(null);
+            // Replace the existing route's BT device mapping to the new device
             Log.i(this, "maybeAdjustHearingAidRoute: Removing tracked HA pair (%s) from existing "
                     + "route. Updated route: %s", haPairAddress, existingRoute);
-            return true;
+            return existingRoute;
         }
-        return false;
+        return null;
     }
 
     /**
@@ -1875,7 +1906,8 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             BluetoothDevice device = mBluetoothRoutes.get(route);
             // Skip excluded BT address and LE audio if it's not the lead device.
             if (route.getBluetoothAddress().equals(btAddressToExclude)
-                    || isLeAudioNonLeadDeviceOrServiceUnavailable(route.getType(), device)) {
+                    || isLeAudioNonLeadDeviceOrServiceUnavailable(route.getType(), device)
+                    || device == null) {
                 continue;
             }
             // Check if the most recently active device is a watch device.

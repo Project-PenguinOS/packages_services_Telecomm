@@ -39,6 +39,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
+import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -50,6 +51,7 @@ import android.os.SystemClock;
 import android.os.UserHandle;
 import android.provider.CallLog;
 import android.provider.ContactsContract.Contacts;
+import android.telecom.Annotation;
 import android.telecom.BluetoothCallQualityReport;
 import android.telecom.CallAttributes;
 import android.telecom.CallAudioState;
@@ -948,19 +950,17 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
     public void cacheServiceCallback(CachedCallback callback) {
         synchronized (mCachedServiceCallbacks) {
-            if (mFlags.cacheCallEvents()) {
-                // If there are multiple threads caching + calling processCachedCallbacks at the
-                // same time, there is a race - double check here to ensure that we do not lose an
-                // operation due to a a cache happening after processCachedCallbacks.
-                // Either service will be non-null in this case, but both will not be non-null
-                if (mConnectionService != null) {
-                    callback.executeCallback(mConnectionService, this);
-                    return;
-                }
-                if (mTransactionalService != null) {
-                    callback.executeCallback(mTransactionalService, this);
-                    return;
-                }
+            // If there are multiple threads caching + calling processCachedCallbacks at the
+            // same time, there is a race - double check here to ensure that we do not lose an
+            // operation due to a a cache happening after processCachedCallbacks.
+            // Either service will be non-null in this case, but both will not be non-null
+            if (mConnectionService != null) {
+                callback.executeCallback(mConnectionService, this);
+                return;
+            }
+            if (mTransactionalService != null) {
+                callback.executeCallback(mTransactionalService, this);
+                return;
             }
             List<CachedCallback> cbs = mCachedServiceCallbacks.computeIfAbsent(
                     callback.getCallbackId(), k -> new ArrayList<>());
@@ -1504,8 +1504,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
             if (newState == CallState.DISCONNECTED && shouldContinueProcessingAfterDisconnect()) {
                 Log.w(this, "continuing processing disconnected call with another service");
-                if (mFlags.cancelRemovalOnEmergencyRedial() && isDisconnectHandledViaFuture()
-                        && isRemovalPending()) {
+                if (isDisconnectHandledViaFuture() && isRemovalPending()) {
                     Log.i(this, "cancelling removal future in favor of "
                             + "CreateConnectionProcessor handling removal");
                     mRemovalFuture.cancel(true);
@@ -1774,13 +1773,13 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     }
 
     public void setCallerNumberVerificationStatus(
-            @Connection.VerificationStatus int callerNumberVerificationStatus) {
+            @Annotation.VerificationStatus int callerNumberVerificationStatus) {
         mCallerNumberVerificationStatus = callerNumberVerificationStatus;
         mListeners.forEach(l -> l.onCallerNumberVerificationStatusChanged(this,
                 callerNumberVerificationStatus));
     }
 
-    public @Connection.VerificationStatus int getCallerNumberVerificationStatus() {
+    public @Annotation.VerificationStatus int getCallerNumberVerificationStatus() {
         return mCallerNumberVerificationStatus;
     }
 
@@ -2889,6 +2888,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             ParcelableConference conference) {
         Log.v(this, "handleCreateConferenceSuccessful %s", conference);
         mIsCreateConnectionComplete = true;
+        mIsBulkStateUpdateInProgress = true;
         setTargetPhoneAccount(conference.getPhoneAccount());
         setHandle(conference.getHandle(), conference.getHandlePresentation());
 
@@ -2899,6 +2899,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         setRingbackRequested(conference.isRingbackRequested());
         setStatusHints(conference.getStatusHints());
         putConnectionServiceExtras(conference.getExtras());
+        mIsBulkStateUpdateInProgress = false;
 
         switch (mCallDirection) {
             case CALL_DIRECTION_INCOMING:
@@ -2923,6 +2924,12 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             ParcelableConnection connection) {
         Log.v(this, "handleCreateConnectionSuccessful %s", connection);
         mIsCreateConnectionComplete = true;
+        /* Add a new flag indicating whether this call is setting its initial state. This allows
+         * listeners to ignore events during initialization, which helps improve Phone App KPIs
+         * by reducing unnecessary event processing during a period with many state updates.
+         */
+        mIsBulkStateUpdateInProgress = true;
+
         setTargetPhoneAccount(connection.getPhoneAccount());
         setHandle(connection.getHandle(), connection.getHandlePresentation());
 
@@ -2942,11 +2949,17 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         for (String id : connection.getConferenceableConnectionIds()) {
             mConferenceableCalls.add(idMapper.getCall(id));
         }
+        if(mFlags.bulkStateUpdateCall()) {
+            setCallerNumberVerificationStatus(connection.getCallerNumberVerificationStatus());
+        }
+        mIsBulkStateUpdateInProgress = false;
 
         switch (mCallDirection) {
             case CALL_DIRECTION_INCOMING:
-                setCallerNumberVerificationStatus(connection.getCallerNumberVerificationStatus());
-
+                if(!mFlags.bulkStateUpdateCall()) {
+                    setCallerNumberVerificationStatus(
+                            connection.getCallerNumberVerificationStatus());
+                }
                 // Listeners (just CallsManager for now) will be responsible for checking whether
                 // the call should be blocked.
                 for (Listener l : mListeners) {
@@ -3566,13 +3579,23 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
 // QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
 
+    /**
+     * Determines the audio mode for a CRS call.
+     *
+     * @return {@link AudioManager#MODE_RINGTONE} if it is explicitly specified in the call extras,
+     *         otherwise defaults to {@link AudioManager#MODE_IN_CALL}.
+     */
     public int getCrsMode() {
-        if (mExtras == null) {
-            return android.telecom.Call.CRS_MODE_IN_CALL;
+        // This logic ensures that MODE_RINGTONE is only used when explicitly set by the vendor.
+        // In all other cases, it safely defaults to MODE_IN_CALL.
+        if (mExtras != null &&
+                mExtras.getInt(android.telecom.Call.EXTRA_CRS_AUDIO_MODE, AudioManager.MODE_IN_CALL)
+                        == AudioManager.MODE_RINGTONE) {
+            return AudioManager.MODE_RINGTONE;
         }
-        return mExtras.getInt(android.telecom.Call.EXTRA_CRS_AUDIO_MODE,
-                android.telecom.Call.CRS_MODE_IN_CALL);
+        return AudioManager.MODE_IN_CALL;
     }
+
 
     public boolean isCrsCall() {
         if (mExtras == null) {
@@ -3947,14 +3970,9 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             Log.addEvent(this, LogUtils.Events.CALL_EVENT, event);
             sendEventToService(this, event, extras);
         } else {
-            if (mFlags.cacheCallEvents()) {
-                Log.i(this, "sendCallEvent: caching call event for callId=%s, event=%s",
-                        getId(), event);
-                cacheServiceCallback(new CachedCallEventQueue(event, extras));
-            } else {
-                Log.e(this, new NullPointerException(),
-                        "sendCallEvent failed due to null CS callId=%s", getId());
-            }
+            Log.i(this, "sendCallEvent: caching call event for callId=%s, event=%s",
+                    getId(), event);
+            cacheServiceCallback(new CachedCallEventQueue(event, extras));
         }
     }
 
@@ -5450,5 +5468,11 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
     public int getLastCallStateBeforeDisconnect() {
         return mLastCallStateBeforeDisconnect;
+    }
+
+    private boolean mIsBulkStateUpdateInProgress;
+
+    public boolean isBulkStateUpdateInProgress() {
+      return mIsBulkStateUpdateInProgress;
     }
 }
