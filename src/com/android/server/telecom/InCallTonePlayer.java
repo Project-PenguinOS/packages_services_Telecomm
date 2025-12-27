@@ -150,6 +150,10 @@ public class InCallTonePlayer extends Thread {
     }
 
     // The possible tones that we can play.
+    // TODO(b/469249115): This constant is not available in the public ToneGenerator API.
+    // Redefined locally to remove hidden API dependency.
+    // Default value for an unknown or unspecified tone.
+    private static final int TONE_UNKNOWN = -1;
     public static final int TONE_INVALID = 0;
     public static final int TONE_BUSY = 1;
     public static final int TONE_CALL_ENDED = 2;
@@ -282,7 +286,7 @@ public class InCallTonePlayer extends Thread {
                     break;
                 case TONE_CALL_ENDED:
                     // Don't use tone generator
-                    toneType = ToneGenerator.TONE_UNKNOWN;
+                    toneType = TONE_UNKNOWN;
                     toneVolume = RELATIVE_VOLUME_UNDEFINED;
                     toneLengthMillis = 0;
 
@@ -359,7 +363,7 @@ public class InCallTonePlayer extends Thread {
                     break;
                 case TONE_IN_CALL_QUALITY_NOTIFICATION:
                     // Don't use tone generator
-                    toneType = ToneGenerator.TONE_UNKNOWN;
+                    toneType = TONE_UNKNOWN;
                     toneVolume = RELATIVE_VOLUME_UNDEFINED;
                     toneLengthMillis = 0;
 
@@ -384,7 +388,7 @@ public class InCallTonePlayer extends Thread {
             }
 
             int stream = AudioManager.STREAM_VOICE_CALL;
-            if (toneType != ToneGenerator.TONE_UNKNOWN) {
+            if (toneType != TONE_UNKNOWN) {
                 playToneGeneratorTone(stream, toneVolume, toneType, toneLengthMillis);
             } else if (mediaResourceId != TONE_RESOURCE_ID_UNDEFINED) {
                 playMediaTone(stream, mediaResourceId);

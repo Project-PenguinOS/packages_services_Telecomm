@@ -412,7 +412,7 @@ public class InCallController extends CallsManagerListenerBase implements
 // QTI_BEGIN: 2023-04-13: Telephony: Revert "Ensure to start dialer process with persistent priority"
                     Context.BIND_AUTO_CREATE | Context.BIND_FOREGROUND_SERVICE
                         | Context.BIND_ALLOW_BACKGROUND_ACTIVITY_STARTS
-                        | Context.BIND_SCHEDULE_LIKE_TOP_APP, userToBind)) {
+                        | Constants.BIND_SCHEDULE_LIKE_TOP_APP, userToBind)) {
 // QTI_END: 2023-04-13: Telephony: Revert "Ensure to start dialer process with persistent priority"
                 Log.w(this, "Failed to connect.");
                 mIsConnected = false;

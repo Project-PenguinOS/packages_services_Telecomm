@@ -24,6 +24,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.res.Resources;
+import android.os.Handler;
 import android.telecom.Connection;
 import android.telecom.Log;
 import android.telecom.Logging.Session;
@@ -115,7 +116,7 @@ public class RespondViaSmsManager extends CallsManagerListenerBase {
                 } else {
                     response.onResult(null, result);
                 }
-            }, new LoggedHandlerExecutor(context.getMainThreadHandler(), "RVSM.lCTM.c", mLock));
+        }, new LoggedHandlerExecutor(new Handler(context.getMainLooper()), "RVSM.lCTM.c", mLock));
     }
 
     private List<String> loadCannedTextMessages(final Context context) {

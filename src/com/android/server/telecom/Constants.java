@@ -29,4 +29,19 @@ public class Constants {
     //
 
     public static final String SCHEME_SMSTO = "smsto";
+    // TODO(b/469327345): This is a hidden constant in Context.
+    // Redefined locally to remove hidden API dependency.
+    // Original value from android.content.Context: 0x00080000
+    public static final int BIND_SCHEDULE_LIKE_TOP_APP = 0x00080000;
+
+    public static final int STATUS_NOT_BLOCKED = 0;
+    public static final int STATUS_BLOCKED_IN_LIST = 1;
+    public static final int STATUS_BLOCKED_RESTRICTED = 2;
+    public static final int STATUS_BLOCKED_UNKNOWN_NUMBER = 3;
+    public static final int STATUS_BLOCKED_PAYPHONE = 4;
+    public static final int STATUS_BLOCKED_NOT_IN_CONTACTS = 5;
+    public static final int STATUS_BLOCKED_UNAVAILABLE = 6;
+
+    public static final String EXTRA_CALL_PRESENTATION = "extra_call_presentation";
+    public static final String EXTRA_CONTACT_EXIST = "extra_contact_exist";
 }
