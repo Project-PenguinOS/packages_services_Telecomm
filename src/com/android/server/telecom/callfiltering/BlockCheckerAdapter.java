@@ -18,10 +18,11 @@ package com.android.server.telecom.callfiltering;
 
 import android.content.Context;
 import android.os.Bundle;
-import android.provider.BlockedNumberContract;
 import android.provider.BlockedNumbersManager;
 import android.telecom.Log;
 
+import com.android.server.telecom.Constants;
+import com.android.server.telecom.SystemBlockedNumberContract;
 import com.android.server.telecom.flags.FeatureFlags;
 
 public class BlockCheckerAdapter {
@@ -52,7 +53,7 @@ public class BlockCheckerAdapter {
      */
     public int getBlockStatus(Context context, String phoneNumber,
             int numberPresentation, boolean isNumberInContacts) {
-        int blockStatus = BlockedNumberContract.STATUS_NOT_BLOCKED;
+        int blockStatus = Constants.STATUS_NOT_BLOCKED;
         long startTimeNano = System.nanoTime();
         BlockedNumbersManager blockedNumbersManager = mFeatureFlags
                 .telecomMainlineBlockedNumbersManager()
@@ -61,14 +62,14 @@ public class BlockCheckerAdapter {
 
         try {
             Bundle extras = new Bundle();
-            extras.putInt(BlockedNumberContract.EXTRA_CALL_PRESENTATION, numberPresentation);
-            extras.putBoolean(BlockedNumberContract.EXTRA_CONTACT_EXIST, isNumberInContacts);
+            extras.putInt(Constants.EXTRA_CALL_PRESENTATION, numberPresentation);
+            extras.putBoolean(Constants.EXTRA_CONTACT_EXIST, isNumberInContacts);
             blockStatus = blockedNumbersManager != null
                     ? blockedNumbersManager.shouldSystemBlockNumber(phoneNumber,
                     numberPresentation, isNumberInContacts)
-                    : BlockedNumberContract.SystemContract.shouldSystemBlockNumber(context,
+                    : SystemBlockedNumberContract.shouldSystemBlockNumber(context,
                             phoneNumber, extras);
-            if (blockStatus != BlockedNumberContract.STATUS_NOT_BLOCKED) {
+            if (blockStatus != Constants.STATUS_NOT_BLOCKED) {
                 Log.d(TAG, phoneNumber + " is blocked.");
             }
         } catch (Exception e) {

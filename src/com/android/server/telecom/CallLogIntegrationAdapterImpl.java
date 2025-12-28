@@ -57,6 +57,9 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
     public static final String SHARED_PREFERENCES_NAME = "voip_call_log_integration_prefs";
     private static final String TAG = CallLogIntegrationAdapterImpl.class.getSimpleName();
     private static final String SHARED_PREFERENCES_KEY = "voip_call_log_integration_key";
+    // TODO(b/469253692): This constant is hidden in IntentFilter.
+    // Redefined locally to remove hidden API dependency.
+    private static final String SCHEME_PACKAGE = "package";
     private static final Intent CALLBACK_INTENT = new Intent(TelecomManager.ACTION_CALL_BACK);
     // We may need to force load from the shared preferences, i.e. when performing restore from
     // backup. The local cache may need to be invalidated in this case.
@@ -164,7 +167,7 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
         IntentFilter packageChangedFilter = new IntentFilter();
         packageChangedFilter.addAction(Intent.ACTION_PACKAGE_ADDED);
         packageChangedFilter.addAction(Intent.ACTION_PACKAGE_REMOVED);
-        packageChangedFilter.addDataScheme(IntentFilter.SCHEME_PACKAGE);
+        packageChangedFilter.addDataScheme(SCHEME_PACKAGE);
         Context allUsersContext = createUserContext(mContext, UserHandle.ALL);
         if (allUsersContext != null) {
             allUsersContext.registerReceiver(mPackageChangedReceiver, packageChangedFilter,

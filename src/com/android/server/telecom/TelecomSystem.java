@@ -77,11 +77,16 @@ public class TelecomSystem {
     public interface SyncRoot {
     }
 
+    /**
+     * Broadcast sent when the user is starting.
+     */
+    private static final String ACTION_USER_STARTING = "android.intent.action.USER_STARTING";
+
     private static final IntentFilter USER_SWITCHED_FILTER =
             new IntentFilter(Intent.ACTION_USER_SWITCHED);
 
     private static final IntentFilter USER_STARTING_FILTER =
-            new IntentFilter(Intent.ACTION_USER_STARTING);
+            new IntentFilter(ACTION_USER_STARTING);
 
     private static final IntentFilter BOOT_COMPLETE_FILTER =
             new IntentFilter(Intent.ACTION_BOOT_COMPLETED);
@@ -342,23 +347,14 @@ public class TelecomSystem {
             ToastFactory toastFactory = new ToastFactory() {
                 @Override
                 public void makeText(Context context, int resId, int duration) {
-                    if (mFeatureFlags.telecomResolveHiddenDependencies()) {
-                        context.getMainExecutor().execute(() ->
-                                Toast.makeText(context, resId, duration).show());
-                    } else {
-                        Toast.makeText(context, context.getMainLooper(),
-                                context.getString(resId), duration).show();
-                    }
+                    context.getMainExecutor().execute(() ->
+                            Toast.makeText(context, resId, duration).show());
                 }
 
                 @Override
                 public void makeText(Context context, CharSequence text, int duration) {
-                    if (mFeatureFlags.telecomResolveHiddenDependencies()) {
-                        context.getMainExecutor().execute(() ->
-                                Toast.makeText(context, text, duration).show());
-                    } else {
-                        Toast.makeText(context, context.getMainLooper(), text, duration).show();
-                    }
+                    context.getMainExecutor().execute(() ->
+                            Toast.makeText(context, text, duration).show());
                 }
             };
 
@@ -508,7 +504,6 @@ public class TelecomSystem {
                     },
                     defaultDialerCache,
                     new TelecomServiceImpl.SubscriptionManagerAdapterImpl(),
-                    new TelecomServiceImpl.SettingsSecureAdapterImpl(),
                     featureFlags,
                     moduleFeatureFlags,
                     moduleBugFixFeatureFlags,

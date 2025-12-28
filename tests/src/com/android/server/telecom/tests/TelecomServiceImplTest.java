@@ -159,20 +159,6 @@ public class TelecomServiceImplTest extends TelecomTestCase {
         }
     }
 
-    public static class SettingsSecureAdapterFake implements
-        TelecomServiceImpl.SettingsSecureAdapter {
-        @Override
-        public void putStringForUser(ContentResolver resolver, String name, String value,
-            int userHandle) {
-
-        }
-
-        @Override
-        public String getStringForUser(ContentResolver resolver, String name, int userHandle) {
-            return THIRD_PARTY_CALL_SCREENING.flattenToString();
-        }
-    }
-
     private static class AnyStringIn implements ArgumentMatcher<String> {
         private Collection<String> mStrings;
         public AnyStringIn(Collection<String> strings) {
@@ -198,8 +184,6 @@ public class TelecomServiceImplTest extends TelecomTestCase {
     private IntConsumer mDefaultDialerObserver;
     private TelecomServiceImpl.SubscriptionManagerAdapter mSubscriptionManagerAdapter =
             spy(new SubscriptionManagerAdapterFake());
-    private TelecomServiceImpl.SettingsSecureAdapter mSettingsSecureAdapter =
-        spy(new SettingsSecureAdapterFake());
     @Mock private UserCallIntentProcessor mUserCallIntentProcessor;
     private PackageManager mPackageManager;
     @Mock private ApplicationInfo mApplicationInfo;
@@ -267,7 +251,6 @@ public class TelecomServiceImplTest extends TelecomTestCase {
                 },
                 mDefaultDialerCache,
                 mSubscriptionManagerAdapter,
-                mSettingsSecureAdapter,
                 mFeatureFlags,
                 mModuleFeatureFlags,
                 mModuleBugFixFeatureFlags,

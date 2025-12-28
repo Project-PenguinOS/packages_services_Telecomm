@@ -250,6 +250,11 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      * {@link android.media.AudioManager#MODE_IN_CALL}.
      */
     public static final int RINGTONE_SOURCE_NETWORK_IN_CALL_MODE = 2;
+
+    /**
+     * Bit-field indicates that the number is from the test source.
+     */
+    private static final int EMERGENCY_NUMBER_SOURCE_TEST = 32;
     /**
      * Listener for CallState changes which can be leveraged by a Transaction.
      */
@@ -1923,7 +1928,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                     getTelephonyManager().getEmergencyNumberList();
             return eMap.values().stream().flatMap(Collection::stream)
                     .anyMatch(eNumber ->
-                            eNumber.isFromSources(EmergencyNumber.EMERGENCY_NUMBER_SOURCE_TEST) &&
+                            eNumber.isFromSources(EMERGENCY_NUMBER_SOURCE_TEST) &&
                                     number.equals(eNumber.getNumber()));
         } catch (UnsupportedOperationException uoe) {
             // No Telephony feature, so unable to determine.

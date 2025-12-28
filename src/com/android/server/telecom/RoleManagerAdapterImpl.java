@@ -95,7 +95,7 @@ public class RoleManagerAdapterImpl implements RoleManagerAdapter {
         if (mOverrideDefaultDialerApp != null) {
             return mOverrideDefaultDialerApp;
         }
-        return getRoleManagerDefaultDialerApp(new UserHandle(user));
+        return getRoleManagerDefaultDialerApp(UserHandle.of(user));
     }
 
     @Override

@@ -44,7 +44,6 @@ import android.media.AudioDeviceAttributes;
 import android.media.AudioDeviceCallback;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
-import android.media.IAudioService;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Message;

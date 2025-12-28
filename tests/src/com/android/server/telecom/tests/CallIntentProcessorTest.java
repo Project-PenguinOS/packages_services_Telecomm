@@ -95,6 +95,7 @@ public class CallIntentProcessorTest extends TelecomTestCase {
                 mMockCreateContextAsUser);
         when(mMockCreateContextAsUser.getSystemService(UserManager.class)).thenReturn(
                 mMockCurrentUserManager);
+        when(mMockCreateContextAsUser.getPackageManager()).thenReturn(mPackageManager);
         mCallIntentProcessor = new CallIntentProcessor(mContext, mCallsManager, mDefaultDialerCache,
                 mFeatureFlags);
         when(mFeatureFlags.telecomResolveHiddenDependencies()).thenReturn(false);
@@ -181,7 +182,7 @@ public class CallIntentProcessorTest extends TelecomTestCase {
         mCallIntentProcessor.processIntent(intent, TEST_PACKAGE_NAME);
 
         // Consent dialog should be shown
-        verify(mContext).startActivityAsUser(any(Intent.class), eq(PRIVATE_SPACE_USERHANDLE));
+        verify(mMockCreateContextAsUser).startActivity(any(Intent.class));
 
         /// Verify that the call does not proceeds as normal since the dialog was shown
         verify(mCallsManager, never()).startOutgoingCall(any(), any(), any(), any(), any(),
@@ -199,14 +200,13 @@ public class CallIntentProcessorTest extends TelecomTestCase {
 
     private void resolveAsIntentForwarderActivity() {
         when(mComponentName.getShortClassName()).thenReturn(
-                IntentForwarderActivity.FORWARD_INTENT_TO_PARENT);
+                mCallIntentProcessor.FORWARD_INTENT_TO_PARENT);
         when(mComponentInfo.getComponentName()).thenReturn(mComponentName);
         when(mResolveInfo.getComponentInfo()).thenReturn(mComponentInfo);
 
         when(mContext.getPackageManager()).thenReturn(mPackageManager);
 
-        when(mPackageManager.resolveActivityAsUser(any(Intent.class),
-                any(PackageManager.ResolveInfoFlags.class),
-                eq(PRIVATE_SPACE_USERHANDLE.getIdentifier()))).thenReturn(mResolveInfo);
+        when(mPackageManager.resolveActivity(any(Intent.class),
+                any(PackageManager.ResolveInfoFlags.class))).thenReturn(mResolveInfo);
     }
 }

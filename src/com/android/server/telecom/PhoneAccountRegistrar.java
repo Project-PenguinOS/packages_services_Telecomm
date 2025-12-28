@@ -880,10 +880,7 @@ public class PhoneAccountRegistrar {
 
         if (acrossProfiles) {
             UserManager um = mContext.getSystemService(UserManager.class);
-            return mTelecomFeatureFlags.telecomResolveHiddenDependencies()
-                    ? um.isSameProfileGroup(userHandle, phoneAccountUserHandle)
-                    : um.isSameProfileGroup(userHandle.getIdentifier(),
-                            phoneAccountUserHandle.getIdentifier());
+            return um.isSameProfileGroup(userHandle, phoneAccountUserHandle);
         } else {
             return phoneAccountUserHandle.equals(userHandle);
         }

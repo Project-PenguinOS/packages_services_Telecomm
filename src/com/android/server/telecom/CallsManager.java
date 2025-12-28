@@ -78,7 +78,6 @@ import android.os.SystemClock;
 import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.os.UserManager;
-import android.provider.BlockedNumberContract;
 import android.provider.BlockedNumbersManager;
 import android.provider.CallLog;
 import android.provider.CallLog.Calls;
@@ -105,6 +104,7 @@ import android.telecom.VideoProfile;
 import android.telephony.CarrierConfigManager;
 import android.telephony.CellIdentity;
 import android.telephony.PhoneNumberUtils;
+import android.telephony.SubscriptionInfo;
 // QTI_BEGIN: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
 import android.telephony.SubscriptionManager;
 // QTI_END: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
@@ -400,6 +400,16 @@ public class CallsManager extends Call.ListenerBase
                     CallState.PULLING};
 
     /**
+     * Phone is via IMS.
+     */
+    private static final int PHONE_TYPE_THIRD_PARTY = 4;
+
+    /**
+     * Phone is via Third Party.
+     */
+    private static final int PHONE_TYPE_IMS = 5;
+
+    /**
      * These states are used by {@link #makeRoomForOutgoingCall(Call, boolean)} to determine which
      * call should be ended first to make room for a new outgoing call.
      */
@@ -431,13 +441,14 @@ public class CallsManager extends Call.ListenerBase
     // Maps call technologies in TelephonyManager to those in Analytics.
     private static final Map<Integer, Integer> sAnalyticsTechnologyMap;
     static {
+        // TODO (b/469802407): Create consistent constants.
+
         sAnalyticsTechnologyMap = new HashMap<>(5);
         sAnalyticsTechnologyMap.put(TelephonyManager.PHONE_TYPE_CDMA, Analytics.CDMA_PHONE);
         sAnalyticsTechnologyMap.put(TelephonyManager.PHONE_TYPE_GSM, Analytics.GSM_PHONE);
-        sAnalyticsTechnologyMap.put(TelephonyManager.PHONE_TYPE_IMS, Analytics.IMS_PHONE);
+        sAnalyticsTechnologyMap.put(PHONE_TYPE_IMS, Analytics.IMS_PHONE);
         sAnalyticsTechnologyMap.put(TelephonyManager.PHONE_TYPE_SIP, Analytics.SIP_PHONE);
-        sAnalyticsTechnologyMap.put(TelephonyManager.PHONE_TYPE_THIRD_PARTY,
-                Analytics.THIRD_PARTY_PHONE);
+        sAnalyticsTechnologyMap.put(PHONE_TYPE_THIRD_PARTY, Analytics.THIRD_PARTY_PHONE);
     }
 
     private static final long WAIT_FOR_AUDIO_UPDATE_TIMEOUT = 4000L;
@@ -1927,9 +1938,8 @@ public class CallsManager extends Call.ListenerBase
                 .getSystemService(UserManager.class);
         boolean isCurrentUserAdmin = currentUserManager.isAdminUser();
         if (isCurrentUserAdmin) {
-            isCallHiddenFromProfile &= mFeatureFlags.telecomResolveHiddenDependencies()
-                    ? currentUserManager.isQuietModeEnabled(call.getAssociatedUser())
-                    : mUserManager.isQuietModeEnabled(call.getAssociatedUser());
+            isCallHiddenFromProfile &= currentUserManager.isQuietModeEnabled(
+                    call.getAssociatedUser());
         }
 
         boolean ignoreIncomingCallFailureOnSameNumber = false;
@@ -2229,7 +2239,20 @@ public class CallsManager extends Call.ListenerBase
                         TelephonyManager tm = getTelephonyManager().createForSubscriptionId(
                                 defaultVoiceSubId);
                         CellIdentity cellIdentity = tm.getLastKnownCellIdentity();
-                        simNumeric = tm.getSimOperatorNumeric();
+
+                        SubscriptionManager sm =
+                                    mContext.getSystemService(SubscriptionManager.class);
+                        SubscriptionInfo subInfo =
+                                    sm.getActiveSubscriptionInfo(defaultVoiceSubId);
+
+                        if (subInfo != null) {
+                            String mcc = subInfo.getMccString();
+                            String mnc = subInfo.getMncString();
+                            if (mcc != null && mnc != null) {
+                                simNumeric = mcc + mnc;
+                            }
+                        }
+
                         networkNumeric = (cellIdentity != null) ? cellIdentity.getPlmn() : "";
                     }
                     TelecomStatsLog.write(TelecomStatsLog.EMERGENCY_NUMBER_DIALED,
@@ -3123,9 +3146,7 @@ public class CallsManager extends Call.ListenerBase
             FeatureFlags featureFlags) {
         UserManager um;
         UserHandle userHandle = UserHandle.of(userId);
-        um = featureFlags.telecomResolveHiddenDependencies()
-                ? context.createContextAsUser(userHandle, 0).getSystemService(UserManager.class)
-                : context.getSystemService(UserManager.class);
+        um = context.createContextAsUser(userHandle, 0).getSystemService(UserManager.class);
 
         List<UserHandle> userProfiles = um.getAllProfiles();
         for (UserHandle userProfile : userProfiles) {
@@ -3139,7 +3160,7 @@ public class CallsManager extends Call.ListenerBase
                 return userProfile;
             }
         }
-        return new UserHandle(UserUtil.USER_NULL);
+        return UserHandle.of(UserUtil.USER_NULL);
     }
 
     private boolean showSwitchToManagedProfileDialog(Uri callUri, UserHandle initiatingUser,
@@ -3219,43 +3240,6 @@ public class CallsManager extends Call.ListenerBase
         if (resolveInfo.serviceInfo != null) return resolveInfo.serviceInfo;
         if (resolveInfo.providerInfo != null) return resolveInfo.providerInfo;
         throw new IllegalStateException("Missing ComponentInfo!");
-    }
-
-    private boolean maybeRedirectToIntentForwarderLegacy(
-            Uri callUri,
-            UserHandle initiatingUser) {
-        // Note: This intent is selected to match the CALL_MANAGED_PROFILE filter in
-        // DefaultCrossProfileIntentFiltersUtils. This ensures that it is redirected to
-        // IntentForwarderActivity.
-        Intent forwardCallIntent = new Intent(Intent.ACTION_CALL, callUri);
-        forwardCallIntent.addCategory(Intent.CATEGORY_DEFAULT);
-        ResolveInfo resolveInfos =
-                mContext.getPackageManager()
-                        .resolveActivityAsUser(
-                                forwardCallIntent,
-                                ResolveInfoFlags.of(0),
-                                initiatingUser.getIdentifier());
-        // Check that the intent will actually open the resolver rather than looping to the personal
-        // profile. This should not happen due to the cross profile intent filters.
-        if (resolveInfos == null
-                || !resolveInfos
-                    .getComponentInfo()
-                    .getComponentName()
-                    .getShortClassName()
-                    .equals(FORWARD_INTENT_TO_MANAGED_PROFILE)) {
-            Log.w(
-                    this,
-                    "Work profile telephony: Intent would not resolve to forwarder activity.");
-            return false;
-        }
-
-        try {
-            mContext.startActivityAsUser(forwardCallIntent, initiatingUser);
-            return true;
-        } catch (ActivityNotFoundException e) {
-            Log.e(this, e, "Unable to start call intent for work telephony");
-            return false;
-        }
     }
 
     private boolean maybeShowErrorDialog(
@@ -3826,7 +3810,7 @@ public class CallsManager extends Call.ListenerBase
                 if (mBlockedNumbersManager != null) {
                     mBlockedNumbersManager.notifyEmergencyContact();
                 } else {
-                    BlockedNumberContract.SystemContract.notifyEmergencyContact(mContext);
+                    SystemBlockedNumberContract.notifyEmergencyContact(mContext);
                 }
             }).start();
         }
@@ -6431,10 +6415,8 @@ public class CallsManager extends Call.ListenerBase
         mCurrentUserHandle = userHandle;
         mMissedCallNotifier.setCurrentUserHandle(userHandle);
         mRoleManagerAdapter.setCurrentUserHandle(userHandle);
-        final UserManager userManager = mFeatureFlags.telecomResolveHiddenDependencies()
-                ? mContext.createContextAsUser(userHandle, 0).getSystemService(
-                        UserManager.class)
-                : mContext.getSystemService(UserManager.class);
+        final UserManager userManager = mContext.createContextAsUser(
+                userHandle, 0).getSystemService(UserManager.class);
         List<UserHandle> profiles = userManager.getUserProfiles();
 
         for (UserHandle profileUser : profiles) {
@@ -6556,9 +6538,8 @@ public class CallsManager extends Call.ListenerBase
         UserManager userManager = mContext.getSystemService(UserManager.class);
         KeyguardManager keyguardManager = mContext.getSystemService(KeyguardManager.class);
 
-        boolean hasUserRestriction = mFeatureFlags.telecomResolveHiddenDependencies()
-                ? userManager.hasUserRestrictionForUser(UserManager.DISALLOW_SMS, callingUserHandle)
-                : userManager.hasUserRestriction(UserManager.DISALLOW_SMS, callingUserHandle);
+        boolean hasUserRestriction = userManager.hasUserRestrictionForUser(UserManager.DISALLOW_SMS,
+                callingUserHandle);
         boolean isUserRestricted = userManager != null && hasUserRestriction;
         boolean isLockscreenRestricted = keyguardManager != null
                 && keyguardManager.isDeviceLocked();
