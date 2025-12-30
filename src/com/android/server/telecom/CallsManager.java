@@ -2864,6 +2864,9 @@ public class CallsManager extends Call.ListenerBase
         CompletableFuture<Pair<PhoneAccountHandle, Boolean>> makeRoomForCall =
                 dialerSelectPhoneAccountFuture.thenComposeAsync(potentialCallAttr -> {
                     Log.i(CallsManager.this, "make room for call stage");
+                    if (potentialCallAttr == null) {
+                        return CompletableFuture.completedFuture(null);
+                    }
                     Call callToPlace = potentialCallAttr.first;
                     PhoneAccountHandle callHandle = potentialCallAttr.second;
                     if (callToPlace == null) {
