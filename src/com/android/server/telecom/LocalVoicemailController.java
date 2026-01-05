@@ -74,6 +74,13 @@ public class LocalVoicemailController extends CallsManagerListenerBase implement
     }
 
     /**
+     * Callback for parties interested in events related to local voicemail.
+     */
+    public interface LocalVoicemailListener {
+        void onLocalVoicemailScheduled(Call call);
+    }
+
+    /**
      * {@link ServiceConnection} handling changes to binding of the {@link LocalVoicemailService}.
      */
     private class LocalVoicemailServiceConnection implements ServiceConnection {
@@ -182,11 +189,14 @@ public class LocalVoicemailController extends CallsManagerListenerBase implement
     // Tracks all calls so we can correctness-check to see if we have to terminate local voicemail
     // because of call concurrency.
     private final Set<Call> mCalls = new ArraySet();
+    private final Set<LocalVoicemailListener> mLocalVoicemailListeners = new ArraySet<>();
+
     /**
      * This call is pending local voicemail processing; this is set as soon as we set the timeout
      * for local voicemail.
      */
     private Call mCall;
+    private boolean mIsLocalPickupPending = false;
     private ILocalVoicemailService mILocalVoicemailService;
     private LocalVoicemailServiceAdapter mAdapter;
     private LocalVoicemailServiceConnection mConnection;
@@ -312,6 +322,14 @@ public class LocalVoicemailController extends CallsManagerListenerBase implement
         return TextUtils.isEmpty(mPackageName) ? null : mPackageName;
     }
 
+    public void addListener(LocalVoicemailListener localVoicemailListener) {
+        mLocalVoicemailListeners.add(localVoicemailListener);
+    }
+
+    public void removeListener(LocalVoicemailListener localVoicemailListener) {
+        mLocalVoicemailListeners.remove(localVoicemailListener);
+    }
+
     /**
      * Check for a situation where another call was added which would necessitate stopping local
      * voicemail.  In practice this should NOT happen as call sequencing is going to ensure that
@@ -346,6 +364,19 @@ public class LocalVoicemailController extends CallsManagerListenerBase implement
      */
     public boolean isEligibleForLocalVoicemail(Call call) {
         return isEligibleForLocalVoicemail(call, mCalls);
+    }
+
+    /**
+     * Used to notify the controller that a lock pickup is pending so that we do not treat it as
+     * an invalid state transition and drop the call.
+     * @param call The call.
+     */
+    public void notifyLocalPickup(Call call) {
+        if (mCall == call) {
+            Log.i(this, "notifyLocalPickup: callid=%s was picked up locally; will not drop.",
+                    call.getId());
+            mIsLocalPickupPending = true;
+        }
     }
 
     /**
@@ -386,7 +417,9 @@ public class LocalVoicemailController extends CallsManagerListenerBase implement
             ScheduledFuture<?> timeoutFuture = mScheduledExecutorService.schedule(
                     getAnswerRunnable(call), timeoutDuration.toSeconds(), TimeUnit.SECONDS);
             mScheduledFutureMap.put(call, timeoutFuture);
+            mLocalVoicemailListeners.forEach(l -> l.onLocalVoicemailScheduled(call));
             mCall = call;
+            mIsLocalPickupPending = false;
         }
     }
 
@@ -417,6 +450,22 @@ public class LocalVoicemailController extends CallsManagerListenerBase implement
     }
 
     /**
+     * Sends the specified ringing call to local voicemail.
+     * @param call the call.
+     */
+    public void sendCallToLocalVoicemail(Call call) {
+        if (call != mCall) {
+            return;
+        }
+        // Cancel any pending future auto-pickup.
+        if (mScheduledFutureMap.containsKey(call)) {
+            ScheduledFuture<?> existingTimeout = mScheduledFutureMap.remove(call);
+            existingTimeout.cancel(false /* cancelIfRunning */);
+        }
+        answerForLocalVoicemail(call);
+    }
+
+    /**
      * Cleanup a call that was scheduled for local voicemail.
      *
      * @param call the call.
@@ -428,6 +477,7 @@ public class LocalVoicemailController extends CallsManagerListenerBase implement
         }
         if (mCall == call) {
             mCall = null;
+            mIsLocalPickupPending = false;
         }
     }
 
@@ -590,7 +640,12 @@ public class LocalVoicemailController extends CallsManagerListenerBase implement
             // Not in local voicemail.
             return;
         }
-        disconnectLocalVmCall();
+        // If there was a local pickup request (ie the user wants to talk to the other party), then
+        // we can skip disconnecting the call.
+        if (!mIsLocalPickupPending) {
+            disconnectLocalVmCall();
+            mIsLocalPickupPending = false;
+        }
         maybeUnbindLocalVoicemailService();
     }
 
