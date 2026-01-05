@@ -33,7 +33,7 @@ public class CallDiagnosticServiceAdapter extends ICallDiagnosticServiceAdapter.
     public interface TelecomAdapter {
         void displayDiagnosticMessage(String callId, int messageId, CharSequence message);
         void clearDiagnosticMessage(String callId, int messageId);
-        void sendDeviceToDeviceMessage(String callId, @CallDiagnostics.MessageType int message,
+        void sendDeviceToDeviceMessage(String callId, /*@CallDiagnostics.MessageType*/ int message,
                 int value);
         void overrideDisconnectMessage(String callId, CharSequence message);
     }
@@ -90,7 +90,7 @@ public class CallDiagnosticServiceAdapter extends ICallDiagnosticServiceAdapter.
     }
 
     @Override
-    public void sendDeviceToDeviceMessage(String callId, @CallDiagnostics.MessageType int message,
+    public void sendDeviceToDeviceMessage(String callId, /*@CallDiagnostics.MessageType*/ int message,
             int value)
             throws RemoteException {
         try {

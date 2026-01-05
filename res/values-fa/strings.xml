@@ -90,8 +90,8 @@
     <string name="answering_ends_other_managed_call" msgid="4031778317409881805">"پاسخ‌گویی به تماس درحال انجامتان پایان می‌دهد"</string>
     <string name="answering_ends_other_managed_calls" msgid="3974069768615307659">"پاسخ‌گویی به تماس‌های درحال انجامتان پایان می‌دهد"</string>
     <string name="answering_ends_other_managed_video_call" msgid="1988508241432031327">"پاسخ‌گویی به تماس تصویری درحال انجامتان پایان می‌دهد"</string>
-    <string name="answer_incoming_call" msgid="2045888814782215326">"پاسخ‌گویی"</string>
-    <string name="decline_incoming_call" msgid="922147089348451310">"نپذیرفتن"</string>
+    <string name="answer_incoming_call" msgid="2045888814782215326">"جواب"</string>
+    <string name="decline_incoming_call" msgid="922147089348451310">"رد کردن"</string>
     <string name="cant_call_due_to_no_supported_service" msgid="6720817368116820027">"تماس برقرار نشد. اتصال دستگاهتان را بررسی کنید."</string>
     <string name="cant_call_due_to_ongoing_call" msgid="8004235328451385493">"به دلیل تماس <xliff:g id="OTHER_CALL">%1$s</xliff:g>، نمی‌توان تماسی برقرار کرد."</string>
     <string name="cant_call_due_to_ongoing_calls" msgid="6379163795277824868">"به دلیل تماس‌های <xliff:g id="OTHER_CALL">%1$s</xliff:g>، نمی‌توان تماسی برقرار کرد."</string>

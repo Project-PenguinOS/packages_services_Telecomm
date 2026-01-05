@@ -50,11 +50,11 @@ public class TelecomBackupAgentTest extends TelecomTestCase {
             mBackupHelper = helper;
         }
 
-        public String getBackupKey() {
+        String getBackupKey() {
             return mBackupKey;
         }
 
-        public BackupHelper getBackupHelper() {
+        BackupHelper getBackupHelper() {
             return mBackupHelper;
         }
     }
@@ -79,6 +79,9 @@ public class TelecomBackupAgentTest extends TelecomTestCase {
     @Test
     @SmallTest
     public void testAddCallIntegrationSharedPrefBackup() {
+        if (!android.telecom.flags.Flags.integratedCallLogsStage2()) {
+            return;
+        }
         mTestBackupAgent.onCreate();
         // Verify that addHelper was called for call log integration backup key
         assertEquals(TelecomBackupAgent.CALL_LOG_INTEGRATION_BACKUP_KEY,

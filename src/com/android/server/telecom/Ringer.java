@@ -21,9 +21,6 @@ import static android.provider.CallLog.Calls.USER_MISSED_LOW_RING_VOLUME;
 import static android.provider.CallLog.Calls.USER_MISSED_NO_VIBRATE;
 import static android.provider.Settings.Global.ZEN_MODE_OFF;
 
-import static com.android.server.telecom.Call.RINGTONE_TYPE_CRS;
-import static com.android.server.telecom.Call.RINGTONE_TYPE_MEDIA;
-
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.Notification;
@@ -62,11 +59,9 @@ import android.os.Vibrator;
 import android.os.vibrator.persistence.ParsedVibration;
 import android.os.vibrator.persistence.VibrationXmlParser;
 // QTI_BEGIN: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
-import android.provider.Settings;
 // QTI_END: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
 import android.telecom.Log;
 import android.telecom.TelecomManager;
-import android.text.TextUtils;
 import android.util.Pair;
 import android.view.accessibility.AccessibilityManager;
 
@@ -251,6 +246,7 @@ public class Ringer {
     private final boolean mRingtoneVibrationSupported;
     private final AnomalyReporterAdapter mAnomalyReporter;
     private RingerAttributes mRingerAttributes;
+    private final CrsAudioController mCrsAudioController;
 
     /**
      * For unit testing purposes only; when set, {@link #startRinging(Call, boolean)} will complete
@@ -329,7 +325,8 @@ public class Ringer {
             FeatureFlags featureFlags,
             AnomalyReporterAdapter anomalyReporter,
             CallConnectedIndicatorSettings callConnectedIndicator,
-            Executor asyncTaskExecutor) {
+            Executor asyncTaskExecutor,
+            CrsAudioController crsAudioController) {
 
         mLock = new Object();
         mSystemSettingsUtil = systemSettingsUtil;
@@ -354,10 +351,13 @@ public class Ringer {
         mIsHapticPlaybackSupportedByDevice =
                 mSystemSettingsUtil.isHapticPlaybackSupported(mContext);
         mFlags = featureFlags;
-        mRingtoneVibrationSupported = mContext.getResources().getBoolean(
-                com.android.internal.R.bool.config_ringtoneVibrationSettingsSupported);
+        Resources res = mContext.getResources();
+        int resourceId = Resources.getSystem().getIdentifier(
+                "config_ringtoneVibrationSettingsSupported", "bool", "android");
+        mRingtoneVibrationSupported = res.getBoolean(resourceId);
         mCallConnectedIndicatorSettings = callConnectedIndicator;
         mAsyncTaskExecutor = asyncTaskExecutor;
+        mCrsAudioController = crsAudioController;
     }
 
     public void shutdownExecutor() {
@@ -756,10 +756,14 @@ public class Ringer {
 
             if (mRingerAttributes.isRingerAudible()) {
                 mRingingCall = foregroundCall;
-                if (mRingerAttributes.getRingtoneType() == RINGTONE_TYPE_MEDIA) {
+                if (mRingerAttributes.getRingtoneType() == Call.RINGTONE_SOURCE_LOCAL) {
                     Log.addEvent(foregroundCall, LogUtils.Events.START_RINGER);
-                } else if (mRingerAttributes.getRingtoneType() == RINGTONE_TYPE_CRS) {
-                    Log.addEvent(foregroundCall, LogUtils.Events.START_CRS_RINGER);
+                } else if (mRingerAttributes.getRingtoneType()
+                        == Call.RINGTONE_SOURCE_NETWORK_RING_MODE) {
+                    Log.addEvent(foregroundCall, LogUtils.Events.START_CRS_RINGER_IN_MODE_RINGTONE);
+                } else if (mRingerAttributes.getRingtoneType()
+                        == Call.RINGTONE_SOURCE_NETWORK_IN_CALL_MODE) {
+                    Log.addEvent(foregroundCall, LogUtils.Events.START_CRS_RINGER_IN_MODE_IN_CALL);
                 }
                 // Because we wait until a contact info query to complete before processing a
                 // call (for the purposes of direct-to-voicemail), the information about custom
@@ -823,7 +827,8 @@ public class Ringer {
             // Defer ringtone creation to the async player thread.
             Supplier<Pair<Uri, Ringtone>> ringtoneInfoSupplier = null;
             final boolean finalHapticChannelsMuted = hapticChannelsMuted;
-            if (!isHapticOnly && mRingerAttributes.getRingtoneType() == RINGTONE_TYPE_MEDIA) {
+            if (!isHapticOnly
+                    && mRingerAttributes.getRingtoneType() == Call.RINGTONE_SOURCE_LOCAL) {
                 ringtoneInfoSupplier = () -> mRingtoneFactory.getRingtone(
                         foregroundCall, mVolumeShaperConfig, finalHapticChannelsMuted);
             } else if (useCustomVibration(foregroundCall)) {
@@ -886,12 +891,11 @@ public class Ringer {
                 }
             };
             deferBlockOnRingingFuture = true;  // Run in vibrationLogic.
-            if (mRingerAttributes.getRingtoneType() == RINGTONE_TYPE_CRS) {
-                 //CRS has no haptics channel
-                Log.i(this, "Play customized ringing signal in RINGTONE Mode");
-                setVolumeLevelForCrsInRingtoneMode
-                    (mAudioManager.getStreamVolume(AudioManager.STREAM_RING));
-                afterRingtoneLogic.accept(/* ringtone= */ null, /* stopped= */ false);
+            if (foregroundCall.isCrsCall()) {
+                if (mCrsAudioController != null) {
+                    mCrsAudioController.configureCrsRingVolume(mRingerAttributes);
+                }
+                afterRingtoneLogic.accept(/* ringtoneUri, ringtone = */ null, /* stopped= */ false);
             } else if (ringtoneInfoSupplier != null) {
                 mRingtonePlayer.play(ringtoneInfoSupplier, afterRingtoneLogic, isHfpDeviceAttached);
             } else {
@@ -1090,19 +1094,19 @@ public class Ringer {
         }
 
         synchronized (mLock) {
-            if (mRingingCall != null) {
-                Log.addEvent(mRingingCall, LogUtils.Events.STOP_RINGER);
-                mRingingCall = null;
-            }
-
             if (mRingerAttributes != null
-                    && mRingerAttributes.getRingtoneType() == RINGTONE_TYPE_CRS) {
-                //set CRS_volume as 0 when CRS is stopped or silence the call.
-                setVolumeLevelForCrsInRingtoneMode(0);
-                mRingerAttributes = null;
-            } else {
+                    && mRingerAttributes.getRingtoneType() == Call.RINGTONE_SOURCE_LOCAL) {
+            if (mRingingCall != null) {
+                    Log.addEvent(mRingingCall, LogUtils.Events.STOP_RINGER);
+                    mRingingCall = null;
+                }
                 mRingtonePlayer.stop();
             }
+
+            if (foregroundCall != null && mCrsAudioController != null) {
+                mCrsAudioController.resetCrsAudioVolume(foregroundCall, mRingerAttributes);
+            }
+            mRingerAttributes = null;
 
             if (mIsVibrating) {
                 Log.addEvent(mVibratingCall, LogUtils.Events.STOP_VIBRATOR);
@@ -1128,7 +1132,10 @@ public class Ringer {
 
     public boolean isRinging() {
         return mRingtonePlayer.isPlaying()
-                || mRingerAttributes.getRingtoneType() == RINGTONE_TYPE_CRS;
+                || (mRingerAttributes != null
+                && (mRingerAttributes.getRingtoneType() == Call.RINGTONE_SOURCE_NETWORK_RING_MODE
+                || mRingerAttributes.getRingtoneType() == Call.RINGTONE_SOURCE_NETWORK_IN_CALL_MODE)
+        );
     }
 
     /**
@@ -1184,6 +1191,8 @@ public class Ringer {
                 && (audioManager.getRingerMode() != AudioManager.RINGER_MODE_SILENT
                 || (zenModeOn && shouldRingForContact));
     }
+// QTI_BEGIN: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
+// QTI_END: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
 
     /**
      * There are 3 settings for haptics:
@@ -1294,9 +1303,11 @@ public class Ringer {
                     ((isHfpDeviceAttached && shouldRingForContact) || isSelfManaged);
         }
 
-        boolean isCrsInRingToneMode =
-                call.isCrsCall() && call.getCrsMode() == AudioManager.MODE_RINGTONE;
-        int ringToneType = isCrsInRingToneMode ? RINGTONE_TYPE_CRS : RINGTONE_TYPE_MEDIA;
+        int ringToneType = Call.RINGTONE_SOURCE_LOCAL;
+        if (call.isCrsCall() && mCrsAudioController!= null) {
+            ringToneType = mCrsAudioController.getCrsRingToneType(call);
+            Log.i(TAG, "CRS mode : Set the ringToneType : ", ringToneType);
+        }
 
         // Set missed reason according to attributes
         if (!isVolumeOverZero) {
@@ -1372,9 +1383,9 @@ public class Ringer {
     private static VibrationEffect loadSerializedDefaultRingVibration(
             Resources resources, Vibrator vibrator) {
         try {
-            InputStream vibrationInputStream =
-                    resources.openRawResource(
-                            com.android.internal.R.raw.default_ringtone_vibration_effect);
+            int resourceId = Resources.getSystem().getIdentifier(
+                    "default_ringtone_vibration_effect", "raw", "android");
+            InputStream vibrationInputStream = resources.openRawResource(resourceId);
             ParsedVibration parsedVibration = VibrationXmlParser
                     .parseDocument(
                             new InputStreamReader(vibrationInputStream, StandardCharsets.UTF_8));
@@ -1430,14 +1441,11 @@ public class Ringer {
     }
 
     public void startVibratingForOutgoingCallActive() {
-        /*if (!mFlags.callConnectedIndicatorPreference()) {
+        if (!android.telecom.flags.Flags.callConnectedIndicatorPreference()) {
             Log.i(TAG, "Call connected indicator of vibration is disabled.");
             return;
-        }*/
-        final boolean isVibratingEnabled = Settings.Global.getInt(mContext.getContentResolver(),
-                Settings.Global.VIBRATING_FOR_OUTGOING_CALL_ACCEPTED, 1) == 1;
-        if (!mIsVibrating && (mCallConnectedIndicatorSettings.isCallConnectedVibrationEnabled()
-                || isVibratingEnabled)) {
+        }
+        if (!mIsVibrating && (mCallConnectedIndicatorSettings.isCallConnectedVibrationEnabled())) {
             mIsVibrating = true;
             mAsyncTaskExecutor.execute(() -> {
                 final VibrationEffect vibrationEffect =
@@ -1458,13 +1466,4 @@ public class Ringer {
         }
     }
 
-    private void setVolumeLevelForCrsInRingtoneMode(int volume) {
-        String crsVolumeKeyPrefix = mContext.getResources().getString(
-                R.string.config_audio_parameter_key_crs_volume);
-        Log.d(this, "CRS volume index key: " + crsVolumeKeyPrefix);
-        if (!TextUtils.isEmpty(crsVolumeKeyPrefix)) {
-            Log.i(this, "set CRS volume as : " + crsVolumeKeyPrefix + volume);
-            mAudioManager.setParameters(crsVolumeKeyPrefix + volume);
-        }
-    }
 }

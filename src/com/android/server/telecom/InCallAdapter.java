@@ -138,7 +138,7 @@ class InCallAdapter extends IInCallAdapter.Stub {
 
     @Override
     public void rejectCallWithReason(String callId,
-            @android.telecom.Call.RejectReason int rejectReason) {
+            /*@android.telecom.Call.RejectReason*/ int rejectReason) {
         try {
             Log.startSession(LogUtils.Sessions.ICA_REJECT_CALL, mOwnerPackageAbbreviation);
 
@@ -391,10 +391,11 @@ class InCallAdapter extends IInCallAdapter.Stub {
     public void setAudioRoute(int route, String bluetoothAddress) {
         try {
             Log.startSession(LogUtils.Sessions.ICA_SET_AUDIO_ROUTE, mOwnerPackageAbbreviation);
+            int uid = Binder.getCallingUid();
             long token = Binder.clearCallingIdentity();
             try {
                 synchronized (mLock) {
-                    mCallsManager.setAudioRoute(route, bluetoothAddress);
+                    mCallsManager.setAudioRoute(uid, route, bluetoothAddress);
                     if (Flags.callEndpointRequestedApi()) {
                         CallEndpointController controller = mCallsManager
                                 .getCallEndpointController();
@@ -446,10 +447,11 @@ class InCallAdapter extends IInCallAdapter.Stub {
     public void requestCallEndpointChange(CallEndpoint endpoint, ResultReceiver callback) {
         try {
             Log.startSession(LogUtils.Sessions.ICA_SET_AUDIO_ROUTE, mOwnerPackageAbbreviation);
+            int uid = Binder.getCallingUid();
             long token = Binder.clearCallingIdentity();
             try {
                 synchronized (mLock) {
-                    mCallsManager.requestCallEndpointChange(endpoint, callback);
+                    mCallsManager.requestCallEndpointChange(uid, endpoint, callback);
                     if (Flags.callEndpointRequestedApi()) {
                         mCallsManager.onCallEndpointRequested(mOwnerPackageName, endpoint);
                     }

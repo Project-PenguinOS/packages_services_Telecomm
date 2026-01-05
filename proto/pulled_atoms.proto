@@ -20,6 +20,8 @@ message PulledAtoms {
   optional int64 call_sequencing_stats_pull_timestamp_millis = 12;
   repeated CallSequencingOperationStats call_sequencing_operation_stats = 13;
   optional int64 call_sequencing_operations_stats_pull_timestamp_millis = 14;
+  repeated CallEndPointStats call_endpoint_stats = 15;
+  optional int64 call_endpoint_stats_pull_timestamp_millis = 16;
 }
 
 /**
@@ -237,4 +239,33 @@ message CallSequencingOperationStats {
 
   // Duration (ms) taken for operation to complete
   optional int32 operation_duration_ms = 14;
+}
+
+/**
+ * Pulled atom to capture stats of telecom call endpoint changes
+ */
+message CallEndPointStats {
+    // The call audio endpoint type requested. They are defined in
+    // frameworks/proto_logging/stats/enums/telecomm/enums.proto
+    optional int32 endpoint_requested = 1;
+
+    // The call audio endpoint type notified. They are defined in
+    // frameworks/proto_logging/stats/enums/telecomm/enums.proto
+    optional int32 endpoint_notified = 2;
+
+    // UID of the package to request the call endpoint.
+    optional int32 uid = 3;
+
+    // The result of the audio endpoint change. The types are defined
+    // in frameworks/proto_logging/stats/enums/telecomm/enums.proto
+    optional int32 result = 4;
+
+    // True if it is timeout without receiving an endpoint change
+    optional bool timeout = 5;
+
+    // Average time from the request to notification
+    optional int32 average_latency_ms = 6;
+
+    // The number of times this stat occurs
+    optional int32 count = 7;
 }

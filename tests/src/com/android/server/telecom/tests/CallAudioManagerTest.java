@@ -43,9 +43,6 @@ import android.os.Looper;
 import android.telecom.DisconnectCause;
 import android.util.SparseArray;
 
-import androidx.test.filters.MediumTest;
-import androidx.test.filters.SmallTest;
-
 import com.android.server.telecom.Call;
 import com.android.server.telecom.CallAudioManager;
 import com.android.server.telecom.CallAudioModeStateMachine;
@@ -55,6 +52,7 @@ import com.android.server.telecom.CallAudioRouteController;
 import com.android.server.telecom.CallConnectedIndicatorSettings;
 import com.android.server.telecom.CallState;
 import com.android.server.telecom.CallsManager;
+import com.android.server.telecom.CrsAudioController;
 import com.android.server.telecom.DtmfLocalTonePlayer;
 import com.android.server.telecom.InCallController;
 import com.android.server.telecom.InCallTonePlayer;
@@ -94,6 +92,7 @@ public class CallAudioManagerTest extends TelecomTestCase {
     @Mock private BluetoothStateReceiver mBluetoothStateReceiver;
     @Mock private TelecomSystem.SyncRoot mLock;
     @Mock private CallConnectedIndicatorSettings mCallConnectedIndicatorSettings;
+    @Mock private CrsAudioController mCrsAudioController;
 
     @Mock private FeatureFlags mFlags;
 
@@ -118,6 +117,7 @@ public class CallAudioManagerTest extends TelecomTestCase {
         when(mAudioManager.getParameters("isCRSsupported")).thenReturn("isCRSsupported=1");
         when(mFlags.ensureAudioModeUpdatesOnForegroundCallChange()).thenReturn(true);
         when(mCallConnectedIndicatorSettings.isCallConnectedToneEnabled()).thenReturn(false);
+        when(mCallsManager.getCrsAudioController()).thenReturn(mCrsAudioController);
         mCallAudioManager = new CallAudioManager(
                 mCallAudioRouteController,
                 mCallsManager,
@@ -137,7 +137,64 @@ public class CallAudioManagerTest extends TelecomTestCase {
         super.tearDown();
     }
 
-    @MediumTest
+    @Test
+    public void testCrsCallFlow() {
+        // 1. Incoming CRS call
+        Call call = createIncomingCall();
+        assertFalse(mCallAudioManager.isCrsInCallMode());
+
+        // 2. CRS falls back to local ringing
+        mCallAudioManager.onCrsFallbackLocalRinging(call);
+        verify(mCallAudioModeStateMachine).sendMessageWithArgs(
+                eq(CallAudioModeStateMachine.CRS_FALLBACK_TO_LOCAL_RINGING),
+                any(CallAudioModeStateMachine.MessageArgs.class));
+
+        // 3. Answer the call
+        when(call.getState()).thenReturn(CallState.ACTIVE);
+        mCallAudioManager.onCallStateChanged(call, CallState.RINGING, CallState.ACTIVE);
+
+        // Verify CRS is NOT reset in this scenario based on current production code logic
+        verify(mCrsAudioController, never()).resetAudioDevices(eq(mCallAudioManager),
+                eq(mCallsManager), eq(call), eq(CallState.ACTIVE));
+        assertFalse(mCallAudioManager.isCrsInCallMode());
+    }
+
+    @Test
+    public void testCrsCallFlow_inCallMode() {
+        // 1. Incoming CRS call
+        when(mCrsAudioController.isCrsInCallMode(any())).thenReturn(true);
+        Call call = createIncomingCall();
+        assertTrue(mCallAudioManager.isCrsInCallMode());
+
+        // 2. Answer the call
+        when(call.getState()).thenReturn(CallState.ACTIVE);
+        mCallAudioManager.onCallStateChanged(call, CallState.RINGING, CallState.ACTIVE);
+
+        // Verify CRS is reset
+        verify(mCrsAudioController).resetAudioDevices(eq(mCallAudioManager), eq(mCallsManager),
+                eq(call),
+                eq(CallState.ACTIVE));
+        assertFalse(mCallAudioManager.isCrsInCallMode());
+    }
+
+    @Test
+    public void testCrsFallback_SilencedCall() {
+        Call call = createIncomingCall();
+        assertFalse(mCallAudioManager.isCrsInCallMode());
+
+        // Silence the ringer
+        mCallAudioManager.silenceRingers(mContext, null, true);
+
+        // CRS falls back
+        mCallAudioManager.onCrsFallbackLocalRinging(call);
+
+        // Verify we DO NOT send the message to the state machine because the call is silenced.
+        verify(mCallAudioModeStateMachine, never()).sendMessageWithArgs(
+                eq(CallAudioModeStateMachine.CRS_FALLBACK_TO_LOCAL_RINGING),
+                any(CallAudioModeStateMachine.MessageArgs.class));
+    }
+
+
     @Test
     public void testUnmuteOfSecondIncomingCall() {
         // Start with a single incoming call.
@@ -201,7 +258,6 @@ public class CallAudioManagerTest extends TelecomTestCase {
                 .lastIndexOf(CallAudioRouteController.MUTE_OFF));
     }
 
-    @MediumTest
     @Test
     public void testSingleIncomingCallFlowWithoutMTSpeedUp() {
         Call call = createIncomingCall();
@@ -237,7 +293,6 @@ public class CallAudioManagerTest extends TelecomTestCase {
         verifyProperCleanup();
     }
 
-    @MediumTest
     @Test
     public void testSingleIncomingCallFlowWithMTSpeedUp() {
         Call call = createIncomingCall();
@@ -274,7 +329,6 @@ public class CallAudioManagerTest extends TelecomTestCase {
         verifyProperCleanup();
     }
 
-    @MediumTest
     @Test
     public void testSingleOutgoingCall() {
         Call call = mock(Call.class);
@@ -332,10 +386,8 @@ public class CallAudioManagerTest extends TelecomTestCase {
         verifyProperCleanup();
     }
 
-    @MediumTest
     @Test
     public void testOutgoingCall_SwitchFocus_WaitForBtIcs() {
-        when(mFlags.delayFocusSwitchForBtIcs()).thenReturn(true);
         Call call = mock(Call.class);
         when(call.getState()).thenReturn(CallState.CONNECTING);
         CompletableFuture<Boolean> btIcsFuture = new CompletableFuture<>();
@@ -364,10 +416,8 @@ public class CallAudioManagerTest extends TelecomTestCase {
         verifyProperCleanup();
     }
 
-    @MediumTest
     @Test
     public void testOutgoingCall_SwitchFocus_WaitForBtIcs_OnlyOnce() {
-        when(mFlags.delayFocusSwitchForBtIcs()).thenReturn(true);
         Call call = mock(Call.class);
         // When the call is ringing
         when(call.getState()).thenReturn(CallState.RINGING);
@@ -409,10 +459,8 @@ public class CallAudioManagerTest extends TelecomTestCase {
         verifyProperCleanup();
     }
 
-    @MediumTest
     @Test
     public void testOutgoingCall_SwitchFocus_WaitForBtIcs_CallRemoved() {
-        when(mFlags.delayFocusSwitchForBtIcs()).thenReturn(true);
         Call call = mock(Call.class);
         when(call.getState()).thenReturn(CallState.CONNECTING);
         CompletableFuture<Boolean> btIcsFuture = new CompletableFuture<>();
@@ -436,10 +484,8 @@ public class CallAudioManagerTest extends TelecomTestCase {
                 any(CallAudioModeStateMachine.MessageArgs.class));
     }
 
-    @MediumTest
     @Test
     public void testRingingCall_SwitchFocus_WaitForBtIcs_CallRemoved() {
-        when(mFlags.delayFocusSwitchForBtIcs()).thenReturn(true);
         Call call = mock(Call.class);
         when(call.getState()).thenReturn(CallState.RINGING);
         CompletableFuture<Boolean> btIcsFuture = new CompletableFuture<>();
@@ -463,11 +509,9 @@ public class CallAudioManagerTest extends TelecomTestCase {
                 any(CallAudioModeStateMachine.MessageArgs.class));
     }
 
-    @MediumTest
     @Test
     public void testOutgoingCall_SwitchFocus_WaitForBtIcs_Exceptional_CallRemoved()
             throws Exception {
-        when(mFlags.delayFocusSwitchForBtIcs()).thenReturn(true);
         Call call = mock(Call.class);
         when(call.getState()).thenReturn(CallState.CONNECTING);
         CompletableFuture<Boolean> btIcsFuture = new CompletableFuture<>();
@@ -494,11 +538,9 @@ public class CallAudioManagerTest extends TelecomTestCase {
                 any(CallAudioModeStateMachine.MessageArgs.class));
     }
 
-    @MediumTest
     @Test
     public void testRingingCall_SwitchFocus_WaitForBtIcs_Exceptional_CallRemoved()
             throws Exception {
-        when(mFlags.delayFocusSwitchForBtIcs()).thenReturn(true);
         Call call = mock(Call.class);
         when(call.getState()).thenReturn(CallState.RINGING);
         CompletableFuture<Boolean> btIcsFuture = new CompletableFuture<>();
@@ -531,7 +573,6 @@ public class CallAudioManagerTest extends TelecomTestCase {
         testSingleOutgoingCall();
     }
 
-    @MediumTest
     @Test
     public void testRingbackStartStop() {
         Call call = mock(Call.class);
@@ -597,7 +638,6 @@ public class CallAudioManagerTest extends TelecomTestCase {
         testRingbackStartStop();
     }
 
-    @SmallTest
     @Test
     public void testNewCallGoesToAudioProcessing() {
         Call call = mock(Call.class);
@@ -630,7 +670,6 @@ public class CallAudioManagerTest extends TelecomTestCase {
         assertMessageArgEquality(expectedArgs, captor.getValue());
     }
 
-    @SmallTest
     @Test
     public void testRingingCallGoesToAudioProcessing() {
         Call call = mock(Call.class);
@@ -640,6 +679,7 @@ public class CallAudioManagerTest extends TelecomTestCase {
 
         // Make sure appropriate messages are sent when we add a RINGING call
         mCallAudioManager.onCallAdded(call);
+        call.getBtIcsFuture().complete(true);
         mCallAudioManager.getCallRingingFuture().join();
         waitForHandlerAction(new Handler(Looper.getMainLooper()), TEST_TIMEOUT);
 
@@ -683,7 +723,6 @@ public class CallAudioManagerTest extends TelecomTestCase {
         assertMessageArgEquality(expectedArgs2, captor.getValue());
     }
 
-    @SmallTest
     @Test
     public void testActiveCallGoesToAudioProcessing() {
         Call call = mock(Call.class);
@@ -733,7 +772,6 @@ public class CallAudioManagerTest extends TelecomTestCase {
         assertMessageArgEquality(expectedArgs2, captor.getValue());
     }
 
-    @SmallTest
     @Test
     public void testAudioProcessingCallDisconnects() {
         Call call = createAudioProcessingCall();
@@ -765,7 +803,6 @@ public class CallAudioManagerTest extends TelecomTestCase {
         verifyProperCleanup();
     }
 
-    @SmallTest
     @Test
     public void testAudioProcessingCallDoesSimulatedRing() {
         ArgumentCaptor<CallAudioModeStateMachine.MessageArgs> captor = makeNewCaptor();
@@ -778,6 +815,7 @@ public class CallAudioManagerTest extends TelecomTestCase {
 
         mCallAudioManager.onCallStateChanged(call, CallState.AUDIO_PROCESSING,
                 CallState.SIMULATED_RINGING);
+        call.getBtIcsFuture().complete(true);
         mCallAudioManager.getCallRingingFuture().join();
         waitForHandlerAction(new Handler(Looper.getMainLooper()), TEST_TIMEOUT);
         verify(mPlayerFactory, never()).createPlayer(any(Call.class), anyInt());
@@ -798,7 +836,6 @@ public class CallAudioManagerTest extends TelecomTestCase {
         assertMessageArgEquality(expectedArgs, captor.getValue());
     }
 
-    @SmallTest
     @Test
     public void testAudioProcessingCallGoesActive() {
         ArgumentCaptor<CallAudioModeStateMachine.MessageArgs> captor = makeNewCaptor();
@@ -809,6 +846,7 @@ public class CallAudioManagerTest extends TelecomTestCase {
 
         mCallAudioManager.onCallStateChanged(call, CallState.AUDIO_PROCESSING,
                 CallState.ACTIVE);
+        call.getBtIcsFuture().complete(true);
         verify(mPlayerFactory, never()).createPlayer(any(Call.class), anyInt());
         CallAudioModeStateMachine.MessageArgs expectedArgs = new Builder()
                 .setHasActiveOrDialingCalls(true)
@@ -827,7 +865,6 @@ public class CallAudioManagerTest extends TelecomTestCase {
         assertMessageArgEquality(expectedArgs, captor.getValue());
     }
 
-    @SmallTest
     @Test
     public void testSimulatedRingingCallGoesActive() {
         ArgumentCaptor<CallAudioModeStateMachine.MessageArgs> captor = makeNewCaptor();
@@ -859,6 +896,8 @@ public class CallAudioManagerTest extends TelecomTestCase {
     private Call createAudioProcessingCall() {
         Call call = mock(Call.class);
         when(call.getState()).thenReturn(CallState.AUDIO_PROCESSING);
+        CompletableFuture<Boolean> btIcsFuture = new CompletableFuture<>();
+        when(call.getBtIcsFuture()).thenReturn(btIcsFuture);
         ArgumentCaptor<CallAudioModeStateMachine.MessageArgs> captor = makeNewCaptor();
 
         // Set up an AUDIO_PROCESSING call
@@ -885,7 +924,6 @@ public class CallAudioManagerTest extends TelecomTestCase {
         return call;
     }
 
-    @SmallTest
     @Test
     public void testSimulatedRingingCallDisconnects() {
         Call call = createSimulatedRingingCall();
@@ -917,7 +955,6 @@ public class CallAudioManagerTest extends TelecomTestCase {
         verifyProperCleanup();
     }
 
-    @SmallTest
     @Test
     public void testGetVoipMode() {
         Call child = mock(Call.class);
@@ -932,7 +969,6 @@ public class CallAudioManagerTest extends TelecomTestCase {
         assertTrue(mCallAudioManager.isCallVoip(child));
     }
 
-    @SmallTest
     @Test
     public void testOnCallStreamingStateChanged() {
         Call call = mock(Call.class);
@@ -956,7 +992,6 @@ public class CallAudioManagerTest extends TelecomTestCase {
         assertFalse(captor.getValue().isStreaming);
     }
 
-    @SmallTest
     @Test
     public void testTriggerAudioManagerModeChange() {
         if (!mFlags.ensureAudioModeUpdatesOnForegroundCallChange()) {
@@ -1027,6 +1062,48 @@ public class CallAudioManagerTest extends TelecomTestCase {
         assertMessageArgEquality(expectedArgs2, captor.getValue());
     }
 
+    @Test
+    public void testInitialFocusStateIsUnfocused() {
+        // By default, the focus state should be unfocused.
+        assertTrue(mCallAudioManager.isFocusStateUnfocused());
+    }
+
+    @Test
+    public void testSetCallAudioRouteFocusState() {
+        // Set focus to ACTIVE_FOCUS
+        mCallAudioManager.setCallAudioRouteFocusState(CallAudioRouteController.ACTIVE_FOCUS);
+        // Verify focus state is not unfocused
+        assertFalse(mCallAudioManager.isFocusStateUnfocused());
+        // Verify that the message is sent to the route controller.
+        verify(mCallAudioRouteController).sendMessageWithSessionInfo(
+                eq(CallAudioRouteController.SWITCH_FOCUS),
+                eq(CallAudioRouteController.ACTIVE_FOCUS),
+                eq(0));
+
+        // Set focus to NO_FOCUS
+        mCallAudioManager.setCallAudioRouteFocusState(CallAudioRouteController.NO_FOCUS);
+        // Verify focus state is unfocused
+        assertTrue(mCallAudioManager.isFocusStateUnfocused());
+        // Verify that the message is sent to the front of the queue.
+        verify(mCallAudioRouteController).sendMessageWithSessionInfoAtFront(
+                eq(CallAudioRouteController.SWITCH_FOCUS),
+                eq(CallAudioRouteController.NO_FOCUS),
+                eq(0));
+    }
+
+    @Test
+    public void testSetCallAudioRouteFocusStateForEndTone() {
+        // Set focus for end tone
+        mCallAudioManager.setCallAudioRouteFocusStateForEndTone();
+        // Verify focus state is not unfocused
+        assertFalse(mCallAudioManager.isFocusStateUnfocused());
+        // Verify that the message is sent to the front of the queue.
+        verify(mCallAudioRouteController).sendMessageWithSessionInfoAtFront(
+                eq(CallAudioRouteController.SWITCH_FOCUS),
+                eq(CallAudioRouteController.ACTIVE_FOCUS),
+                eq(1));
+    }
+
     private Call createSimulatedRingingCall() {
         Call call = mock(Call.class);
         when(call.getState()).thenReturn(CallState.SIMULATED_RINGING);
@@ -1034,6 +1111,7 @@ public class CallAudioManagerTest extends TelecomTestCase {
         ArgumentCaptor<CallAudioModeStateMachine.MessageArgs> captor = makeNewCaptor();
 
         mCallAudioManager.onCallAdded(call);
+        call.getBtIcsFuture().complete(true);
         mCallAudioManager.getCallRingingFuture().join();
         waitForHandlerAction(new Handler(Looper.getMainLooper()), TEST_TIMEOUT);
 
@@ -1064,6 +1142,7 @@ public class CallAudioManagerTest extends TelecomTestCase {
         handleWaitForBtIcsBinding(call);
 
         mCallAudioManager.onCallAdded(call);
+        call.getBtIcsFuture().complete(true);
         mCallAudioManager.getCallRingingFuture().join();
         waitForHandlerAction(new Handler(Looper.getMainLooper()), TEST_TIMEOUT);
         assertEquals(call, mCallAudioManager.getForegroundCall());
@@ -1152,7 +1231,7 @@ public class CallAudioManagerTest extends TelecomTestCase {
     }
 
     private void handleWaitForBtIcsBinding(Call call) {
-        CompletableFuture<Boolean> btBindingFuture = CompletableFuture.completedFuture(true);
+        CompletableFuture<Boolean> btBindingFuture = new CompletableFuture<>();
         when(call.getBtIcsFuture()).thenReturn(btBindingFuture);
     }
 }

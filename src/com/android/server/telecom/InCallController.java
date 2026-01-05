@@ -84,6 +84,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -382,7 +383,7 @@ public class InCallController extends CallsManagerListenerBase implements
             mIsConnected = true;
             mInCallServiceInfo.setBindingStartTime(mClockProxy.elapsedRealtime());
             boolean isManagedProfile = UserUtil.isManagedProfile(mContext,
-                    userFromCall, mFeatureFlags);
+                    userFromCall);
             // Note that UserHandle.CURRENT fails to capture the work profile, so we need to handle
             // it separately to ensure that the ICS is bound to the appropriate user. If ECBM is
             // active, we know that a work sim was previously used to place a MO emergency call. We
@@ -1046,6 +1047,7 @@ public class InCallController extends CallsManagerListenerBase implements
         }
         return childManagedProfileUser;
     }
+    private AtomicBoolean mPackageChangedReceiverRegistered = new AtomicBoolean(false);
     private BroadcastReceiver mPackageChangedReceiver = new BroadcastReceiver() {
         private List<InCallController.InCallServiceInfo> getNonUiInCallServiceInfoList(
                 Intent intent, UserHandle userHandle) {
@@ -1356,6 +1358,9 @@ public class InCallController extends CallsManagerListenerBase implements
         restrictPhoneCallOps();
         IntentFilter userAddedFilter = new IntentFilter(Intent.ACTION_USER_ADDED);
         userAddedFilter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
+        // Important: Context must be retained or the receivers won't fire when the context is
+        // garbage collected.
+        mAllUsersContext = mContext.createContextAsUser(UserHandle.ALL, 0);
         mContext.registerReceiver(mUserAddedReceiver, userAddedFilter);
         mFeatureFlags = featureFlags;
     }
@@ -1859,7 +1864,8 @@ public class InCallController extends CallsManagerListenerBase implements
             CallAudioState newCallAudioState) {
         Map<UserHandle, Map<InCallController.InCallServiceInfo, IInCallService>> serviceMap =
                 getCombinedInCallServiceMap();
-        if (!serviceMap.isEmpty()) {
+
+        if (!serviceMap.isEmpty() && !shouldSkipUpdateIcs()) {
             Log.i(this, "Calling onAudioStateChanged, audioState: %s -> %s", oldCallAudioState,
                     newCallAudioState);
             maybeTrackMicrophoneUse(newCallAudioState.isMuted());
@@ -1878,7 +1884,7 @@ public class InCallController extends CallsManagerListenerBase implements
     public void onCallEndpointChanged(CallEndpoint callEndpoint) {
         Map<UserHandle, Map<InCallController.InCallServiceInfo, IInCallService>> serviceMap =
                 getCombinedInCallServiceMap();
-        if (!serviceMap.isEmpty()) {
+        if (!serviceMap.isEmpty() && !shouldSkipUpdateIcs()) {
             Log.i(this, "Calling onCallEndpointChanged");
             serviceMap.values().forEach(inCallServices -> {
                 for (IInCallService inCallService : inCallServices.values()) {
@@ -1896,7 +1902,7 @@ public class InCallController extends CallsManagerListenerBase implements
     public void onAvailableCallEndpointsChanged(Set<CallEndpoint> availableCallEndpoints) {
         Map<UserHandle, Map<InCallController.InCallServiceInfo, IInCallService>> serviceMap =
                 getCombinedInCallServiceMap();
-        if (!serviceMap.isEmpty()) {
+        if (!serviceMap.isEmpty() && !shouldSkipUpdateIcs()) {
             Log.i(this, "Calling onAvailableCallEndpointsChanged");
             List<CallEndpoint> availableEndpoints = new ArrayList<>(availableCallEndpoints);
             serviceMap.values().forEach(inCallServices -> {
@@ -2205,11 +2211,13 @@ public class InCallController extends CallsManagerListenerBase implements
      */
     public void unbindFromServices(UserHandle userHandle) {
         Log.i(this, "Unbinding from services for user %s", userHandle);
-        try {
-            mContext.unregisterReceiver(mPackageChangedReceiver);
-        } catch (IllegalArgumentException e) {
-            // Ignore this -- we may or may not have registered it, but when we bind, we want to
-            // unregister no matter what.
+
+        // ⚠️ Receiver is registered on the mAllUsersContext; need to unregister from that
+        // Context.
+        // Only unregister if there is already a receiver registered.
+        if (mPackageChangedReceiverRegistered.compareAndExchange(true, false)) {
+            Log.i(this, "unbindFromServices: unregister pkg changed receiver.");
+            mAllUsersContext.unregisterReceiver(mPackageChangedReceiver);
         }
         if (mInCallServiceConnections.containsKey(userHandle)) {
             mInCallServiceConnections.get(userHandle).disconnect();
@@ -2372,11 +2380,14 @@ public class InCallController extends CallsManagerListenerBase implements
 
         IntentFilter packageChangedFilter = new IntentFilter(Intent.ACTION_PACKAGE_CHANGED);
         packageChangedFilter.addDataScheme("package");
-        // Important: Context must be retained or the receivers won't fire when the context is
-        // garbage collected.
-        mAllUsersContext = mContext.createContextAsUser(UserHandle.ALL, 0);
-        mAllUsersContext.registerReceiver(mPackageChangedReceiver, packageChangedFilter,
-                null, null);
+
+        // ⚠️ Receiver is registered on the mAllUsersContext; need to unregister from that Context.
+        // Only register if we're not already registered to be safe.
+        if (!mPackageChangedReceiverRegistered.compareAndExchange(false, true)) {
+            Log.i(this, "bindToServices: Register Package changed receiver.");
+            mAllUsersContext.registerReceiver(mPackageChangedReceiver, packageChangedFilter,
+                    null, null);
+        }
     }
 
     private void updateNonUiInCallServices(Call call) {
@@ -3586,7 +3597,7 @@ public class InCallController extends CallsManagerListenerBase implements
                         .bigText(mContext.getText(
                                 R.string.notification_incallservice_not_responding_body)));
         UserUtil.processNotification(mContext, userHandle, NOTIFICATION_TAG,
-                IN_CALL_SERVICE_NOTIFICATION_ID, builder.build(), mFeatureFlags);
+                IN_CALL_SERVICE_NOTIFICATION_ID, builder.build());
     }
 
     private void updateCallTracking(Call call, InCallServiceInfo info, boolean isAdd) {
@@ -3728,5 +3739,34 @@ public class InCallController extends CallsManagerListenerBase implements
         } finally {
             p.recycle();
         }
+    }
+
+    /**
+     * It's possible to race between when Telecom sends the request to abandon audio focus and
+     * when the AF processes the message with when the ICS are unbound once a call is disconnected.
+     * Once audio focus is relinquished, the ICS shouldn't be updated with audio states that could
+     * potentially be changed by other apps who have gained focus. Instead, we can check if the
+     * focus state is unfocused and that all calls are disconnected in order to prevent additional
+     * audio style updates from being sent at the end of the call.
+     */
+    private boolean shouldSkipUpdateIcs() {
+        if (!com.android.internal.telecom.flags.Flags.skipAudioUpdateToIcs()) {
+            return false;
+        }
+        Collection<Call> calls = mCallsManager.getCalls();
+        boolean allCallsAreDisconnected = true;
+        for (Call call : calls) {
+            if (call.getState() != CallState.DISCONNECTED) {
+                allCallsAreDisconnected = false;
+                break;
+            }
+        }
+        boolean shouldSkipUpdate = mCallsManager.getCallAudioManager().isFocusStateUnfocused()
+                && allCallsAreDisconnected;
+        if (shouldSkipUpdate) {
+            Log.w(this, "Skipping audio update for ICS because all calls are disconnected and"
+                    + " the audio focus is abandoned.");
+        }
+        return shouldSkipUpdate;
     }
 }

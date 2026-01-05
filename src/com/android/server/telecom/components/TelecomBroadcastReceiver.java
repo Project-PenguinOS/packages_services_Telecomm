@@ -27,7 +27,7 @@ import android.content.Intent;
  * should not be in the "exported" state.
  */
 public final class TelecomBroadcastReceiver
-        extends BroadcastReceiver implements TelecomSystem.Component {
+        extends BroadcastReceiver {
 
     /** {@inheritDoc} */
     @Override
@@ -37,8 +37,7 @@ public final class TelecomBroadcastReceiver
         }
     }
 
-    @Override
-    public TelecomSystem getTelecomSystem() {
+    private TelecomSystem getTelecomSystem() {
         return TelecomSystem.getInstance();
     }
 

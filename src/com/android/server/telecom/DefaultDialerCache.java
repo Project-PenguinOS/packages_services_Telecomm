@@ -125,8 +125,10 @@ public class DefaultDialerCache {
         mRoleManagerAdapter = roleManagerAdapter;
         mFeatureFlags = featureFlags;
         Resources resources = mContext.getResources();
-        mSystemDialerComponentName = new ComponentName(resources.getString(
-                com.android.internal.R.string.config_defaultDialer),
+        int resourceId = Resources.getSystem().getIdentifier("config_defaultDialer", "string",
+                "android");
+        String packageName = resources.getString(resourceId);
+        mSystemDialerComponentName = new ComponentName(packageName,
                 resources.getString(R.string.incall_default_class));
 
         IntentFilter packageIntentFilter = new IntentFilter();
@@ -202,7 +204,7 @@ public class DefaultDialerCache {
 
     public String getDefaultDialerApplication() {
         return getDefaultDialerApplication(
-                new UserHandle(UserUtil.getUserIdFromContext(mContext, mFeatureFlags)));
+                new UserHandle(UserUtil.getUserIdFromContext(mContext)));
     }
 
     public void setSystemDialerComponentName(ComponentName testComponentName) {

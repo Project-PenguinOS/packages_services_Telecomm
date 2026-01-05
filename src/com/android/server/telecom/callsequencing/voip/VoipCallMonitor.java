@@ -28,12 +28,16 @@ import android.app.ForegroundServiceDelegationOptions;
 import android.app.Notification;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.OutcomeReceiver;
 import android.os.RemoteException;
+import android.os.UserHandle;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
+import android.telecom.ConnectionService;
 import android.telecom.Log;
 import android.telecom.PhoneAccountHandle;
 
@@ -43,6 +47,7 @@ import com.android.server.telecom.Call;
 import com.android.server.telecom.CallsManagerListenerBase;
 import com.android.server.telecom.LogUtils;
 import com.android.server.telecom.TelecomSystem;
+import com.android.internal.telecom.flags.FeatureFlags;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -56,6 +61,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class VoipCallMonitor extends CallsManagerListenerBase {
     public static final long NOTIFICATION_NOT_POSTED_IN_TIME_TIMEOUT = 5000L;
     public static final long NOTIFICATION_REMOVED_BUT_CALL_IS_STILL_ONGOING_TIMEOUT = 5000L;
+    private static final long BAL_BIND_TIMEOUT_MS = 5000L;
     private static final String TAG = VoipCallMonitor.class.getSimpleName();
     private static final String DElIMITER = "#";
     // This list caches calls that are added to the VoipCallMonitor and need an accompanying
@@ -69,9 +75,36 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
     private final Handler mHandlerForClass;
     private final Context mContext;
     private final TelecomSystem.SyncRoot mSyncRoot;
+    private final FeatureFlags mFeatureFlags;
+    // Tracks apps we are currently bound to for the specific purpose of launching
+    // a background activity. This prevents double-binding
+    private final Set<PhoneAccountHandle> mBoundAppsForActivityLaunch =
+            ConcurrentHashMap.newKeySet();
 
-    public VoipCallMonitor(Context context, Handler handler, TelecomSystem.SyncRoot lock) {
+    private final Call.InCallServiceToVoipAppListener mInCallServiceActionListenerImpl =
+            new Call.InCallServiceToVoipAppListener() {
+        /**
+         * Triggered when an onAnswer signal is received from an InCallService.
+         */
+        @Override
+        public void onAnswerRequested(Call call, int videoState,
+                OutcomeReceiver<Object, Exception> completionCallback) {
+            bindToAppsConnectionServiceForBackgroundActivityStart(call, completionCallback);
+        }
+    };
+
+    // Simple wrapper to hold the connection reference mutably for the lambdas
+    private static class AtomicServiceConnection {
+        private ServiceConnection mConnection;
+        synchronized void setConnection(ServiceConnection c) { mConnection = c; }
+        synchronized ServiceConnection getConnection() { return mConnection; }
+        synchronized void clear() { mConnection = null; }
+    }
+
+    public VoipCallMonitor(Context context, Handler handler, FeatureFlags featureFlags,
+            TelecomSystem.SyncRoot lock) {
         mSyncRoot = lock;
+        mFeatureFlags = featureFlags;
         mContext = context;
         mHandlerForClass = handler;
         mNewCallsMissingCallStyleNotification = new ConcurrentLinkedQueue<>();
@@ -213,6 +246,9 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
         }
         int callingPid = getCallingPackagePid(call);
         int callingUid = getCallingPackageUid(call);
+        if (mFeatureFlags.voipBackgroundActivityLaunchFix()) {
+            call.addInCallServiceToVoipAppListener(mInCallServiceActionListenerImpl);
+        }
         mAccountHandleToCallMap
                 .computeIfAbsent(handle, k -> new HashSet<>())
                 .add(call);
@@ -224,6 +260,9 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
         PhoneAccountHandle handle = getTargetPhoneAccount(call);
         if (!isTransactional(call) || handle == null) {
             return;
+        }
+        if (mFeatureFlags.voipBackgroundActivityLaunchFix()) {
+            call.removeInCallServiceToVoipAppListener(mInCallServiceActionListenerImpl);
         }
         Set<Call> ongoingCalls = mAccountHandleToCallMap
                 .computeIfAbsent(handle, k -> new HashSet<>());
@@ -298,7 +337,7 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
         mNewCallsMissingCallStyleNotification.removeAll(toRemove);
 
         if (mActivityManagerInternal != null) {
-            ServiceConnection fgsConnection = mServices.get(handle);
+            ServiceConnection fgsConnection = mServices.remove(handle);
             if (fgsConnection != null) {
                 Log.i(TAG, "stopFGSDelegation: requesting stopForegroundServiceDelegate");
                 mActivityManagerInternal.stopForegroundServiceDelegate(fgsConnection);
@@ -326,6 +365,101 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
                         + " notification for call.id[%s] at timeout", callId);
             }
         }, NOTIFICATION_NOT_POSTED_IN_TIME_TIMEOUT);
+    }
+
+    /**
+     * Establishes a temporary service binding to the VoIP application to allow it to
+     * launch a background activity (e.g., the incoming call UI) after answering.
+     *
+     * <p>This method utilizes the {@link Context#BIND_ALLOW_BACKGROUND_ACTIVITY_STARTS} flag.
+     * To prevent resource leaks, this binding includes a safety timeout (default 5 seconds),
+     * after which the service will be automatically unbound if the call state hasn't changed.
+     *
+     * <p>If the application is already bound for this purpose, the {@code outcomeReceiver}
+     * is triggered immediately without re-binding.
+     *
+     * @param call            The call triggering the answer request.
+     * @param outcomeReceiver The callback to notify when the bind is complete (or immediately if
+     *                       already bound).
+     * Returns the {@link VoipCallMonitor} instance on success.
+     */
+    private void bindToAppsConnectionServiceForBackgroundActivityStart(
+            Call call,
+            OutcomeReceiver<Object, Exception> outcomeReceiver) {
+        PhoneAccountHandle phoneAccountHandle = call.getTargetPhoneAccount();
+        if (phoneAccountHandle == null) {
+            Log.w(TAG, "bindToAppsConnectionServiceForBackgroundActivityStart: null handle"
+                    + " for call=[%s]", call.getId());
+            return;
+        }
+
+        // Check if we are already bound or if the call is effectively active/ringing
+        // If we are already bound to this app for a launch intent, do not rebind.
+        if (mBoundAppsForActivityLaunch.contains(phoneAccountHandle)) {
+            Log.w(TAG, "bindToAppsConnectionServiceForBackgroundActivityStart: already"
+                            + " bound to app=[%s], skipping rebind.",
+                    phoneAccountHandle);
+            outcomeReceiver.onResult(VoipCallMonitor.this);
+            return;
+        }
+
+        final int bindingFlags = Context.BIND_AUTO_CREATE | Context.BIND_FOREGROUND_SERVICE
+                | Context.BIND_ALLOW_BACKGROUND_ACTIVITY_STARTS;
+        UserHandle userHandle = phoneAccountHandle.getUserHandle();
+
+        // We need a reference to the connection wrapper to unbind safely inside the runnables
+        final AtomicServiceConnection connectionWrapper = new AtomicServiceConnection();
+
+        ServiceConnection serviceConnection = new ServiceConnection() {
+            @Override
+            public void onServiceConnected(ComponentName name, IBinder service) {
+                synchronized (mSyncRoot) {
+                    Log.i(TAG, "bindToAppsConnectionServiceForBackgroundActivityStart: "
+                            + "onServiceConnected: [%s]", name);
+                    outcomeReceiver.onResult(VoipCallMonitor.this);
+                }
+            }
+
+            @Override
+            public void onServiceDisconnected(ComponentName name) {
+                synchronized (mSyncRoot) {
+                    Log.i(TAG, "bindToAppsConnectionServiceForBackgroundActivityStart: "
+                            + "onServiceDisconnected: [%s]", name);
+                    outcomeReceiver.onResult(VoipCallMonitor.this);
+                    mBoundAppsForActivityLaunch.remove(phoneAccountHandle);
+                }
+            }
+        };
+
+        connectionWrapper.setConnection(serviceConnection);
+
+        boolean wasBound = mContext.bindServiceAsUser(
+                createJetpackServiceIntent(call),
+                serviceConnection,
+                bindingFlags,
+                userHandle);
+
+        if (!wasBound) {
+            synchronized (mSyncRoot) {
+                Log.w(TAG, "bindToAppsConnectionServiceForBackgroundActivityStart: unable to"
+                                + " bind to app=[%s]",
+                        phoneAccountHandle);
+                outcomeReceiver.onResult(VoipCallMonitor.this);
+            }
+            return; // Failed to bind, nothing to clean up
+        }
+
+        // Track that we are bound
+        mBoundAppsForActivityLaunch.add(phoneAccountHandle);
+
+        // Safety Timeout. After 5 seconds, unbind to prevent leaks.
+        Runnable timeoutRunnable = () -> {
+            Log.i(TAG, "bindToAppsConnectionServiceForBackgroundActivityStart: Timeout hit,"
+                            + " unbinding for call=[%s]",
+                    call.getId());
+            unbindHelper(connectionWrapper, phoneAccountHandle);
+        };
+        mHandlerForClass.postDelayed(timeoutRunnable, BAL_BIND_TIMEOUT_MS);
     }
 
     /**
@@ -429,7 +563,39 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
     }
 
     @VisibleForTesting
-    public  ConcurrentLinkedQueue<Call> getNewCallsMissingCallStyleNotificationQueue(){
+    public ConcurrentLinkedQueue<Call> getNewCallsMissingCallStyleNotificationQueue() {
         return mNewCallsMissingCallStyleNotification;
+    }
+
+    /**
+     * Constructs an Intent targeting a ConnectionService within the
+     * VoIP application.
+     *
+     * @param call The transactional call for which we are generating the intent.
+     * @return An explicit Intent targeting the VoIP app's JetpackConnectionService.
+     */
+    private Intent createJetpackServiceIntent(Call call) {
+        PhoneAccountHandle phoneAccountHandle = call.getTargetPhoneAccount();
+        Intent intent = new Intent(ConnectionService.SERVICE_INTERFACE);
+        intent.setPackage(phoneAccountHandle.getComponentName().getPackageName());
+        return intent;
+    }
+
+    // Helper helper to ensure we unbind safely and catch common ServiceConnection exceptions
+    private void unbindHelper(AtomicServiceConnection connectionWrapper,
+            PhoneAccountHandle handle) {
+        ServiceConnection conn = connectionWrapper.getConnection();
+        if (conn != null && mBoundAppsForActivityLaunch.contains(handle)) {
+            try {
+                mContext.unbindService(conn);
+            } catch (IllegalArgumentException e) {
+                // This happens if the service is already unbound or wasn't registered.
+                // Safe to ignore in this race-condition heavy context.
+                Log.w(TAG, "unbindHelper: Service not registered for handle=[%s]: " + e, handle);
+            } finally {
+                mBoundAppsForActivityLaunch.remove(handle);
+                connectionWrapper.clear();
+            }
+        }
     }
 }

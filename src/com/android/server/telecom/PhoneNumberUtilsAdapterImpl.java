@@ -21,7 +21,17 @@ import android.content.Intent;
 import android.telephony.PhoneNumberUtils;
 import android.telephony.TelephonyManager;
 
+import com.android.internal.telecom.flags.FeatureFlags;
+
 public class PhoneNumberUtilsAdapterImpl implements PhoneNumberUtilsAdapter {
+
+    private final Context mContext;
+    private final FeatureFlags mFeatureFlags;
+
+    public PhoneNumberUtilsAdapterImpl(Context context, FeatureFlags featureFlags) {
+        mContext = context;
+        mFeatureFlags = featureFlags;
+    }
     @Override
     public boolean isUriNumber(String number) {
         return PhoneNumberUtils.isUriNumber(number);
@@ -29,7 +39,16 @@ public class PhoneNumberUtilsAdapterImpl implements PhoneNumberUtilsAdapter {
 
     @Override
     public boolean isSamePhoneNumber(String number1, String number2) {
-        return PhoneNumberUtils.compare(number1, number2);
+        if (mFeatureFlags.useAreSamePhoneNumber()) {
+            TelephonyManager telephonyManager = mContext.getSystemService(TelephonyManager.class);
+            String countryIso = "";
+            if (telephonyManager != null) {
+                countryIso = telephonyManager.getNetworkCountryIso();
+            }
+            return PhoneNumberUtils.areSamePhoneNumber(number1, number2, countryIso);
+        } else {
+            return PhoneNumberUtils.compare(number1, number2);
+        }
     }
 
     @Override

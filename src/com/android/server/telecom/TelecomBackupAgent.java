@@ -18,6 +18,11 @@ package com.android.server.telecom;
 
 import android.app.backup.BackupAgentHelper;
 import android.app.backup.SharedPreferencesBackupHelper;
+import android.os.UserHandle;
+import android.telecom.Log;
+
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 /**
  * Provides backup and restore functionality for Telecom services.
@@ -28,20 +33,49 @@ import android.app.backup.SharedPreferencesBackupHelper;
  */
 public class TelecomBackupAgent extends BackupAgentHelper {
 
-    // A key to uniquely identify the SharedPreferences data in the backup set.
+    // A key to uniquely identify the call log prefs SharedPreferences data in the backup set.
     public static final String CALL_LOG_INTEGRATION_BACKUP_KEY =
             "call_log_integration_backup_key";
+    // A key to uniquely identify the quick responses SharedPreferences data in the backup set.
+    public static final String QUICK_RESPONSES_BACKUP_KEY =
+            "quick_responses_backup_key";
+    public final Executor mExecutor = Executors.newSingleThreadExecutor();
 
     @Override
     public void onCreate() {
         super.onCreate();
-        // Instantiate SharedPreferencesBackupHelper to manage the backup/restore of the call log
-        // integration SharedPreferences file.
-        SharedPreferencesBackupHelper callLogIntegrationBackupHelper =
-                new SharedPreferencesBackupHelper(this,
-                        CallLogIntegrationAdapterImpl.SHARED_PREFERENCES_NAME);
-        // Add the helper to the BackupAgentHelper with the backup key.
-        addHelper(CALL_LOG_INTEGRATION_BACKUP_KEY, callLogIntegrationBackupHelper);
+        if (android.telecom.flags.Flags.integratedCallLogsStage2()) {
+            Log.i(this, "Handle backup for call log integration");
+            // Instantiate SharedPreferencesBackupHelper to manage the backup/restore of the call
+            // log integration SharedPreferences file.
+            SharedPreferencesBackupHelper callLogIntegrationBackupHelper =
+                    new SharedPreferencesBackupHelper(this,
+                            CallLogIntegrationAdapterImpl.SHARED_PREFERENCES_NAME);
+            // Add the helper to the BackupAgentHelper with the backup key.
+            addHelper(CALL_LOG_INTEGRATION_BACKUP_KEY, callLogIntegrationBackupHelper);
+        }
+        if (com.android.internal.telecom.flags.Flags.quickResponsesBackup()) {
+            Log.i(this, "Handle backup for quick responses");
+            // Instantiate SharedPreferencesBackupHelper to manage the backup/restore of the
+            // quick responses SharedPreferences file.
+            SharedPreferencesBackupHelper quickResponsesBackupHelper =
+                    new SharedPreferencesBackupHelper(this,
+                            QuickResponseUtils.SHARED_PREFERENCES_NAME);
+            // Add the helper to the BackupAgentHelper with the backup key.
+            addHelper(QUICK_RESPONSES_BACKUP_KEY, quickResponsesBackupHelper);
+        }
+    }
+
+    @Override
+    public void onRestoreFinished() {
+        super.onRestoreFinished();
+        if (android.telecom.flags.Flags.integratedCallLogsStage2()) {
+            UserHandle user = getUser();
+            Log.i(this, "onRestoreFinished for user %s", user);
+            // Get the shared preference for the user and notify all apps in that list.
+            CallLogIntegrationAdapterImpl.handleNotifyAppsOfPreferenceOnRestore(this, user,
+                    mExecutor);
+        }
     }
 }
 

@@ -20,11 +20,14 @@ import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
 import android.telecom.Log;
 
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.os.SomeArgs;
 import com.android.server.telecom.AudioRoute;
 
 public class BluetoothRouteManager {
+    private static final String TAG = BluetoothRouteManager.class.getSimpleName();
     private final BluetoothDeviceManager mDeviceManager;
+    private static Boolean mIsWatch;
 
     public BluetoothRouteManager(BluetoothDeviceManager deviceManager) {
         mDeviceManager = deviceManager;
@@ -38,16 +41,21 @@ public class BluetoothRouteManager {
         return mDeviceManager.getNumConnectedDevices() > 0;
     }
 
-    public boolean isWatch(BluetoothDevice device) {
+    public static boolean isWatch(BluetoothDevice device) {
+        // return the value for testing
+        if (mIsWatch != null) {
+            return mIsWatch;
+        }
+
         if (device == null) {
-            Log.i(this, "isWatch: device is null. Returning false");
+            Log.i(TAG, "isWatch: device is null. Returning false");
             return false;
         }
 
         BluetoothClass deviceClass = device.getBluetoothClass();
         if (deviceClass != null && deviceClass.getDeviceClass()
                 == BluetoothClass.Device.WEARABLE_WRIST_WATCH) {
-            Log.i(this, "isWatch: bluetooth class component is a WEARABLE_WRIST_WATCH.");
+            Log.i(TAG, "isWatch: bluetooth class component is a WEARABLE_WRIST_WATCH.");
             return true;
         }
 
@@ -58,11 +66,16 @@ public class BluetoothRouteManager {
         }
         String deviceTypeStr = new String(deviceType);
         if (deviceTypeStr.equals(BluetoothDevice.DEVICE_TYPE_WATCH)) {
-            Log.i(this, "isWatch: bluetooth device type is DEVICE_TYPE_WATCH.");
+            Log.i(TAG, "isWatch: bluetooth device type is DEVICE_TYPE_WATCH.");
             return true;
         }
 
         return false;
+    }
+
+    @VisibleForTesting
+    public static void setWatchForTesting(Boolean isWatch) {
+        mIsWatch = isWatch;
     }
 
     public boolean isInbandRingEnabled(@AudioRoute.AudioRouteType int audioRouteType,

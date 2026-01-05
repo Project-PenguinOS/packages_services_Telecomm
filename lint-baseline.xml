@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<issues format="6" by="lint 8.4.0-alpha08" type="baseline" client="" dependencies="true" name="" variant="all" version="8.4.0-alpha08">
-
+<issues
+    format="6"
+    by="lint 8.4.0-alpha08"
+    type="baseline"
+    client=""
+    dependencies="true"
+    name=""
+    variant="all"
+    version="8.4.0-alpha08">
     <issue
         id="NewApi"
         message="Call requires API level 36.1 (current min is 36): `android.telecom.CallAttributes#isLogExcluded`"
@@ -10,6 +17,17 @@
             file="packages/services/Telecomm/src/com/android/server/telecom/TelecomServiceImpl.java"
             line="285"
             column="60"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Field requires API level 36.1 (current min is 36): `android.provider.CallLog.Calls#CONTENT_VOIP_URI`"
+        errorLine1="                        ? (handlingVoipEntry ? CONTENT_VOIP_URI : CONTENT_URI)"
+        errorLine2="                                               ~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/services/Telecomm/src/com/android/server/telecom/util/CallLogUtils.java"
+            line="498"
+            column="48"/>
     </issue>
 
 </issues>

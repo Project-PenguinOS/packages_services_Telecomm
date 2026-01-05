@@ -229,8 +229,12 @@ public class CallStreamingNotification extends CallsManagerListenerBase implemen
         // Apply a span to the string to colorize it using the "answer" color.
         Spannable spannable = new SpannableString(
                 mContext.getString(R.string.call_streaming_notification_action_switch_here));
-        spannable.setSpan(new ForegroundColorSpan(
-                com.android.internal.R.color.call_notification_answer_color), 0, spannable.length(),
+
+        int resourceId = Resources.getSystem().getIdentifier(
+                "call_notification_answer_color", "color", "android");
+        int color = mContext.getResources().getColor(resourceId, null);
+        spannable.setSpan(new ForegroundColorSpan(color), 0,
+                spannable.length(),
                 Spannable.SPAN_INCLUSIVE_EXCLUSIVE);
 
         // Use the "phone link" icon per mock.
@@ -286,7 +290,7 @@ public class CallStreamingNotification extends CallsManagerListenerBase implemen
             mNotificationUserHandle = userHandle;
             try {
                 UserUtil.processNotification(mContext, userHandle, NOTIFICATION_TAG,
-                        STREAMING_NOTIFICATION_ID, notification, mFeatureFlags);
+                        STREAMING_NOTIFICATION_ID, notification);
             } catch (Exception e) {
                 // We don't want to crash Telecom if something changes with the requirements for the
                 // notification.
@@ -304,7 +308,7 @@ public class CallStreamingNotification extends CallsManagerListenerBase implemen
             if (mIsNotificationShowing) {
                 mIsNotificationShowing = false;
                 UserUtil.processNotification(mContext, mNotificationUserHandle, NOTIFICATION_TAG,
-                        STREAMING_NOTIFICATION_ID, null /* notification */, mFeatureFlags);
+                        STREAMING_NOTIFICATION_ID, null /* notification */);
             }
         }
     }

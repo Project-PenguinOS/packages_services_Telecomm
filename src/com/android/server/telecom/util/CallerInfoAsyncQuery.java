@@ -30,7 +30,7 @@ import android.os.Message;
 import android.os.SystemClock;
 import android.os.UserHandle;
 import android.provider.ContactsContract.PhoneLookup;
-import android.telecom.Log;
+import android.util.Log;
 import android.telephony.PhoneNumberUtils;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
@@ -91,7 +91,7 @@ public class CallerInfoAsyncQuery {
                     /* flags =*/ 0, UserHandle.of(currentUser));
                 return otherContext.getContentResolver();
             } catch (NameNotFoundException e) {
-                Log.e(LOG_TAG, e, "Can't find self package");
+                Log.e(LOG_TAG, "Can't find self package");
                 // Fall back to the primary user.
             }
         }
@@ -187,7 +187,7 @@ public class CallerInfoAsyncQuery {
         try {
             isEmergencyNumber = tm.isEmergencyNumber(number);
         } catch (Exception e) {
-            Log.e(LOG_TAG, e, "Error while invoking TelephonyManager#isEmergencyNumber. "
+            Log.e(LOG_TAG, "Error while invoking TelephonyManager#isEmergencyNumber. "
                     + "Defaulting to PhoneNumberUtils API instead.");
             // Ignore the exception that Telephony is not up. Use PhoneNumberUtils API now.
             // Ideally the PhoneNumberUtils API needs to be removed once the

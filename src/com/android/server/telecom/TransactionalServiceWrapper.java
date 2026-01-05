@@ -21,6 +21,7 @@ import static android.telecom.CallException.TRANSACTION_EXCEPTION_KEY;
 import static android.telecom.TelecomManager.TELECOM_TRANSACTION_SUCCESS;
 
 import android.content.ComponentName;
+import android.net.Uri;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -45,6 +46,7 @@ import com.android.server.telecom.callsequencing.TransactionalCallSequencingAdap
 import com.android.server.telecom.callsequencing.voip.CallEventCallbackAckTransaction;
 import com.android.server.telecom.callsequencing.voip.EndpointChangeTransaction;
 import com.android.server.telecom.callsequencing.voip.RequestVideoStateTransaction;
+import com.android.server.telecom.callsequencing.voip.SetGroupCallStateTransaction;
 import com.android.server.telecom.callsequencing.voip.SetMuteStateTransaction;
 import com.android.server.telecom.flags.FeatureFlags;
 
@@ -69,6 +71,8 @@ public class TransactionalServiceWrapper implements
     public static final String DISCONNECT = "Disconnect";
     public static final String START_STREAMING = "StartStreaming";
     public static final String REQUEST_VIDEO_STATE = "RequestVideoState";
+    public static final String SET_GROUP_CALL_STATE = "SetGroupCallState";
+    public static final String SET_CONTACT_URI = "SetContactUri";
     public static final String SET_MUTE_STATE = "SetMuteState";
     public static final String CALL_ENDPOINT_CHANGE = "CallEndpointChange";
 
@@ -271,6 +275,32 @@ public class TransactionalServiceWrapper implements
             }
         }
 
+        @Override
+        public void setGroupCallState(String callId, boolean isGroupCall,
+                ResultReceiver callback) {
+            long token = Binder.clearCallingIdentity();
+            try {
+                Log.startSession("TSW.sGCS");
+                createTransactions(callId, callback, SET_GROUP_CALL_STATE, isGroupCall);
+            } finally {
+                Binder.restoreCallingIdentity(token);
+                Log.endSession();
+            }
+        }
+
+        @Override
+        public void setContactUri(String callId, Uri uri,
+                ResultReceiver callback) {
+            long token = Binder.clearCallingIdentity();
+            try {
+                Log.startSession("TSW.sCU");
+                createTransactions(callId, callback, SET_CONTACT_URI, uri);
+            } finally {
+                Binder.restoreCallingIdentity(token);
+                Log.endSession();
+            }
+        }
+
         private void createTransactions(String callId, ResultReceiver callback, String action,
                 Object... objects) {
             Log.d(TAG, "createTransactions: callId=" + callId);
@@ -304,6 +334,16 @@ public class TransactionalServiceWrapper implements
                                 new RequestVideoStateTransaction(mCallsManager, call,
                                         (int) objects[0]), callback);
                         break;
+                    case SET_GROUP_CALL_STATE:
+                        addTransactionsToManager(action,
+                                new SetGroupCallStateTransaction(mCallsManager, call,
+                                        (boolean) objects[0]), callback);
+                        break;
+                    case SET_CONTACT_URI:
+                        addTransactionsToManager(action,
+                                new SetGroupCallStateTransaction(mCallsManager, call,
+                                        (Uri) objects[0]), callback);
+                        break;
                 }
             } else {
                 Bundle exceptionBundle = new Bundle();
@@ -325,11 +365,12 @@ public class TransactionalServiceWrapper implements
 
         @Override
         public void requestCallEndpointChange(CallEndpoint endpoint, ResultReceiver callback) {
+            int uid = Binder.getCallingUid();
             long token = Binder.clearCallingIdentity();
             try {
                 Log.startSession("TSW.rCEC");
                 addTransactionsToManager(CALL_ENDPOINT_CHANGE,
-                        new EndpointChangeTransaction(endpoint, mCallsManager), callback);
+                        new EndpointChangeTransaction(endpoint, mCallsManager, uid), callback);
             } finally {
                 Binder.restoreCallingIdentity(token);
                 Log.endSession();
@@ -506,7 +547,7 @@ public class TransactionalServiceWrapper implements
     }
 
     public void onCallStreamingFailed(Call call,
-            @CallStreamingService.StreamingFailedReason int streamingFailedReason) {
+            /*@CallStreamingService.StreamingFailedReason*/ int streamingFailedReason) {
         if (call != null) {
             try {
                 mICallEventCallback.onCallStreamingFailed(call.getId(), streamingFailedReason);

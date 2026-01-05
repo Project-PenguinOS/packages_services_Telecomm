@@ -48,6 +48,7 @@ import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.Resources;
 import android.media.AudioManager;
 import android.media.IAudioService;
 import android.media.ToneGenerator;
@@ -553,7 +554,7 @@ public class TelecomSystemTest extends TelecomTestCase{
                 mConnServFMFactory,
                 mTimeoutsAdapter,
                 mAsyncRingtonePlayer,
-                new PhoneNumberUtilsAdapterImpl(),
+                new PhoneNumberUtilsAdapterImpl(mContext, mModuleBugFixFeatureFlags),
                 mIncomingCallNotifier,
                 (streamType, volume) -> mToneGenerator,
                 new CallAudioRouteController.Factory() {
@@ -654,8 +655,9 @@ public class TelecomSystemTest extends TelecomTestCase{
     }
 
     private void setupInCallServices() throws Exception {
-        mComponentContextFixture.putResource(
-                com.android.internal.R.string.config_defaultDialer,
+        int mockResourceId = Resources.getSystem().getIdentifier("config_defaultDialer", "string",
+                "android");
+        mComponentContextFixture.putResource(mockResourceId,
                 mInCallServiceComponentNameX.getPackageName());
         mComponentContextFixture.putResource(
                 com.android.server.telecom.R.string.incall_default_class,
@@ -832,7 +834,7 @@ public class TelecomSystemTest extends TelecomTestCase{
 
         final UserHandle userHandle = initiatingUser;
         Context localAppContext = mComponentContextFixture.getTestDouble().getApplicationContext();
-        new UserCallIntentProcessor(localAppContext, userHandle, mFeatureFlags).processIntent(
+        new UserCallIntentProcessor(localAppContext, userHandle).processIntent(
                 actionCallIntent, null, false, true /* hasCallAppOp*/, false /* isLocal */);
         // Wait for handler to start CallerInfo lookup.
         waitForHandlerAction(new Handler(Looper.getMainLooper()), TEST_TIMEOUT);
@@ -1119,8 +1121,10 @@ public class TelecomSystemTest extends TelecomTestCase{
         when(mClockProxy.elapsedRealtime()).thenReturn(TEST_CONNECT_ELAPSED_TIME);
         connectionServiceFixture.sendSetActive(ids.mConnectionId);
         if (phoneAccountHandle != mPhoneAccountSelfManaged.getAccountHandle()) {
-            assertEquals(Call.STATE_ACTIVE, mInCallServiceFixtureX.getCall(ids.mCallId).getState());
-            assertEquals(Call.STATE_ACTIVE, mInCallServiceFixtureY.getCall(ids.mCallId).getState());
+            TelecomSystemTest.assertTrueWithTimeout(v -> mInCallServiceFixtureX
+                    .getCall(ids.mCallId).getState() == Call.STATE_ACTIVE);
+            TelecomSystemTest.assertTrueWithTimeout(v -> mInCallServiceFixtureY
+                    .getCall(ids.mCallId).getState() == Call.STATE_ACTIVE);
 
             if ((mInCallServiceFixtureX.getCall(ids.mCallId).getProperties() &
                     Call.Details.PROPERTY_IS_EXTERNAL_CALL) == 0) {
@@ -1177,8 +1181,10 @@ public class TelecomSystemTest extends TelecomTestCase{
         connectionServiceFixture.sendSetActive(ids.mConnectionId);
 
         if (phoneAccountHandle != mPhoneAccountSelfManaged.getAccountHandle()) {
-            assertEquals(Call.STATE_ACTIVE, mInCallServiceFixtureX.getCall(ids.mCallId).getState());
-            assertEquals(Call.STATE_ACTIVE, mInCallServiceFixtureY.getCall(ids.mCallId).getState());
+            TelecomSystemTest.assertTrueWithTimeout(v -> mInCallServiceFixtureX
+                    .getCall(ids.mCallId).getState() == Call.STATE_ACTIVE);
+            TelecomSystemTest.assertTrueWithTimeout(v -> mInCallServiceFixtureY
+                    .getCall(ids.mCallId).getState() == Call.STATE_ACTIVE);
 
             if ((mInCallServiceFixtureX.getCall(ids.mCallId).getProperties() &
                     Call.Details.PROPERTY_IS_EXTERNAL_CALL) == 0) {

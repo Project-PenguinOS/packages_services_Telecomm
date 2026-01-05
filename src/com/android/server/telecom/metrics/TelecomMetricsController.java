@@ -17,6 +17,7 @@
 package com.android.server.telecom.metrics;
 
 import static com.android.server.telecom.TelecomStatsLog.CALL_AUDIO_ROUTE_STATS;
+import static com.android.server.telecom.TelecomStatsLog.CALL_END_POINT_STATS;
 import static com.android.server.telecom.TelecomStatsLog.CALL_STATS;
 import static com.android.server.telecom.TelecomStatsLog.TELECOM_API_STATS;
 import static com.android.server.telecom.TelecomStatsLog.TELECOM_ERROR_STATS;
@@ -134,6 +135,16 @@ public class TelecomMetricsController implements StatsManager.StatsPullAtomCallb
         CallSequencingStats stats = (CallSequencingStats) mStats.get(CALL_SEQUENCING_STATS);
         if (stats == null) {
             stats = new CallSequencingStats(mContext, mHandlerThread.getLooper(), isTestMode());
+            registerAtom(stats.getTag(), stats);
+        }
+        return stats;
+    }
+
+    @NonNull
+    public CallEndpointStats getCallEndpointStats() {
+        CallEndpointStats stats = (CallEndpointStats) mStats.get(CALL_END_POINT_STATS);
+        if (stats == null) {
+            stats = new CallEndpointStats(mContext, mHandlerThread.getLooper(), isTestMode());
             registerAtom(stats.getTag(), stats);
         }
         return stats;

@@ -23,6 +23,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
@@ -39,9 +40,9 @@ import android.content.pm.ResolveInfo;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.drawable.ColorDrawable;
+import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.PersistableBundle;
 import android.os.UserHandle;
 import android.telecom.CallAttributes;
 import android.telecom.CallEndpoint;
@@ -86,9 +87,11 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 
 @RunWith(AndroidJUnit4.class)
 public class CallTest extends TelecomTestCase {
@@ -561,6 +564,25 @@ public class CallTest extends TelecomTestCase {
 
     @Test
     @SmallTest
+    public void testIllegalAudioProcessingTransition_ExternalCall() {
+        // An external call in AUDIO_PROCESSING state.
+        when(mFeatureFlags.preventIllegalAudioProcessingExit()).thenReturn(true);
+        Call call = createCall("1", Call.CALL_DIRECTION_INCOMING);
+        call.setConnectionService(mMockConnectionService);
+        call.setState(CallState.AUDIO_PROCESSING, "test");
+        call.setConnectionProperties(Connection.PROPERTY_IS_EXTERNAL_CALL);
+
+        // Attempt to transition to ACTIVE state.
+        boolean transitionResult = call.setState(CallState.ACTIVE, "test");
+
+        // The transition should be allowed because the call is external.
+        assertTrue("State transition should be allowed for external calls", transitionResult);
+        assertEquals(CallState.ACTIVE, call.getState());
+        verify(mMockConnectionService, never()).disconnect(eq(call));
+    }
+
+    @Test
+    @SmallTest
     public void testCanPullCallRemovedDuringEmergencyCall() {
         Call call = createCall("1", Call.CALL_DIRECTION_INCOMING);
         boolean[] hasCalledConnectionCapabilitiesChanged = new boolean[1];
@@ -683,7 +705,7 @@ public class CallTest extends TelecomTestCase {
     }
 
     @Test
-    public void testCallEventCallbacksWereCalled() {
+    public void testCallEventCallbacksWereCalled() throws ExecutionException, InterruptedException {
         Call call = new Call(
                 "1", /* callId */
                 mContext,
@@ -721,7 +743,10 @@ public class CallTest extends TelecomTestCase {
 
         // assert CallEventCallback#onAnswer is called
         call.setState(CallState.RINGING, "test");
-        call.answer(0);
+        when(mMockTransactionalService.onAnswer(any(), anyInt()))
+                .thenReturn(CompletableFuture.completedFuture(Boolean.TRUE));
+
+        call.answer(0).get(); // Call .get() to wait for the async callback
         verify(mMockTransactionalService, times(1)).onAnswer(call, 0);
 
         // assert CallEventCallback#onDisconnect is called
@@ -1007,6 +1032,30 @@ public class CallTest extends TelecomTestCase {
         assertEquals(expectedCreationTime, actualCreationTime);
         // Verify the clock was called once in the constructor and once in the getter.
         verify(mMockClockProxy, times(2)).currentTimeMillis();
+    }
+
+    @Test
+    @SmallTest
+    public void testGetCrsMode() {
+        Call call = createCall("1");
+        Bundle extras = new Bundle();
+
+        // 1. When extras are null, should default to MODE_IN_CALL.
+        assertEquals(AudioManager.MODE_IN_CALL, call.getCrsMode());
+
+        // 2. When extras are set but the CRS extra is not present, should default to MODE_IN_CALL.
+        call.putConnectionServiceExtras(extras);
+        assertEquals(AudioManager.MODE_IN_CALL, call.getCrsMode());
+
+        // 3. When the CRS extra is explicitly set to MODE_IN_CALL, should return MODE_IN_CALL.
+        extras.putInt(android.telecom.Call.EXTRA_CRS_AUDIO_MODE, AudioManager.MODE_IN_CALL);
+        call.putConnectionServiceExtras(extras);
+        assertEquals(AudioManager.MODE_IN_CALL, call.getCrsMode());
+
+        // 4. When the CRS extra is set to MODE_RINGTONE, should return MODE_RINGTONE.
+        extras.putInt(android.telecom.Call.EXTRA_CRS_AUDIO_MODE, AudioManager.MODE_RINGTONE);
+        call.putConnectionServiceExtras(extras);
+        assertEquals(AudioManager.MODE_RINGTONE, call.getCrsMode());
     }
 
     @Test

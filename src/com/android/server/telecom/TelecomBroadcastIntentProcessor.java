@@ -27,8 +27,8 @@ import android.telecom.Log;
 import android.widget.Toast;
 
 import com.android.server.telecom.flags.FeatureFlags;
-import com.android.server.telecom.ui.ConfirmCallDialogActivity;
 import com.android.server.telecom.ui.DisconnectedCallNotifier;
+import com.android.server.telecom.ui.UiConstants;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -213,7 +213,7 @@ public final class TelecomBroadcastIntentProcessor {
             Log.startSession("TBIP.aPWC");
             try {
                 String callId = intent.getStringExtra(
-                        ConfirmCallDialogActivity.EXTRA_OUTGOING_CALL_ID);
+                        UiConstants.EXTRA_OUTGOING_CALL_ID);
                 mCallsManager.confirmPendingCall(callId);
             } finally {
                 Log.endSession();
@@ -222,7 +222,7 @@ public final class TelecomBroadcastIntentProcessor {
             Log.startSession("TBIP.aCC");
             try {
                 String callId = intent.getStringExtra(
-                        ConfirmCallDialogActivity.EXTRA_OUTGOING_CALL_ID);
+                        UiConstants.EXTRA_OUTGOING_CALL_ID);
                 mCallsManager.cancelPendingCall(callId);
             } finally {
                 Log.endSession();

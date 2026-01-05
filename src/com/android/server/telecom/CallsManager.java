@@ -64,13 +64,11 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.pm.ApplicationInfo;
 import android.content.pm.ComponentInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.pm.PackageManager.ResolveInfoFlags;
 import android.content.pm.ResolveInfo;
-import android.content.pm.ServiceInfo;
 import android.content.pm.UserInfo;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
@@ -146,12 +144,10 @@ import com.android.server.telecom.callfiltering.DirectToVoicemailFilter;
 import com.android.server.telecom.callfiltering.DndCallFilter;
 import com.android.server.telecom.callfiltering.IncomingCallFilterGraph;
 import com.android.server.telecom.callfiltering.IncomingCallFilterGraphProvider;
-import com.android.server.telecom.callfiltering.OutgoingCallScreeningServiceFilter;
 import com.android.server.telecom.callredirection.CallRedirectionProcessor;
 import com.android.server.telecom.callsequencing.CallSequencingController;
 import com.android.server.telecom.callsequencing.CallTransaction;
 import com.android.server.telecom.callsequencing.voip.IncomingCallTransaction;
-import com.android.server.telecom.components.ErrorDialogActivity;
 import com.android.server.telecom.components.TelecomBroadcastReceiver;
 import com.android.server.telecom.callsequencing.CallsManagerCallSequencingAdapter;
 import com.android.server.telecom.flags.FeatureFlags;
@@ -159,17 +155,15 @@ import com.android.server.telecom.metrics.ErrorStats;
 import com.android.server.telecom.metrics.TelecomMetricsController;
 import com.android.server.telecom.stats.CallFailureCause;
 import com.android.server.telecom.ui.AudioProcessingNotification;
-import com.android.server.telecom.ui.CallRedirectionTimeoutDialogActivity;
 import com.android.server.telecom.ui.CallStreamingNotification;
-import com.android.server.telecom.ui.ConfirmCallDialogActivity;
 import com.android.server.telecom.ui.DisconnectedCallNotifier;
 import com.android.server.telecom.ui.IncomingCallNotifier;
 import com.android.server.telecom.ui.LocalVoicemailNotification;
 import com.android.server.telecom.ui.ToastFactory;
+import com.android.server.telecom.ui.UiConstants;
 import com.android.server.telecom.util.CallerInfo;
 import com.android.server.telecom.callsequencing.voip.VoipCallMonitor;
 import com.android.server.telecom.callsequencing.TransactionManager;
-import com.android.server.telecom.R;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -189,7 +183,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -586,6 +579,7 @@ public class CallsManager extends Call.ListenerBase
     private CallLogIntegrationAdapter mCallLogIntegrationAdapter;
 
     private String mCrsCallId = null;
+    private CrsAudioController mCrsAudioController;
 
     private final ConnectionServiceFocusManager.CallsManagerRequester mRequester =
             new ConnectionServiceFocusManager.CallsManagerRequester() {
@@ -624,9 +618,6 @@ public class CallsManager extends Call.ListenerBase
     private final MmiUtils mMmiUtils = new MmiUtils();
 
     private TelecomMetricsController mMetricsController;
-
-    private ComponentName mCallScreeningServiceComponent;
-    private ComponentName mCallScreeningServiceComponentOverride;
 
 // QTI_BEGIN: 2018-04-09: Telephony: Emergency Call when there is no room left for new Call.
     // Two global variables used to handle the Emergency Call when there
@@ -825,12 +816,17 @@ public class CallsManager extends Call.ListenerBase
         mCallDiagnosticServiceController = callDiagnosticServiceController;
         mCallDiagnosticServiceController.setInCallTonePlayerFactory(playerFactory);
         mCallConnectedIndicatorSettings = new CallConnectedIndicatorSettings(context, featureFlags);
+        if (android.telecom.flags.Flags.isUsingCrs()) {
+            mCrsAudioController = new CrsAudioController(context,
+                    context.getSystemService(AudioManager.class));
+        }
         mRinger = new Ringer(playerFactory, context, systemSettingsUtil, asyncRingtonePlayer,
                 ringtoneFactory, vibratorAdapter,
                 new Ringer.VibrationEffectProxy(), mInCallController,
                 mContext.getSystemService(NotificationManager.class),
                 accessibilityManagerAdapter, featureFlags, mAnomalyReporter,
-                mCallConnectedIndicatorSettings, asyncTaskExecutor);
+                mCallConnectedIndicatorSettings, asyncTaskExecutor,
+                mCrsAudioController);
         if (featureFlags.telecomResolveHiddenDependencies()) {
             // This is now deprecated
             mCallRecordingTonePlayer = null;
@@ -867,6 +863,7 @@ public class CallsManager extends Call.ListenerBase
         mVoipCallMonitor = new VoipCallMonitor(
                 mContext,
                 new Handler(Looper.getMainLooper()),
+                new com.android.internal.telecom.flags.FeatureFlagsImpl(),
                 mLock);
         mTelephonyFeatureFlags = telephonyFlags;
         mMetricsController = metricsController;
@@ -981,18 +978,14 @@ public class CallsManager extends Call.ListenerBase
 
         mCallLogIntegrationAdapter = new CallLogIntegrationAdapterImpl(mContext, mFeatureFlags);
 
-        if (mCallScreeningServiceComponent == null) {
-            String oemCssComponentStr = mContext.getResources().getString(
-                    R.string.oem_call_screening_service_component);
-            if (!TextUtils.isEmpty(oemCssComponentStr)) {
-                mCallScreeningServiceComponent =
-                        ComponentName.unflattenFromString(oemCssComponentStr);
-            }
-        }
-
 // QTI_BEGIN: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
         QtiCarrierConfigHelper.getInstance().setup(mContext);
 // QTI_END: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
+
+    }
+
+    public CrsAudioController getCrsAudioController() {
+        return mCrsAudioController;
     }
 
     public void setIncomingCallNotifier(IncomingCallNotifier incomingCallNotifier) {
@@ -2531,10 +2524,111 @@ public class CallsManager extends Call.ListenerBase
                 makeRoomResultHandler.thenCombine(suggestionFuture, Pair::create);
         mLatestPreAccountSelectionFuture = preSelectStage;
 
-        CompletableFuture<Pair<Call, PhoneAccountHandle>> screeningDecisionFuture =
-                performDialerSelectPhoneAccountFuture(
-                        preSelectStage, outgoingCallHandler, initiatingUser, extras, isSelfManaged,
-                        handle);
+        // This future takes the list of suggested accounts and the call and determines if more
+        // user interaction in the form of a phone account selection screen is needed. If so, it
+        // will set the call to SELECT_PHONE_ACCOUNT, add it to our internal list/send it to dialer,
+        // and then execution will pause pending the dialer calling phoneAccountSelected.
+        CompletableFuture<Pair<Call, PhoneAccountHandle>> dialerSelectPhoneAccountFuture =
+                preSelectStage.thenComposeAsync(
+                        (args) -> {
+                            Log.i(CallsManager.this, "dialer phone acct select stage");
+                            Call callToPlace = args.first;
+                            List<PhoneAccountSuggestion> accountSuggestions = args.second;
+                            if (callToPlace == null) {
+                                return CompletableFuture.completedFuture(null);
+                            }
+                            if (accountSuggestions == null || accountSuggestions.isEmpty()) {
+                                Uri callUri = callToPlace.getHandle();
+                                if (PhoneAccount.SCHEME_TEL.equals(callUri.getScheme())) {
+                                    UserHandle managedProfileUserHandle =
+                                            getManagedProfileUserHandle(mContext,
+                                            initiatingUser.getIdentifier(), mFeatureFlags);
+                                    if (managedProfileUserHandle.getIdentifier() !=
+                                            UserHandle.USER_NULL &&
+                                            mPhoneAccountRegistrar.getCallCapablePhoneAccounts(
+                                                    handle.getScheme(), false,
+                                                    managedProfileUserHandle, false).size() != 0) {
+                                        boolean dialogShown = showSwitchToManagedProfileDialog(
+                                                callUri, initiatingUser, managedProfileUserHandle);
+                                        if (dialogShown) {
+                                            return CompletableFuture.completedFuture(null);
+                                        }
+                                    }
+                                }
+
+                                Log.i(CallsManager.this, "Aborting call since there are no"
+                                        + " available accounts.");
+                                showErrorMessage(R.string.cant_call_due_to_no_supported_service);
+                                mListeners.forEach(l -> l.onCreateConnectionFailed(callToPlace));
+                                if (callToPlace.isEmergencyCall()) {
+                                    if (mFeatureFlags.telecomMetricsSupport()) {
+                                        mMetricsController.getErrorStats().log(
+                                                ErrorStats.SUB_CALL_MANAGER,
+                                                ErrorStats.ERROR_EMERGENCY_CALL_ABORTED_NO_ACCOUNT);
+                                    }
+                                    mAnomalyReporter.reportAnomaly(
+                                            EMERGENCY_CALL_ABORTED_NO_PHONE_ACCOUNTS_ERROR_UUID,
+                                            EMERGENCY_CALL_ABORTED_NO_PHONE_ACCOUNTS_ERROR_MSG);
+                                }
+                                return CompletableFuture.completedFuture(null);
+                            }
+                            boolean needsAccountSelection = accountSuggestions.size() > 1
+                                    && !callToPlace.isEmergencyCall() && !isSelfManaged;
+                            if (!needsAccountSelection) {
+                                return CompletableFuture.completedFuture(Pair.create(callToPlace,
+                                        accountSuggestions.get(0).getPhoneAccountHandle()));
+                            }
+
+                            // At this point Telecom is requesting the user to select a phone
+                            // account. However, Telephony is reporting that the user has a default
+                            // outgoing account (which is denoted by a non-negative subId number).
+                            // At some point, Telecom and Telephony are out of sync with the default
+                            // outgoing calling account.
+                            if(mFeatureFlags.telephonyHasDefaultButTelecomDoesNot()) {
+                                // SubscriptionManager will throw if FEATURE_TELEPHONY_SUBSCRIPTION
+                                // is not present.
+                                if (mContext.getPackageManager().hasSystemFeature(
+                                        PackageManager.FEATURE_TELEPHONY_SUBSCRIPTION)) {
+                                    if (SubscriptionManager.getDefaultVoiceSubscriptionId() !=
+                                            SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+                                        if (mFeatureFlags.telecomMetricsSupport()) {
+                                            mMetricsController.getErrorStats().log(
+                                                    ErrorStats.SUB_CALL_MANAGER,
+                                                    ErrorStats.ERROR_DEFAULT_MO_ACCOUNT_MISMATCH);
+                                        }
+                                        mAnomalyReporter.reportAnomaly(
+                                                TELEPHONY_HAS_DEFAULT_BUT_TELECOM_DOES_NOT_UUID,
+                                                TELEPHONY_HAS_DEFAULT_BUT_TELECOM_DOES_NOT_MSG);
+                                    }
+                                }
+                            }
+
+                            // This is the state where the user is expected to select an account
+                            callToPlace.setState(CallState.SELECT_PHONE_ACCOUNT,
+                                    "needs account selection");
+                            // Create our own instance to modify (since extras may be Bundle.EMPTY)
+                            Bundle newExtras = new Bundle(extras);
+                            ArrayList<PhoneAccountHandle> accountsFromSuggestions =
+                                    accountSuggestions
+                                            .stream()
+                                            .map(PhoneAccountSuggestion::getPhoneAccountHandle)
+                                            .collect(Collectors.toCollection(ArrayList::new));
+                            newExtras.putParcelableArrayList(
+                                    android.telecom.Call.AVAILABLE_PHONE_ACCOUNTS,
+                                    accountsFromSuggestions);
+                            ArrayList<PhoneAccountSuggestion> accountSuggestionArrayList =
+                                    new ArrayList<>(accountSuggestions);
+                            newExtras.putParcelableArrayList(
+                                    android.telecom.Call.EXTRA_SUGGESTED_PHONE_ACCOUNTS,
+                                    accountSuggestionArrayList);
+                            // Set a future in place so that we can proceed once the dialer replies.
+                            mPendingAccountSelection.put(callToPlace.getId(),
+                                    new CompletableFuture<>());
+                            callToPlace.setIntentExtras(newExtras);
+
+                            addCall(callToPlace);
+                            return mPendingAccountSelection.get(callToPlace.getId());
+                        }, new LoggedHandlerExecutor(outgoingCallHandler, "CM.dSPA", mLock));
 
         // Potentially perform call identification for dialed TEL scheme numbers.
         if (PhoneAccount.SCHEME_TEL.equals(handle.getScheme())) {
@@ -2548,8 +2642,7 @@ public class CallsManager extends Call.ListenerBase
             // Once the phone account selection stage has completed, we can handle the results from
             // that with the contacts lookup in order to determine if we should lookup bind to the
             // CallScreeningService in order for it to potentially provide caller ID.
-            CompletableFuture<Void> unused = screeningDecisionFuture
-                    .thenAcceptBothAsync(contactLookupFuture,
+            dialerSelectPhoneAccountFuture.thenAcceptBothAsync(contactLookupFuture,
                     (callPhoneAccountHandlePair, uriCallerInfoPair) -> {
                         if (callPhoneAccountHandlePair == null) {
                             return;
@@ -2589,7 +2682,7 @@ public class CallsManager extends Call.ListenerBase
         // Finally, after all user interaction is complete, we execute this code to finish setting
         // up the outgoing call. The inner method always returns a completed future containing the
         // call that we've finished setting up.
-        mLatestPostSelectionProcessingFuture = screeningDecisionFuture
+        mLatestPostSelectionProcessingFuture = dialerSelectPhoneAccountFuture
                 .thenComposeAsync(args -> {
                     if (args == null) {
                         return CompletableFuture.completedFuture(null);
@@ -2737,14 +2830,118 @@ public class CallsManager extends Call.ListenerBase
                 isCallAllowed.thenCombine(suggestionFuture, Pair::create);
         mLatestPreAccountSelectionFuture = preSelectStage;
 
-        CompletableFuture<Pair<Call, PhoneAccountHandle>> screeningDecisionFuture =
-                performDialerSelectPhoneAccountFuture(
-                        preSelectStage, outgoingCallHandler, initiatingUser, extras, isSelfManaged,
-                        handle);
+        // This future takes the list of suggested accounts and the call and determines if more
+        // user interaction in the form of a phone account selection screen is needed. If so, it
+        // will set the call to SELECT_PHONE_ACCOUNT, add it to our internal list/send it to dialer,
+        // and then execution will pause pending the dialer calling phoneAccountSelected.
+        CompletableFuture<Pair<Call, PhoneAccountHandle>> dialerSelectPhoneAccountFuture =
+                preSelectStage.thenComposeAsync(
+                        (args) -> {
+                            Log.i(CallsManager.this, "dialer phone acct select stage");
+                            Call callToPlace = args.first;
+                            List<PhoneAccountSuggestion> accountSuggestions = args.second;
+                            if (callToPlace == null) {
+                                return CompletableFuture.completedFuture(null);
+                            }
+                            if (accountSuggestions == null || accountSuggestions.isEmpty()) {
+                                Uri callUri = callToPlace.getHandle();
+                                if (PhoneAccount.SCHEME_TEL.equals(callUri.getScheme())) {
+                                    UserHandle managedProfileUserHandle =
+                                            getManagedProfileUserHandle(mContext,
+                                            initiatingUser.getIdentifier(), mFeatureFlags);
+                                    if (managedProfileUserHandle.getIdentifier() !=
+                                            UserHandle.USER_NULL &&
+                                            mPhoneAccountRegistrar.getCallCapablePhoneAccounts(
+                                                    handle.getScheme(), false,
+                                                    managedProfileUserHandle, false).size()
+                                                    != 0) {
+                                        boolean dialogShown = showSwitchToManagedProfileDialog(
+                                                callUri, initiatingUser, managedProfileUserHandle);
+                                        if (dialogShown) {
+                                            return CompletableFuture.completedFuture(null);
+                                        }
+                                    }
+                                }
+
+                                Log.i(CallsManager.this, "Aborting call since there are no"
+                                        + " available accounts.");
+                                showErrorMessage(R.string.cant_call_due_to_no_supported_service);
+                                mListeners.forEach(l -> l.onCreateConnectionFailed(callToPlace));
+                                if (callToPlace.isEmergencyCall()) {
+                                    if (mFeatureFlags.telecomMetricsSupport()) {
+                                        mMetricsController.getErrorStats().log(
+                                                ErrorStats.SUB_CALL_MANAGER,
+                                                ErrorStats.ERROR_EMERGENCY_CALL_ABORTED_NO_ACCOUNT);
+                                    }
+                                    mAnomalyReporter.reportAnomaly(
+                                            EMERGENCY_CALL_ABORTED_NO_PHONE_ACCOUNTS_ERROR_UUID,
+                                            EMERGENCY_CALL_ABORTED_NO_PHONE_ACCOUNTS_ERROR_MSG);
+                                }
+                                return CompletableFuture.completedFuture(null);
+                            }
+                            boolean needsAccountSelection = accountSuggestions.size() > 1
+                                    && !callToPlace.isEmergencyCall() && !isSelfManaged;
+                            if (!needsAccountSelection) {
+                                return CompletableFuture.completedFuture(Pair.create(callToPlace,
+                                        accountSuggestions.get(0).getPhoneAccountHandle()));
+                            }
+
+                            // At this point Telecom is requesting the user to select a phone
+                            // account. However, Telephony is reporting that the user has a default
+                            // outgoing account (which is denoted by a non-negative subId number).
+                            // At some point, Telecom and Telephony are out of sync with the default
+                            // outgoing calling account.
+                            if(mFeatureFlags.telephonyHasDefaultButTelecomDoesNot()) {
+                                // SubscriptionManager will throw if FEATURE_TELEPHONY_SUBSCRIPTION
+                                // is not present.
+                                if (mContext.getPackageManager().hasSystemFeature(
+                                        PackageManager.FEATURE_TELEPHONY_SUBSCRIPTION)) {
+                                    if (SubscriptionManager.getDefaultVoiceSubscriptionId() !=
+                                            SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+                                        if (mFeatureFlags.telecomMetricsSupport()) {
+                                            mMetricsController.getErrorStats().log(
+                                                    ErrorStats.SUB_CALL_MANAGER,
+                                                    ErrorStats.ERROR_DEFAULT_MO_ACCOUNT_MISMATCH);
+                                        }
+                                        mAnomalyReporter.reportAnomaly(
+                                                TELEPHONY_HAS_DEFAULT_BUT_TELECOM_DOES_NOT_UUID,
+                                                TELEPHONY_HAS_DEFAULT_BUT_TELECOM_DOES_NOT_MSG);
+                                    }
+                                }
+                            }
+
+                            // This is the state where the user is expected to select an account
+                            callToPlace.setState(CallState.SELECT_PHONE_ACCOUNT,
+                                    "needs account selection");
+                            // Create our own instance to modify (since extras may be Bundle.EMPTY)
+                            Bundle newExtras = new Bundle(extras);
+                            ArrayList<PhoneAccountHandle> accountsFromSuggestions =
+                                    accountSuggestions
+                                            .stream()
+                                            .map(PhoneAccountSuggestion::getPhoneAccountHandle)
+                                            .collect(Collectors.toCollection(ArrayList::new));
+                            newExtras.putParcelableArrayList(
+                                    android.telecom.Call.AVAILABLE_PHONE_ACCOUNTS,
+                                    accountsFromSuggestions);
+                            ArrayList<PhoneAccountSuggestion> accountSuggestionArrayList =
+                                    new ArrayList<>(accountSuggestions);
+                            newExtras.putParcelableArrayList(
+                                    android.telecom.Call.EXTRA_SUGGESTED_PHONE_ACCOUNTS,
+                                    accountSuggestionArrayList);
+                            // Set a future in place so that we can proceed once the dialer replies.
+                            mPendingAccountSelection.put(callToPlace.getId(),
+                                    new CompletableFuture<>());
+                            callToPlace.setIntentExtras(newExtras);
+
+                            addCall(callToPlace);
+                            return mPendingAccountSelection.get(callToPlace.getId());
+                        }, new LoggedHandlerExecutor(outgoingCallHandler, "CM.dSPA", mLock));
+
         // This future checks the status of existing calls and attempts to make room for the
         // outgoing call.
         CompletableFuture<Pair<PhoneAccountHandle, Boolean>> makeRoomForCall =
-                screeningDecisionFuture.thenComposeAsync(potentialCallAttr -> {
+                dialerSelectPhoneAccountFuture.thenComposeAsync(potentialCallAttr -> {
+                    Log.i(CallsManager.this, "make room for call stage");
                     Call callToPlace = potentialCallAttr.first;
                     PhoneAccountHandle callHandle = potentialCallAttr.second;
                     if (callToPlace == null) {
@@ -2784,6 +2981,7 @@ public class CallsManager extends Call.ListenerBase
         // future.
         CompletableFuture<Pair<Call, PhoneAccountHandle>> makeRoomSelfManagedConfirmation =
                 makeRoomForCall.thenComposeAsync((callAttr) -> {
+                    Log.i(CallsManager.this, "make room for SM confirmation stage");
                     if (callAttr == null) {
                         return CompletableFuture.completedFuture(null);
                     }
@@ -2883,7 +3081,7 @@ public class CallsManager extends Call.ListenerBase
         // Finally, after all user interaction is complete, we execute this code to finish setting
         // up the outgoing call. The inner method always returns a completed future containing the
         // call that we've finished setting up.
-        mLatestPostSelectionProcessingFuture = makeRoomSelfManagedConfirmation
+        CompletableFuture<Call> callToUseFuture = makeRoomSelfManagedConfirmation
                 .thenComposeAsync(args -> {
                     if (args == null) {
                         return CompletableFuture.completedFuture(null);
@@ -2902,6 +3100,7 @@ public class CallsManager extends Call.ListenerBase
                         }
                     }
 
+                    Log.i(CallsManager.this, "set call (%s) state to connecting", callToUse);
                     callToUse.setState(
                             CallState.CONNECTING,
                             phoneAccountHandle == null ? "no-handle"
@@ -2936,132 +3135,13 @@ public class CallsManager extends Call.ListenerBase
                         // We check if mCalls already contains the call because we could
                         // potentially be reusing
                         // a call which was previously added (See {@link #reuseOutgoingCall}).
+                        Log.i(CallsManager.this, "Adding call (%s) for tracking", callToUse);
                         addCall(callToUse);
                     }
                     return CompletableFuture.completedFuture(callToUse);
                 }, new LoggedHandlerExecutor(outgoingCallHandler, "CM.pASP", mLock));
-        return mLatestPostSelectionProcessingFuture;
-    }
-
-    private CompletableFuture<Pair<Call, PhoneAccountHandle>> performDialerSelectPhoneAccountFuture(
-            CompletableFuture<Pair<Call, List<PhoneAccountSuggestion>>> preSelectStage,
-            Handler outgoingCallHandler,
-            UserHandle initiatingUser,
-            Bundle extras,
-            boolean isSelfManaged,
-            Uri handle) {
-        // This future takes the list of suggested accounts and the call and determines if more
-        // user interaction in the form of a phone account selection screen is needed. If so, it
-        // will set the call to SELECT_PHONE_ACCOUNT, add it to our internal list/send it to dialer,
-        // and then execution will pause pending the dialer calling phoneAccountSelected.
-        CompletableFuture<Pair<Call, PhoneAccountHandle>> dialerSelectPhoneAccountFuture =
-                preSelectStage.thenComposeAsync(
-                        (args) -> {
-                            Log.i(CallsManager.this, "dialer phone acct select stage");
-                            Call callToPlace = args.first;
-                            List<PhoneAccountSuggestion> accountSuggestions = args.second;
-                            if (callToPlace == null) {
-                                return CompletableFuture.completedFuture(null);
-                            }
-                            if (accountSuggestions == null || accountSuggestions.isEmpty()) {
-                                Uri callUri = callToPlace.getHandle();
-                                if (PhoneAccount.SCHEME_TEL.equals(callUri.getScheme())) {
-                                    UserHandle managedProfileUserHandle =
-                                            getManagedProfileUserHandle(mContext,
-                                                    initiatingUser.getIdentifier(), mFeatureFlags);
-                                    if (managedProfileUserHandle.getIdentifier() !=
-                                            UserHandle.USER_NULL &&
-                                            mPhoneAccountRegistrar.getCallCapablePhoneAccounts(
-                                                    handle.getScheme(), false,
-                                                    managedProfileUserHandle, false).size()
-                                                    != 0) {
-                                        boolean dialogShown = showSwitchToManagedProfileDialog(
-                                                callUri, initiatingUser, managedProfileUserHandle);
-                                        if (dialogShown) {
-                                            return CompletableFuture.completedFuture(null);
-                                        }
-                                    }
-                                }
-
-                                Log.i(CallsManager.this, "Aborting call since there are no"
-                                        + " available accounts.");
-                                showErrorMessage(R.string.cant_call_due_to_no_supported_service);
-                                mListeners.forEach(l -> l.onCreateConnectionFailed(callToPlace));
-                                if (callToPlace.isEmergencyCall()) {
-                                    if (mFeatureFlags.telecomMetricsSupport()) {
-                                        mMetricsController.getErrorStats().log(
-                                                ErrorStats.SUB_CALL_MANAGER,
-                                                ErrorStats.ERROR_EMERGENCY_CALL_ABORTED_NO_ACCOUNT);
-                                    }
-                                    mAnomalyReporter.reportAnomaly(
-                                            EMERGENCY_CALL_ABORTED_NO_PHONE_ACCOUNTS_ERROR_UUID,
-                                            EMERGENCY_CALL_ABORTED_NO_PHONE_ACCOUNTS_ERROR_MSG);
-                                }
-                                return CompletableFuture.completedFuture(null);
-                            }
-                            boolean needsAccountSelection = accountSuggestions.size() > 1
-                                    && !callToPlace.isEmergencyCall() && !isSelfManaged;
-                            if (!needsAccountSelection) {
-                                return CompletableFuture.completedFuture(Pair.create(callToPlace,
-                                        accountSuggestions.get(0).getPhoneAccountHandle()));
-                            }
-
-                            // At this point Telecom is requesting the user to select a phone
-                            // account. However, Telephony is reporting that the user has a default
-                            // outgoing account (which is denoted by a non-negative subId number).
-                            // At some point, Telecom and Telephony are out of sync with the default
-                            // outgoing calling account.
-                            if (mFeatureFlags.telephonyHasDefaultButTelecomDoesNot()) {
-                                // SubscriptionManager will throw if FEATURE_TELEPHONY_SUBSCRIPTION
-                                // is not present.
-                                if (mContext.getPackageManager().hasSystemFeature(
-                                        PackageManager.FEATURE_TELEPHONY_SUBSCRIPTION)) {
-                                    if (SubscriptionManager.getDefaultVoiceSubscriptionId() !=
-                                            SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
-                                        if (mFeatureFlags.telecomMetricsSupport()) {
-                                            mMetricsController.getErrorStats().log(
-                                                    ErrorStats.SUB_CALL_MANAGER,
-                                                    ErrorStats.ERROR_DEFAULT_MO_ACCOUNT_MISMATCH);
-                                        }
-                                        mAnomalyReporter.reportAnomaly(
-                                                TELEPHONY_HAS_DEFAULT_BUT_TELECOM_DOES_NOT_UUID,
-                                                TELEPHONY_HAS_DEFAULT_BUT_TELECOM_DOES_NOT_MSG);
-                                    }
-                                }
-                            }
-
-                            // This is the state where the user is expected to select an account
-                            callToPlace.setState(CallState.SELECT_PHONE_ACCOUNT,
-                                    "needs account selection");
-                            // Create our own instance to modify (since extras may be Bundle.EMPTY)
-                            Bundle newExtras = new Bundle(extras);
-                            ArrayList<PhoneAccountHandle> accountsFromSuggestions =
-                                    accountSuggestions
-                                            .stream()
-                                            .map(PhoneAccountSuggestion::getPhoneAccountHandle)
-                                            .collect(Collectors.toCollection(ArrayList::new));
-                            newExtras.putParcelableArrayList(
-                                    android.telecom.Call.AVAILABLE_PHONE_ACCOUNTS,
-                                    accountsFromSuggestions);
-                            ArrayList<PhoneAccountSuggestion> accountSuggestionArrayList =
-                                    new ArrayList<>(accountSuggestions);
-                            newExtras.putParcelableArrayList(
-                                    android.telecom.Call.EXTRA_SUGGESTED_PHONE_ACCOUNTS,
-                                    accountSuggestionArrayList);
-                            // Set a future in place so that we can proceed once the dialer replies.
-                            mPendingAccountSelection.put(callToPlace.getId(),
-                                    new CompletableFuture<>());
-                            callToPlace.setIntentExtras(newExtras);
-
-                            addCall(callToPlace);
-                            return mPendingAccountSelection.get(callToPlace.getId());
-                        }, new LoggedHandlerExecutor(outgoingCallHandler, "CM.dSPA", mLock));
-        return dialerSelectPhoneAccountFuture.thenComposeAsync(callAndAccount -> {
-            if (callAndAccount == null) {
-                return CompletableFuture.completedFuture(null);
-            }
-            return bindForOemOutgoingScreening(callAndAccount.first, callAndAccount.second);
-        }, new LoggedHandlerExecutor(outgoingCallHandler, "CM.oemOS", mLock));
+        mLatestPostSelectionProcessingFuture = callToUseFuture;
+        return callToUseFuture;
     }
 
     private static UserHandle getManagedProfileUserHandle(Context context, int userId,
@@ -3261,7 +3341,7 @@ public class CallsManager extends Call.ListenerBase
          // Enforce outgoing call restriction for conference calls. This is handled via
          // UserCallIntentProcessor for normal MO calls.
          if (UserUtil.hasOutgoingCallsUserRestriction(mContext, initiatingUser, null,
-                 isSelfManaged, CallsManager.class.getCanonicalName(), mFeatureFlags)) {
+                 isSelfManaged, CallsManager.class.getCanonicalName())) {
              return;
          }
          CompletableFuture<Call> callFuture = startOutgoingCall(participants, phoneAccountHandle,
@@ -3288,114 +3368,6 @@ public class CallsManager extends Call.ListenerBase
     }
 
     /**
-     * Sets a test override for the call screening service.
-     * <p>
-     * This method is intended to be called from {@link TelecomServiceImpl} when a test component is
-     * provided via the {@code set-call-screening-service} shell command. It allows a
-     * temporary {@link CallScreeningService} to be designated for testing, bypassing the service
-     * defined in {@code R.string.oem_call_screening_service_component}.
-     *
-     * @param componentName The {@link ComponentName} of the service to use as an override, or
-     *     {@code null} to clear the override and revert to the default behavior.
-     */
-    public void setCallScreeningServiceComponentOverride(ComponentName componentName) {
-        Log.i(this, "setCallScreeningServiceComponentOverride"
-                + " componentName: " + componentName);
-        mCallScreeningServiceComponentOverride = componentName;
-    }
-
-    private ComponentName getCallScreeningServiceComponent() {
-        if (mCallScreeningServiceComponentOverride != null) {
-            Log.d(this, "Using CallScreeningService override from shell: "
-                    + mCallScreeningServiceComponentOverride);
-            return mCallScreeningServiceComponentOverride;
-        }
-        return mCallScreeningServiceComponent;
-    }
-
-    private CompletableFuture<Pair<Call, PhoneAccountHandle>> bindForOemOutgoingScreening(
-            Call call, PhoneAccountHandle accountHandle) {
-        if (!android.telecom.flags.Flags.enableOemOutgoingCallScreening()) {
-            Log.i(this, "OEM Outgoing Screening feature flag is disabled.");
-            return CompletableFuture.completedFuture(Pair.create(call, accountHandle));
-        }
-
-        if (call.isEmergencyCall()) {
-            Log.i(this, "Skipping OEM Outgoing Screening for emergency call.");
-            return CompletableFuture.completedFuture(Pair.create(call, accountHandle));
-        }
-
-        ServiceInfo serviceInfo = getOemScreeningServiceInfo();
-        if (isValidOemScreeningService(serviceInfo)) {
-            Log.i(this, "OEM Outgoing Blocking Screening for: " + serviceInfo.getComponentName());
-            return createScreeningFilterFuture(call, accountHandle, serviceInfo);
-        }
-        Log.i(this, "No valid OEM Outgoing Blocking Screening service found.");
-        return CompletableFuture.completedFuture(Pair.create(call, accountHandle));
-    }
-
-    private ServiceInfo getOemScreeningServiceInfo() {
-        ComponentName oemCssComp = getCallScreeningServiceComponent();
-        if (oemCssComp == null) {
-            return null;
-        }
-        try {
-            PackageManager pm = mContext.getPackageManager();
-            return pm.getServiceInfo(oemCssComp, PackageManager.GET_META_DATA);
-        } catch (PackageManager.NameNotFoundException e) {
-            Log.w(this, "Could not find service info for component: " + oemCssComp);
-            return null;
-        }
-    }
-
-    private boolean isValidOemScreeningService(ServiceInfo serviceInfo) {
-        if (serviceInfo == null || serviceInfo.applicationInfo == null) {
-            Log.i(this, "ServiceInfo or ApplicationInfo is null.");
-            return false;
-        }
-
-        boolean isSystem = (serviceInfo.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
-        boolean isOutgoingScreeningEnabled = serviceInfo.metaData != null &&
-                serviceInfo.metaData.getBoolean(
-                        CallScreeningService.METADATA_SCREEN_OUTGOING_CALLS, false);
-
-        Log.i(this, "isValidOemScreeningService: component=" + serviceInfo.getComponentName()
-                + ", isSystem=" + isSystem
-                + ", metadataEnabled=" + isOutgoingScreeningEnabled);
-
-        boolean isValid = (mCallScreeningServiceComponentOverride != null || isSystem)
-                && isOutgoingScreeningEnabled;
-
-        return isValid;
-    }
-
-    private CompletableFuture<Pair<Call, PhoneAccountHandle>> createScreeningFilterFuture(
-            Call call, PhoneAccountHandle accountHandle, ServiceInfo serviceInfo) {
-
-        OutgoingCallScreeningServiceFilter filter = new OutgoingCallScreeningServiceFilter(
-                call, serviceInfo.packageName, mContext, mTimeoutsAdapter, mFeatureFlags,
-                true /* isBlockingScreening */
-        );
-        CallFilteringResult initialResult = new CallFilteringResult.Builder()
-                .setShouldAllowCall(true).build();
-        CompletionStage<CallFilteringResult> filterResultStage =
-                filter.startFilterLookup(initialResult);
-
-        return filterResultStage
-                .thenApplyAsync(result -> {
-                    if (result.shouldAllowCall) {
-                        Log.i(this, "OEM CSS allowed call: " + call.getId());
-                        return Pair.create(call, accountHandle);
-                    } else {
-                        Log.i(this, "OEM CSS blocked call: " + call.getId());
-                        call.reject(false, null);
-                        return null; // Blocked
-                    }
-                }, new LoggedHandlerExecutor(mHandler, "CM.oemOS.res", mLock))
-                .toCompletableFuture();
-    }
-
-    /**
      * Performs call identification for an outgoing phone call.
      * @param theCall The outgoing call to perform identification.
      */
@@ -3404,21 +3376,24 @@ public class CallsManager extends Call.ListenerBase
         String callScreeningApp =
                 mRoleManagerAdapter.getDefaultCallScreeningApp(
                         theCall.getAssociatedUser());
-        if (TextUtils.isEmpty(callScreeningApp)) return;
 
-        Log.d(this, "Performing default outgoing screening with: "
-                + callScreeningApp);
-        OutgoingCallScreeningServiceFilter filter = new OutgoingCallScreeningServiceFilter(
-                theCall, callScreeningApp, mContext, mTimeoutsAdapter, mFeatureFlags,
-                false /* isBlockingScreening */
-        );
-        CallFilteringResult initialResult = new CallFilteringResult.Builder()
-                .setShouldAllowCall(true).build();
-        filter.startFilterLookup(initialResult)
-                .exceptionally(ex -> {
-                    Log.w(this, "performDefaultOutgoingScreening: Failed " + ex);
-                    return null;
-                });
+        CompletableFuture future =
+                new CallScreeningServiceHelper(mContext,
+                mLock,
+                callScreeningApp,
+                new ParcelableCallUtils.Converter(),
+                mCurrentUserHandle,
+                theCall,
+                new AppLabelProxy() {
+                    @Override
+                    public CharSequence getAppLabel(String packageName, UserHandle userHandle) {
+                        return Util.getAppLabel(mContext, userHandle, packageName, mFeatureFlags);
+                    }
+                }, mFeatureFlags).process();
+        future.thenApply( v -> {
+            Log.i(this, "Outgoing caller ID complete");
+            return null;
+        });
     }
 
     /**
@@ -3609,10 +3584,11 @@ public class CallsManager extends Call.ListenerBase
             // is not needed to show if the call is disconnected (e.g. by the user)
             if (uiAction.equals(CallRedirectionProcessor.UI_TYPE_USER_DEFINED_TIMEOUT)
                     && !call.isDisconnected()) {
-                Intent timeoutIntent = new Intent(mContext,
-                        CallRedirectionTimeoutDialogActivity.class);
+                Intent timeoutIntent = new Intent();
+                timeoutIntent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
+                        UiConstants.COMPONENT_CALL_REDIRECTION_TIMEOUT_DIALOG);
                 timeoutIntent.putExtra(
-                        CallRedirectionTimeoutDialogActivity.EXTRA_REDIRECTION_APP_NAME,
+                        UiConstants.EXTRA_REDIRECTION_APP_NAME,
                         mRoleManagerAdapter.getApplicationLabelForPackageName(callRedirectionApp));
                 timeoutIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 mContext.startActivityAsUser(timeoutIntent, UserHandle.CURRENT);
@@ -4134,6 +4110,14 @@ public class CallsManager extends Call.ListenerBase
         }
     }
 
+    public boolean isWiredHandsetIn() {
+        return mWiredHeadsetManager.isPluggedIn();
+    }
+
+    public boolean isBtAvailable() {
+        return  mBluetoothRouteManager.isBluetoothAvailable();
+    }
+
     /**
      * Determines if the speakerphone should be automatically enabled for the call.  Speakerphone
      * should be enabled if the call is a video call and bluetooth or the wired headset are not in
@@ -4162,13 +4146,6 @@ public class CallsManager extends Call.ListenerBase
 
 // QTI_END: 2021-04-01: Telephony: IMS: Support Video Customized Ringing Signal(CRS)
 // QTI_BEGIN: 2022-04-12: Telephony: IMS: Fix CRS volume issues
-     public boolean isWiredHandsetIn() {
-        return mWiredHeadsetManager.isPluggedIn();
-     }
-
-     public boolean isBtAvailble() {
-       return  mBluetoothRouteManager.isBluetoothAvailable();
-     }
 
 // QTI_END: 2022-04-12: Telephony: IMS: Fix CRS volume issues
     /**
@@ -4217,7 +4194,7 @@ public class CallsManager extends Call.ListenerBase
      * the user opting to reject said call.
      */
     @VisibleForTesting
-    public void rejectCall(Call call, @android.telecom.Call.RejectReason int rejectReason) {
+    public void rejectCall(Call call, /*@android.telecom.Call.RejectReason*/ int rejectReason) {
         if (!mCalls.contains(call)) {
             Log.i(this, "Request to reject a non-existent call %s", call);
         } else {
@@ -4628,7 +4605,10 @@ public class CallsManager extends Call.ListenerBase
       * Called by the in-call UI to change the audio route, for example to change from earpiece to
       * speaker phone.
       */
-    void setAudioRoute(int route, String bluetoothAddress) {
+    void setAudioRoute(int uid, int route, String bluetoothAddress) {
+        if (mFeatureFlags.telecomMetricsSupport()) {
+            mMetricsController.getCallEndpointStats().onRequested(uid, route, bluetoothAddress);
+        }
         mCallAudioManager.setAudioRoute(route, bluetoothAddress);
     }
 
@@ -4636,7 +4616,12 @@ public class CallsManager extends Call.ListenerBase
       * Called by the in-call UI to change the CallEndpoint
       */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public void requestCallEndpointChange(CallEndpoint endpoint, ResultReceiver callback) {
+    public void requestCallEndpointChange(int uid, CallEndpoint endpoint, ResultReceiver callback) {
+        if (mFeatureFlags.telecomMetricsSupport()) {
+            mMetricsController.getCallEndpointStats().onRequested(uid,
+                    mCallEndpointController.getRoute(endpoint),
+                    mCallEndpointController.getBluetoothAddress(endpoint));
+        }
         mCallEndpointController.requestCallEndpointChange(endpoint, callback);
     }
 
@@ -4661,7 +4646,7 @@ public class CallsManager extends Call.ListenerBase
         // force the audio route to SPEAKER
         if (audioState.getRoute() == CallAudioState.ROUTE_EARPIECE) {
             Log.i(this, "Rerouting audio for video upgrade for call: %s", call.getId());
-            setAudioRoute(CallAudioState.ROUTE_SPEAKER, null);
+            setAudioRoute(Process.myUid(), CallAudioState.ROUTE_SPEAKER, null);
         }
     }
 
@@ -4941,7 +4926,7 @@ public class CallsManager extends Call.ListenerBase
             // hasn't been created yet. We will end up with two active "child" calls (WAI from a
             // Telephony standpoint) and we want to skip sequencing in this case. We can also add
             // another check to ensure the active call we would end up holding isn't a child call.
-            if (mFeatureFlags.requestFocusForSetActive() && !Objects.equals(activeCall, call)
+            if (!Objects.equals(activeCall, call)
                     && call.isFocusable() && call.getState() != CallState.ON_HOLD
                     && (activeCall == null || activeCall.getParentCall() == null)) {
                 mCallSequencingAdapter.markCallAsActive(call);
@@ -5759,6 +5744,8 @@ public class CallsManager extends Call.ListenerBase
             if (newState == CallState.ON_HOLD && call.isDtmfTonePlaying()) {
                 stopDtmfTone(call);
             }
+// QTI_BEGIN: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
+// QTI_END: 2020-04-08: Telephony: Add vibrating for outgoing call accepted support
 
             // Maybe start vibrating for MO call.
             if (newState == CallState.ACTIVE && !call.isIncoming() && !call.isUnknown()) {
@@ -6311,7 +6298,7 @@ public class CallsManager extends Call.ListenerBase
             return;
         }
         if (call.getStartWithSpeakerphoneOn()) {
-            setAudioRoute(CallAudioState.ROUTE_SPEAKER, null);
+            setAudioRoute(Process.myUid(), CallAudioState.ROUTE_SPEAKER, null);
             call.setStartWithSpeakerphoneOn(false);
         }
     }
@@ -6528,7 +6515,7 @@ public class CallsManager extends Call.ListenerBase
      * switched, we reload missed calls of profile that are just started here.
      */
     void onUserStarting(UserHandle userHandle) {
-        if (UserUtil.isProfile(mContext, userHandle, mFeatureFlags)) {
+        if (UserUtil.isProfile(mContext, userHandle)) {
             reloadMissedCallsOfUser(userHandle);
         }
     }
@@ -6752,9 +6739,11 @@ public class CallsManager extends Call.ListenerBase
             Log.i(this, "startCallConfirmation: callId=%s, ongoingApp=%s", call.getId(),
                     ongoingAppName);
 
-            Intent confirmIntent = new Intent(mContext, ConfirmCallDialogActivity.class);
-            confirmIntent.putExtra(ConfirmCallDialogActivity.EXTRA_OUTGOING_CALL_ID, call.getId());
-            confirmIntent.putExtra(ConfirmCallDialogActivity.EXTRA_ONGOING_APP_NAME, ongoingAppName);
+            Intent confirmIntent = new Intent();
+            confirmIntent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
+                UiConstants.COMPONENT_CONFIRM_CALL_DIALOG);
+            confirmIntent.putExtra(UiConstants.EXTRA_OUTGOING_CALL_ID, call.getId());
+            confirmIntent.putExtra(UiConstants.EXTRA_ONGOING_APP_NAME, ongoingAppName);
             confirmIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             mContext.startActivityAsUser(confirmIntent, UserHandle.CURRENT);
         }
@@ -6920,8 +6909,10 @@ public class CallsManager extends Call.ListenerBase
             if (!TextUtils.isEmpty(disconnectCause.getDescription()) && ((disconnectCause.getCode()
                     == DisconnectCause.ERROR) || (disconnectCause.getCode()
                     == DisconnectCause.RESTRICTED))) {
-                Intent errorIntent = new Intent(mContext, ErrorDialogActivity.class);
-                errorIntent.putExtra(ErrorDialogActivity.ERROR_MESSAGE_STRING_EXTRA,
+                final Intent errorIntent = new Intent();
+                errorIntent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
+                        UiConstants.COMPONENT_ERROR_DIALOG);
+                errorIntent.putExtra(UiConstants.ERROR_MESSAGE_STRING_EXTRA,
                         disconnectCause.getDescription());
                 errorIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 mContext.startActivityAsUser(errorIntent, UserHandle.CURRENT);
@@ -7635,8 +7626,10 @@ public class CallsManager extends Call.ListenerBase
      * @param messageId The string resource id.
      */
     private void showErrorMessage(int messageId) {
-        final Intent errorIntent = new Intent(mContext, ErrorDialogActivity.class);
-        errorIntent.putExtra(ErrorDialogActivity.ERROR_MESSAGE_ID_EXTRA, messageId);
+        final Intent errorIntent = new Intent();
+        errorIntent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
+              UiConstants.COMPONENT_ERROR_DIALOG);
+        errorIntent.putExtra(UiConstants.ERROR_MESSAGE_ID_EXTRA, messageId);
         errorIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         mContext.startActivityAsUser(errorIntent, UserHandle.CURRENT);
     }
@@ -7644,10 +7637,8 @@ public class CallsManager extends Call.ListenerBase
     /**
      * Handles changes to a {@link PhoneAccount}.
      *
-// QTI_BEGIN: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
      * Invokes phone account changed handler for calls with matching
      * phone account.
-// QTI_END: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
      *
      * @param registrar The {@link PhoneAccountRegistrar} originating the change.
      * @param phoneAccount The {@link PhoneAccount} which changed.
@@ -7657,9 +7648,7 @@ public class CallsManager extends Call.ListenerBase
         Log.i(this, "handlePhoneAccountChanged: phoneAccount=%s", phoneAccount);
         mCalls.stream()
                 .filter(c -> phoneAccount.getAccountHandle().equals(c.getTargetPhoneAccount()))
-// QTI_BEGIN: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
                 .forEach(c -> c.handlePhoneAccountChanged(phoneAccount));
-// QTI_END: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
     }
 
     /**
@@ -7902,4 +7891,8 @@ public class CallsManager extends Call.ListenerBase
     public LocalVoicemailController getLocalVoicemailController() {
         return mLocalVoicemailController;
     }
-}
+
+    TelecomMetricsController getMetricsController() {
+        return mMetricsController;
+    }
+ }

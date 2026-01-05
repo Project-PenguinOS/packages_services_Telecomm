@@ -39,7 +39,6 @@ import com.android.server.telecom.R;
 import com.android.server.telecom.TelecomSystem;
 import com.android.server.telecom.TelephonyUtil;
 import com.android.server.telecom.UserUtil;
-import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.metrics.EventStats;
 import com.android.server.telecom.metrics.EventStats.CriticalEvent;
 
@@ -64,13 +63,10 @@ public class UserCallIntentProcessor {
     private static final int INVALID_CALL_TYPE = -1;
     private final Context mContext;
     private final UserHandle mUserHandle;
-    private FeatureFlags mFeatureFlags;
 
-    public UserCallIntentProcessor(Context context, UserHandle userHandle,
-            FeatureFlags featureFlags) {
+    public UserCallIntentProcessor(Context context, UserHandle userHandle) {
         mContext = context;
         mUserHandle = userHandle;
-        mFeatureFlags = featureFlags;
     }
 
     /**
@@ -115,7 +111,7 @@ public class UserCallIntentProcessor {
         }
 
        if (UserUtil.hasOutgoingCallsUserRestriction(mContext, mUserHandle, handle, isSelfManaged,
-               UserCallIntentProcessor.class.getCanonicalName(), mFeatureFlags)) {
+               UserCallIntentProcessor.class.getCanonicalName())) {
            return;
        }
 
@@ -198,55 +194,52 @@ public class UserCallIntentProcessor {
      *         calling package.
      */
     private boolean isProcessingCallbackAction(Uri handle, Intent intent) {
-        if (mFeatureFlags.integratedCallLogs()) {
-            int callType = intent.getIntExtra(TelecomManager.EXTRA_CALL_TYPE, INVALID_CALL_TYPE);
-            String authority = handle != null ? handle.getAuthority() : null;
-            // Check to see if the provided handle's authority corresponds to the call log content
-            // URI authority.
-            if (handle == null || !CONTENT_URI.getAuthority().equals(authority)) {
-                Log.i(this, "Passed in handle's authority doesn't match up with call log "
-                        + "content uri authority: %s.", authority);
-                return false;
-            }
+        int callType = intent.getIntExtra(TelecomManager.EXTRA_CALL_TYPE, INVALID_CALL_TYPE);
+        String authority = handle != null ? handle.getAuthority() : null;
+        // Check to see if the provided handle's authority corresponds to the call log content
+        // URI authority.
+        if (handle == null || !CONTENT_URI.getAuthority().equals(authority)) {
+            Log.i(this, "Passed in handle's authority doesn't match up with call log "
+                    + "content uri authority: %s.", authority);
+            return false;
+        }
 
-            ContentResolver resolver = mContext.getContentResolver();
-            Cursor c = null;
-            try {
-                Log.i(this, "Attempting to query call log entry with handle{%s}.",
-                        handle);
-                c = resolver.query(handle, new String[]{UUID, PHONE_ACCOUNT_COMPONENT_NAME},
-                        null, null, null);
-                // Moves cursor to first row found
-                if (c != null && c.moveToFirst()) {
-                    int uuidIndex = c.getColumnIndex(UUID);
-                    String uuid = c.getString(uuidIndex);
-                    int componentNameIndex = c.getColumnIndex(PHONE_ACCOUNT_COMPONENT_NAME);
-                    String componentName = c.getString(componentNameIndex);
-                    ComponentName unflattenedComponentName = componentName != null
-                            ? ComponentName.unflattenFromString(componentName) : null;
-                    String pkgName = unflattenedComponentName != null
-                            ? unflattenedComponentName.getPackageName() : null;
-                    if (uuid != null && !uuid.isEmpty() && pkgName != null) {
-                        Log.i(this, "Found call log entry with uuid %s for %s.", uuid, pkgName);
-                        Intent actionCallbackIntent = new Intent().setPackage(pkgName)
-                                .setAction(TelecomManager.ACTION_CALL_BACK);
-                        actionCallbackIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                        actionCallbackIntent.putExtra(TelecomManager.EXTRA_UUID, uuid);
-                        if (mFeatureFlags.integratedCallLogsStage2()
-                                && callType != INVALID_CALL_TYPE) {
-                            actionCallbackIntent.putExtra(TelecomManager.EXTRA_CALL_TYPE, callType);
-                        }
-                        mContext.startActivity(actionCallbackIntent);
-                        return true;
+        ContentResolver resolver = mContext.getContentResolver();
+        Cursor c = null;
+        try {
+            Log.i(this, "Attempting to query call log entry with handle{%s}.",
+                    handle);
+            c = resolver.query(handle, new String[]{UUID, PHONE_ACCOUNT_COMPONENT_NAME},
+                    null, null, null);
+            // Moves cursor to first row found
+            if (c != null && c.moveToFirst()) {
+                int uuidIndex = c.getColumnIndex(UUID);
+                String uuid = c.getString(uuidIndex);
+                int componentNameIndex = c.getColumnIndex(PHONE_ACCOUNT_COMPONENT_NAME);
+                String componentName = c.getString(componentNameIndex);
+                ComponentName unflattenedComponentName = componentName != null
+                        ? ComponentName.unflattenFromString(componentName) : null;
+                String pkgName = unflattenedComponentName != null
+                        ? unflattenedComponentName.getPackageName() : null;
+                if (uuid != null && !uuid.isEmpty() && pkgName != null) {
+                    Log.i(this, "Found call log entry with uuid %s for %s.", uuid, pkgName);
+                    Intent actionCallbackIntent = new Intent().setPackage(pkgName)
+                            .setAction(TelecomManager.ACTION_CALL_BACK);
+                    actionCallbackIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    actionCallbackIntent.putExtra(TelecomManager.EXTRA_UUID, uuid);
+                    if (callType != INVALID_CALL_TYPE) {
+                        actionCallbackIntent.putExtra(TelecomManager.EXTRA_CALL_TYPE, callType);
                     }
+                    mContext.startActivity(actionCallbackIntent);
+                    return true;
                 }
-            } catch (Exception e) {
-                // Handle any exception due to incorrect URI formatting
-                Log.e(this, e, "Unable to query the provided content URI:");
-            } finally {
-                if (c != null) {
-                    c.close();
-                }
+            }
+        } catch (Exception e) {
+            // Handle any exception due to incorrect URI formatting
+            Log.e(this, e, "Unable to query the provided content URI:");
+        } finally {
+            if (c != null) {
+                c.close();
             }
         }
         return false;

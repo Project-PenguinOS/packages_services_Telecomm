@@ -46,6 +46,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.OutcomeReceiver;
 import android.os.ParcelFileDescriptor;
+import android.os.Process;
 import android.os.RemoteException;
 import android.os.SystemClock;
 import android.os.UserHandle;
@@ -83,6 +84,7 @@ import android.widget.Toast;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telecom.IVideoProvider;
 import com.android.internal.util.Preconditions;
+import com.android.server.telecom.callsequencing.voip.VoipCallMonitor;
 import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.stats.CallFailureCause;
 import com.android.server.telecom.stats.CallStateChangedAtomWriter;
@@ -108,6 +110,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -162,13 +165,104 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     public static final int CALL_DIRECTION_DUAL_SAME_ACCOUNT = 3;
     public static final int CALL_DIRECTION_DUAL_DIFF_ACCOUNT = 4;
 
+    // To work around a BAL issue, transactionally backed calls need to bind to the connection
+    // service that voip apps will inherit when using the core-telecom library. This is the
+    // MAX time that should be spent waiting to bind when an onAnswer request is proceessed.
+    public static final int CORE_TELECOM_CS_BIND_TIMEOUT = 5;
+
+
+    /**
+     * Interface for components, such as {@code VoipCallMonitor}, to listen for
+     * actions on this Call that have been requested by the application layer.
+     *
+     * These actions often originate as requests from an InCallService (e.g., Bluetooth,
+     * Android Auto, Wear OS device). The methods within this listener are invoked
+     * BEFORE the application's ConnectionService or TransactionalService backend
+     * has acknowledged and confirmed the successful execution of the requested action.
+     * This allows Telecom components to perform tasks before propagating out the action to the
+     * application.
+     */
+    public interface InCallServiceToVoipAppListener {
+        /**
+         * Called BEFORE the application has successfully processed and confirmed an ANSWER request
+         * for this call.
+         *
+         * @param call       The call being requested for pickup.
+         * @param videoState The video state in which the call was answered.
+         * @param completionCallback The receiver to trigger when the listener has finished its
+         *                          tasks.
+         */
+        void onAnswerRequested(Call call, int videoState,
+                OutcomeReceiver<Object, Exception> completionCallback);
+    }
+
+    /**
+     * A thread-safe list of listeners to be notified of VoIP application-requested events,
+     * which often originate from InCallService requests.
+     */
+    private final List<InCallServiceToVoipAppListener> mInCallServiceToVoipAppListeners =
+            new CopyOnWriteArrayList<>();
+
+    /**
+     * Adds a listener to be notified of VoIP application-requested events for this call.
+     * If the listener is already added, this method has no effect.
+     *
+     * @param listener The listener instance to add. Must not be null.
+     */
+    public void addInCallServiceToVoipAppListener(
+            @NonNull InCallServiceToVoipAppListener listener) {
+        Objects.requireNonNull(listener);
+        if (!mInCallServiceToVoipAppListeners.contains(listener)) {
+            mInCallServiceToVoipAppListeners.add(listener);
+        }
+    }
+
+    private void notifyAnswerRequested(int videoState, OutcomeReceiver<Object, Exception> or) {
+        for (InCallServiceToVoipAppListener listener : mInCallServiceToVoipAppListeners) {
+            try {
+                listener.onAnswerRequested(this, videoState, or);
+            } catch (Exception e) {
+                // Log the exception but continue notifying other listeners.
+                Log.e(this, e, "notifyAnswerConfirmed:"
+                        + " Listener " + listener + " threw an exception");
+            }
+        }
+    }
+
+    /**
+     * Removes a listener from receiving further notifications.
+     * If the listener was not previously added, this method has no effect.
+     *
+     * @param listener The listener instance to remove. Must not be null.
+     */
+    public void removeInCallServiceToVoipAppListener(
+            @NonNull InCallServiceToVoipAppListener listener) {
+        Objects.requireNonNull(listener);
+        mInCallServiceToVoipAppListeners.remove(listener);
+    }
+
     /**
      * Identifies call audio quality
      */
     private static final float MIN_BITRATE_FOR_HD_PLUS = 24.4f;
 
-    public static final int RINGTONE_TYPE_MEDIA = 0;
-    public static final int RINGTONE_TYPE_CRS = 1;
+    /**
+     * Indicates that the ringtone source is a standard, locally-stored media file.
+     * This is the default behavior.
+     */
+    public static final int RINGTONE_SOURCE_LOCAL = 0;
+    /**
+     * Indicates that the ringtone source is a network-provided ringtone or media, and the
+     * {@link android.media.AudioManager} mode should be set to
+     * {@link android.media.AudioManager#MODE_RINGTONE}.
+     */
+    public static final int RINGTONE_SOURCE_NETWORK_RING_MODE = 1;
+    /**
+     * Indicates that the ringtone source is a network-provided ringtone or media, and the
+     * {@link android.media.AudioManager} mode should be set to
+     * {@link android.media.AudioManager#MODE_IN_CALL}.
+     */
+    public static final int RINGTONE_SOURCE_NETWORK_IN_CALL_MODE = 2;
     /**
      * Listener for CallState changes which can be leveraged by a Transaction.
      */
@@ -186,16 +280,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         return mCallStateListeners.remove(newListener);
     }
 
-// QTI_BEGIN: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
-    /**
-     * Connection event used to notify InCallService of phoneaccount changes.
-     * Dialer uses phone account capability to decide whether to enable
-     * some options like RTT. This event will be used for such cases.
-     */
-    private static final String EVENT_PHONE_ACCOUNT_CHANGED =
-            "org.codeaurora.telecom.event.EVENT_PHONE_ACCOUNT_CHANGED";
-
-// QTI_END: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
     /**
      * Listener for events on the call.
      */
@@ -489,7 +573,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     /**
      * The verification status for an incoming call's number.
      */
-    private @Connection.VerificationStatus int mCallerNumberVerificationStatus;
+    private /*@Connection.VerificationStatus*/ int mCallerNumberVerificationStatus;
 
     /** The caller display name (CNAP) set by the connection service. */
     private String mCallerDisplayName;
@@ -649,6 +733,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     private boolean mWasHighDefAudio = false;
     private boolean mWasWifi = false;
     private boolean mWasVolte = false;
+    private boolean mWasVonr = false;
     private boolean mDestroyed = false;
     private boolean mIsHdPlus = false;
 
@@ -694,6 +779,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     private boolean mSkipAutoUnhold = false;
     private boolean mIsTransactionalLogExcluded = false;
     private int mLastCallStateBeforeDisconnect = CallState.DISCONNECTED;
+    private Uri mVoipContactLookupUri;
+    private boolean mIsGroupCall = false;
 
     /**
      * CallingPackageIdentity is responsible for storing properties about the calling package that
@@ -1636,6 +1723,10 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         if (!mFlags.preventIllegalAudioProcessingExit()) {
             return false;
         }
+        if (isExternalCall()) {
+            Log.i(this, "isIllegalAudioProcessingTransition: Call is external, skipping check.");
+            return false;
+        }
         // This is the core guard condition. A transition is considered an "unauthorized attempt"
         // if the call is currently in the AUDIO_PROCESSING state, but the exit was NOT initiated
         // via the sanctioned CallsManager#exitBackgroundAudioProcessing API (which is tracked
@@ -2074,12 +2165,10 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 l.onTargetPhoneAccountChanged(this);
             }
             configureCallAttributes();
-// QTI_BEGIN: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
             if (this.getState() != CallState.NEW) {
                 // Don't send event when call object is created
                 notifyPhoneAccountChanged();
             }
-// QTI_END: 2021-05-25: Telephony: IMS: Send connection event to UI for changes in phone account
         }
         checkIfVideoCapable();
         checkIfRttCapable();
@@ -2124,6 +2213,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     private void notifyPhoneAccountChanged() {
         onConnectionEvent(android.telecom.Call.EVENT_PHONE_ACCOUNT_CHANGED, null);
     }
+
     public CharSequence getTargetPhoneAccountLabel() {
         if (getTargetPhoneAccount() == null) {
             return null;
@@ -2422,7 +2512,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 userHandle = mTargetPhoneAccountHandle.getUserHandle();
             }
             if (userHandle != null) {
-                isWorkCall = UserUtil.isManagedProfile(mContext, userHandle, mFlags);
+                isWorkCall = UserUtil.isManagedProfile(mContext, userHandle);
             }
 
             if (!mFlags.telecomResolveHiddenDependencies()) {
@@ -3120,8 +3210,9 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             Log.i(this, "disconnect: Aborting call %s", getId());
             abort(disconnectionTimeout);
             disconnectFutureHandler = awaitCallStateChangeAndMaybeDisconnectCall(
-                    false /* shouldDisconnectUponTimeout */, "disconnect",
-                    CallState.DISCONNECTED, CallState.ABORTED);
+                    com.android.internal.telecom.flags.Flags.disconnectOnTimeoutWhileDisconnecting()
+                            && isSelfManaged(), "disconnect", CallState.DISCONNECTED,
+                    CallState.ABORTED);
         } else if (mState != CallState.ABORTED && mState != CallState.DISCONNECTED) {
             if (mState == CallState.AUDIO_PROCESSING && !hasGoneActiveBefore()) {
                 setOverrideDisconnectCauseCode(new DisconnectCause(DisconnectCause.REJECTED));
@@ -3132,6 +3223,11 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 setOverrideDisconnectCauseCode(new DisconnectCause(DisconnectCause.MISSED));
             }
             if (mTransactionalService != null) {
+                // We request the VoIP application to disconnect the call via onDisconnect().
+                // WARNING: This is a non-cancelable action. If the app fails to handle this
+                // request and confirm disconnection within the strict 5-second timeout, the
+                // platform will automatically enforce the disconnect and remove the call
+                // internally. (See TransactionalCallSequencingAdapter for timeout logic).
                 disconnectFutureHandler = mTransactionalService.onDisconnect(this,
                         getDisconnectCause());
                 Log.i(this, "Send Disconnect to transactional service for call");
@@ -3145,7 +3241,9 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 // association between call and connection service severed, see
                 // {@link CallsManager#markCallAsDisconnected}.
                 disconnectFutureHandler = awaitCallStateChangeAndMaybeDisconnectCall(
-                        false /* shouldDisconnectUponTimeout */, "disconnect",
+                        com.android.internal.telecom.flags.Flags
+                                .disconnectOnTimeoutWhileDisconnecting() && isSelfManaged()
+                                /* shouldDisconnectUponTimeout */, "disconnect",
                         CallState.DISCONNECTED);
                 mConnectionService.disconnect(this);
             }
@@ -3219,13 +3317,57 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                         CallState.LOCAL_VOICEMAIL);
                 mConnectionService.answer(this, videoState);
             } else if (mTransactionalService != null) {
-                return mTransactionalService.onAnswer(this, videoState);
+                if(!com.android.internal.telecom.flags.Flags.voipBackgroundActivityLaunchFix()){
+                    return mTransactionalService.onAnswer(this, videoState);
+                }
+                final int finalVideoState = videoState;
+                return waitForConnectionServiceBind(videoState)
+                        // If binding takes > 5s, we stop waiting and pass 'null' down the chain
+                        .completeOnTimeout(null, CORE_TELECOM_CS_BIND_TIMEOUT, TimeUnit.SECONDS)
+                        // Regardless of success, failure, or timeout, we proceed to answer
+                        .thenCompose(v -> {
+                            return mTransactionalService.onAnswer(this, finalVideoState);
+                        });
             } else {
                 Log.e(this, new NullPointerException(),
                         "answer call failed due to null CS callId=%s", getId());
             }
         }
         return answerCallFuture;
+    }
+
+    /**
+     * Wraps the callback-based notifyAnswerRequested in a Future.
+     * Returns a Future that completes when ConnectionService binds
+     */
+    private CompletableFuture<Void> waitForConnectionServiceBind(int videoState) {
+        CompletableFuture<Void> waitUntilConnectionServiceIsBound = new CompletableFuture<>();
+
+        OutcomeReceiver<Object, Exception> receiver = new OutcomeReceiver<>() {
+            @Override
+            public void onResult(Object result) {
+                if (result instanceof VoipCallMonitor) {
+                    Log.i(Call.this, "waitForConnectionServiceBind: The"
+                            + " VoipCallMonitor class signaled the ConnectionService was bound,"
+                            + " propagating the onAnswer out");
+                    waitUntilConnectionServiceIsBound.complete(null);
+                } else {
+                    // If we add other tasks later, we can add 'else if' checks here.
+                    // For now, unexpected types are logged as warnings.
+                    Log.w(Call.this, "waitForConnectionServiceBind: Ignored"
+                            + " result from unexpected source: "
+                            + (result != null ? result.getClass().getName() : "null"));
+                }
+            }
+
+            @Override
+            public void onError(Exception e) {
+                Log.e(Call.this, e, "waitForConnectionServiceBind onError");
+            }
+        };
+
+        notifyAnswerRequested(videoState, receiver);
+        return waitUntilConnectionServiceIsBound;
     }
 
     /**
@@ -3353,7 +3495,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      * Reject this Telecom call with the user-indicated reason.
      * @param rejectReason The user-indicated reason fore rejecting the call.
      */
-    public CompletableFuture<Boolean> reject(@android.telecom.Call.RejectReason int rejectReason) {
+    public CompletableFuture<Boolean> reject(/*@android.telecom.Call.RejectReason*/
+                                             int rejectReason) {
         CompletableFuture<Boolean> rejectFutureHandler = CompletableFuture.completedFuture(false);
         if (mState == CallState.SIMULATED_RINGING) {
             Log.addEvent(this, LogUtils.Events.REQUEST_REJECT);
@@ -3506,7 +3649,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                         || Call.this.getState() != CallState.DISCONNECTED)) {
                     mCallsManager.markCallAsDisconnected(Call.this,
                             new DisconnectCause(DisconnectCause.ERROR,
-                                    "did not hold in timeout window"));
+                                    "did not reach the target state in timeout window"));
                     mCallsManager.markCallAsRemoved(Call.this);
                 }
             }
@@ -3673,6 +3816,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         if (mExtras.containsKey(TelecomManager.EXTRA_CALL_NETWORK_TYPE)) {
             mWasVolte = mExtras.get(TelecomManager.EXTRA_CALL_NETWORK_TYPE)
                     .equals(TelephonyManager.NETWORK_TYPE_LTE);
+            mWasVonr = mExtras.get(TelecomManager.EXTRA_CALL_NETWORK_TYPE)
+                    .equals(TelephonyManager.NETWORK_TYPE_NR);
         }
 
         if (extras.containsKey(Connection.EXTRA_ORIGINAL_CONNECTION_ID)) {
@@ -5069,6 +5214,15 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     }
 
     /**
+     * Returns whether or not Vonr call was used.
+     *
+     * @return true if Vonr call was used during this call.
+     */
+    public boolean wasVonr() {
+        return mWasVonr;
+    }
+
+    /**
      * Returns whether or not the call is HD+.
      *
      * @return true if it's HD+, false otherwise.
@@ -5095,11 +5249,11 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      * upgrade is from audio to video, potentially auto-engage the speakerphone.
      * @param newVideoState The proposed new video state for the call.
      */
-    public void maybeEnableSpeakerForVideoUpgrade(@VideoProfile.VideoState int newVideoState) {
+    public void maybeEnableSpeakerForVideoUpgrade(/*@VideoProfile.VideoState*/ int newVideoState) {
         if (mCallsManager.isSpeakerphoneAutoEnabledForVideoCalls(newVideoState)) {
             Log.i(this, "maybeEnableSpeakerForVideoCall; callId=%s, auto-enable speaker for call"
                             + " upgraded to video.");
-            mCallsManager.setAudioRoute(CallAudioState.ROUTE_SPEAKER, null);
+            mCallsManager.setAudioRoute(Process.myUid(), CallAudioState.ROUTE_SPEAKER, null);
         }
     }
 
@@ -5108,7 +5262,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      * @param message the message type to send.
      * @param value the value for the message.
      */
-    public void sendDeviceToDeviceMessage(@CallDiagnostics.MessageType int message, int value) {
+    public void sendDeviceToDeviceMessage(/*@CallDiagnostics.MessageType*/ int message, int value) {
         Log.i(this, "sendDeviceToDeviceMessage; callId=%s, msg=%d/%d", getId(), message, value);
         Bundle extras = new Bundle();
         extras.putInt(Connection.EXTRA_DEVICE_TO_DEVICE_MESSAGE_TYPE, message);
@@ -5148,7 +5302,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      * @return The direction using the constants in this class.
      */
     public static int getRemappedCallDirection(
-            @android.telecom.Call.Details.CallDirection int direction) {
+            /*@android.telecom.Call.Details.CallDirection*/ int direction) {
         switch(direction) {
             case android.telecom.Call.Details.DIRECTION_INCOMING:
                 return CALL_DIRECTION_INCOMING;
@@ -5468,6 +5622,22 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
     public int getLastCallStateBeforeDisconnect() {
         return mLastCallStateBeforeDisconnect;
+    }
+
+    public void setIsGroupCall(boolean isGroupCall) {
+        mIsGroupCall = isGroupCall;
+    }
+
+    public boolean isGroupCall() {
+        return mIsGroupCall;
+    }
+
+    public void setVoipContactLookupUri(Uri lookupUri) {
+        mVoipContactLookupUri = lookupUri;
+    }
+
+    public Uri getVoipContactLookupUri() {
+        return mVoipContactLookupUri;
     }
 
     private boolean mIsBulkStateUpdateInProgress;

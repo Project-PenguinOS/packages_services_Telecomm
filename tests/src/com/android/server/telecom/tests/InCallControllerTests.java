@@ -231,6 +231,9 @@ public class InCallControllerTests extends TelecomTestCase {
         doReturn(mMockResources).when(mMockContext).getResources();
         doReturn(mMockAppOpsManager).when(mMockContext).getSystemService(AppOpsManager.class);
         doReturn(mPermissionManager).when(mMockContext).getSystemService(PermissionManager.class);
+        int mockResourceId = Resources.getSystem().getIdentifier("config_defaultDialer", "string",
+                "android");
+        when(mMockResources.getString(mockResourceId)).thenReturn(SYS_PKG);
         doReturn(SYS_PKG).when(mMockResources).getString(
                 com.android.internal.R.string.config_defaultDialer);
         doReturn(SYS_CLASS).when(mMockResources).getString(R.string.incall_default_class);
@@ -248,12 +251,12 @@ public class InCallControllerTests extends TelecomTestCase {
                 mMockPermissionInfo);
         when(mMockContext.getAttributionSource()).thenReturn(new AttributionSource(Process.myUid(),
                 "com.android.server.telecom.tests", null));
-        mInCallController = new InCallController(mMockContext, mLock, mMockCallsManager,
-                mMockSystemStateHelper, mDefaultDialerCache, mTimeoutsAdapter,
-                mEmergencyCallHelper, mCarModeTracker, mClockProxy, mFeatureFlags);
         when(mMockContext.createContextAsUser(any(UserHandle.class), eq(0)))
                 .thenReturn(mMockCreateContextAsUser);
         when(mMockCreateContextAsUser.getPackageManager()).thenReturn(mMockPackageManager);
+        mInCallController = new InCallController(mMockContext, mLock, mMockCallsManager,
+                mMockSystemStateHelper, mDefaultDialerCache, mTimeoutsAdapter,
+                mEmergencyCallHelper, mCarModeTracker, mClockProxy, mFeatureFlags);
         // Capture the broadcast receiver registered.
         doAnswer(invocation -> {
             mRegisteredReceiver = invocation.getArgument(0);

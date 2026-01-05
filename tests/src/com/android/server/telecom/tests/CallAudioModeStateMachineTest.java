@@ -17,10 +17,12 @@
 package com.android.server.telecom.tests;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -36,6 +38,7 @@ import com.android.server.telecom.CallAudioManager;
 import com.android.server.telecom.CallAudioModeStateMachine;
 import com.android.server.telecom.CallAudioModeStateMachine.MessageArgs.Builder;
 import com.android.server.telecom.CallAudioRouteController;
+import com.android.server.telecom.CrsAudioController;
 import com.android.server.telecom.SystemStateHelper;
 
 import org.junit.After;
@@ -335,5 +338,106 @@ public class CallAudioModeStateMachineTest extends TelecomTestCase {
         }
 
         return r1.getAudioAttributes().equals(r2.getAudioAttributes());
+    }
+
+    @Test
+    public void testCrsFallbackToLocalRinging() throws Throwable {
+        CallAudioModeStateMachine sm = new CallAudioModeStateMachine(mSystemStateHelper,
+                mAudioManager, mTestThread.getLooper(), mFeatureFlags);
+        sm.setCallAudioManager(mCallAudioManager);
+        sm.sendMessage(CallAudioModeStateMachine.ABANDON_FOCUS_FOR_TESTING);
+        waitForHandlerAction(sm.getHandler(), TEST_TIMEOUT);
+
+        resetMocks();
+        when(mCallAudioManager.startRinging()).thenReturn(true);
+
+        sm.sendMessage(CallAudioModeStateMachine.NEW_RINGING_CALL, new Builder()
+                .setHasRingingCalls(true)
+                .build());
+        waitForHandlerAction(sm.getHandler(), TEST_TIMEOUT);
+
+        assertEquals(CallAudioModeStateMachine.RING_STATE_NAME, sm.getCurrentStateName());
+        verify(mAudioManager).requestAudioFocusForCall(AudioManager.STREAM_RING,
+                AudioManager.AUDIOFOCUS_GAIN_TRANSIENT);
+        verify(mCallAudioManager).setCallAudioRouteFocusState(
+                CallAudioRouteController.RINGING_FOCUS);
+        verify(mCallAudioManager, times(1)).startRinging();
+        verify(mCallAudioManager, never()).stopRinging();
+
+        sm.sendMessage(CallAudioModeStateMachine.CRS_FALLBACK_TO_LOCAL_RINGING, new Builder()
+                .setHasRingingCalls(true)
+                .build());
+        waitForHandlerAction(sm.getHandler(), TEST_TIMEOUT);
+
+        assertEquals(CallAudioModeStateMachine.RING_STATE_NAME, sm.getCurrentStateName());
+        verify(mCallAudioManager, times(1)).stopRinging();
+        verify(mCallAudioManager, times(2)).startRinging();
+    }
+
+    @Test
+    public void testCrsFallbackWithCrsInCallMode() {
+        CallAudioModeStateMachine sm = new CallAudioModeStateMachine(mSystemStateHelper,
+                mAudioManager, mTestThread.getLooper(), mFeatureFlags);
+        sm.setCallAudioManager(mCallAudioManager);
+        sm.sendMessage(CallAudioModeStateMachine.ABANDON_FOCUS_FOR_TESTING);
+        waitForHandlerAction(sm.getHandler(), TEST_TIMEOUT);
+
+        resetMocks();
+        when(mCallAudioManager.startRinging()).thenReturn(true);
+        when(mCallAudioManager.isCrsInCallMode()).thenReturn(true);
+        when(mAudioManager.getMode()).thenReturn(AudioManager.MODE_NORMAL);
+        CrsAudioController crsAudioController = mock(CrsAudioController.class);
+        when(mCallAudioManager.getCrsAudioController()).thenReturn(crsAudioController);
+
+
+        sm.sendMessage(CallAudioModeStateMachine.NEW_RINGING_CALL, new Builder()
+                .setHasRingingCalls(true)
+                .build());
+        waitForHandlerAction(sm.getHandler(), TEST_TIMEOUT);
+
+        assertEquals(CallAudioModeStateMachine.RING_STATE_NAME, sm.getCurrentStateName());
+        verify(mAudioManager).requestAudioFocusForCall(AudioManager.STREAM_RING,
+                AudioManager.AUDIOFOCUS_GAIN_TRANSIENT);
+        verify(mCallAudioManager).setCallAudioRouteFocusState(
+                CallAudioRouteController.RINGING_FOCUS);
+        verify(mCallAudioManager, times(1)).startRinging();
+
+        sm.sendMessage(CallAudioModeStateMachine.CRS_FALLBACK_TO_LOCAL_RINGING, new Builder()
+                .setHasRingingCalls(true)
+                .build());
+        waitForHandlerAction(sm.getHandler(), TEST_TIMEOUT);
+
+        assertEquals(CallAudioModeStateMachine.RING_STATE_NAME, sm.getCurrentStateName());
+        verify(mCallAudioManager, times(1)).stopRinging();
+        verify(mCallAudioManager, times(2)).startRinging();
+    }
+
+    @Test
+    public void testRingingToActiveTransition() throws Throwable {
+        CallAudioModeStateMachine sm = new CallAudioModeStateMachine(mSystemStateHelper,
+                mAudioManager, mTestThread.getLooper(), mFeatureFlags);
+        sm.setCallAudioManager(mCallAudioManager);
+        sm.sendMessage(CallAudioModeStateMachine.ABANDON_FOCUS_FOR_TESTING);
+        waitForHandlerAction(sm.getHandler(), TEST_TIMEOUT);
+
+        resetMocks();
+        when(mCallAudioManager.startRinging()).thenReturn(true);
+
+        sm.sendMessage(CallAudioModeStateMachine.NEW_RINGING_CALL, new Builder()
+                .setHasRingingCalls(true)
+                .build());
+        waitForHandlerAction(sm.getHandler(), TEST_TIMEOUT);
+
+        assertEquals(CallAudioModeStateMachine.RING_STATE_NAME, sm.getCurrentStateName());
+
+        sm.sendMessage(CallAudioModeStateMachine.NEW_ACTIVE_OR_DIALING_CALL, new Builder()
+                .setHasActiveOrDialingCalls(true)
+                .setHasRingingCalls(false) // Ringing call was answered
+                .build());
+        waitForHandlerAction(sm.getHandler(), TEST_TIMEOUT);
+
+        assertEquals(CallAudioModeStateMachine.CALL_STATE_NAME, sm.getCurrentStateName());
+        verify(mCallAudioManager).stopRinging();
+        verify(mAudioManager).setMode(AudioManager.MODE_IN_CALL);
     }
 }
