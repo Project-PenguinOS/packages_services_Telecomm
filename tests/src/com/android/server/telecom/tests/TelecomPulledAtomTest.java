@@ -23,6 +23,7 @@ import static com.android.server.telecom.TelecomStatsLog.CALL_AUDIO_ROUTE_STATS_
 import static com.android.server.telecom.TelecomStatsLog.CALL_STATS__ACCOUNT_TYPE__ACCOUNT_SIM;
 import static com.android.server.telecom.TelecomStatsLog.CALL_STATS__CALL_DIRECTION__DIR_INCOMING;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.any;
@@ -1148,6 +1149,24 @@ public class TelecomPulledAtomTest extends TelecomTestCase {
             assertTrue(hasMessageForEventStats(eventStats.mPulledAtoms.telecomEventStats,
                     e, uid, cause, eventMap.get(ce)));
         }
+    }
+
+    @Test
+    public void testCriticalEventEquals() {
+        //Test equal
+        EventStats.CriticalEvent event1 = new EventStats.CriticalEvent(1, 100, 1);
+        EventStats.CriticalEvent event2 = new EventStats.CriticalEvent(1, 100, 1);
+        assertEquals(event1, event2);
+
+        //Test not equal
+        event1 = new EventStats.CriticalEvent(1, 100, 1);
+        event2 = new EventStats.CriticalEvent(2, 100, 1);
+        assertNotEquals(event1, event2);
+
+        //Test hashCode
+        event1 = new EventStats.CriticalEvent(1, 100, 1);
+        event2 = new EventStats.CriticalEvent(1, 100, 1);
+        assertEquals(event1.hashCode(), event2.hashCode());
     }
 
     private void createTestFileForApiStats(long timestamps) throws IOException {
