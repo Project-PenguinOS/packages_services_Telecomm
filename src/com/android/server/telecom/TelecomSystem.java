@@ -230,7 +230,6 @@ public class TelecomSystem {
             BlockedNumbersAdapter blockedNumbersAdapter,
             FeatureFlags featureFlags,
             android.telecom.flags.FeatureFlags moduleFeatureFlags,
-            com.android.internal.telecom.flags.FeatureFlags moduleBugFixFeatureFlags,
             com.android.internal.telephony.flags.FeatureFlags telephonyFlags,
             Looper looper,
             Ringer.VibratorAdapter vibratorAdapter) {
@@ -504,7 +503,6 @@ public class TelecomSystem {
                     new TelecomServiceImpl.SubscriptionManagerAdapterImpl(),
                     featureFlags,
                     moduleFeatureFlags,
-                    moduleBugFixFeatureFlags,
                     null,
                     mLock,
                     mMetricsController,
