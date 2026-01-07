@@ -55,7 +55,6 @@ import static android.provider.CallLog.Calls.VIA_NUMBER;
 import android.annotation.NonNull;
 import android.annotation.SuppressLint;
 import android.content.ComponentName;
-import android.content.ContentProvider;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
@@ -575,7 +574,7 @@ public class CallLogUtils {
         ContentValues locationValues = new ContentValues();
         locationValues.put(CallLog.Locations.LATITUDE, params.mLatitude);
         locationValues.put(CallLog.Locations.LONGITUDE, params.mLongitude);
-        Uri locationUri = ContentProvider.maybeAddUserId(CallLog.Locations.CONTENT_URI,
+        Uri locationUri = maybeAddUserId(CallLog.Locations.CONTENT_URI,
             user.getIdentifier());
         try {
             return resolver.insert(locationUri, locationValues);
@@ -1142,7 +1141,7 @@ public class CallLogUtils {
 
     private static Uri maybeAddUserId(Uri uri, int userId) {
         if (uri == null) return null;
-        if (userId != UserHandle.USER_CURRENT
+        if ((userId != UserHandle.CURRENT.getIdentifier())
                 && ContentResolver.SCHEME_CONTENT.equals(uri.getScheme())) {
             if (!uriHasUserId(uri)) {
                 //We don't add the user Id if there's already one

@@ -2253,7 +2253,10 @@ public class CallsManager extends Call.ListenerBase
                             }
                         }
 
-                        networkNumeric = (cellIdentity != null) ? cellIdentity.getPlmn() : "";
+                        networkNumeric = tm.getNetworkOperator();
+                        if (networkNumeric == null) {
+                            networkNumeric = "";
+                        }
                     }
                     TelecomStatsLog.write(TelecomStatsLog.EMERGENCY_NUMBER_DIALED,
                             handle.getSchemeSpecificPart(),
