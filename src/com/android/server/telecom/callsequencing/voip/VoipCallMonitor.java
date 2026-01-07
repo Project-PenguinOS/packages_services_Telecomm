@@ -47,7 +47,7 @@ import com.android.server.telecom.Call;
 import com.android.server.telecom.CallsManagerListenerBase;
 import com.android.server.telecom.LogUtils;
 import com.android.server.telecom.TelecomSystem;
-import com.android.internal.telecom.flags.FeatureFlags;
+import com.android.internal.telecom.flags.Flags;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -76,7 +76,7 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
     private final Handler mHandlerForClass;
     private final Context mContext;
     private final TelecomSystem.SyncRoot mSyncRoot;
-    private final FeatureFlags mFeatureFlags;
+
     // Tracks apps we are currently bound to for the specific purpose of launching
     // a background activity. This prevents double-binding
     private final Set<PhoneAccountHandle> mBoundAppsForActivityLaunch =
@@ -102,10 +102,8 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
         synchronized void clear() { mConnection = null; }
     }
 
-    public VoipCallMonitor(Context context, Handler handler, FeatureFlags featureFlags,
-            TelecomSystem.SyncRoot lock) {
+    public VoipCallMonitor(Context context, Handler handler, TelecomSystem.SyncRoot lock) {
         mSyncRoot = lock;
-        mFeatureFlags = featureFlags;
         mContext = context;
         mHandlerForClass = handler;
         mNewCallsMissingCallStyleNotification = new ConcurrentLinkedQueue<>();
@@ -123,7 +121,7 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
         }
         int callingPid = getCallingPackagePid(call);
         int callingUid = getCallingPackageUid(call);
-        if (mFeatureFlags.voipBackgroundActivityLaunchFix()) {
+        if (Flags.voipBackgroundActivityLaunchFix()) {
             call.addInCallServiceToVoipAppListener(mInCallServiceActionListenerImpl);
         }
         Set<Call> ongoingCalls = mAccountHandleToCallMap
@@ -141,7 +139,7 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
         if (!isTransactional(call) || handle == null) {
             return;
         }
-        if (mFeatureFlags.voipBackgroundActivityLaunchFix()) {
+        if (Flags.voipBackgroundActivityLaunchFix()) {
             call.removeInCallServiceToVoipAppListener(mInCallServiceActionListenerImpl);
         }
         Set<Call> ongoingCalls = mAccountHandleToCallMap
