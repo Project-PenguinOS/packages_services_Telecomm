@@ -85,6 +85,7 @@ import android.telecom.GatewayInfo;
 import android.telecom.ParcelableCallResponse;
 import android.telecom.PhoneAccount;
 import android.telecom.PhoneAccountHandle;
+import android.telecom.PhoneAccountSuggestion;
 import android.telecom.TelecomManager;
 import android.telecom.VideoProfile;
 import android.telephony.CarrierConfigManager;
@@ -860,6 +861,39 @@ public class CallsManagerTest extends TelecomTestCase {
 
         assertEquals(1, accounts.size());
         assertTrue(accounts.contains(SIM_1_HANDLE));
+    }
+
+    /**
+     * Tests that we will use the phone account suggestion if it exists
+     * @throws Exception
+     */
+    @MediumTest
+    @Test
+    public void testUseSuggestionServiceProvidedAccount() throws Exception {
+        if(!com.android.internal.telecom.flags.Flags.delayRequestedHandleSelection()) {
+            return;
+        }
+        setupCallerInfoLookupHelper();
+        when(mPhoneAccountRegistrar.getCallCapablePhoneAccounts(any(), anyBoolean(),
+                any(), anyInt(), anyInt(), anyBoolean())).thenReturn(
+                new ArrayList<>(Arrays.asList(SIM_1_HANDLE, SIM_2_HANDLE)));
+
+        // WHEN the PhoneAccountSuggestionService suggests SIM_2_HANDLE
+        List<PhoneAccountSuggestion> suggestions = new ArrayList<>();
+        suggestions.add(new PhoneAccountSuggestion(SIM_2_HANDLE,
+                PhoneAccountSuggestion.REASON_USER_SET, true));
+        CompletableFuture<List<PhoneAccountSuggestion>> suggestionFuture =
+                CompletableFuture.completedFuture(suggestions);
+        CallsManager spyCallsManager = Mockito.spy(mCallsManager);
+        doReturn(suggestionFuture).when(spyCallsManager).getAccountSuggestions(any(), any());
+
+        // THEN findOutgoingCallPhoneAccount should return SIM_2_HANDLE
+        List<PhoneAccountHandle> accounts = spyCallsManager.findOutgoingCallPhoneAccount(
+                        null /* phoneAcct */, TEST_ADDRESS, false /* isVideo */,
+                        false /* isEmergency */, null /* userHandle */).get();
+
+        assertEquals(1, accounts.size());
+        assertEquals(SIM_2_HANDLE, accounts.get(0));
     }
 
     /**

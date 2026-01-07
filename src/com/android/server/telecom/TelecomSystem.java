@@ -32,7 +32,7 @@ import android.os.Looper;
 import android.os.UserHandle;
 import android.telecom.Log;
 import android.telecom.PhoneAccountHandle;
-import android.telephony.AnomalyReporter;
+
 import android.telephony.TelephonyManager;
 import android.widget.Toast;
 
@@ -238,7 +238,7 @@ public class TelecomSystem {
         mFeatureFlags = featureFlags;
         LogUtils.initLogging(mContext);
         android.telecom.Log.setLock(mLock);
-        AnomalyReporter.initialize(mContext);
+        AnomalyReporterAdapterImpl.initialize(mContext);
         DefaultDialerManagerAdapter defaultDialerAdapter =
                 new DefaultDialerCache.DefaultDialerManagerAdapterImpl();
 
@@ -250,7 +250,8 @@ public class TelecomSystem {
         try {
             mPhoneAccountRegistrar = new PhoneAccountRegistrar(mContext, mLock, defaultDialerCache,
                     (packageName, userHandle) -> AppLabelProxy.Util.getAppLabel(mContext,
-                            userHandle, packageName, mFeatureFlags), null, mFeatureFlags);
+                            userHandle, packageName, mFeatureFlags), null, mFeatureFlags,
+                    new AnomalyReporterAdapterImpl(mContext));
 
             mContactsAsyncHelper = contactsAsyncHelperFactory.create(
                     new ContactsAsyncHelper.ContentResolverAdapter() {
