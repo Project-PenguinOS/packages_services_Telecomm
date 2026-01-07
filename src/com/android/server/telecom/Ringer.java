@@ -107,11 +107,6 @@ public class Ringer {
         public VibrationEffect createWaveform(long[] timings, int[] amplitudes, int repeat) {
             return VibrationEffect.createWaveform(timings, amplitudes, repeat);
         }
-
-        public VibrationEffect get(Uri ringtoneUri, Context context) {
-            // TODO (b/469781444): Clean up the stale code
-            return null;
-        }
     }
     @VisibleForTesting
     public VibrationEffect mDefaultVibrationEffect;
@@ -321,8 +316,7 @@ public class Ringer {
         mAnomalyReporter = anomalyReporter;
 
         mDefaultVibrationEffect =
-                loadDefaultRingVibrationEffect(
-                        mContext, mVibrator.getVibrator(), mVibrationEffectProxy, featureFlags);
+                loadDefaultRingVibrationEffect(mContext, mVibrationEffectProxy, featureFlags);
 
         mIsHapticPlaybackSupportedByDevice =
                 mSystemSettingsUtil.isHapticPlaybackSupported(mContext);
@@ -580,15 +574,7 @@ public class Ringer {
                         // vibrator wasn't reserved. This still triggers the mBlockOnRingingFuture.
                         return;
                     }
-                    final VibrationEffect vibrationEffect;
-                    if (ringtone != null && finalUseCustomVibrationEffect) {
-                        if (DEBUG_RINGER) {
-                            Log.d(this, "Using ringtone defined vibration effect.");
-                        }
-                        vibrationEffect = getVibrationEffectForRingtone(ringtoneUri);
-                    } else {
-                        vibrationEffect = mDefaultVibrationEffect;
-                    }
+                    final VibrationEffect vibrationEffect = mDefaultVibrationEffect;
 
                     boolean isUsingAudioCoupledHaptics =
                             !finalHapticChannelsMuted && ringtone != null
@@ -704,27 +690,6 @@ public class Ringer {
                         (mVibratingCall == null ? "null" : mVibratingCall.getId()));
             }
             // else stopped already: this isn't started unless a reservation was made.
-        }
-    }
-
-    private VibrationEffect getVibrationEffectForRingtone(Uri ringtoneUri) {
-        if (ringtoneUri == null) {
-            return mDefaultVibrationEffect;
-        }
-        try {
-            VibrationEffect effect = mVibrationEffectProxy.get(ringtoneUri, mContext);
-            if (effect == null) {
-              Log.i(this, "did not find vibration effect, falling back to default vibration");
-              return mDefaultVibrationEffect;
-            }
-            return effect;
-        } catch (IllegalArgumentException iae) {
-            // Deep in the bowels of the VibrationEffect class it is possible for an
-            // IllegalArgumentException to be thrown if there is an invalid URI specified in the
-            // device config, or a content provider failure.  Rather than crashing the Telecom
-            // process we will just use the default vibration effect.
-            Log.e(this, iae, "getVibrationEffectForRingtone: failed to get vibration effect");
-            return mDefaultVibrationEffect;
         }
     }
 
@@ -1042,17 +1007,8 @@ public class Ringer {
         }
     }
 
-    @Nullable
-    private static VibrationEffect loadSerializedDefaultRingVibration(
-            Resources resources, Vibrator vibrator) {
-        // TODO (b/469781444): Clean up the stale code
-        Log.w(TAG, "Device-provided serialized ringer vibration is disabled.");
-        return null;
-    }
-
     private static VibrationEffect loadDefaultRingVibrationEffect(
             Context context,
-            Vibrator vibrator,
             VibrationEffectProxy vibrationEffectProxy,
             FeatureFlags featureFlags) {
         Resources resources = context.getResources();
@@ -1063,19 +1019,8 @@ public class Ringer {
         }
 
         if (featureFlags.useDeviceProvidedSerializedRingerVibration()) {
-            VibrationEffect parsedEffect = loadSerializedDefaultRingVibration(resources, vibrator);
-            if (parsedEffect != null) {
-                Log.i(TAG, "Using parsed default ring vibration.");
-                // Make the parsed effect repeating to make it vibrate continuously during ring.
-                // If the effect is already repeating, this API call is a no-op.
-                // Otherwise, it  uses `DEFAULT_RING_VIBRATION_LOOP_DELAY_MS` when changing a
-                // non-repeating vibration to a repeating vibration.
-                // This is so that we ensure consecutive loops of the vibration play with some gap
-                // in between.
-                return parsedEffect.applyRepeatingIndefinitely(
-                        /* wantRepeating= */ true, DEFAULT_RING_VIBRATION_LOOP_DELAY_MS);
-            }
-            // Fallback to the simple vibration if the serialized effect cannot be loaded.
+            Log.i(TAG, "Device provided serialized ringer vibration is no longer supported; "
+                    + "falling back to simple default ring vibration.");
             return createSimpleRingVibration(vibrationEffectProxy);
         }
 
