@@ -400,12 +400,12 @@ public class CallsManager extends Call.ListenerBase
                     CallState.PULLING};
 
     /**
-     * Phone is via IMS.
+     * Phone is via Third Party.
      */
     private static final int PHONE_TYPE_THIRD_PARTY = 4;
 
     /**
-     * Phone is via Third Party.
+     * Phone is via IMS.
      */
     private static final int PHONE_TYPE_IMS = 5;
 

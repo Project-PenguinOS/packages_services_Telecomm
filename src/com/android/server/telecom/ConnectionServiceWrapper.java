@@ -1655,10 +1655,11 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         if (telephonyManager != null) {
             try {
                 CellIdentity lastKnownCellIdentity = telephonyManager.getLastKnownCellIdentity();
-                mAppOpsManager.noteOp(AppOpsManager.OP_FINE_LOCATION,
+                mAppOpsManager.noteOp(AppOpsManager.OPSTR_FINE_LOCATION,
                         mContext.getPackageManager().getPackageUid(
                                 getComponentName().getPackageName(), 0),
-                        getComponentName().getPackageName());
+                        getComponentName().getPackageName(),
+                        null /* attributionTag */, null /* message */);
                 return lastKnownCellIdentity;
             } catch (UnsupportedOperationException ignored) {
                 Log.w(this, "getLastKnownCellIdentity - no telephony on this device");
