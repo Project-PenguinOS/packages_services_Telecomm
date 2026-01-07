@@ -835,7 +835,9 @@ public class CallsManager extends Call.ListenerBase
                 ringtoneFactory, vibratorAdapter,
                 new Ringer.VibrationEffectProxy(), mInCallController,
                 mContext.getSystemService(NotificationManager.class),
-                accessibilityManagerAdapter, featureFlags, mAnomalyReporter,
+                accessibilityManagerAdapter, featureFlags,
+                new com.android.internal.telecom.flags.FeatureFlagsImpl(),
+                mAnomalyReporter,
                 mCallConnectedIndicatorSettings, asyncTaskExecutor,
                 mCrsAudioController);
         mCallAudioManager = new CallAudioManager(mCallAudioRouteAdapter,

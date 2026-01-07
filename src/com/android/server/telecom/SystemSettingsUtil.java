@@ -26,7 +26,7 @@ import android.provider.DeviceConfig;
 import android.provider.Settings;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.server.telecom.flags.FeatureFlags;
+import com.android.internal.telecom.flags.FeatureFlags;
 
 /**
  * Accesses the Global System settings for more control during testing.
