@@ -26,7 +26,7 @@ import android.provider.DeviceConfig;
 import android.provider.Settings;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.server.telecom.flags.FeatureFlags;
+import com.android.internal.telecom.flags.FeatureFlags;
 
 /**
  * Accesses the Global System settings for more control during testing.
@@ -95,11 +95,18 @@ public class SystemSettingsUtil {
         // the Haptics Framework team provides. For mainlining Telecom, using
         // VIBRATE_WHEN_RINGING is our only option currently until the request for a new system
         // API (b/441480678) has been met.
-        return mSystemSettingsReader.getInt(context.getContentResolver(),
-                Settings.System.VIBRATE_WHEN_RINGING,
-                context.getSystemService(Vibrator.class).getDefaultVibrationIntensity(
-                        VibrationAttributes.USAGE_RINGTONE))
-                != 0 && isVibrationEnabled(context, flags);
+
+        int defaultIntensity = 2; // VIBRATION_INTENSITY_MEDIUM
+
+        // Replacing context.getSystemService().getDefaultVibrationIntensity with
+        // VIBRATION_INTENSITY_MEDIUM as this is fallback.
+        // As getDefaultVibrationIntensity is hidden API.
+        return mSystemSettingsReader.getInt
+                        (context.getContentResolver(),
+                         Settings.System.VIBRATE_WHEN_RINGING,
+                         /*context.getSystemService(Vibrator.class)
+                            .getDefaultVibrationIntensity(VibrationAttributes.USAGE_RINGTONE)*/
+                         defaultIntensity) != 0 && isVibrationEnabled(context, flags);
     }
 
     public boolean isRampingRingerEnabled(Context context) {
