@@ -348,11 +348,19 @@ public class CallerInfo {
         // Change the callerInfo number ONLY if it is an emergency number
         // or if it is the voicemail number.  If it is either, take a
         // shortcut and skip the query.
-        TelephonyManager tm = context.getSystemService(TelephonyManager.class);
-        if (tm.isEmergencyNumber(number)) {
-            return new CallerInfo().markAsEmergency(context);
-        } else if (PhoneNumberUtils.isVoiceMailNumber(null, subId, number)) {
-            return new CallerInfo().markAsVoiceMail(context, subId);
+        try {
+            TelephonyManager tm = context.getSystemService(TelephonyManager.class);
+            if (tm.isEmergencyNumber(number)) {
+                return new CallerInfo().markAsEmergency(context);
+            } else if (PhoneNumberUtils.isVoiceMailNumber(null, subId, number)) {
+                return new CallerInfo().markAsVoiceMail(context, subId);
+            }
+        } catch (UnsupportedOperationException | IllegalStateException ex) {
+            // Ignore; Telephony is not available or failed, so we cannot perform an emergency
+            // number check.
+        } catch (RuntimeException ex) {
+            // Some other runtime exception occurred; don't crash but log.
+            Log.e(TAG, "Error getting caller info.", ex);
         }
 
         Uri contactUri = Uri.withAppendedPath(PhoneLookup.ENTERPRISE_CONTENT_FILTER_URI,

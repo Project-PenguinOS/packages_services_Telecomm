@@ -204,8 +204,7 @@ public class TelecomService extends Service {
                             ConnectionServiceFocusManager::new,
                             new Timeouts.Adapter(),
                             new AsyncRingtonePlayer(featureFlags),
-                            new PhoneNumberUtilsAdapterImpl(context,
-                                    new com.android.internal.telecom.flags.FeatureFlagsImpl()),
+                            new PhoneNumberUtilsAdapterImpl(context),
                             new IncomingCallNotifier(context, featureFlags),
                             ToneGenerator::new,
                             new CallAudioRouteController.Factory(),
@@ -262,7 +261,6 @@ public class TelecomService extends Service {
                             },
                             featureFlags,
                             new android.telecom.flags.FeatureFlagsImpl(),
-                            new com.android.internal.telecom.flags.FeatureFlagsImpl(),
                             new com.android.internal.telephony.flags.FeatureFlagsImpl(),
                             handlerThread.getLooper(),
                             vibratorAdapter));
