@@ -17,17 +17,6 @@ flag {
   bug: "345473659"
 }
 
-# OWNER=sungcheol TARGET=26Q1
-flag {
-  name: "enable_incall_service_class_check"
-  namespace: "telecom"
-  description: "Flag for supporting IncallService API"
-  bug: "430509489"
-  metadata {
-      purpose: PURPOSE_BUGFIX
-  }
-}
-
 # OWNER=arunrajms TARGET=26Q2
 flag {
    name: "bulk_state_update_call"
