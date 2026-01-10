@@ -20,6 +20,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.telephony.PhoneNumberUtils;
 import android.telephony.TelephonyManager;
+import android.text.TextUtils;
 
 import com.android.internal.telecom.flags.Flags;
 
@@ -43,6 +44,12 @@ public class PhoneNumberUtilsAdapterImpl implements PhoneNumberUtilsAdapter {
             String countryIso = "";
             if (telephonyManager != null) {
                 countryIso = telephonyManager.getNetworkCountryIso();
+            }
+
+            // If Country ISO is missing (common in CTS/No-SIM), default to "US"
+            // to allow areSamePhoneNumber to parse and match local numbers.
+            if (TextUtils.isEmpty(countryIso)) {
+                countryIso = java.util.Locale.getDefault().getCountry();
             }
             return PhoneNumberUtils.areSamePhoneNumber(number1, number2, countryIso);
         } else {

@@ -675,7 +675,7 @@ public class BasicCallTests extends TelecomSystemTest {
         IdPair outgoing = startAndMakeActiveOutgoingCall("650-555-1212",
                 mPhoneAccountA0.getAccountHandle(), mConnectionServiceFixtureA);
 
-        verify(audioManager, timeout(TEST_TIMEOUT)).requestAudioFocusForCall(anyInt(), anyInt());
+        verify(audioManager, timeout(TEST_TIMEOUT)).requestAudioFocus(any(), any());
         verify(audioManager, timeout(TEST_TIMEOUT).atLeastOnce())
                 .setMode(AudioManager.MODE_IN_CALL);
 
@@ -708,7 +708,7 @@ public class BasicCallTests extends TelecomSystemTest {
         waitForHandlerAction(mTelecomSystem.getCallsManager().getCallAudioManager()
                 .getCallAudioRouteAdapter().getAdapterHandler(), TEST_TIMEOUT);
         verify(audioManager, timeout(TEST_TIMEOUT))
-                .abandonAudioFocusForCall();
+                .abandonAudioFocusRequest(any());
         verify(audioManager, timeout(TEST_TIMEOUT).atLeastOnce())
                 .setMode(AudioManager.MODE_NORMAL);
         // setSpeakerPhoneOn(false) gets called once the call ends.
