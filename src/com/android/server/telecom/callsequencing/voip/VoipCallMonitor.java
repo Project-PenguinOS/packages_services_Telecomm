@@ -112,7 +112,6 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
         mServices = new ConcurrentHashMap<>();
         mAccountHandleToCallMap = new ConcurrentHashMap<>();
         mListeners = new ConcurrentHashMap<>();
-        mActivityManagerInternal = LocalServices.getService(ActivityManagerInternal.class);
         mNotificationManager = mContext.getSystemService(NotificationManager.class);
     }
 
@@ -159,7 +158,8 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
 
     private void maybeStartFGSDelegation(int pid, int uid, PhoneAccountHandle handle, Call call) {
         Log.i(TAG, "maybeStartFGSDelegation for call=[%s]", call);
-        if (mActivityManagerInternal != null) {
+        ActivityManagerInternal ami = getActivityManagerInternal();
+        if (ami != null) {
             if (mServices.containsKey(handle)) {
                 Log.addEvent(call, LogUtils.Events.ALREADY_HAS_FGS_DELEGATION);
                 startMonitoringNotification(call, handle);
@@ -188,8 +188,7 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
                 }
             };
             try {
-                if (mActivityManagerInternal
-                        .startForegroundServiceDelegate(options, fgsConnection)) {
+                if (ami.startForegroundServiceDelegate(options, fgsConnection)) {
                     Log.i(TAG, "maybeStartFGSDelegation: startForegroundServiceDelegate success");
                 } else {
                     Log.addEvent(call, LogUtils.Events.GAIN_FGS_DELEGATION_FAILED);
@@ -218,11 +217,12 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
         }
         mNewCallsMissingCallStyleNotification.removeAll(toRemove);
 
-        if (mActivityManagerInternal != null) {
+        ActivityManagerInternal ami = getActivityManagerInternal();
+        if (ami != null) {
             ServiceConnection fgsConnection = mServices.remove(handle);
             if (fgsConnection != null) {
                 Log.i(TAG, "stopFGSDelegation: requesting stopForegroundServiceDelegate");
-                mActivityManagerInternal.stopForegroundServiceDelegate(fgsConnection);
+                ami.stopForegroundServiceDelegate(fgsConnection);
             }
         }
         mAccountHandleToCallMap.remove(handle);
@@ -416,6 +416,13 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
             // fall through
         }
         return pn;
+    }
+
+    private ActivityManagerInternal getActivityManagerInternal() {
+        if (mActivityManagerInternal == null) {
+            mActivityManagerInternal = LocalServices.getService(ActivityManagerInternal.class);
+        }
+        return mActivityManagerInternal;
     }
 
     @VisibleForTesting
