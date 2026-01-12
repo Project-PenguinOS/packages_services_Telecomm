@@ -2094,13 +2094,6 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         // framework already reports that device as the current one.
         // It also verifies that no BT_AUDIO_CONNECTED message is pended in this case.
 
-        // This test requires making sure that SCO is managed by audio to verify set communication
-        // device.
-        if (!mIsScoManagedByAudio) {
-            Log.i("CallAudioRouteControllerTest", "Skipping test: SCO not managed by Audio.");
-            return;
-        }
-
         AudioDeviceInfo mockBtDeviceInfo = mock(AudioDeviceInfo.class);
         when(mockBtDeviceInfo.getType()).thenReturn(AudioDeviceInfo.TYPE_BLUETOOTH_SCO);
         when(mockBtDeviceInfo.getAddress()).thenReturn(BT_ADDRESS_1);
@@ -2117,11 +2110,18 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
 
         // Start the call by switching to active focus.
+        mController.sendMessageWithSessionInfo(UPDATE_SYSTEM_AUDIO_ROUTE);
         mController.sendMessageWithSessionInfo(SWITCH_FOCUS, ACTIVE_FOCUS, 0);
         waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
         // Verify setCommunicationDevice is still called because we are moving to active routing.
-        verify(mAudioManager, timeout(TEST_TIMEOUT))
-                .setCommunicationDevice(any(AudioDeviceInfo.class));
+        if (mIsScoManagedByAudio) {
+            verify(mAudioManager, timeout(TEST_TIMEOUT))
+                    .setCommunicationDevice(any(AudioDeviceInfo.class));
+        } else {
+            verify(mBluetoothDeviceManager, timeout(TEST_TIMEOUT))
+                    .connectAudio(BLUETOOTH_DEVICE_1, AudioRoute.TYPE_BLUETOOTH_SCO,
+                            mIsScoManagedByAudio);
+        }
         // Verify that no BT_AUDIO_CONNECTED message is pending.
         PendingAudioRoute pendingRoute = mController.getPendingAudioRoute();
         assertTrue(pendingRoute.getPendingMessages().isEmpty());
