@@ -32,7 +32,6 @@ import androidx.annotation.VisibleForTesting;
 import com.android.server.telecom.Call;
 import com.android.server.telecom.CallLogManager;
 import com.android.server.telecom.TelecomStatsLog;
-import com.android.server.telecom.metrics.ApiStats.ApiEvent;
 import com.android.server.telecom.nano.PulledAtomsClass;
 
 import java.lang.annotation.Retention;
@@ -244,11 +243,11 @@ public class EventStats extends TelecomPulledAtom {
             if (this == other) {
                 return true;
             }
-            if (!(other instanceof ApiEvent obj)) {
+            if (!(other instanceof CriticalEvent obj)) {
                 return false;
             }
-            return this.mId == obj.mId && this.mUid == obj.mCallerUid
-                    && this.mCause == obj.mResult;
+            return this.mId == obj.mId && this.mUid == obj.mUid
+                    && this.mCause == obj.mCause;
         }
 
         @Override
