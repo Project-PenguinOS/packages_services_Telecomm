@@ -2772,9 +2772,11 @@ public class InCallController extends CallsManagerListenerBase implements
                 if (!mBtBindingFuture.containsKey(userHandle)
                         || (mBtBindingFuture.get(userHandle).isDone() && !mBtBindingFuture
                         .get(userHandle).getNow(false))) {
-                    Log.i(this, "onConnected: BT binding future timed out.");
-                    // Binding completed after the timeout. Clean up this binding
-                    return false;
+                    Log.i(this, "onConnected: BT binding future timed out but allowing bind "
+                            + "to complete.");
+                    // Binding completed after the timeout but let this through instead of
+                    // disconnecting the BT ICS.
+                    return true;
                 } else {
                     mBtBindingFuture.get(userHandle).complete(true);
                 }

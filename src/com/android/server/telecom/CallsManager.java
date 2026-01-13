@@ -837,7 +837,6 @@ public class CallsManager extends Call.ListenerBase
                 new Ringer.VibrationEffectProxy(), mInCallController,
                 mContext.getSystemService(NotificationManager.class),
                 accessibilityManagerAdapter, featureFlags,
-                new com.android.internal.telecom.flags.FeatureFlagsImpl(),
                 mAnomalyReporter,
                 mCallConnectedIndicatorSettings, asyncTaskExecutor,
                 mCrsAudioController);
@@ -870,7 +869,6 @@ public class CallsManager extends Call.ListenerBase
         mVoipCallMonitor = new VoipCallMonitor(
                 mContext,
                 new Handler(Looper.getMainLooper()),
-                new com.android.internal.telecom.flags.FeatureFlagsImpl(),
                 mLock);
         mTelephonyFeatureFlags = telephonyFlags;
         mMetricsController = metricsController;

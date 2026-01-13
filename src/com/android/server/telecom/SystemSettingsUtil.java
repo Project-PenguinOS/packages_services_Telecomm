@@ -26,7 +26,7 @@ import android.provider.DeviceConfig;
 import android.provider.Settings;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.telecom.flags.FeatureFlags;
+import com.android.internal.telecom.flags.Flags;
 
 /**
  * Accesses the Global System settings for more control during testing.
@@ -78,8 +78,8 @@ public class SystemSettingsUtil {
      * @param context the context to use for checking the settings.
      * @return {@code true} if the primary haptic toggle is on, {@code false} otherwise.
      */
-    private boolean isVibrationEnabled(Context context, FeatureFlags flags) {
-        if (!flags.vibrationAccountsForMainSetting()) {
+    private boolean isVibrationEnabled(Context context) {
+        if (!Flags.vibrationAccountsForMainSetting()) {
             return true;
         }
         // Note, there is no constant for the on/off.  0 is used elsewhere in the platform when this
@@ -88,7 +88,7 @@ public class SystemSettingsUtil {
                 Settings.System.VIBRATE_ON, 1) != 0;
     }
 
-    public boolean isRingVibrationEnabled(Context context, FeatureFlags flags) {
+    public boolean isRingVibrationEnabled(Context context) {
         // Ramping ringer should only be applied when ring vibration is ON, otherwise the
         // ringtone sound should not be delayed as there will be no ring vibration.
         // Note: VIBRATE_WHEN_RINGING is deprecated but is currently the only system API that
@@ -106,7 +106,7 @@ public class SystemSettingsUtil {
                          Settings.System.VIBRATE_WHEN_RINGING,
                          /*context.getSystemService(Vibrator.class)
                             .getDefaultVibrationIntensity(VibrationAttributes.USAGE_RINGTONE)*/
-                         defaultIntensity) != 0 && isVibrationEnabled(context, flags);
+                         defaultIntensity) != 0 && isVibrationEnabled(context);
     }
 
     public boolean isRampingRingerEnabled(Context context) {
@@ -122,4 +122,3 @@ public class SystemSettingsUtil {
         return context.getSystemService(AudioManager.class).isHapticPlaybackSupported();
     }
 }
-
