@@ -59,6 +59,7 @@ public class PendingAudioRoute {
      * The device that has been set for communication by Telecom
      */
     private @AudioRoute.AudioRouteType int mCommunicationDeviceType = AudioRoute.TYPE_INVALID;
+    private final Object mLock = new Object();
 
     PendingAudioRoute(CallAudioRouteController controller, AudioManager audioManager,
             BluetoothRouteManager bluetoothRouteManager, FeatureFlags featureFlags) {
@@ -124,7 +125,9 @@ public class PendingAudioRoute {
     }
 
     public void addMessage(int message, String bluetoothDevice) {
-        mPendingMessages.add(new Pair<>(message, bluetoothDevice));
+        synchronized (mLock) {
+            mPendingMessages.add(new Pair<>(message, bluetoothDevice));
+        }
     }
 
     public void onMessageReceived(Pair<Integer, String> message, String btAddressToExclude) {
@@ -140,30 +143,40 @@ public class PendingAudioRoute {
             return;
         }
 
-        // Removes the first occurrence of the specified message from this list, if it is present.
-        mPendingMessages.remove(message);
-        evaluatePendingState();
+        synchronized (mLock) {
+            // Removes the first occurrence of the specified message from this list, if it is present.
+            mPendingMessages.remove(message);
+            evaluatePendingState();
+        }
     }
 
     public void evaluatePendingState() {
-        if (mPendingMessages.isEmpty()) {
-            mCallAudioRouteController.sendMessageWithSessionInfo(
-                    CallAudioRouteAdapter.EXIT_PENDING_ROUTE);
-        } else {
-            Log.i(this, "evaluatePendingState: mPendingMessages - %s", mPendingMessages);
+        synchronized (mLock) {
+            if (mPendingMessages.isEmpty()) {
+                mCallAudioRouteController.sendMessageWithSessionInfo(
+                        CallAudioRouteAdapter.EXIT_PENDING_ROUTE);
+            } else {
+                Log.i(this, "evaluatePendingState: mPendingMessages - %s", mPendingMessages);
+            }
         }
     }
 
     public void clearPendingMessages() {
-        mPendingMessages.clear();
+        synchronized (mLock) {
+            mPendingMessages.clear();
+        }
     }
 
     public void clearPendingMessage(Pair<Integer, String> message) {
-        mPendingMessages.remove(message);
+        synchronized (mLock) {
+            mPendingMessages.remove(message);
+        }
     }
 
     public Set<Pair<Integer, String>> getPendingMessages() {
-        return mPendingMessages;
+        synchronized (mLock) {
+            return mPendingMessages;
+        }
     }
 
     /**
