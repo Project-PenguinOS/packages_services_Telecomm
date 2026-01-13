@@ -114,18 +114,20 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-@RunWith(JUnit4.class)
+@RunWith(Parameterized.class)
 public class CallAudioRouteControllerTest extends TelecomTestCase {
     private static final String BT_ADDRESS_1 = "00:00:00:00:00:01";
     private static final BluetoothDevice BLUETOOTH_DEVICE_1 =
@@ -179,13 +181,25 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
     AudioRoute.Factory mAudioRouteFactory = new AudioRoute.Factory() {
         @Override
         public AudioRoute create(@AudioRoute.AudioRouteType int type, String bluetoothAddress,
-                AudioManager audioManager) {
+                AudioManager audioManager, boolean isScoManagedByAudio) {
             if (mOverrideSpeakerToBus && type == AudioRoute.TYPE_SPEAKER) {
                 type = AudioRoute.TYPE_BUS;
             }
-            return new AudioRoute(type, bluetoothAddress, mAudioDeviceInfo);
+            return new AudioRoute(type, bluetoothAddress, mAudioDeviceInfo, isScoManagedByAudio);
         }
     };
+
+    @Parameterized.Parameters
+    public static Collection<Object[]> data() {
+        return Arrays.asList(new Object[][] {
+            { true },
+            { false }
+        });
+    }
+
+    public CallAudioRouteControllerTest(boolean isScoManagedByAudio) {
+        mIsScoManagedByAudio = isScoManagedByAudio;
+    }
 
     @Before
     public void setUp() throws Exception {
@@ -226,18 +240,19 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
                 mAudioRouteFactory, mWiredHeadsetManager,mBluetoothRouteManager,
                 mockStatusBarNotifier, mFeatureFlags,
                 mMockTelecomMetricsController, mRingtonePlayer, mAnomalyReporterAdapter);
+        mController.setIsScoManagedByAudio(mIsScoManagedByAudio);
         mController.setAudioRouteFactory(mAudioRouteFactory);
         mController.setAudioManager(mAudioManager);
-        mEarpieceRoute = new AudioRoute(AudioRoute.TYPE_EARPIECE, null, null);
-        mSpeakerRoute = new AudioRoute(AudioRoute.TYPE_SPEAKER, null, null);
+        mEarpieceRoute = new AudioRoute(AudioRoute.TYPE_EARPIECE, null, null,
+                mIsScoManagedByAudio);
+        mSpeakerRoute = new AudioRoute(AudioRoute.TYPE_SPEAKER, null, null,
+                mIsScoManagedByAudio);
         mOverrideSpeakerToBus = false;
         mController.setCallAudioManager(mCallAudioManager);
         when(mCallAudioManager.getForegroundCall()).thenReturn(mCall);
         when(mCall.getVideoState()).thenReturn(VideoProfile.STATE_AUDIO_ONLY);
         when(mCall.getSupportedAudioRoutes()).thenReturn(CallAudioState.ROUTE_ALL);
         BLUETOOTH_DEVICES.add(BLUETOOTH_DEVICE_1);
-        mIsScoManagedByAudio = android.media.audio.Flags.scoManagedByAudio()
-                && BluetoothProperties.isScoManagedByAudioEnabled().orElse(false);
     }
 
     @After
@@ -274,7 +289,8 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testInitializeWithWiredHeadset() {
-        AudioRoute wiredHeadsetRoute = new AudioRoute(AudioRoute.TYPE_WIRED, null, null);
+        AudioRoute wiredHeadsetRoute = new AudioRoute(AudioRoute.TYPE_WIRED, null, null,
+                mIsScoManagedByAudio);
         when(mWiredHeadsetManager.isPluggedIn()).thenReturn(true);
         mController.initialize();
         assertEquals(wiredHeadsetRoute, mController.getCurrentRoute());
@@ -286,7 +302,8 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
     @Test
     public void testEarpieceCreatedWhenWiredHeadsetDisconnected() {
         // Initialize the controller with the wired headset.
-        AudioRoute wiredHeadsetRoute = new AudioRoute(AudioRoute.TYPE_WIRED, null, null);
+        AudioRoute wiredHeadsetRoute = new AudioRoute(AudioRoute.TYPE_WIRED, null, null,
+                mIsScoManagedByAudio);
         when(mWiredHeadsetManager.isPluggedIn()).thenReturn(true);
         mController.initialize();
         assertEquals(wiredHeadsetRoute, mController.getCurrentRoute());
@@ -1322,8 +1339,8 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         verify(mCallsManager, timeout(TEST_TIMEOUT)).onCallAudioStateChanged(
                 any(CallAudioState.class), eq(expectedState));
 
-        // USER_SWITCH_BASELINE_ROUTE (explicit user request). Verify that audio is routed back to
-        // earpiece.
+        // USER_SWITCH_BASELINE_ROUTE (explicit user request). Verify that explicit user request
+        // to switch to baseline route (earpiece) is honored.
         mController.sendMessageWithSessionInfo(USER_SWITCH_BASELINE_ROUTE,
                 CallAudioRouteController.INCLUDE_BLUETOOTH_IN_BASELINE);
         mController.sendMessageWithSessionInfo(SPEAKER_OFF);
@@ -1682,7 +1699,7 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         AudioRoute.Factory audioRouteFactory = new AudioRoute.Factory() {
             @Override
             public AudioRoute create(@AudioRoute.AudioRouteType int type, String bluetoothAddress,
-                    AudioManager audioManager) {
+                    AudioManager audioManager, boolean isScoManagedByAudio) {
                 if (mOverrideSpeakerToBus && type == AudioRoute.TYPE_SPEAKER) {
                     type = AudioRoute.TYPE_BUS;
                 }
