@@ -143,6 +143,8 @@ android_app {
     sdk_version: "module_current",
     optimize: {
         proguard_flags_files: ["proguard.flags"],
+        optimize: true,
+        shrink_resources: true,
     },
 }
 
