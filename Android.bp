@@ -31,6 +31,85 @@ filegroup {
     path: "src",
 }
 
+soong_config_module_type {
+    name: "telecom_am_availability_src_config",
+    module_type: "filegroup_defaults",
+    config_namespace: "ANDROID",
+    bool_variables: [
+        "release_telecom_mainline_module",
+    ],
+    properties: [
+        "srcs",
+    ],
+}
+
+telecom_am_availability_src_config {
+    name: "telecom_am_mainline_deps_src_default",
+    soong_config_variables: {
+        release_telecom_mainline_module: {
+            srcs: [],
+            conditions_default: {
+                srcs: [
+                    "legacy-src/com/android/server/telecom/callsequencing/voip/VoipCallMonitor.java",
+                ],
+            },
+        },
+    },
+}
+
+telecom_am_availability_src_config {
+    name: "telecom_am_mainline_test_deps_src_default",
+    soong_config_variables: {
+        release_telecom_mainline_module: {
+            srcs: [
+                "tests/src/com/android/server/telecom/tests/VoipCallMonitorTest.java",
+            ],
+            conditions_default: {
+                srcs: [
+                    "tests/legacy-src/com/android/server/telecom/tests/VoipCallMonitorTest.java",
+                ],
+            },
+        },
+    },
+}
+
+telecom_am_availability_src_config {
+    name: "telecom_am_mainline_exclude_test_deps_src_default",
+    soong_config_variables: {
+        release_telecom_mainline_module: {
+            srcs: [
+                "tests/legacy-src/com/android/server/telecom/tests/VoipCallMonitorTest.java",
+            ],
+            conditions_default: {
+                srcs: [
+                    "tests/src/com/android/server/telecom/tests/VoipCallMonitorTest.java",
+                ],
+            },
+        },
+    },
+}
+
+filegroup {
+    name: "telecom_am_mainline_deps_srcs",
+    defaults: [
+        "telecom_am_mainline_deps_src_default",
+    ],
+}
+
+filegroup {
+    name: "telecom_am_mainline_test_deps_srcs",
+    defaults: [
+        "telecom_am_mainline_test_deps_src_default",
+    ],
+}
+
+filegroup {
+    name: "telecom_am_mainline_exclude_test_deps_srcs",
+    defaults: [
+        "telecom_am_mainline_exclude_test_deps_src_default",
+    ],
+}
+
 java_library {
     name: "telecom-proto-enums",
     srcs: [
@@ -120,6 +199,7 @@ android_library {
     ],
     libs: [
         "framework-telecom.impl",
+        "services.core",
     ],
     min_sdk_version: "36",
     resource_dirs: ["res"],
@@ -136,23 +216,33 @@ android_library {
 // Build the Telecom service.
 android_app {
     name: "TelecomShim",
-    libs: ["service-telecom.stubs.system_server"],
-    uses_libs: ["service-telecom"],
-    apex_available: [
-        "com.android.telephonycore",
-        "//apex_available:platform",
+    srcs: [
+        "src/com/android/server/telecom/shim/TelecomShimService.java",
+        ":telecom-service-init-sources",
     ],
-    resource_dirs: ["res"],
+    resource_dirs: [
+        "res",
+        "res_mainline",
+    ],
+    libs: [
+        "framework-annotations-lib",
+        "telecom_module_flags-java",
+    ],
+    aaptflags: ["--auto-add-overlay"],
     min_sdk_version: "36",
-    sdk_version: "system_server_current",
+    sdk_version: "module_current",
     certificate: "platform",
     privileged: true,
+    optimize: {
+        enabled: false,
+    },
 }
 
 // Build the Telecom service.
 android_app {
     name: "Telecom",
     srcs: [
+        ":telecom_am_mainline_deps_srcs",
     ],
     static_libs: [
         "TelecomLib",
@@ -181,12 +271,12 @@ android_app {
     ],
     static_libs: [
         "androidx.core_core",
-        "framework-annotations-lib", // For @Nullable, @VisibleForTesting
         "shared-telecom-lib",
         "telecom-strings", // All strings and translations
     ],
     libs: [
         "framework-telecom.stubs.module_lib",
+        "framework-annotations-lib", // For @Nullable, @VisibleForTesting
     ],
     certificate: "platform",
     privileged: true,
@@ -294,9 +384,15 @@ android_test {
         "androidx.fragment_fragment",
         "androidx.test.ext.junit",
         "platform-compat-test-rules",
+        "services.core",
     ],
     srcs: [
         "tests/src/**/*.java",
+        ":telecom_am_mainline_deps_srcs",
+        ":telecom_am_mainline_test_deps_srcs",
+    ],
+    exclude_srcs: [
+        ":telecom_am_mainline_exclude_test_deps_srcs",
     ],
     resource_dirs: [
         "tests/res",

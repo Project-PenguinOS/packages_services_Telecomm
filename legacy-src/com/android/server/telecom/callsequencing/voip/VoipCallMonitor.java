@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 The Android Open Source Project
+ * Copyright (C) 2026 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,16 @@
 
 package com.android.server.telecom.callsequencing.voip;
 
+import static android.app.ForegroundServiceDelegationOptions.DELEGATION_SERVICE_PHONE_CALL;
 import static android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA;
 import static android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE;
 import static android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE;
 import static android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL;
 
-import static com.android.server.am.ForegroundServiceDelegationParams.DELEGATION_REASON_VOIP;
-
-import com.android.server.LocalManagerRegistry;
-import com.android.server.am.ActivityManagerLocal;
-import com.android.server.am.ForegroundServiceDelegationParams;
+import android.app.ActivityManager;
+import android.app.ActivityManagerInternal;
+import android.app.ForegroundServiceDelegationOptions;
+import android.app.Notification;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -33,6 +33,7 @@ import android.content.ServiceConnection;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.OutcomeReceiver;
+import android.os.RemoteException;
 import android.os.UserHandle;
 import android.app.NotificationManager;
 import android.service.notification.StatusBarNotification;
@@ -41,6 +42,7 @@ import android.telecom.Log;
 import android.telecom.PhoneAccountHandle;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.LocalServices;
 import com.android.server.telecom.Call;
 import com.android.server.telecom.CallsManagerListenerBase;
 import com.android.server.telecom.LogUtils;
@@ -61,15 +63,14 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
     public static final long NOTIFICATION_REMOVED_BUT_CALL_IS_STILL_ONGOING_TIMEOUT = 5000L;
     private static final long BAL_BIND_TIMEOUT_MS = 5000L;
     private static final String TAG = VoipCallMonitor.class.getSimpleName();
-    private static final String DElIMITER = "#";
     // This list caches calls that are added to the VoipCallMonitor and need an accompanying
     // Call-Style Notification!
     private final ConcurrentLinkedQueue<Call> mNewCallsMissingCallStyleNotification;
     private final ConcurrentHashMap<PhoneAccountHandle, Set<Call>> mAccountHandleToCallMap;
-    private final ConcurrentHashMap<PhoneAccountHandle, FgsDelegationSession> mFgsSessions;
+    private final ConcurrentHashMap<PhoneAccountHandle, ServiceConnection> mServices;
     private final ConcurrentHashMap<PhoneAccountHandle,
             NotificationManager.CallNotificationEventListener> mListeners;
-    private ActivityManagerLocal mActivityManagerLocal;
+    private ActivityManagerInternal mActivityManagerInternal;
     private final NotificationManager mNotificationManager;
     private final Handler mHandlerForClass;
     private final Context mContext;
@@ -82,15 +83,15 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
 
     private final Call.InCallServiceToVoipAppListener mInCallServiceActionListenerImpl =
             new Call.InCallServiceToVoipAppListener() {
-                /**
-                 * Triggered when an onAnswer signal is received from an InCallService.
-                 */
-                @Override
-                public void onAnswerRequested(Call call, int videoState,
-                        OutcomeReceiver<Object, Exception> completionCallback) {
-                    bindToAppsConnectionServiceForBackgroundActivityStart(call, completionCallback);
-                }
-            };
+        /**
+         * Triggered when an onAnswer signal is received from an InCallService.
+         */
+        @Override
+        public void onAnswerRequested(Call call, int videoState,
+                OutcomeReceiver<Object, Exception> completionCallback) {
+            bindToAppsConnectionServiceForBackgroundActivityStart(call, completionCallback);
+        }
+    };
 
     // Simple wrapper to hold the connection reference mutably for the lambdas
     private static class AtomicServiceConnection {
@@ -100,29 +101,17 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
         synchronized void clear() { mConnection = null; }
     }
 
-    private static class FgsDelegationSession {
-        final ServiceConnection mConnection;
-        final ForegroundServiceDelegationParams mParams;
-
-        FgsDelegationSession(
-                ServiceConnection connection,
-                ForegroundServiceDelegationParams params) {
-            this.mConnection = connection;
-            this.mParams = params;
-        }
-    }
-
-
     public VoipCallMonitor(Context context, Handler handler, TelecomSystem.SyncRoot lock) {
         mSyncRoot = lock;
         mContext = context;
         mHandlerForClass = handler;
         mNewCallsMissingCallStyleNotification = new ConcurrentLinkedQueue<>();
-        mFgsSessions = new ConcurrentHashMap<>();
+        mServices = new ConcurrentHashMap<>();
         mAccountHandleToCallMap = new ConcurrentHashMap<>();
         mListeners = new ConcurrentHashMap<>();
         mNotificationManager = mContext.getSystemService(NotificationManager.class);
-        Log.d(TAG, "VoipCallMonitor: Using mainline path (ActivityManagerLocal).");
+        Log.d(TAG, "VoipCallMonitor: Using legacy path (ActivityManagerInternal). "
+                + "Mainline is disabled");
     }
 
     @Override
@@ -168,37 +157,37 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
 
     private void maybeStartFGSDelegation(int pid, int uid, PhoneAccountHandle handle, Call call) {
         Log.i(TAG, "maybeStartFGSDelegation for call=[%s]", call);
-        ActivityManagerLocal aml = getActivityManagerLocal();
-        if (aml != null) {
-            if (mFgsSessions.containsKey(handle)) {
+        ActivityManagerInternal ami = getActivityManagerInternal();
+        if (ami != null) {
+            if (mServices.containsKey(handle)) {
                 Log.addEvent(call, LogUtils.Events.ALREADY_HAS_FGS_DELEGATION);
                 startMonitoringNotification(call, handle);
                 return;
             }
-            ForegroundServiceDelegationParams options = new ForegroundServiceDelegationParams(pid,
-                    uid, handle.getComponentName().getPackageName(),
+            ForegroundServiceDelegationOptions options = new ForegroundServiceDelegationOptions(pid,
+                    uid, handle.getComponentName().getPackageName(), null /* clientAppThread */,
                     false /* isSticky */, String.valueOf(handle.hashCode()),
                     FOREGROUND_SERVICE_TYPE_PHONE_CALL |
                             FOREGROUND_SERVICE_TYPE_MICROPHONE |
                             FOREGROUND_SERVICE_TYPE_CAMERA |
                             FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE /* foregroundServiceTypes */,
-                    DELEGATION_REASON_VOIP /* delegationService */);
+                    DELEGATION_SERVICE_PHONE_CALL /* delegationService */);
             ServiceConnection fgsConnection = new ServiceConnection() {
                 @Override
                 public void onServiceConnected(ComponentName name, IBinder service) {
                     Log.addEvent(call, LogUtils.Events.GAINED_FGS_DELEGATION);
-                    mFgsSessions.put(handle, new FgsDelegationSession(this, options));
+                    mServices.put(handle, this);
                     startMonitoringNotification(call, handle);
                 }
 
                 @Override
                 public void onServiceDisconnected(ComponentName name) {
                     Log.addEvent(call, LogUtils.Events.LOST_FGS_DELEGATION);
-                    mFgsSessions.remove(handle);
+                    mServices.remove(handle);
                 }
             };
             try {
-                if (aml.startForegroundServiceDelegate(options, fgsConnection)) {
+                if (ami.startForegroundServiceDelegate(options, fgsConnection)) {
                     Log.i(TAG, "maybeStartFGSDelegation: startForegroundServiceDelegate success");
                 } else {
                     Log.addEvent(call, LogUtils.Events.GAIN_FGS_DELEGATION_FAILED);
@@ -227,15 +216,12 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
         }
         mNewCallsMissingCallStyleNotification.removeAll(toRemove);
 
-        ActivityManagerLocal aml = getActivityManagerLocal();
-        if (aml != null) {
-            FgsDelegationSession fgsSession = mFgsSessions.remove(handle);
-            if (fgsSession != null) {
-                ServiceConnection fgsConnection = fgsSession.mConnection;
-                if (fgsConnection != null) {
-                    Log.i(TAG, "stopFGSDelegation: requesting stopForegroundServiceDelegate");
-                    aml.stopForegroundServiceDelegate(fgsSession.mParams);
-                }
+        ActivityManagerInternal ami = getActivityManagerInternal();
+        if (ami != null) {
+            ServiceConnection fgsConnection = mServices.remove(handle);
+            if (fgsConnection != null) {
+                Log.i(TAG, "stopFGSDelegation: requesting stopForegroundServiceDelegate");
+                ami.stopForegroundServiceDelegate(fgsConnection);
             }
         }
         mAccountHandleToCallMap.remove(handle);
@@ -401,16 +387,6 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
         }
     }
 
-    private boolean isCallDisconnected(Call call) {
-        synchronized (mSyncRoot) {
-            if (call == null) {
-                return true;
-            } else {
-                return call.isDisconnected();
-            }
-        }
-    }
-
     private boolean isTransactional(Call call) {
         synchronized (mSyncRoot) {
             if (call == null) {
@@ -431,16 +407,16 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
         return pn;
     }
 
-    private ActivityManagerLocal getActivityManagerLocal() {
-        if (mActivityManagerLocal == null) {
-            mActivityManagerLocal = LocalManagerRegistry.getManager(ActivityManagerLocal.class);
+    private ActivityManagerInternal getActivityManagerInternal() {
+        if (mActivityManagerInternal == null) {
+            mActivityManagerInternal = LocalServices.getService(ActivityManagerInternal.class);
         }
-        return mActivityManagerLocal;
+        return mActivityManagerInternal;
     }
 
     @VisibleForTesting
-    public void setActivityManagerLocal(ActivityManagerLocal aml) {
-        mActivityManagerLocal = aml;
+    public void setActivityManagerInternal(ActivityManagerInternal ami) {
+        mActivityManagerInternal = ami;
     }
 
     /**
@@ -490,42 +466,38 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
         }
         NotificationManager.CallNotificationEventListener listener =
                 new NotificationManager.CallNotificationEventListener() {
-                    @Override
-                    public void onCallNotificationPosted(String packageName,
-                            UserHandle userHandle) {
-                        Log.i(TAG, "onCallNotificationPosted: package=[%s], user=[%s]",
-                                packageName, userHandle);
-                        Call newCallNoLongerAwaitingNotification = null;
-                        for (Call call : mNewCallsMissingCallStyleNotification) {
-                            if (isNotificationForCall(packageName, userHandle, call)) {
-                                Log.i(TAG, "onCallNotificationPosted: found a pending "
-                                        + "call=[%s]", call);
-                                newCallNoLongerAwaitingNotification = call;
-                                break;
-                            }
-                        }
-                        if (newCallNoLongerAwaitingNotification != null) {
-                            // --> remove the newly added call from
-                            // mNewCallsMissingCallStyleNotification so FGS is not revoked when the
-                            // timeout is hit in VoipCallMonitor#startMonitoringNotification(...).
-                            // The timeout ensures the voip app posts a call-style notification
-                            // within 5 seconds!
-                            mNewCallsMissingCallStyleNotification
-                                    .remove(newCallNoLongerAwaitingNotification);
-                        }
+            @Override
+            public void onCallNotificationPosted(String packageName, UserHandle userHandle) {
+                Log.i(TAG, "onCallNotificationPosted: package=[%s], user=[%s]",
+                        packageName, userHandle);
+                Call newCallNoLongerAwaitingNotification = null;
+                for (Call call : mNewCallsMissingCallStyleNotification) {
+                    if (isNotificationForCall(packageName, userHandle, call)) {
+                        Log.i(TAG, "onCallNotificationPosted: found a pending call=[%s]", call);
+                        newCallNoLongerAwaitingNotification = call;
+                        break;
                     }
+                }
+                if (newCallNoLongerAwaitingNotification != null) {
+                    // --> remove the newly added call from
+                    // mNewCallsMissingCallStyleNotification so FGS is not revoked when the
+                    // timeout is hit in VoipCallMonitor#startMonitoringNotification(...). The
+                    // timeout ensures the voip app posts a call-style notification within
+                    // 5 seconds!
+                    mNewCallsMissingCallStyleNotification
+                            .remove(newCallNoLongerAwaitingNotification);
+                }
+            }
 
-                    @Override
-                    public void onCallNotificationRemoved(String packageName,
-                            UserHandle userHandle) {
-                        Log.i(TAG, "onCallNotificationRemoved: package=[%s], user=[%s]",
-                                packageName, userHandle);
-                        // TODO: b/383403913 - We need the Notification ID/Tag to know WHICH
-                        //  notification was removed. Without it, we cannot safely determine if the
-                        //  removed notification corresponds to an active call, so we cannot revoke
-                        //  FGS here safely.
-                    }
-                };
+            @Override
+            public void onCallNotificationRemoved(String packageName, UserHandle userHandle) {
+                Log.i(TAG, "onCallNotificationRemoved: package=[%s], user=[%s]",
+                        packageName, userHandle);
+                // TODO: b/383403913 - We need the Notification ID/Tag to know WHICH notification
+                // was removed. Without it, we cannot safely determine if the removed notification
+                // corresponds to an active call, so we cannot revoke FGS here safely.
+            }
+        };
         mListeners.put(handle, listener);
         mNotificationManager.registerCallNotificationEventListener(
                 handle.getComponentName().getPackageName(),
@@ -560,7 +532,7 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
     }
 
     public boolean hasForegroundServiceDelegation(PhoneAccountHandle handle) {
-        boolean hasFgs = mFgsSessions.containsKey(handle);
+        boolean hasFgs = mServices.containsKey(handle);
         Log.i(TAG, "hasForegroundServiceDelegation: handle=[%s], hasFgs=[%b]", handle, hasFgs);
         return hasFgs;
     }
@@ -607,3 +579,4 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
         }
     }
 }
+
