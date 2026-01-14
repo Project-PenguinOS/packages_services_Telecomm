@@ -88,7 +88,6 @@ public class NewOutgoingCallIntentBroadcasterTest extends TelecomTestCase {
     @Mock private RoleManagerAdapter mRoleManagerAdapter;
     @Mock private DefaultDialerCache mDefaultDialerCache;
     @Mock private FeatureFlags mFeatureFlags;
-    @Mock private com.android.internal.telecom.flags.FeatureFlags mInternalFeatureFlags;
 
     @Mock private MmiUtils mMmiUtils;
     private PhoneNumberUtilsAdapter mPhoneNumberUtilsAdapter;
@@ -109,7 +108,7 @@ public class NewOutgoingCallIntentBroadcasterTest extends TelecomTestCase {
             any(PhoneAccountHandle.class))).thenReturn(mPhoneAccount);
         when(mPhoneAccount.isSelfManaged()).thenReturn(true);
         when(mSystemStateHelper.isCarModeOrProjectionActive()).thenReturn(false);
-        mPhoneNumberUtilsAdapter = new PhoneNumberUtilsAdapterImpl(mContext, mInternalFeatureFlags);
+        mPhoneNumberUtilsAdapter = new PhoneNumberUtilsAdapterImpl(mContext);
     }
 
     @Override

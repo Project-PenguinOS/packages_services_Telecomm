@@ -54,6 +54,8 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.OutcomeReceiver;
 import android.os.UserHandle;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.service.notification.StatusBarNotification;
 import android.telecom.ConnectionService;
 import android.telecom.PhoneAccountHandle;
@@ -65,11 +67,13 @@ import com.android.server.telecom.Call;
 import com.android.server.telecom.CallState;
 import com.android.server.telecom.TelecomSystem;
 import com.android.server.telecom.callsequencing.voip.VoipCallMonitor;
-import com.android.internal.telecom.flags.FeatureFlags;
+import com.android.internal.telecom.flags.Flags;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -81,7 +85,11 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @RunWith(JUnit4.class)
+@EnableFlags(Flags.FLAG_VOIP_BACKGROUND_ACTIVITY_LAUNCH_FIX)
 public class VoipCallMonitorTest extends TelecomTestCase {
+    @ClassRule public static final SetFlagsRule.ClassRule mClassRule = new SetFlagsRule.ClassRule();
+    @Rule public final SetFlagsRule mSetFlagsRule = mClassRule.createSetFlagsRule();
+
     private VoipCallMonitor mMonitor;
     private static final String NAME = "John Smith";
     private static final String PKG_NAME_1 = "telecom.voip.test1";
@@ -97,7 +105,6 @@ public class VoipCallMonitorTest extends TelecomTestCase {
     @Mock private ActivityManagerInternal mActivityManagerInternal;
     @Mock private IBinder mServiceConnection;
     @Mock private NotificationManager mNotificationManager;
-    @Mock FeatureFlags mFlags;
     private final PhoneAccountHandle mHandle1User1 = new PhoneAccountHandle(
             new ComponentName(PKG_NAME_1, CLS_NAME), ID_1, USER_HANDLE_1);
     private final PhoneAccountHandle mHandle2User1 = new PhoneAccountHandle(
@@ -112,13 +119,12 @@ public class VoipCallMonitorTest extends TelecomTestCase {
         when(mContext.getSystemService(NotificationManager.class)).thenReturn(mNotificationManager);
         when(mContext.getSystemService(Context.NOTIFICATION_SERVICE)).thenReturn(
                 mNotificationManager);
-        mMonitor = new VoipCallMonitor(mContext, mHandler, mFlags, mLock);
+        mMonitor = new VoipCallMonitor(mContext, mHandler, mLock);
         mActivityManagerInternal = mock(ActivityManagerInternal.class);
         mMonitor.setActivityManagerInternal(mActivityManagerInternal);
         when(mActivityManagerInternal.startForegroundServiceDelegate(any(
                 ForegroundServiceDelegationOptions.class), any(ServiceConnection.class)))
                 .thenReturn(true);
-        when(mFlags.voipBackgroundActivityLaunchFix()).thenReturn(true);
     }
 
     @Override
