@@ -551,8 +551,9 @@ public class TelecomSystemTest extends TelecomTestCase{
                     public CallAudioRouteController create(
                             Context context,
                             CallsManager callsManager,
-                            BluetoothRouteManager bluetoothManager,
+                            AudioRoute.Factory audioRouteFactory,
                             WiredHeadsetManager wiredHeadsetManager,
+                            BluetoothRouteManager bluetoothManager,
                             StatusBarNotifier statusBarNotifier,
                             FeatureFlags featureFlags,
                             TelecomMetricsController metricsController,
@@ -560,7 +561,7 @@ public class TelecomSystemTest extends TelecomTestCase{
                             AnomalyReporterAdapter anomalyReporter) {
                         return new CallAudioRouteController(context,
                                 callsManager,
-                                new AudioRoute.Factory(),
+                                audioRouteFactory,
                                 wiredHeadsetManager,
                                 bluetoothManager,
                                 statusBarNotifier,

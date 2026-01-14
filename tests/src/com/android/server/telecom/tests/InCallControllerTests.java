@@ -2197,7 +2197,7 @@ public class InCallControllerTests extends TelecomTestCase {
 
     @Test
     public void testBindToServices_classCheckFlagOn_classFound() throws Exception {
-        when(mFeatureFlags.enableIncallServiceClassCheck()).thenReturn(true);
+
 
         String inCallControllerClassName = InCallController.class.getName();
         doAnswer(invocation -> {
@@ -2246,7 +2246,7 @@ public class InCallControllerTests extends TelecomTestCase {
     @Test
     public void testBindToServices_classCheckFlagOn_classNotFound() throws Exception {
         InCallController spiedInCallController = spy(mInCallController);
-        when(mFeatureFlags.enableIncallServiceClassCheck()).thenReturn(true);
+
 
         final String nonExistentClassName =
                 "com.android.server.telecom.tests.NonExistentService";
