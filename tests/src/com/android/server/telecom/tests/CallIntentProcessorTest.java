@@ -16,6 +16,7 @@
 
 package com.android.server.telecom.tests;
 
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.eq;
@@ -23,6 +24,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.Manifest;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -104,6 +106,56 @@ public class CallIntentProcessorTest extends TelecomTestCase {
         when(mCallsManager.startOutgoingCall(any(Uri.class), any(), any(Bundle.class),
                 any(UserHandle.class), any(Intent.class), anyString())).thenReturn(mCallFuture);
         when(mCallFuture.thenAccept(any())).thenReturn(CompletableFuture.completedFuture(null));
+    }
+
+    @Test
+    public void testDangerousCall_dialerPrivileged_noErrorDialog() {
+        Intent intent = new Intent(Intent.ACTION_CALL);
+        intent.setData(Uri.parse("tel:*72536")); // Dangerous MMI
+        intent.putExtra(CallIntentProcessor.KEY_INITIATING_USER, UserHandle.CURRENT);
+
+        // Not default dialer
+        when(mDefaultDialerCache.isDefaultOrSystemDialer(eq(TEST_PACKAGE_NAME),
+                        anyInt())).thenReturn(false);
+
+        // Has CALL_PRIVILEGED permission
+        when(mPackageManager.checkPermission(Manifest.permission.CALL_PRIVILEGED,
+                TEST_PACKAGE_NAME)).thenReturn(PackageManager.PERMISSION_GRANTED);
+
+        mCallIntentProcessor.processIntent(intent, TEST_PACKAGE_NAME);
+
+        // Verify startOutgoingCall IS called
+        verify(mCallsManager).startOutgoingCall(any(Uri.class), any(), any(Bundle.class),
+                eq(UserHandle.CURRENT), eq(intent), eq(TEST_PACKAGE_NAME));
+    }
+
+    @Test
+    public void testDangerousCall_dialerNotPrivileged_ErrorDialogShown() {
+        Intent intent = new Intent(Intent.ACTION_CALL);
+        intent.setData(Uri.parse("tel:*72536")); // Dangerous MMI
+        intent.putExtra(CallIntentProcessor.KEY_INITIATING_USER, UserHandle.CURRENT);
+
+        // Not default dialer
+        when(mDefaultDialerCache.isDefaultOrSystemDialer(eq(TEST_PACKAGE_NAME),
+             anyInt())).thenReturn(false);
+
+        // No CALL_PRIVILEGED permission
+        when(mPackageManager.checkPermission(Manifest.permission.CALL_PRIVILEGED,
+                TEST_PACKAGE_NAME)).thenReturn(PackageManager.PERMISSION_DENIED);
+
+        mCallIntentProcessor.processIntent(intent, TEST_PACKAGE_NAME);
+
+        // Verify startOutgoingCall is NEVER called
+        verify(mCallsManager, never()).startOutgoingCall(any(Uri.class), any(), any(Bundle.class),
+                any(UserHandle.class), any(Intent.class), anyString());
+
+        // Verify error dialog (startActivity)
+        // Note: NewOutgoingCallIntentBroadcaster also calls
+        // startActivityAsUser to launch system dialer
+        // AND CallIntentProcessor calls startActivityAsUser to show error dialog.
+        // So we expect at least one call.
+        verify(mContext, org.mockito.Mockito.atLeastOnce()).startActivityAsUser(any(Intent.class),
+                eq(UserHandle.CURRENT));
     }
 
     @Test
