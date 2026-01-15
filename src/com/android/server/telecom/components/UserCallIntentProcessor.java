@@ -119,7 +119,7 @@ public class UserCallIntentProcessor {
                 !TelephonyUtil.shouldProcessAsEmergency(mContext, handle)) {
             String reason = android.Manifest.permission.CALL_PHONE + " permission is not granted.";
             UserUtil.showErrorDialogForRestrictedOutgoingCall(mContext,
-                    R.string.outgoing_call_not_allowed_no_permission,
+                    mContext.getString(R.string.outgoing_call_not_allowed_no_permission),
                     this.getClass().getCanonicalName(), reason);
             return;
         }
