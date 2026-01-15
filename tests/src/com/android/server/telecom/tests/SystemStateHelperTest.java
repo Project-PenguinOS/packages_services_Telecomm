@@ -32,6 +32,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.anyString;
 
 import android.app.UiModeManager;
 import android.content.BroadcastReceiver;
@@ -39,6 +40,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.Configuration;
+import android.content.res.Resources;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -101,6 +103,12 @@ public class SystemStateHelperTest extends TelecomTestCase {
                 R.dimen.device_on_ear_xy_gravity_threshold, 5.5f);
         mComponentContextFixture.putFloatResource(
                 R.dimen.device_on_ear_y_gravity_negative_threshold, -1f);
+
+        Resources resources = mContext.getResources();
+        doReturn(R.dimen.device_on_ear_xy_gravity_threshold).when(resources).getIdentifier(
+                eq("device_on_ear_xy_gravity_threshold"), anyString(), anyString());
+        doReturn(R.dimen.device_on_ear_y_gravity_negative_threshold).when(resources).getIdentifier(
+                eq("device_on_ear_y_gravity_negative_threshold"), anyString(), anyString());
     }
 
     @Override

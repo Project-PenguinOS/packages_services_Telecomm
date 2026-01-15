@@ -127,7 +127,7 @@ public class EmergencyCallHelper {
     }
 
     private boolean shouldGrantTemporaryLocationPermission(Call call) {
-        if (!mContext.getResources().getBoolean(R.bool.grant_location_permission_enabled)) {
+        if (!TelecomResourceId.getBoolean(mContext, "grant_location_permission_enabled")) {
             Log.i(this, "ShouldGrantTemporaryLocationPermission, disabled by config");
             return false;
         }

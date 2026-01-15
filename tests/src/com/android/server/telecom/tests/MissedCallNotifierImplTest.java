@@ -52,6 +52,7 @@ import android.content.IContentProvider;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.content.res.Resources;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
@@ -73,6 +74,7 @@ import com.android.server.telecom.DefaultDialerCache;
 import com.android.server.telecom.MissedCallNotifier;
 import com.android.server.telecom.PhoneAccountRegistrar;
 import com.android.server.telecom.TelecomBroadcastIntentProcessor;
+import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.TelecomSystem;
 import com.android.server.telecom.components.TelecomBroadcastReceiver;
 import com.android.server.telecom.ui.MissedCallNotifierImpl;
@@ -207,6 +209,17 @@ public class MissedCallNotifierImplTest extends TelecomTestCase {
                 MISSED_CALLS_MSG);
         mComponentContextFixture.putResource(R.string.userCallActivityLabel,
                 USER_CALL_ACTIVITY_LABEL);
+
+        Resources resources = mContext.getResources();
+        doReturn(R.string.notification_missedCallTitle).when(resources).getIdentifier(
+                eq("notification_missedCallTitle"), anyString(), anyString());
+        doReturn(R.string.notification_missedCallsTitle).when(resources).getIdentifier(
+                eq("notification_missedCallsTitle"), anyString(), anyString());
+        doReturn(R.string.notification_missedCallsMsg).when(resources).getIdentifier(
+                eq("notification_missedCallsMsg"), anyString(), anyString());
+        doReturn(R.string.userCallActivityLabel).when(resources).getIdentifier(
+                eq("userCallActivityLabel"), anyString(), anyString());
+
         mComponentContextFixture.setTelecomManager(mTelecomManager);
     }
 

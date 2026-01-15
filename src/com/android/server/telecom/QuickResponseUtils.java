@@ -19,7 +19,6 @@ package com.android.server.telecom;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.content.res.Resources;
 import android.telecom.Log;
 
 /**
@@ -61,7 +60,6 @@ public class QuickResponseUtils {
         Log.d(LOG_TAG, "maybeMigrateLegacyQuickResponses() - Starting");
         final SharedPreferences prefs = context.getSharedPreferences(
                 SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
-        final Resources res = context.getResources();
 
         final boolean responsesExist = prefs.contains(KEY_CANNED_RESPONSE_PREF_1)
                 || prefs.contains(KEY_CANNED_RESPONSE_PREF_2)
@@ -95,13 +93,13 @@ public class QuickResponseUtils {
                 return;
             }
             String cannedResponse1 = oldPrefs.getString(KEY_CANNED_RESPONSE_PREF_1,
-                    res.getString(R.string.respond_via_sms_canned_response_1));
+                    TelecomResourceId.getString(context, "respond_via_sms_canned_response_1"));
             String cannedResponse2 = oldPrefs.getString(KEY_CANNED_RESPONSE_PREF_2,
-                    res.getString(R.string.respond_via_sms_canned_response_2));
+                    TelecomResourceId.getString(context, "respond_via_sms_canned_response_2"));
             String cannedResponse3 = oldPrefs.getString(KEY_CANNED_RESPONSE_PREF_3,
-                    res.getString(R.string.respond_via_sms_canned_response_3));
+                    TelecomResourceId.getString(context, "respond_via_sms_canned_response_3"));
             String cannedResponse4 = oldPrefs.getString(KEY_CANNED_RESPONSE_PREF_4,
-                    res.getString(R.string.respond_via_sms_canned_response_4));
+                    TelecomResourceId.getString(context, "respond_via_sms_canned_response_4"));
 
             // Write them into Telecom SharedPreferences.
             final SharedPreferences.Editor editor = prefs.edit();
@@ -125,9 +123,8 @@ public class QuickResponseUtils {
      * @param prefs   The quick response shared prefs.
      */
     public static void maybeResetQuickResponses(Context context, SharedPreferences prefs) {
-        final Resources res = context.getResources();
-
-        String defaultResponse1 = res.getString(R.string.respond_via_sms_canned_response_1);
+        String defaultResponse1 = TelecomResourceId.getString(context,
+                "respond_via_sms_canned_response_1");
         String currentValue1 = prefs.getString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_1, "");
         if (currentValue1.equals(defaultResponse1)) {
             prefs.edit().remove(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_1).apply();
@@ -135,7 +132,8 @@ public class QuickResponseUtils {
                     "maybeResetQuickResponses: response 1 is identical to default; clear pref.");
         }
 
-        String defaultResponse2 = res.getString(R.string.respond_via_sms_canned_response_2);
+        String defaultResponse2 = TelecomResourceId.getString(context,
+                "respond_via_sms_canned_response_2");
         String currentValue2 = prefs.getString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_2, "");
         if (currentValue2.equals(defaultResponse2)) {
             prefs.edit().remove(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_2).apply();
@@ -143,7 +141,8 @@ public class QuickResponseUtils {
                     "maybeResetQuickResponses: response 2 is identical to default; clear pref.");
         }
 
-        String defaultResponse3 = res.getString(R.string.respond_via_sms_canned_response_3);
+        String defaultResponse3 = TelecomResourceId.getString(context,
+                "respond_via_sms_canned_response_3");
         String currentValue3 = prefs.getString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_3, "");
         if (currentValue3.equals(defaultResponse3)) {
             prefs.edit().remove(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_3).apply();
@@ -151,7 +150,8 @@ public class QuickResponseUtils {
                     "maybeResetQuickResponses: response 3 is identical to default; clear pref.");
         }
 
-        String defaultResponse4 = res.getString(R.string.respond_via_sms_canned_response_4);
+        String defaultResponse4 = TelecomResourceId.getString(context,
+                "respond_via_sms_canned_response_4");
         String currentValue4 = prefs.getString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_4, "");
         if (currentValue4.equals(defaultResponse4)) {
             prefs.edit().remove(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_4).apply();

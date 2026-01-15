@@ -20,8 +20,14 @@ filegroup {
 }
 
 filegroup {
+    name: "service-telecom-api-internal-srcs",
+    srcs: ["src/android/**/*.java"],
+    path: "src",
+}
+
+filegroup {
     name: "service-telecom-internal-srcs",
-    srcs: ["src/**/*.java"],
+    srcs: ["src/com/**/*.java"],
     path: "src",
 }
 
@@ -78,7 +84,10 @@ android_library {
     resource_dirs: ["res"],
     min_sdk_version: "36",
     sdk_version: "system_server_current",
-    apex_available: ["com.android.telephonycore"],
+    apex_available: [
+        "com.android.telephonycore",
+        "//apex_available:platform",
+    ],
     // Do not try to optimize out resources in this library.
     use_resource_processor: false,
     visibility: [
@@ -127,16 +136,17 @@ android_library {
 // Build the Telecom service.
 android_app {
     name: "TelecomShim",
-    srcs: [],
     libs: ["service-telecom.stubs.system_server"],
+    uses_libs: ["service-telecom"],
+    apex_available: [
+        "com.android.telephonycore",
+        "//apex_available:platform",
+    ],
     resource_dirs: ["res"],
     min_sdk_version: "36",
     sdk_version: "system_server_current",
     certificate: "platform",
     privileged: true,
-    optimize: {
-        proguard_flags_files: ["proguard.flags"],
-    },
 }
 
 // Build the Telecom service.
@@ -186,6 +196,11 @@ android_app {
         optimize: true,
         shrink_resources: true,
     },
+    apex_available: [
+        "com.android.telephonycore",
+    ],
+    min_sdk_version: "36",
+    updatable: true,
 }
 
 android_library {
@@ -195,12 +210,20 @@ android_library {
         "src/com/android/server/telecom/settings/BlockedNumbersUtil.java",
         "src/com/android/server/telecom/ui/UiConstants.java",
     ],
+    static_libs: [
+        "telecom-resource-id-lib",
+        "telecom_flags_core_java_lib",
+    ],
     libs: [
         "framework-annotations-lib",
         "framework-telecom.stubs.module_lib",
         "telecom-strings",
     ],
     sdk_version: "module_current",
+    apex_available: [
+        "com.android.telephonycore",
+    ],
+    min_sdk_version: "36",
 }
 
 // Contains all Strings and translations
@@ -211,6 +234,10 @@ android_library {
         "res/values*/strings.xml",
     ],
     sdk_version: "module_current",
+    apex_available: [
+        "com.android.telephonycore",
+    ],
+    min_sdk_version: "36",
 }
 
 // Build telecom util static lib
@@ -219,6 +246,37 @@ java_library_static {
     srcs: [
         "src/com/android/server/telecom/util/*.java",
     ],
+    libs: [
+        "framework-annotations-lib",
+        "framework-telecom.stubs.module_lib",
+    ],
+    static_libs: [
+        "telecom_flags_core_java_lib",
+        "telecom_module_flags-java",
+        "telecom-resource-id-lib",
+    ],
+    sdk_version: "module_current",
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.telephonycore",
+    ],
+    min_sdk_version: "36",
+}
+
+java_library_static {
+    name: "telecom-resource-id-lib",
+    srcs: [
+        "src/com/android/server/telecom/TelecomResourceId.java",
+    ],
+    libs: [
+        "framework-annotations-lib",
+    ],
+    sdk_version: "module_current",
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.telephonycore",
+    ],
+    min_sdk_version: "36",
 }
 
 android_test {

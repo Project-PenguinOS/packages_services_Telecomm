@@ -70,7 +70,7 @@ public class StatusBarNotifier extends CallsManagerListenerBase {
                     SLOT_MUTE,
                     android.R.drawable.stat_notify_call_mute,
                     0,  /* iconLevel */
-                    mContext.getString(R.string.accessibility_call_muted));
+                    TelecomResourceId.getString(mContext, "accessibility_call_muted"));
         } else {
             mStatusBarManager.removeIcon(SLOT_MUTE);
         }
@@ -97,7 +97,7 @@ public class StatusBarNotifier extends CallsManagerListenerBase {
                     SLOT_SPEAKERPHONE,
                     android.R.drawable.stat_sys_speakerphone,
                     0,  /* iconLevel */
-                    mContext.getString(R.string.accessibility_speakerphone_enabled));
+                    TelecomResourceId.getString(mContext, "accessibility_speakerphone_enabled"));
         } else {
             mStatusBarManager.removeIcon(SLOT_SPEAKERPHONE);
         }

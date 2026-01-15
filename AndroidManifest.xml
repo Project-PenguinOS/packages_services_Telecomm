@@ -232,7 +232,7 @@
             </intent-filter>
         </receiver>
 
-        <service android:name=".components.TelecomService"
+        <service android:name="android.telecom.service.TelecomService"
              android:singleUser="true"
              android:process="system"
              android:exported="true">

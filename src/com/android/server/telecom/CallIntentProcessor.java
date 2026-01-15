@@ -181,8 +181,8 @@ public class CallIntentProcessor {
             // profile.
             if (fixedInitiatingUser) {
                 context.getMainExecutor().execute(() ->
-                        Toast.makeText(context, context.getString(
-                                R.string.toast_personal_call_msg), Toast.LENGTH_LONG).show());
+                        Toast.makeText(context, TelecomResourceId.getString(context,
+                                "toast_personal_call_msg"), Toast.LENGTH_LONG).show());
             }
         } else {
             Log.i(CallIntentProcessor.class,
@@ -323,13 +323,12 @@ public class CallIntentProcessor {
         switch (errorCode) {
             case DisconnectCause.INVALID_NUMBER:
             case DisconnectCause.NO_PHONE_NUMBER_SUPPLIED:
-                errorMessage = context.getString(
-                        R.string.outgoing_call_error_no_phone_number_supplied);
+                errorMessage = TelecomResourceId.getString(context,
+                        "outgoing_call_error_no_phone_number_supplied");
                 break;
         }
         if (errorMessage != null) {
-            errorIntent.putExtra(UiConstants.ERROR_MESSAGE_STRING_EXTRA,
-                    errorMessage);
+            errorIntent.putExtra(UiConstants.ERROR_MESSAGE_STRING_EXTRA, errorMessage);
             errorIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             context.startActivityAsUser(errorIntent, UserHandle.CURRENT);
         }

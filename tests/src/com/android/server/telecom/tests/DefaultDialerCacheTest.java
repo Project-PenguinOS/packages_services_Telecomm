@@ -19,6 +19,7 @@ package com.android.server.telecom.tests;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -28,6 +29,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.res.Resources;
 import android.database.ContentObserver;
 import android.net.Uri;
 import android.os.UserHandle;
@@ -36,6 +38,7 @@ import androidx.test.filters.SmallTest;
 
 import com.android.server.telecom.DefaultDialerCache;
 import com.android.server.telecom.RoleManagerAdapter;
+import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.TelecomSystem;
 
 import org.junit.After;
@@ -71,12 +74,24 @@ public class DefaultDialerCacheTest extends TelecomTestCase {
     private RoleManagerAdapter mRoleManagerAdapter;
     @Mock private Context mUserContext;
     @Mock private UserHandle mDefaultUserHandle;
+    @Mock private Resources mResources;
 
     @Override
     @Before
     public void setUp() throws Exception {
         super.setUp();
         mContext = mComponentContextFixture.getTestDouble().getApplicationContext();
+        TelecomResourceId.setTelecomContext(mContext);
+        when(mContext.getResources()).thenReturn(mResources);
+
+        // Mock resources needed for DefaultDialerCache constructor
+        // Handle arbitrary resource ID from Resources.getSystem()
+        when(mResources.getString(anyInt())).thenReturn(DIALER1);
+        when(mResources.getIdentifier(eq("incall_default_class"), eq("string"), anyString()))
+                .thenReturn(2);
+        when(mResources.getString(2)).thenReturn("com.android.dialer.InCallServiceImpl");
+        when(mContext.getString(2)).thenReturn("com.android.dialer.InCallServiceImpl");
+
         when(mContext.createContextAsUser(any(UserHandle.class), anyInt()))
                 .thenReturn(mUserContext);
 
@@ -120,6 +135,7 @@ public class DefaultDialerCacheTest extends TelecomTestCase {
     @Override
     @After
     public void tearDown() throws Exception {
+        TelecomResourceId.setTelecomContext(null);
         super.tearDown();
     }
 

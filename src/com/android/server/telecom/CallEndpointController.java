@@ -398,17 +398,23 @@ public class CallEndpointController extends CallsManagerListenerBase {
     private CharSequence getEndpointName(int endpointType) {
         switch (endpointType) {
             case CallEndpoint.TYPE_EARPIECE:
-                return mContext.getText(R.string.callendpoint_name_earpiece);
+                return com.android.server.telecom.TelecomResourceId.getText(mContext,
+                        "callendpoint_name_earpiece");
             case CallEndpoint.TYPE_BLUETOOTH:
-                return mContext.getText(R.string.callendpoint_name_bluetooth);
+                return com.android.server.telecom.TelecomResourceId.getText(mContext,
+                        "callendpoint_name_bluetooth");
             case CallEndpoint.TYPE_WIRED_HEADSET:
-                return mContext.getText(R.string.callendpoint_name_wiredheadset);
+                return com.android.server.telecom.TelecomResourceId.getText(mContext,
+                        "callendpoint_name_wiredheadset");
             case CallEndpoint.TYPE_SPEAKER:
-                return mContext.getText(R.string.callendpoint_name_speaker);
+                return com.android.server.telecom.TelecomResourceId.getText(mContext,
+                        "callendpoint_name_speaker");
             case CallEndpoint.TYPE_STREAMING:
-                return mContext.getText(R.string.callendpoint_name_streaming);
+                return com.android.server.telecom.TelecomResourceId.getText(mContext,
+                        "callendpoint_name_streaming");
             default:
-                return mContext.getText(R.string.callendpoint_name_unknown);
+                return com.android.server.telecom.TelecomResourceId.getText(mContext,
+                        "callendpoint_name_unknown");
         }
     }
 
