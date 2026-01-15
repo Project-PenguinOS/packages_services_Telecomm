@@ -47,6 +47,31 @@ java_library {
     },
 }
 
+java_library {
+    name: "telecom-proto",
+    srcs: [
+        ":statslog-telecom-java-gen",
+        "proto/**/*.proto",
+    ],
+    libs: [
+        "framework-statsd.stubs.module_lib",
+    ],
+    apex_available: [
+        "com.android.telephonycore",
+        "//apex_available:platform",
+    ],
+    min_sdk_version: "36",
+    sdk_version: "system_server_current",
+    visibility: [
+        "//packages/modules/Telephony/telecom:__subpackages__",
+    ],
+    proto: {
+        type: "nano",
+        local_include_dirs: ["proto/"],
+        output_params: ["optional_field_style=accessors"],
+    },
+}
+
 android_library {
     name: "telecom-resources",
     manifest: "AndroidManifestLib.xml",
@@ -96,6 +121,21 @@ android_library {
     },
     lint: {
         baseline_filename: "lint-baseline.xml",
+    },
+}
+
+// Build the Telecom service.
+android_app {
+    name: "TelecomShim",
+    srcs: [],
+    libs: ["service-telecom.stubs.system_server"],
+    resource_dirs: ["res"],
+    min_sdk_version: "36",
+    sdk_version: "system_server_current",
+    certificate: "platform",
+    privileged: true,
+    optimize: {
+        proguard_flags_files: ["proguard.flags"],
     },
 }
 
