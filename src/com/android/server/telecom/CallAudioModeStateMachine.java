@@ -16,6 +16,8 @@
 
 package com.android.server.telecom;
 
+import android.media.AudioAttributes;
+import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.os.Looper;
 import android.os.Message;
@@ -139,6 +141,36 @@ public class CallAudioModeStateMachine extends StateMachine {
         }
     }
 
+    private static final AudioAttributes RING_AUDIO_ATTRIBUTES = new AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+            .setLegacyStreamType(AudioManager.STREAM_RING)
+            .build();
+
+    /**
+     * Audio focus request used when ringing for a call.
+     */
+    public static final AudioFocusRequest RING_AUDIO_FOCUS_REQUEST = new AudioFocusRequest
+            .Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+            .setAudioAttributes(RING_AUDIO_ATTRIBUTES)
+            // Important!!!  Need to lock focus else other things can steal from us.
+            .setLocksFocus(true)
+            .build();
+
+    private static final AudioAttributes CALL_AUDIO_ATTRIBUTES = new AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+            .setLegacyStreamType(AudioManager.STREAM_VOICE_CALL)
+            .build();
+
+    /**
+     * Audio focus request used while in a call.
+     */
+    public static final AudioFocusRequest CALL_AUDIO_FOCUS_REQUEST = new AudioFocusRequest
+            .Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+            .setAudioAttributes(CALL_AUDIO_ATTRIBUTES)
+            // Important!!!  Need to lock focus else other things can steal from us.
+            .setLocksFocus(true)
+            .build();
+
     // TODO: remove this and replace when the new audio mode gets pushed to AOSP.
     public static final int NEW_AUDIO_MODE_FOR_AUDIO_PROCESSING = 4;
 
@@ -219,6 +251,11 @@ public class CallAudioModeStateMachine extends StateMachine {
     public static final String RING_STATE_NAME = RingingFocusState.class.getSimpleName();
     public static final String STREAMING_STATE_NAME = StreamingFocusState.class.getSimpleName();
     public static final String COMMS_STATE_NAME = VoipCallFocusState.class.getSimpleName();
+
+    /**
+     * Need to track the current ongoing audio focus request so we can abandon it later.
+     */
+    private AudioFocusRequest mCurrentAudioFocusRequest = null;
 
     private class BaseState extends State {
         @Override
@@ -322,9 +359,7 @@ public class CallAudioModeStateMachine extends StateMachine {
                             + args.toString());
                     return HANDLED;
                 case AUDIO_OPERATIONS_COMPLETE:
-                    Log.i(this, "AudioOperationsComplete: "
-                            + "AudioManager#abandonAudioFocusRequest(); now unfocused");
-                    mAudioManager.abandonAudioFocusForCall();
+                    abandonAudioFocus();
                     return HANDLED;
                 default:
                     // The forced focus switch commands are handled by BaseState.
@@ -400,7 +435,7 @@ public class CallAudioModeStateMachine extends StateMachine {
                 case AUDIO_OPERATIONS_COMPLETE:
                     Log.i(LOG_TAG, "AudioManager#abandonAudioFocusRequest: now "
                             + "AUDIO_PROCESSING");
-                    mAudioManager.abandonAudioFocusForCall();
+                    abandonAudioFocus();
                     return HANDLED;
                 default:
                     // The forced focus switch commands are handled by BaseState.
@@ -425,9 +460,12 @@ public class CallAudioModeStateMachine extends StateMachine {
             // Note: startRinging will take DND into account; if a call is suppressed by DND,
             // the method will return false and we will not get audio focus.
             if (mCallAudioManager.startRinging()) {
-                Log.i(this, "tryStartRinging: AudioManager#requestAudioFocus(RING)");
-                mAudioManager.requestAudioFocusForCall(
-                        AudioManager.STREAM_RING, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT);
+
+                mCurrentAudioFocusRequest = RING_AUDIO_FOCUS_REQUEST;
+                int focusResult = mAudioManager.requestAudioFocus(RING_AUDIO_FOCUS_REQUEST,
+                        null /* no policy */);
+                Log.i(this, "tryStartRinging: AudioManager#requestAudioFocus(RING)=%s",
+                        audioFocusRequestResultToString(focusResult));
 
                 // Do not set MODE_RINGTONE if we were previously in the CALL_SCREENING mode --
                 // this trips up the audio system.
@@ -537,8 +575,12 @@ public class CallAudioModeStateMachine extends StateMachine {
             Log.i(LOG_TAG, "Audio focus entering SIM CALL state");
             mLocalLog.log("Enter SIM_CALL");
             Log.i(this, "enter: AudioManager#requestAudioFocus(CALL)");
-            mAudioManager.requestAudioFocusForCall(AudioManager.STREAM_VOICE_CALL,
-                AudioManager.AUDIOFOCUS_GAIN_TRANSIENT);
+            mCurrentAudioFocusRequest = CALL_AUDIO_FOCUS_REQUEST;
+            int focusResult = mAudioManager.requestAudioFocus(CALL_AUDIO_FOCUS_REQUEST,
+                    null /* no policy */);
+            Log.i(this, "enter: AudioManager#requestAudioFocus(CALL)=%s",
+                    audioFocusRequestResultToString(focusResult));
+
             Log.i(this, "enter: AudioManager#setMode(MODE_IN_CALL)");
             mAudioManager.setMode(AudioManager.MODE_IN_CALL);
             mLocalLog.log("Mode MODE_IN_CALL");
@@ -622,9 +664,11 @@ public class CallAudioModeStateMachine extends StateMachine {
             Log.i(LOG_TAG, "Audio focus entering VOIP CALL state");
             mLocalLog.log("Enter VOIP_CALL");
             Log.i(this, "enter: AudioManager#requestAudioFocus(CALL)");
-            mAudioManager.requestAudioFocusForCall(AudioManager.STREAM_VOICE_CALL,
-                    AudioManager.AUDIOFOCUS_GAIN_TRANSIENT);
-            Log.i(this, "enter: AudioManager#setMode(MODE_IN_COMMUNICATION)");
+            mCurrentAudioFocusRequest = CALL_AUDIO_FOCUS_REQUEST;
+            int focusResult = mAudioManager.requestAudioFocus(CALL_AUDIO_FOCUS_REQUEST,
+                    null /* no policy */);
+            Log.i(this, "enter: AudioManager#requestAudioFocus(CALL)=%s",
+                    audioFocusRequestResultToString(focusResult));
             mAudioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
             mLocalLog.log("Mode MODE_IN_COMMUNICATION");
             mMostRecentMode = AudioManager.MODE_IN_COMMUNICATION;
@@ -864,9 +908,11 @@ public class CallAudioModeStateMachine extends StateMachine {
         public void enter() {
             Log.i(LOG_TAG, "Audio focus entering TONE/HOLDING state");
             mLocalLog.log("Enter TONE/HOLDING");
-            Log.i(this, "enter: AudioManager#requestAudioFocus(CALL)");
-            mAudioManager.requestAudioFocusForCall(AudioManager.STREAM_VOICE_CALL,
-                    AudioManager.AUDIOFOCUS_GAIN_TRANSIENT);
+            mCurrentAudioFocusRequest = CALL_AUDIO_FOCUS_REQUEST;
+            int focusResult = mAudioManager.requestAudioFocus(CALL_AUDIO_FOCUS_REQUEST,
+                    null /* no policy */);
+            Log.i(this, "enter: AudioManager#requestAudioFocus(CALL)=%s",
+                    audioFocusRequestResultToString(focusResult));
             Log.i(this, "enter: AudioManager#setMode(%d)", mMostRecentMode);
             mAudioManager.setMode(mMostRecentMode);
             mLocalLog.log("Mode " + mMostRecentMode);
@@ -1066,4 +1112,30 @@ public class CallAudioModeStateMachine extends StateMachine {
         return mUnfocusedState;
     }
 
+    /**
+     * Abandons the current audio focus request.
+     */
+    private void abandonAudioFocus() {
+        if (mCurrentAudioFocusRequest != null) {
+            Log.i(this, "abandonAudioFocus: "
+                    + "AudioManager#abandonAudioFocusRequest(); now unfocused");
+            mAudioManager.abandonAudioFocusRequest(mCurrentAudioFocusRequest);
+            mCurrentAudioFocusRequest = null;
+        } else {
+            Log.i(this, "abandonAudioFocus: already unfocused");
+        }
+    }
+
+    private String audioFocusRequestResultToString(int audioFocusRequest) {
+        switch (audioFocusRequest) {
+            case AudioManager.AUDIOFOCUS_REQUEST_FAILED:
+                return "AUDIOFOCUS_REQUEST_FAILED";
+            case AudioManager.AUDIOFOCUS_REQUEST_GRANTED:
+                return "AUDIOFOCUS_REQUEST_GRANTED";
+            case AudioManager.AUDIOFOCUS_REQUEST_DELAYED:
+                return "AUDIOFOCUS_REQUEST_DELAYED";
+            default:
+                return "UNKNOWN";
+        }
+    }
 }

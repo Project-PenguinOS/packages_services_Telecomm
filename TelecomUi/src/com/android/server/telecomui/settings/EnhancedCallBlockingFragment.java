@@ -142,6 +142,7 @@ public class EnhancedCallBlockingFragment extends PreferenceFragment
         SwitchPreference pref = (SwitchPreference) findPreference(key);
         if (pref != null) {
           boolean isChecked = BlockedNumbersUtil.getBlockedNumberSetting(getActivity(), key);
+          pref.setChecked(isChecked);
         }
     }
 
