@@ -55,9 +55,10 @@ public class AudioRoute {
                 new ScheduledThreadPoolExecutor(1);
         private CompletableFuture<AudioRoute> mAudioRouteFuture;
         public AudioRoute create(@AudioRouteType int type, String bluetoothAddress,
-                                 AudioManager audioManager) throws RuntimeException {
+                AudioManager audioManager, boolean scoManagedByAudio) throws RuntimeException {
             mAudioRouteFuture = new CompletableFuture();
-            createRetry(type, bluetoothAddress, audioManager, MAX_CONNECTION_RETRIES);
+            createRetry(type, bluetoothAddress, audioManager, scoManagedByAudio,
+                    MAX_CONNECTION_RETRIES);
             try {
                 return mAudioRouteFuture.get();
             } catch (InterruptedException | ExecutionException e) {
@@ -65,7 +66,7 @@ public class AudioRoute {
             }
         }
         private void createRetry(@AudioRouteType int type, String bluetoothAddress,
-                                       AudioManager audioManager, int retryCount) {
+                AudioManager audioManager, boolean scoManagedByAudio, int retryCount) {
             // Early exit if exceeded max number of retries (and complete the future).
             if (retryCount == 0) {
                 mAudioRouteFuture.complete(null);
@@ -97,13 +98,15 @@ public class AudioRoute {
             if (routeInfo == null && bluetoothAddress == null) {
                 try {
                     mScheduledExecutorService.schedule(
-                            () -> createRetry(type, bluetoothAddress, audioManager, retryCount - 1),
+                            () -> createRetry(type, bluetoothAddress, audioManager,
+                                    scoManagedByAudio, retryCount - 1),
                             RETRY_TIME_DELAY, TimeUnit.MILLISECONDS);
                 } catch (RejectedExecutionException e) {
                     Log.e(this, e, "Could not schedule retry for audio routing.");
                 }
             } else {
-                mAudioRouteFuture.complete(new AudioRoute(type, bluetoothAddress, routeInfo));
+                mAudioRouteFuture.complete(new AudioRoute(type, bluetoothAddress, routeInfo,
+                        scoManagedByAudio));
             }
         }
     }
@@ -379,13 +382,13 @@ public class AudioRoute {
     }
 
     @VisibleForTesting
-    public AudioRoute(@AudioRouteType int type, String bluetoothAddress, AudioDeviceInfo info) {
+    public AudioRoute(@AudioRouteType int type, String bluetoothAddress, AudioDeviceInfo info,
+            boolean isScoManagedByAudio) {
         mAudioRouteType = type;
         mBluetoothAddress = bluetoothAddress;
         mInfo = info;
         // Indication that SCO is managed by audio (i.e. supports setCommunicationDevice).
-        mIsScoManagedByAudio = android.media.audio.Flags.scoManagedByAudio()
-                && BluetoothProperties.isScoManagedByAudioEnabled().orElse(false);
+        mIsScoManagedByAudio = isScoManagedByAudio;
     }
 
     @Override
@@ -526,5 +529,9 @@ public class AudioRoute {
             case AudioDeviceInfo.TYPE_WIRED_HEADSET -> "wired headset";
             default -> Integer.toString(type);
         };
+    }
+
+    public void setScoManagedByAudio(boolean isScoManagedByAudio) {
+        mIsScoManagedByAudio = isScoManagedByAudio;
     }
 }

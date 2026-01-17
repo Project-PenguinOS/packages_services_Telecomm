@@ -240,7 +240,7 @@
              android:process="system"
              android:exported="true">
             <intent-filter>
-                <action android:name="android.telecom.ITelecomService"/>
+                <action android:name="android.telecom.TelecomService"/>
             </intent-filter>
         </service>
 
