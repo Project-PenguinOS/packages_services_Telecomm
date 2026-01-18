@@ -2586,13 +2586,11 @@ public class InCallController extends CallsManagerListenerBase implements
             ServiceInfo serviceInfo = entry.serviceInfo;
 
             if (serviceInfo != null) {
-                if (mFeatureFlags.enableIncallServiceClassCheck()) {
-                    boolean isMetaFlag = serviceInfo.metaData != null &&
-                            serviceInfo.metaData.getBoolean(
-                                    "android.telecom.CLASS_EXISTENCE_CHECK", false);
-                    if (isMetaFlag && !serviceClassExists(serviceInfo, userHandle)) {
-                        continue;
-                    }
+                boolean isMetaFlag = serviceInfo.metaData != null &&
+                        serviceInfo.metaData.getBoolean(
+                                "android.telecom.CLASS_EXISTENCE_CHECK", false);
+                if (isMetaFlag && !serviceClassExists(serviceInfo, userHandle)) {
+                    continue;
                 }
                 boolean isExternalCallsSupported = serviceInfo.metaData != null &&
                         serviceInfo.metaData.getBoolean(

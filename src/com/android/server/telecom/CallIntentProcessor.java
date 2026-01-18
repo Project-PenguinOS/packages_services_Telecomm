@@ -2,6 +2,7 @@ package com.android.server.telecom;
 
 import static android.content.pm.PackageManager.MATCH_DEFAULT_ONLY;
 
+import android.Manifest;
 import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.ui.UiConstants;
 
@@ -214,7 +215,12 @@ public class CallIntentProcessor {
         UserHandle initiatingUser = intent.getParcelableExtra(KEY_INITIATING_USER);
 
         boolean isPrivilegedDialer = defaultDialerCache.isDefaultOrSystemDialer(callingPackage,
-                initiatingUser.getIdentifier());
+                initiatingUser.getIdentifier())
+                || (callingPackage != null
+                        && UserUtil.getPackageManagerFromUserHandler(context, initiatingUser)
+                                .checkPermission(Manifest.permission.CALL_PRIVILEGED,
+                                                 callingPackage)
+                                == PackageManager.PERMISSION_GRANTED);
 
         if (!callsManager.isSelfManaged(phoneAccountHandle, initiatingUser)
                 && !TelephonyUtil.shouldProcessAsEmergency(context, handle)
