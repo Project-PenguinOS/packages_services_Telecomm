@@ -319,15 +319,17 @@ public class CallIntentProcessor {
         errorIntent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
               UiConstants.COMPONENT_ERROR_DIALOG);
 
-        int errorMessageId = -1;
+        CharSequence errorMessage = null;
         switch (errorCode) {
             case DisconnectCause.INVALID_NUMBER:
             case DisconnectCause.NO_PHONE_NUMBER_SUPPLIED:
-                errorMessageId = R.string.outgoing_call_error_no_phone_number_supplied;
+                errorMessage = context.getString(
+                        R.string.outgoing_call_error_no_phone_number_supplied);
                 break;
         }
-        if (errorMessageId != -1) {
-            errorIntent.putExtra(UiConstants.ERROR_MESSAGE_ID_EXTRA, errorMessageId);
+        if (errorMessage != null) {
+            errorIntent.putExtra(UiConstants.ERROR_MESSAGE_STRING_EXTRA,
+                    errorMessage);
             errorIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             context.startActivityAsUser(errorIntent, UserHandle.CURRENT);
         }
