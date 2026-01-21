@@ -34,6 +34,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.media.AudioManager;
 import android.sysprop.BluetoothProperties;
 import android.telecom.Log;
 import android.telecom.Logging.Session;
@@ -69,6 +70,7 @@ public class BluetoothStateReceiver extends BroadcastReceiver {
     private FeatureFlags mFeatureFlags;
     private boolean mIsScoManagedByAudio;
     private CallAudioRouteAdapter mCallAudioRouteAdapter;
+    private final Context mContext;
 
     public void onReceive(Context context, Intent intent) {
         Log.startSession("BSR.oR");
@@ -205,13 +207,16 @@ public class BluetoothStateReceiver extends BroadcastReceiver {
         return mBluetoothDeviceManager;
     }
 
-    public BluetoothStateReceiver(BluetoothDeviceManager deviceManager,
+    public BluetoothStateReceiver(Context context, BluetoothDeviceManager deviceManager,
             FeatureFlags featureFlags) {
         mBluetoothDeviceManager = deviceManager;
         mFeatureFlags = featureFlags;
+        mContext = context;
+        AudioManager audioManager = mContext.getSystemService(AudioManager.class);
         // Indication that SCO is managed by audio (i.e. supports setCommunicationDevice).
-        mIsScoManagedByAudio = android.media.audio.Flags.scoManagedByAudio()
-                && BluetoothProperties.isScoManagedByAudioEnabled().orElse(false);
+        if (android.media.audio.Flags.amscoAvailableApi() && audioManager != null) {
+            mIsScoManagedByAudio = audioManager.isScoManagedByAudio();
+        }
     }
 
     public void setIsInCall(boolean isInCall) {
