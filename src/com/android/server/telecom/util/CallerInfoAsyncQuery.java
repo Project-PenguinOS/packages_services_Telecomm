@@ -54,12 +54,6 @@ public class CallerInfoAsyncQuery {
     private static final int EVENT_END_OF_QUEUE = 3;
     private static final int EVENT_EMERGENCY_NUMBER = 4;
     private static final int EVENT_VOICEMAIL_NUMBER = 5;
-    private static final int EVENT_GET_GEO_DESCRIPTION = 6;
-    // If the CallerInfo query finds no contacts, should we use the
-    // PhoneNumberOfflineGeocoder to look up a "geo description"?
-    // (TODO: This could become a flag in config.xml if it ever needs to be
-    // configured on a per-product basis.)
-    private static final boolean ENABLE_UNKNOWN_NUMBER_GEO_DESCRIPTION = true;
     private CallerInfoAsyncQueryHandler mHandler;
 
     /**
@@ -296,7 +290,6 @@ public class CallerInfoAsyncQuery {
         public Object cookie;
         public int event;
         public String number;
-        public String geoDescription;
         public int subId;
 
         private CookieWrapper() {
@@ -391,18 +384,6 @@ public class CallerInfoAsyncQuery {
                 return;
             }
 
-            // If the cw.event == EVENT_GET_GEO_DESCRIPTION, means it would not be the 1st
-            // time entering the onQueryComplete(), mCallerInfo should not be null.
-            if (cw.event == EVENT_GET_GEO_DESCRIPTION) {
-                if (mCallerInfo != null) {
-                    mCallerInfo.geoDescription = cw.geoDescription;
-                }
-                // notify that we can clean up the queue after this.
-                CookieWrapper endMarker = new CookieWrapper();
-                endMarker.event = EVENT_END_OF_QUEUE;
-                startQuery(token, endMarker, null, null, null, null, null);
-            }
-
             // check the token and if needed, create the callerinfo object.
             if (mCallerInfo == null) {
                 if ((mContext == null) || (mQueryUri == null)) {
@@ -442,20 +423,6 @@ public class CallerInfoAsyncQuery {
                         mCallerInfo.setPhoneNumber(PhoneNumberUtils.formatNumber(cw.number,
                             mCallerInfo.normalizedNumber,
                             CallerInfo.getCurrentCountryIso(mContext)));
-                    }
-
-                    // This condition refer to the google default code for geo.
-                    // If the number exists in Contacts, the CallCard would never show
-                    // the geo description, so it would be unnecessary to query it.
-                    if (ENABLE_UNKNOWN_NUMBER_GEO_DESCRIPTION) {
-                        if (TextUtils.isEmpty(mCallerInfo.getName())) {
-                            if (DBG) {
-                                Log.d(LOG_TAG, "start querying geo description");
-                            }
-                            cw.event = EVENT_GET_GEO_DESCRIPTION;
-                            startQuery(token, cw, null, null, null, null, null);
-                            return;
-                        }
                     }
                 }
 
@@ -556,32 +523,9 @@ public class CallerInfoAsyncQuery {
                             reply.sendToTarget();
 
                             break;
-                        case EVENT_GET_GEO_DESCRIPTION:
-                            handleGeoDescription(msg);
-                            break;
                         default:
                     }
                 }
-            }
-
-            private void handleGeoDescription(Message msg) {
-                WorkerArgs args = (WorkerArgs) msg.obj;
-                CookieWrapper cw = (CookieWrapper) args.cookie;
-                if (!TextUtils.isEmpty(cw.number) && cw.cookie != null && mContext != null) {
-                    final long startTimeMillis = SystemClock.elapsedRealtime();
-                    cw.geoDescription = CallerInfo.getGeoDescription(mContext, cw.number);
-                    final long duration = SystemClock.elapsedRealtime() - startTimeMillis;
-                    if (duration > 500) {
-                        if (DBG) {
-                            Log.d(LOG_TAG, "[handleGeoDescription]" +
-                                "Spends long time to retrieve Geo description: " + duration);
-                        }
-                    }
-                }
-                Message reply = args.handler.obtainMessage(msg.what);
-                reply.obj = args;
-                reply.arg1 = msg.arg1;
-                reply.sendToTarget();
             }
         }
     }

@@ -2726,6 +2726,9 @@ public class PhoneAccountRegistrar {
         }
 
         protected Bitmap readBitmap(XmlPullParser parser) {
+            if (parser.getText() == null) {
+                return null;
+            }
             byte[] imageByteArray = Base64.decode(parser.getText(), 0);
             return BitmapFactory.decodeByteArray(imageByteArray, 0, imageByteArray.length);
         }
@@ -2735,6 +2738,10 @@ public class PhoneAccountRegistrar {
                 com.android.server.telecom.flags.FeatureFlags telecomFeatureFlags)
                 throws IOException {
             try {
+                if (parser.getText() == null) {
+                    Log.w(this, "XmlPullParser.getText returned null.");
+                    return null;
+                }
                 byte[] iconByteArray = Base64.decode(parser.getText(), 0);
                 ByteArrayInputStream stream = new ByteArrayInputStream(iconByteArray);
                 Bitmap bitmap = BitmapFactory.decodeStream(stream);
