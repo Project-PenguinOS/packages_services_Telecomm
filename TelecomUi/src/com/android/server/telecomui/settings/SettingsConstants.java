@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.server.telecom.settings;
+package com.android.server.telecomui.settings;
 
 import android.app.Activity;
 

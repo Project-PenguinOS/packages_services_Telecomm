@@ -44,7 +44,6 @@ import android.media.AudioDeviceAttributes;
 import android.media.AudioDeviceCallback;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
-import android.media.IAudioService;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Message;
@@ -85,14 +84,12 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     public static class Factory {
         public CallAudioRouteController create(
                 Context context, CallsManager callsManager,
-                CallAudioManager.AudioServiceFactory audioServiceFactory,
                 AudioRoute.Factory audioRouteFactory, WiredHeadsetManager wiredHeadsetManager,
                 BluetoothRouteManager bluetoothRouteManager, StatusBarNotifier notifier,
                 FeatureFlags featureFlags, TelecomMetricsController metricsController,
                 AsyncRingtonePlayer ringtonePlayer, AnomalyReporterAdapter anomalyReporterAdapter) {
             return new CallAudioRouteController(context,
                     callsManager,
-                    audioServiceFactory,
                     audioRouteFactory,
                     wiredHeadsetManager,
                     bluetoothRouteManager,
@@ -103,6 +100,17 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                     anomalyReporterAdapter);
         }
     }
+
+    // TODO(b/469161729) - this is used to know when the ringing volume is increased from a muted
+    // to a non-muted state to start playing the ringtone again.  We need an alternative.
+    public static final String STREAM_MUTE_CHANGED_ACTION =
+            "android.media.STREAM_MUTE_CHANGED_ACTION";
+    // TODO(b/469161729) - this is used to know when the ringing volume is increased from a muted
+    // to a non-muted state to start playing the ringtone again.  We need an alternative.
+    public static final String EXTRA_STREAM_VOLUME_MUTED =
+            "android.media.EXTRA_STREAM_VOLUME_MUTED";
+
+
     private static final AudioRoute DUMMY_ROUTE = new AudioRoute(TYPE_INVALID, null, null);
     private static final UUID AUDIO_ROUTING_EXTERNAL_CHANGE_UUID =
             UUID.fromString("d9b38771-ff36-417b-8723-2363a870c702");
@@ -133,7 +141,6 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     private AudioManager mAudioManager;
     private CallAudioManager mCallAudioManager;
     private final BluetoothRouteManager mBluetoothRouteManager;
-    private final CallAudioManager.AudioServiceFactory mAudioServiceFactory;
     private final Handler mHandler;
     private final WiredHeadsetManager mWiredHeadsetManager;
     private final AsyncRingtonePlayer mRingtonePlayer;
@@ -264,10 +271,10 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                     } else {
                         sendMessageWithSessionInfo(MUTE_EXTERNALLY_CHANGED);
                     }
-                } else if (AudioManager.STREAM_MUTE_CHANGED_ACTION.equals(intent.getAction())) {
+                } else if (STREAM_MUTE_CHANGED_ACTION.equals(intent.getAction())) {
                     int streamType = intent.getIntExtra(AudioManager.EXTRA_VOLUME_STREAM_TYPE, -1);
                     boolean isStreamMuted = intent.getBooleanExtra(
-                            AudioManager.EXTRA_STREAM_VOLUME_MUTED, false);
+                            EXTRA_STREAM_VOLUME_MUTED, false);
 
                     if (streamType == AudioManager.STREAM_RING && !isStreamMuted
                             && mCallAudioManager != null) {
@@ -296,7 +303,6 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
 
     public CallAudioRouteController(
             Context context, CallsManager callsManager,
-            CallAudioManager.AudioServiceFactory audioServiceFactory,
             AudioRoute.Factory audioRouteFactory, WiredHeadsetManager wiredHeadsetManager,
             BluetoothRouteManager bluetoothRouteManager, StatusBarNotifier statusBarNotifier,
             FeatureFlags featureFlags, TelecomMetricsController metricsController,
@@ -304,7 +310,6 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         mContext = context;
         mCallsManager = callsManager;
         mAudioManager = context.getSystemService(AudioManager.class);
-        mAudioServiceFactory = audioServiceFactory;
         mAudioRouteFactory = audioRouteFactory;
         mWiredHeadsetManager = wiredHeadsetManager;
         mIsMute = false;
@@ -330,7 +335,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         micMuteChangedFilter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
         context.registerReceiver(mMuteChangeReceiver, micMuteChangedFilter);
 
-        IntentFilter muteChangedFilter = new IntentFilter(AudioManager.STREAM_MUTE_CHANGED_ACTION);
+        IntentFilter muteChangedFilter = new IntentFilter(STREAM_MUTE_CHANGED_ACTION);
         muteChangedFilter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
         context.registerReceiver(mMuteChangeReceiver, muteChangedFilter);
 
@@ -1653,11 +1658,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         if (!isExplicitUserRequest) {
             synchronized (mTelecomLock) {
                 skipEarpiece = foregroundCall != null && foregroundCall.isActiveFocus()
-// QTI_BEGIN: 2024-12-12: Telephony: IMS: Treat CRS/CRBT/UVS call as VoLTE call and audio routing defaulting to earpiece
-                        && VideoProfile.isVideo(foregroundCall.getVideoState())
-                        && !foregroundCall.isVideoCrsForVoLteCall()
-                        && !foregroundCall.isVisualizedVoiceCall();
-// QTI_END: 2024-12-12: Telephony: IMS: Treat CRS/CRBT/UVS call as VoLTE call and audio routing defaulting to earpiece
+                        && VideoProfile.isVideo(foregroundCall.getVideoState());
                 Log.i(this, "skipEarpiece for video call?" + skipEarpiece);
             }
         }
@@ -1700,7 +1701,16 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             Log.i(this, "CallAudioManager is null");
             return false;
         }
-        if (mCallAudioManager.isCrsInCallMode()) {
+        CrsAudioController crsAudioController = mCallAudioManager.getCrsAudioController();
+        if (crsAudioController == null) {
+            Log.d(this, "crsAudioController is null");
+            return false;
+        }
+
+        final boolean isCrsControlledByHal = crsAudioController.shouldControlCrsWithParameters();
+        final boolean isCrsModeActive = mCallAudioManager.isCrsInCallMode();
+
+        if (isCrsModeActive && !isCrsControlledByHal) {
             Log.i(this, "Ignoring %s. Not allowed during CRS call.", actionDescription);
             return true;
         }
@@ -1875,7 +1885,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     }
 
     private void trackHearingAidPair(AudioRoute existingHaRoute, BluetoothDevice newHaDevice) {
-        if (!mFeatureFlags.hearingAidPairFix() || newHaDevice == null || existingHaRoute == null
+        if (newHaDevice == null || existingHaRoute == null
                 || existingHaRoute.getType() != AudioRoute.TYPE_BLUETOOTH_HA) {
             return;
         }
@@ -1892,7 +1902,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     // no modifications were made.
     private AudioRoute maybeAdjustHearingAidRoute(@AudioRoute.AudioRouteType int type,
             BluetoothDevice bluetoothDevice, AudioRoute existingRoute) {
-        if (!mFeatureFlags.hearingAidPairFix() || type != AudioRoute.TYPE_BLUETOOTH_HA
+        if (type != AudioRoute.TYPE_BLUETOOTH_HA
                 || bluetoothDevice == null || existingRoute == null) {
             return null;
         }

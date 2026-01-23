@@ -24,4 +24,5 @@ public interface CallLogIntegrationAdapter {
 	void setVoipPackageCallLogIntegrationEnabled(UserHandle userHandle, String packageName,
 			boolean isEnabled);
 	Map<String, Boolean> getSupportedVoipCallLogIntegrationPackages(UserHandle userHandle);
+	boolean isCallLogPrefEnabledForPackage(UserHandle userHandle, String packageName);
 }

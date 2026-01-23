@@ -27,7 +27,6 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
-import android.content.pm.UserInfo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -47,7 +46,7 @@ import android.telecom.Log;
 import android.telecom.PhoneAccount;
 import android.telecom.PhoneAccountHandle;
 import android.telecom.TelecomManager;
-import android.telephony.AnomalyReporter;
+
 import android.telephony.CarrierConfigManager;
 import android.telephony.PhoneNumberUtils;
 import android.telephony.SubscriptionInfo;
@@ -191,6 +190,7 @@ public class PhoneAccountRegistrar {
             new PhoneAccountRegistrarWriteLock() {};
     private final FeatureFlags mTelephonyFeatureFlags;
     private final com.android.server.telecom.flags.FeatureFlags mTelecomFeatureFlags;
+    private final AnomalyReporterAdapter mAnomalyReporter;
     public static final UUID EXCEPTION_COMPONENT_IS_NOT_VISIBLE_FOR_USER_UUID =
             UUID.fromString("8a23a3b0-7513-4475-9e61-a5e2b02e47e8");
     public static final String EXCEPTION_COMPONENT_IS_NOT_VISIBLE_FOR_USER_MSG =
@@ -199,22 +199,25 @@ public class PhoneAccountRegistrar {
     public PhoneAccountRegistrar(Context context, TelecomSystem.SyncRoot lock,
             DefaultDialerCache defaultDialerCache, AppLabelProxy appLabelProxy,
             FeatureFlags telephonyFeatureFlags,
-            com.android.server.telecom.flags.FeatureFlags telecomFeatureFlags) {
+            com.android.server.telecom.flags.FeatureFlags telecomFeatureFlags,
+            AnomalyReporterAdapter anomalyReporter) {
         this(context, lock, FILE_NAME, defaultDialerCache, appLabelProxy,
-                telephonyFeatureFlags, telecomFeatureFlags);
+                telephonyFeatureFlags, telecomFeatureFlags, anomalyReporter);
     }
 
     @VisibleForTesting
     public PhoneAccountRegistrar(Context context, TelecomSystem.SyncRoot lock, String fileName,
             DefaultDialerCache defaultDialerCache, AppLabelProxy appLabelProxy,
             FeatureFlags telephonyFeatureFlags,
-            com.android.server.telecom.flags.FeatureFlags telecomFeatureFlags) {
+            com.android.server.telecom.flags.FeatureFlags telecomFeatureFlags,
+            AnomalyReporterAdapter anomalyReporter) {
 
         mAtomicFile = new AtomicFile(new File(context.getFilesDir(), fileName));
 
         mState = new State();
         mContext = context;
         mLock = lock;
+        mAnomalyReporter = anomalyReporter;
         mUserManager = context.getSystemService(UserManager.class);
         mDefaultDialerCache = defaultDialerCache;
         mSubscriptionManager = mContext.getSystemService(SubscriptionManager.class);
@@ -881,10 +884,7 @@ public class PhoneAccountRegistrar {
 
         if (acrossProfiles) {
             UserManager um = mContext.getSystemService(UserManager.class);
-            return mTelecomFeatureFlags.telecomResolveHiddenDependencies()
-                    ? um.isSameProfileGroup(userHandle, phoneAccountUserHandle)
-                    : um.isSameProfileGroup(userHandle.getIdentifier(),
-                            phoneAccountUserHandle.getIdentifier());
+            return um.isSameProfileGroup(userHandle, phoneAccountUserHandle);
         } else {
             return phoneAccountUserHandle.equals(userHandle);
         }
@@ -909,7 +909,7 @@ public class PhoneAccountRegistrar {
                     Log.e(this, e, "encountered an exception while" +
                                     "resolving the component=[%s] under userHandle=[%s]",
                             componentName, userHandle);
-                    AnomalyReporter.reportAnomaly(
+                    mAnomalyReporter.reportAnomaly(
                             EXCEPTION_COMPONENT_IS_NOT_VISIBLE_FOR_USER_UUID,
                             EXCEPTION_COMPONENT_IS_NOT_VISIBLE_FOR_USER_MSG);
                     return Collections.EMPTY_LIST;
@@ -2790,12 +2790,6 @@ public class PhoneAccountRegistrar {
                             // UserManager#getMainUser requires either the MANAGE_USERS,
                             // CREATE_USERS, or QUERY_USERS permission.
                             UserHandle primaryUser = userManager.getMainUser();
-                            UserInfo primaryUserInfo = userManager.getPrimaryUser();
-                            if (!telecomFeatureFlags.telecomResolveHiddenDependencies()) {
-                                primaryUser = primaryUserInfo != null
-                                        ? primaryUserInfo.getUserHandle()
-                                        : null;
-                            }
                             if (primaryUser != null) {
                                 DefaultPhoneAccountHandle defaultPhoneAccountHandle
                                         = new DefaultPhoneAccountHandle(primaryUser,

@@ -49,6 +49,7 @@ import androidx.test.filters.SmallTest;
 
 import com.android.internal.telecom.ICallScreeningAdapter;
 import com.android.internal.telecom.ICallScreeningService;
+import com.android.server.telecom.Constants;
 import com.android.server.telecom.flags.FeatureFlagsImpl;
 import com.android.server.telecom.AppLabelProxy;
 import com.android.server.telecom.Call;
@@ -144,7 +145,7 @@ public class CallScreeningServiceFilterTest extends TelecomTestCase {
                 eq(mCall), anyBoolean(), eq(mPhoneAccountRegistrar))).thenReturn(null);
         when(mContext.bindServiceAsUser(nullable(Intent.class), nullable(ServiceConnection.class),
                 anyInt(), eq(PA_HANDLE.getUserHandle()))).thenReturn(true);
-        when(mPackageManager.queryIntentServicesAsUser(nullable(Intent.class), anyInt(), anyInt()))
+        when(mPackageManager.queryIntentServices(nullable(Intent.class), anyInt()))
                 .thenReturn(Collections.singletonList(mResolveInfo));
         doReturn(mCallScreeningService).when(mBinder).queryLocalInterface(anyString());
     }
@@ -178,7 +179,7 @@ public class CallScreeningServiceFilterTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testNoResolveEntries() throws Exception {
-        when(mPackageManager.queryIntentServicesAsUser(nullable(Intent.class), anyInt(), anyInt()))
+        when(mPackageManager.queryIntentServices(nullable(Intent.class), anyInt()))
                 .thenReturn(Collections.emptyList());
         CallScreeningServiceFilter filter = new CallScreeningServiceFilter(mCall, PKG_NAME,
                 CallScreeningServiceFilter.PACKAGE_TYPE_CARRIER, mContext,
@@ -407,7 +408,7 @@ public class CallScreeningServiceFilterTest extends TelecomTestCase {
         verify(mContext, timeout(CallScreeningServiceFilter.CALL_SCREENING_FILTER_TIMEOUT))
                 .bindServiceAsUser(intentCaptor.capture(), serviceCaptor.capture(),
                 eq(Context.BIND_AUTO_CREATE | Context.BIND_FOREGROUND_SERVICE
-                        | Context.BIND_SCHEDULE_LIKE_TOP_APP),
+                        | Constants.BIND_SCHEDULE_LIKE_TOP_APP),
                 eq(PA_HANDLE.getUserHandle()));
 
         Intent capturedIntent = intentCaptor.getValue();

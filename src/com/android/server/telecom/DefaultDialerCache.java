@@ -84,9 +84,8 @@ public class DefaultDialerCache {
         @Override
         public void onReceive(Context context, Intent intent) {
             if (Intent.ACTION_USER_REMOVED.equals(intent.getAction())) {
-                int removedUser = intent.getIntExtra(Intent.EXTRA_USER_HANDLE,
-                        UserHandle.USER_NULL);
-                if (removedUser == UserHandle.USER_NULL) {
+                int removedUser = intent.getIntExtra(Intent.EXTRA_USER_HANDLE, UserUtil.USER_NULL);
+                if (removedUser == UserUtil.USER_NULL) {
                     Log.w(LOG_TAG, "Expected EXTRA_USER_HANDLE with ACTION_USER_REMOVED");
                 } else {
                     removeUserFromCache(removedUser);
@@ -95,24 +94,7 @@ public class DefaultDialerCache {
             }
         }
     };
-    private final ContentObserver mDefaultDialerObserver = new ContentObserver(mHandler) {
-        @Override
-        public void onChange(boolean selfChange) {
-            Log.startSession("DDC.oC");
-            try {
-                // We don't get the user ID of the user that changed here, so we'll have to
-                // refresh all of the users.
-                refreshCachesForUsersWithPackage(null);
-            } finally {
-                Log.endSession();
-            }
-        }
 
-        @Override
-        public boolean deliverSelfNotifications() {
-            return true;
-        }
-    };
     private ComponentName mOverrideSystemDialerComponentName;
 
     public DefaultDialerCache(Context context,
@@ -148,13 +130,6 @@ public class DefaultDialerCache {
 
         IntentFilter userRemovedFilter = new IntentFilter(Intent.ACTION_USER_REMOVED);
         context.registerReceiver(mUserRemovedReceiver, userRemovedFilter);
-
-        Uri defaultDialerSetting =
-                Settings.Secure.getUriFor(Settings.Secure.DIALER_DEFAULT_APPLICATION);
-
-        context.getContentResolver()
-                .registerContentObserverAsUser(defaultDialerSetting, false,
-                        mDefaultDialerObserver, UserHandle.ALL);
     }
 
     public String[] getBTInCallServicePackages() {
@@ -181,7 +156,7 @@ public class DefaultDialerCache {
     }
 
     public String getDefaultDialerApplicationLegacy(int userId) {
-        if (userId == UserHandle.USER_CURRENT) {
+        if (userId == UserHandle.CURRENT.getIdentifier()) {
             userId = ActivityManager.getCurrentUser();
         }
 
@@ -203,8 +178,7 @@ public class DefaultDialerCache {
     }
 
     public String getDefaultDialerApplication() {
-        return getDefaultDialerApplication(
-                new UserHandle(UserUtil.getUserIdFromContext(mContext)));
+        return getDefaultDialerApplication(mContext.getUser());
     }
 
     public void setSystemDialerComponentName(ComponentName testComponentName) {
@@ -294,17 +268,6 @@ public class DefaultDialerCache {
 
     private void removeUserFromCache(int userId) {
         mCurrentDefaultDialerPerUser.remove(userId);
-    }
-
-    /**
-     * registerContentObserver is really hard to mock out, so here is a getter method for the
-     * content observer for testing instead.
-     *
-     * @return The content observer
-     */
-    @VisibleForTesting
-    public ContentObserver getContentObserver() {
-        return mDefaultDialerObserver;
     }
 
     public RoleManagerAdapter getRoleManagerAdapter() {

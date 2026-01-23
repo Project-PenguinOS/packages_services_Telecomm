@@ -70,6 +70,7 @@ import com.android.internal.telecom.IConnectionService;
 import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.util.FastXmlSerializer;
 import com.android.server.telecom.AppLabelProxy;
+import com.android.server.telecom.AnomalyReporterAdapter;
 import com.android.server.telecom.DefaultDialerCache;
 import com.android.server.telecom.PhoneAccountRegistrar;
 import com.android.server.telecom.PhoneAccountRegistrar.DefaultPhoneAccountHandle;
@@ -129,6 +130,7 @@ public class PhoneAccountRegistrarTest extends TelecomTestCase {
     @Mock private DefaultDialerCache mDefaultDialerCache;
     @Mock private AppLabelProxy mAppLabelProxy;
     @Mock private FeatureFlags mTelephonyFeatureFlags;
+    @Mock private AnomalyReporterAdapter mAnomalyReporter;
 
     @Override
     @Before
@@ -147,7 +149,8 @@ public class PhoneAccountRegistrarTest extends TelecomTestCase {
                 .thenReturn(TEST_LABEL);
         mRegistrar = new PhoneAccountRegistrar(
                 mComponentContextFixture.getTestDouble().getApplicationContext(), mLock, FILE_NAME,
-                mDefaultDialerCache, mAppLabelProxy, mTelephonyFeatureFlags, mFeatureFlags);
+                mDefaultDialerCache, mAppLabelProxy, mTelephonyFeatureFlags, mFeatureFlags,
+                mAnomalyReporter);
         when(mFeatureFlags.unregisterUnresolvableAccounts()).thenReturn(true);
         when(mTelephonyFeatureFlags.workProfileApiSplit()).thenReturn(false);
     }

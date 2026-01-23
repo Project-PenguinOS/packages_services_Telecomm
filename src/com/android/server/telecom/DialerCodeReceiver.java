@@ -41,9 +41,6 @@ public class DialerCodeReceiver extends BroadcastReceiver {
     // Writes a MARK to the Telecom log.
     public static final String TELECOM_SECRET_CODE_MARK = "826275";
 
-    // Opens the Telecom developer menu.
-    public static final String TELECOM_SECRET_CODE_MENU = "828282";
-
     private final CallsManager mCallsManager;
 
     DialerCodeReceiver(CallsManager callsManager) {
@@ -67,13 +64,6 @@ public class DialerCodeReceiver extends BroadcastReceiver {
                 // add a non-call event.
                 Call currentCall = mCallsManager.getActiveCall();
                 Log.addEvent(currentCall, LogUtils.Events.USER_LOG_MARK);
-            } else if (intent.getData().getHost().equals(TELECOM_SECRET_CODE_MENU)) {
-                Log.i("DialerCodeReceiver", "Secret code used to open developer menu.");
-                Intent confirmIntent = new Intent();
-                confirmIntent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
-                      UiConstants.COMPONENT_TELECOM_DEVELOPER_MENU);
-                confirmIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                context.startActivityAsUser(confirmIntent, UserHandle.CURRENT);
             }
         }
     }

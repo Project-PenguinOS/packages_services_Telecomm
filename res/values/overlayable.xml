@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2025 The Android Open Source Project
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+-->
+
+<resources>
+    <overlayable name="TelecomLibCustomization">
+        <policy type="product|vendor|system">
+
+            <!-- config -->
+            <item type="bool" name="allow_emergency_numbers_in_call_log" />
+            <item type="bool" name="allow_local_dtmf_tones" />
+            <item type="string" name="incall_default_class" />
+            <item type="string" name="dialer_default_class" />
+            <item type="bool" name="tty_enabled" />
+            <item type="bool" name="use_speaker_when_docked" />
+            <item type="bool" name="silence_incoming_when_different_service_and_maximum_ringing" />
+            <item type="bool" name="grant_location_permission_enabled" />
+            <item type="bool" name="use_simple_vibration_pattern" />
+            <item type="dimen" name="device_on_ear_xy_gravity_threshold" />
+            <item type="dimen" name="device_on_ear_y_gravity_negative_threshold" />
+            <item type="string" name="call_diagnostic_service_package_name" />
+            <item type="bool" name="skip_loading_canned_text_response" />
+            <item type="string" name="skip_incoming_caller_info_account_package" />
+            <item type="array" name="system_bluetooth_stack_package_name" />
+            <item type="array" name="unloggable_phone_numbers" />
+            <item type="bool" name="enable_logcat_collection_for_all_emergency_calls" />
+            <item type="bool" name="headless_dialer" />
+            <item type="integer" name="config_dtmf_tone_volume" />
+            <item type="string" name="local_voicemail_package_name" />
+            <item type="bool" name="decline_sends_to_local_voicemail" />
+            <item type="string" name="config_audio_parameter_key_crs_volume" />
+
+            <!-- colors -->
+            <item type="color" name="theme_color" />
+            <item type="color" name="notification_action_answer" />
+            <item type="color" name="notification_action_decline" />
+            <item type="color" name="call_redirection_dialog_icon_tint_color" />
+            <item type="color" name="call_redirection_dialog_text_color" />
+            <item type="color" name="call_redirection_dialog_view_divider_color" />
+
+            <!-- dimen -->
+            <item type="dimen" name="notification_icon_size" />
+            <item type="dimen" name="call_redirection_dialog_title_font_size" />
+            <item type="dimen" name="call_redirection_dialog_button_font_size" />
+            <item type="dimen" name="call_redirection_dialog_image_upper_margin" />
+            <item type="dimen" name="call_redirection_dialog_image_bottom_margin" />
+            <item type="dimen" name="call_redirection_dialog_title_bottom_margin" />
+            <item type="dimen" name="call_redirection_dialog_button_text_upper_bottom_margin" />
+            <item type="dimen" name="call_redirection_dialog_button_text_left_margin" />
+
+            <!-- styles -->
+            <item type="style" name="Theme.Telecomm.UserCallActivityNoSplash" />
+
+            <!-- strings -->
+            <item type="string" name="telecommAppLabel" />
+            <item type="string" name="userCallActivityLabel" />
+            <item type="string" name="unknown" />
+            <item type="string" name="private_num" />
+            <item type="string" name="payphone" />
+            <item type="string" name="notification_missedCallTitle" />
+            <item type="string" name="notification_missedWorkCallTitle" />
+            <item type="string" name="notification_missedCallsTitle" />
+            <item type="string" name="notification_missedCallsMsg" />
+            <item type="string" name="notification_missedCallTicker" />
+            <item type="string" name="notification_missedCall_call_back" />
+            <item type="string" name="notification_missedCall_message" />
+            <item type="string" name="notification_disconnectedCall_title" />
+            <item type="string" name="notification_disconnectedCall_body" />
+            <item type="string" name="notification_disconnectedCall_generic_body" />
+            <item type="string" name="notification_audioProcessing_title" />
+            <item type="string" name="notification_audioProcessing_body" />
+            <item type="string" name="notification_incallservice_not_responding_title" />
+            <item type="string" name="notification_incallservice_not_responding_body" />
+            <item type="string" name="accessibility_call_muted" />
+            <item type="string" name="accessibility_speakerphone_enabled" />
+            <item type="string" name="respond_via_sms_canned_response_1" />
+            <item type="string" name="respond_via_sms_canned_response_2" />
+            <item type="string" name="respond_via_sms_canned_response_3" />
+            <item type="string" name="respond_via_sms_canned_response_4" />
+            <item type="string" name="respond_via_sms_setting_title" />
+            <item type="string" name="respond_via_sms_setting_title_2" />
+            <item type="string" name="respond_via_sms_setting_summary" />
+            <item type="string" name="respond_via_sms_edittext_dialog_title" />
+            <item type="string" name="respond_via_sms_confirmation_format" />
+            <item type="string" name="respond_via_sms_failure_format" />
+            <item type="string" name="enable_account_preference_title" />
+            <item type="string" name="outgoing_call_not_allowed_user_restriction" />
+            <item type="string" name="outgoing_call_not_allowed_no_permission" />
+            <item type="string" name="outgoing_call_error_no_phone_number_supplied" />
+            <item type="string" name="duplicate_video_call_not_allowed" />
+            <item type="string" name="no_vm_number" />
+            <item type="string" name="no_vm_number_msg" />
+            <item type="string" name="add_vm_number_str" />
+            <item type="string" name="change_default_dialer_dialog_title" />
+            <item type="string" name="change_default_dialer_dialog_affirmative" />
+            <item type="string" name="change_default_dialer_dialog_negative" />
+            <item type="string" name="change_default_dialer_warning_message" />
+            <item type="string" name="change_default_call_screening_dialog_title" />
+            <item type="string" name="change_default_call_screening_warning_message_for_disable_old_app" />
+            <item type="string" name="change_default_call_screening_warning_message" />
+            <item type="string" name="change_default_call_screening_dialog_affirmative" />
+            <item type="string" name="change_default_call_screening_dialog_negative" />
+            <item type="string" name="blocked_numbers" />
+            <item type="string" name="blocked_numbers_msg" />
+            <item type="string" name="block_number" />
+            <item type="string" name="unblock_dialog_body" />
+            <item type="string" name="unblock_button" />
+            <item type="string" name="add_blocked_dialog_body" />
+            <item type="string" name="add_blocked_number_hint" />
+            <item type="string" name="block_button" />
+            <item type="string" name="non_primary_user" />
+            <item type="string" name="delete_icon_description" />
+            <item type="string" name="blocked_numbers_butter_bar_title" />
+            <item type="string" name="blocked_numbers_butter_bar_body" />
+            <item type="string" name="blocked_numbers_butter_bar_button" />
+            <item type="string" name="blocked_numbers_number_blocked_message" />
+            <item type="string" name="blocked_numbers_number_unblocked_message" />
+            <item type="string" name="blocked_numbers_block_emergency_number_message" />
+            <item type="string" name="blocked_numbers_number_already_blocked_message" />
+            <item type="string" name="test_account_0_label" />
+            <item type="string" name="test_account_1_label" />
+            <item type="string" name="test_account_2_label" />
+            <item type="string" name="test_account_3_label" />
+            <item type="string" name="test_account_0_short_description" />
+            <item type="string" name="test_account_1_short_description" />
+            <item type="string" name="test_account_2_short_description" />
+            <item type="string" name="test_account_3_short_description" />
+            <item type="string" name="handle_restricted" />
+            <item type="string" name="toast_personal_call_msg" />
+            <item type="string" name="notification_incoming_call" />
+            <item type="string" name="notification_incoming_video_call" />
+            <item type="string" name="answering_ends_other_call" />
+            <item type="string" name="answering_ends_other_calls" />
+            <item type="string" name="answering_ends_other_video_call" />
+            <item type="string" name="answering_ends_other_managed_call" />
+            <item type="string" name="answering_ends_other_managed_calls" />
+            <item type="string" name="answering_ends_other_managed_video_call" />
+            <item type="string" name="answer_incoming_call" />
+            <item type="string" name="decline_incoming_call" />
+            <item type="string" name="cant_call_due_to_no_supported_service" />
+            <item type="string" name="cant_call_due_to_ongoing_call" />
+            <item type="string" name="cant_call_due_to_ongoing_calls" />
+            <item type="string" name="cant_call_due_to_ongoing_unknown_call" />
+            <item type="string" name="notification_channel_incoming_call" />
+            <item type="string" name="notification_channel_missed_call" />
+            <item type="string" name="notification_channel_call_blocking" />
+            <item type="string" name="notification_channel_background_calls" />
+            <item type="string" name="notification_channel_disconnected_calls" />
+            <item type="string" name="notification_channel_in_call_service_crash" />
+            <item type="string" name="notification_channel_call_streaming" />
+            <item type="string" name="notification_local_voicemail_title" />
+            <item type="string" name="notification_local_voicemail_details" />
+            <item type="string" name="notification_local_voicemail_unknown_details" />
+            <item type="string" name="alert_outgoing_call" />
+            <item type="string" name="alert_redirect_outgoing_call_or_not" />
+            <item type="string" name="alert_place_outgoing_call_with_redirection" />
+            <item type="string" name="alert_place_unredirect_outgoing_call" />
+            <item type="string" name="alert_redirect_outgoing_call_timeout" />
+            <item type="string" name="phone_settings_call_blocking_txt" />
+            <item type="string" name="phone_settings_number_not_in_contact_txt" />
+            <item type="string" name="phone_settings_number_not_in_contact_summary_txt" />
+            <item type="string" name="phone_settings_private_num_txt" />
+            <item type="string" name="phone_settings_private_num_summary_txt" />
+            <item type="string" name="phone_settings_payphone_txt" />
+            <item type="string" name="phone_settings_payphone_summary_txt" />
+            <item type="string" name="phone_settings_unknown_txt" />
+            <item type="string" name="phone_settings_unknown_summary_txt" />
+            <item type="string" name="phone_settings_unavailable_txt" />
+            <item type="string" name="phone_settings_unavailable_summary_txt" />
+            <item type="string" name="phone_strings_call_blocking_turned_off_notification_title_txt" />
+            <item type="string" name="phone_strings_call_blocking_turned_off_notification_text_txt" />
+            <item type="string" name="phone_strings_emergency_call_made_dialog_title_txt" />
+            <item type="string" name="phone_strings_emergency_call_made_dialog_call_blocking_text_txt" />
+            <item type="string" name="toast_emergency_can_not_pull_call" />
+            <item type="string" name="cancel" />
+            <item type="string" name="back" />
+            <item type="string" name="callendpoint_name_earpiece" />
+            <item type="string" name="callendpoint_name_bluetooth" />
+            <item type="string" name="callendpoint_name_wiredheadset" />
+            <item type="string" name="callendpoint_name_speaker" />
+            <item type="string" name="callendpoint_name_streaming" />
+            <item type="string" name="callendpoint_name_unknown" />
+            <item type="string" name="call_streaming_notification_body" />
+            <item type="string" name="call_streaming_notification_action_hang_up" />
+            <item type="string" name="call_streaming_notification_action_switch_here" />
+            <item type="string" name="callFailed_outgoing_already_present" />
+            <item type="string" name="callFailed_too_many_calls_include_merge" />
+            <item type="string" name="callFailed_too_many_calls_exclude_merge" />
+            <item type="string" name="callFailed_unholdable_call" />
+            <item type="string" name="callSwapFailed_unholdable_call" />
+            <item type="string" name="callFailed_already_ringing" />
+            <item type="string" name="callFailed_reject_mmi" />
+            <item type="string" name="call_hangup_fail_during_merge" />
+            <item type="string" name="emergencyCall_reject_mmi" />
+            <item type="string" name="noApplications" />
+            <item type="string" name="android_system_label" />
+        </policy>
+    </overlayable>
+</resources>

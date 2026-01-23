@@ -19,13 +19,14 @@ package com.android.server.telecom;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.media.AudioManager;
+import android.os.UserHandle;
 import android.os.VibrationAttributes;
 import android.os.Vibrator;
 import android.provider.DeviceConfig;
 import android.provider.Settings;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.server.telecom.flags.FeatureFlags;
+import com.android.internal.telecom.flags.FeatureFlags;
 
 /**
  * Accesses the Global System settings for more control during testing.
@@ -38,7 +39,7 @@ public class SystemSettingsUtil {
     @VisibleForTesting
     public interface SystemSettingsReader {
         int getInt(ContentResolver cr, String name, int def);
-        int getIntForUser(ContentResolver cr, String name, int def, int userHandle);
+        int getIntForUser(Context context, String name, int def, int userHandle);
     }
 
     private static class DefaultSystemSettingsReader implements SystemSettingsReader {
@@ -48,8 +49,10 @@ public class SystemSettingsUtil {
         }
 
         @Override
-        public int getIntForUser(ContentResolver cr, String name, int def, int userHandle) {
-            return Settings.System.getIntForUser(cr, name, def, userHandle);
+        public int getIntForUser(Context context, String name, int def, int userHandle) {
+            return Settings.System.getInt(
+                context.createContextAsUser(UserHandle.of(userHandle), 0).getContentResolver(),
+                name, def);
         }
     }
 
@@ -92,11 +95,18 @@ public class SystemSettingsUtil {
         // the Haptics Framework team provides. For mainlining Telecom, using
         // VIBRATE_WHEN_RINGING is our only option currently until the request for a new system
         // API (b/441480678) has been met.
-        return mSystemSettingsReader.getInt(context.getContentResolver(),
-                Settings.System.VIBRATE_WHEN_RINGING,
-                context.getSystemService(Vibrator.class).getDefaultVibrationIntensity(
-                        VibrationAttributes.USAGE_RINGTONE))
-                != 0 && isVibrationEnabled(context, flags);
+
+        int defaultIntensity = 2; // VIBRATION_INTENSITY_MEDIUM
+
+        // Replacing context.getSystemService().getDefaultVibrationIntensity with
+        // VIBRATION_INTENSITY_MEDIUM as this is fallback.
+        // As getDefaultVibrationIntensity is hidden API.
+        return mSystemSettingsReader.getInt
+                        (context.getContentResolver(),
+                         Settings.System.VIBRATE_WHEN_RINGING,
+                         /*context.getSystemService(Vibrator.class)
+                            .getDefaultVibrationIntensity(VibrationAttributes.USAGE_RINGTONE)*/
+                         defaultIntensity) != 0 && isVibrationEnabled(context, flags);
     }
 
     public boolean isRampingRingerEnabled(Context context) {

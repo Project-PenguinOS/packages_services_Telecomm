@@ -20,7 +20,6 @@ import android.app.Service;
 import android.app.role.RoleManager;
 import android.content.Context;
 import android.content.Intent;
-import android.media.IAudioService;
 import android.media.ToneGenerator;
 import android.os.CombinedVibration;
 import android.os.HandlerThread;
@@ -31,7 +30,6 @@ import android.os.VibrationAttributes;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorManager;
-import android.provider.BlockedNumberContract;
 import android.provider.BlockedNumbersManager;
 import android.telecom.Log;
 
@@ -48,6 +46,7 @@ import com.android.server.telecom.ClockProxy;
 import com.android.server.telecom.ConnectionServiceFocusManager;
 import com.android.server.telecom.ContactsAsyncHelper;
 import com.android.server.telecom.DefaultDialerCache;
+import com.android.server.telecom.SystemBlockedNumberContract;
 import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.HeadsetMediaButton;
 import com.android.server.telecom.HeadsetMediaButtonFactory;
@@ -202,12 +201,6 @@ public class TelecomService extends Service {
                                             callsManager);
                                 }
                             },
-                            new CallAudioManager.AudioServiceFactory() {
-                                @Override
-                                public IAudioService getAudioService() {
-                                    return null;
-                                }
-                            },
                             ConnectionServiceFocusManager::new,
                             new Timeouts.Adapter(),
                             new AsyncRingtonePlayer(featureFlags),
@@ -256,7 +249,7 @@ public class TelecomService extends Service {
                                     return featureFlags.telecomMainlineBlockedNumbersManager()
                                             ? context.getSystemService(BlockedNumbersManager.class)
                                             .shouldShowEmergencyCallNotification()
-                                            : BlockedNumberContract.SystemContract
+                                            : SystemBlockedNumberContract
                                                     .shouldShowEmergencyCallNotification(context);
                                 }
 

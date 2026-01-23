@@ -532,15 +532,7 @@ public class TelecomShellCommand extends BasicShellCommandHandler {
             return null;
         }
         final String userSnInStr = getNextArgRequired();
-        UserHandle userHandle;
-        try {
-            final int userSn = Integer.parseInt(userSnInStr);
-            userHandle = UserHandle.of(getUserManager().getUserHandle(userSn));
-        } catch (NumberFormatException ex) {
-            Log.w(this, "getPhoneAccountHandleFromArgs - invalid user %s", userSnInStr);
-            throw new IllegalArgumentException ("Invalid user serial number " + userSnInStr);
-        }
-        return userHandle;
+        return parseUserHandle(userSnInStr);
     }
 
     private PhoneAccountHandle getPhoneAccountHandleFromArgs() throws RemoteException {
@@ -550,15 +542,17 @@ public class TelecomShellCommand extends BasicShellCommandHandler {
         final ComponentName component = parseComponentName(getNextArgRequired());
         final String accountId = getNextArgRequired();
         final String userSnInStr = getNextArgRequired();
-        UserHandle userHandle;
+        return new PhoneAccountHandle(component, accountId, parseUserHandle(userSnInStr));
+    }
+
+    private UserHandle parseUserHandle(String userSnInStr) {
         try {
             final int userSn = Integer.parseInt(userSnInStr);
-            userHandle = UserHandle.of(getUserManager().getUserHandle(userSn));
+            return getUserManager().getUserForSerialNumber((long) userSn);
         } catch (NumberFormatException ex) {
-            Log.w(this, "getPhoneAccountHandleFromArgs - invalid user %s", userSnInStr);
+            Log.w(this, "parseUserHandle - invalid user %s", userSnInStr);
             throw new IllegalArgumentException ("Invalid user serial number " + userSnInStr);
         }
-        return new PhoneAccountHandle(component, accountId, userHandle);
     }
 
     private boolean callerIsRoot() {

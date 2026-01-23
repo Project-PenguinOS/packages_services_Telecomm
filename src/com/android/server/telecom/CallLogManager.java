@@ -27,14 +27,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
-import android.location.Country;
-import android.location.CountryDetector;
 import android.location.Location;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.HandlerExecutor;
 import android.os.Looper;
 import android.os.UserHandle;
 import android.os.PersistableBundle;
@@ -51,10 +48,12 @@ import android.telecom.VideoProfile;
 import android.telephony.CarrierConfigManager;
 import android.telephony.PhoneNumberUtils;
 import android.telephony.SubscriptionManager;
+import android.telephony.TelephonyManager;
 import android.util.Pair;
 import android.text.TextUtils;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.modules.utils.HandlerExecutor;
 import com.android.server.telecom.callfiltering.CallFilteringResult;
 import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.flags.Flags;
@@ -125,7 +124,6 @@ public final class CallLogManager extends CallsManagerListenerBase {
     private static final String CALL_DURATION = "duration";
 
     private final Object mLock = new Object();
-    private Country mCurrentCountry;
     private String mCurrentCountryIso;
     private HandlerExecutor mCountryCodeExecutor;
 
@@ -712,16 +710,6 @@ public final class CallLogManager extends CallsManagerListenerBase {
         mContext.sendBroadcast(callAddIntent, PERMISSION_PROCESS_CALLLOG_INFO);
     }
 
-    private String getCountryIsoFromCountry(Country country) {
-        if(country == null) {
-            // Fallback to Locale if there are issues with CountryDetector
-            Log.w(TAG, "Value for country was null. Falling back to Locale.");
-            return Locale.getDefault().getCountry();
-        }
-
-        return country.getCountryCode();
-    }
-
     /**
      * Get the current country code
      *
@@ -734,30 +722,46 @@ public final class CallLogManager extends CallsManagerListenerBase {
                 // up, causing a RemoteException to be thrown. Note that the callback is only
                 // registered if the country iso cache is null (so in an ideal setting, this should
                 // only require a one-time configuration).
-                final CountryDetector countryDetector =
+                /*final CountryDetector countryDetector =
                         (CountryDetector) mContext.getSystemService(Context.COUNTRY_DETECTOR);
                 if (countryDetector != null) {
                     countryDetector.registerCountryDetectorCallback(
                             mCountryCodeExecutor, this::countryCodeConsumer);
-                }
-                mCurrentCountryIso = getCountryIsoFromCountry(mCurrentCountry);
+                }*/
+                mCurrentCountryIso = getCurrentCountryIso(mContext);
             }
             return mCurrentCountryIso;
         }
     }
 
-    /** Consumer to receive the country code if it changes. */
-    private void countryCodeConsumer(Country newCountry) {
-        Log.startSession("CLM.cCC");
+    /**
+     * Retrieves the current country ISO code. It first tries to get the network country ISO,
+     * then the SIM country ISO, and finally falls back to the default locale's country.
+     *
+     * @param context The current context.
+     * @return The ISO 3166-1 two-letter country code of the current country, or {@code null} if
+     *         it cannot be determined. The returned string is in uppercase.
+     */
+    private String getCurrentCountryIso(Context context) {
+        String countryIso = null;
+        TelephonyManager tm = context.getSystemService(TelephonyManager.class);
         try {
-            Log.i(TAG, "Country ISO changed. Retrieving new ISO...");
-            synchronized (mLock) {
-                mCurrentCountry = newCountry;
-                mCurrentCountryIso = getCountryIsoFromCountry(newCountry);
+            if (tm != null) {
+                countryIso = tm.getNetworkCountryIso();
+                if (TextUtils.isEmpty(countryIso)) {
+                    countryIso = tm.getSimCountryIso();
+                }
             }
-        } finally {
-            Log.endSession();
+        } catch (UnsupportedOperationException e) {
+            // Telecom can run on devices without FEATURE_TELEPHONY_CALLING, in which case
+            // TelephonyManager methods will throw UnsupportedOperationException.
+            // The Logic falls back to Locale
+            Log.w(TAG, "getCurrentCountryIso: TelephonyManager methods failed: " + e.getMessage());
         }
+        if (TextUtils.isEmpty(countryIso)) {
+            countryIso = Locale.getDefault().getCountry();
+        }
+        return countryIso != null ? countryIso.toUpperCase(Locale.US) : null;
     }
 
     @VisibleForTesting

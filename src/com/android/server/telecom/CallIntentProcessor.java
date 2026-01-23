@@ -2,11 +2,11 @@ package com.android.server.telecom;
 
 import static android.content.pm.PackageManager.MATCH_DEFAULT_ONLY;
 
-import com.android.internal.app.IntentForwarderActivity;
 import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.ui.UiConstants;
 
 import android.content.ActivityNotFoundException;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -74,6 +74,8 @@ public class CallIntentProcessor {
 
     public static final String KEY_IS_UNKNOWN_CALL = "is_unknown_call";
     public static final String KEY_IS_INCOMING_CALL = "is_incoming_call";
+    public static final String FORWARD_INTENT_TO_PARENT =
+            "com.android.internal.app.ForwardIntentToParent";
 
     /**
      * The user initiating the outgoing call.
@@ -200,15 +202,9 @@ public class CallIntentProcessor {
             // Show the toast to warn user that it is a personal call though initiated in work
             // profile.
             if (fixedInitiatingUser) {
-                if (featureFlags.telecomResolveHiddenDependencies()) {
-                    context.getMainExecutor().execute(() ->
-                            Toast.makeText(context, context.getString(
-                                    R.string.toast_personal_call_msg), Toast.LENGTH_LONG).show());
-                } else {
-                    Toast.makeText(context, Looper.getMainLooper(),
-                            context.getString(R.string.toast_personal_call_msg),
-                            Toast.LENGTH_LONG).show();
-                }
+                context.getMainExecutor().execute(() ->
+                        Toast.makeText(context, context.getString(
+                                R.string.toast_personal_call_msg), Toast.LENGTH_LONG).show());
             }
         } else {
             Log.i(CallIntentProcessor.class,
@@ -220,15 +216,13 @@ public class CallIntentProcessor {
         boolean isPrivilegedDialer = defaultDialerCache.isDefaultOrSystemDialer(callingPackage,
                 initiatingUser.getIdentifier());
 
-        if (android.multiuser.Flags.enablePrivateSpaceIntentRedirection()) {
-            if (!callsManager.isSelfManaged(phoneAccountHandle, initiatingUser)
-                    && !TelephonyUtil.shouldProcessAsEmergency(context, handle)
-                    && UserUtil.isPrivateProfile(initiatingUser, context)) {
-                boolean dialogShown = maybeRedirectToIntentForwarderForPrivate(context, intent,
-                        initiatingUser);
-                if (dialogShown) {
-                    return;
-                }
+        if (!callsManager.isSelfManaged(phoneAccountHandle, initiatingUser)
+                && !TelephonyUtil.shouldProcessAsEmergency(context, handle)
+                && UserUtil.isPrivateProfile(initiatingUser, context)) {
+            boolean dialogShown = maybeRedirectToIntentForwarderForPrivate(context, intent,
+                    initiatingUser);
+            if (dialogShown) {
+                return;
             }
         }
 
@@ -366,24 +360,26 @@ public class CallIntentProcessor {
         // intent forwarder activity.
         forwardCallIntent.setComponent(null);
         forwardCallIntent.setPackage(null);
-        ResolveInfo resolveInfos =
-                context.getPackageManager()
-                        .resolveActivityAsUser(
-                                forwardCallIntent,
-                                PackageManager.ResolveInfoFlags.of(MATCH_DEFAULT_ONLY),
-                                initiatingUser.getIdentifier());
+        Context userContext = context.createContextAsUser(initiatingUser, 0 /* flags */);
 
-        if (resolveInfos == null
-                || !resolveInfos
-                .getComponentInfo()
-                .getComponentName()
-                .getShortClassName()
-                .equals(IntentForwarderActivity.FORWARD_INTENT_TO_PARENT)) {
-            return false;
+        ResolveInfo resolveInfo = userContext.getPackageManager().resolveActivity(
+                forwardCallIntent,
+                PackageManager.ResolveInfoFlags.of(MATCH_DEFAULT_ONLY));
+
+        if (resolveInfo == null || resolveInfo.activityInfo == null) {
+          return false;
+        }
+
+        ComponentName componentName = new ComponentName(
+            resolveInfo.activityInfo.packageName,
+            resolveInfo.activityInfo.name);
+
+        if (!componentName.getShortClassName().equals(FORWARD_INTENT_TO_PARENT)) {
+          return false;
         }
 
         try {
-            context.startActivityAsUser(forwardCallIntent, initiatingUser);
+            userContext.startActivity(forwardCallIntent);
             return true;
         } catch (ActivityNotFoundException e) {
             Log.e(CallIntentProcessor.class, e, "Unable to start call intent in the main user");

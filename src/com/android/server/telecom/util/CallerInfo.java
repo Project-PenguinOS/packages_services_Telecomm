@@ -24,7 +24,6 @@ import android.content.res.Resources;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
-import android.location.Country;
 import android.net.Uri;
 import android.provider.ContactsContract.CommonDataKinds.Phone;
 import android.provider.ContactsContract.Contacts;
@@ -201,7 +200,7 @@ public class CallerInfo {
                     if (typeColumnIndex != -1) {
                         info.numberType = cursor.getInt(typeColumnIndex);
                         info.numberLabel = cursor.getString(columnIndex);
-                        info.phoneLabel = Phone.getDisplayLabel(context,
+                        info.phoneLabel = Phone.getTypeLabel(context.getResources(),
                                 info.numberType, info.numberLabel)
                             .toString();
                     }
@@ -636,7 +635,8 @@ public class CallerInfo {
         if (resourceId != 0) {
             phoneNumber = context.getResources().getString(resourceId);
         }
-        photoResource = com.android.internal.R.drawable.picture_emergency;
+        photoResource = Resources.getSystem().getIdentifier("picture_emergency", "drawable",
+                "android");
         mIsEmergency = true;
         return this;
     }

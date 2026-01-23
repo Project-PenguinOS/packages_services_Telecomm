@@ -17,11 +17,12 @@
 package com.android.server.telecom.tests;
 
 import static android.provider.CallLog.Calls.MISSED_REASON_NOT_MISSED;
-import static android.provider.CallLog.Calls.USER_MISSED_NOT_RUNNING;
 import static android.telecom.Call.AUDIO_PROCESSING_USE_CASE_UNKNOWN;
 import static android.telecom.Call.AUDIO_PROCESSING_USE_CASE_VOICEMAIL;
 import static android.telecom.Call.AUDIO_PROCESSING_USE_CASE_CALL_SCREENING;
 import static android.telecom.Call.AUDIO_PROCESSING_USE_CASE_ASK_TO_HOLD;
+
+import static com.android.server.telecom.CallsManager.USER_MISSED_NOT_RUNNING;
 
 import static junit.framework.Assert.assertNotNull;
 import static junit.framework.TestCase.fail;
@@ -84,6 +85,7 @@ import android.telecom.GatewayInfo;
 import android.telecom.ParcelableCallResponse;
 import android.telecom.PhoneAccount;
 import android.telecom.PhoneAccountHandle;
+import android.telecom.PhoneAccountSuggestion;
 import android.telecom.TelecomManager;
 import android.telecom.VideoProfile;
 import android.telephony.CarrierConfigManager;
@@ -301,7 +303,6 @@ public class CallsManagerTest extends TelecomTestCase {
     @Mock private InCallWakeLockController mInCallWakeLockController;
     @Mock private ConnectionServiceFocusManagerFactory mConnSvrFocusManagerFactory;
     @Mock private InCallWakeLockControllerFactory mInCallWakeLockControllerFactory;
-    @Mock private CallAudioManager.AudioServiceFactory mAudioServiceFactory;
     @Mock private BluetoothRouteManager mBluetoothRouteManager;
     @Mock private WiredHeadsetManager mWiredHeadsetManager;
     @Mock private SystemStateHelper mSystemStateHelper;
@@ -362,7 +363,7 @@ public class CallsManagerTest extends TelecomTestCase {
                 any())).thenReturn(mInCallController);
         when(mCallEndpointControllerFactory.create(any(), any(), any())).thenReturn(
                 mCallEndpointController);
-        when(mCallAudioRouteControllerFactory.create(any(), any(), any(), any(), any(), any(),
+        when(mCallAudioRouteControllerFactory.create(any(), any(), any(), any(), any(),
                 any(), any(), any(), any(), any())).thenReturn(mCallAudioRouteController);
         when(mCallAudioModeStateMachineFactory.create(any(), any(), any()))
                 .thenReturn(mCallAudioModeStateMachine);
@@ -390,7 +391,6 @@ public class CallsManagerTest extends TelecomTestCase {
                 mProximitySensorManagerFactory,
                 mInCallWakeLockControllerFactory,
                 mConnSvrFocusManagerFactory,
-                mAudioServiceFactory,
                 mBluetoothRouteManager,
                 mWiredHeadsetManager,
                 mSystemStateHelper,
@@ -861,6 +861,39 @@ public class CallsManagerTest extends TelecomTestCase {
 
         assertEquals(1, accounts.size());
         assertTrue(accounts.contains(SIM_1_HANDLE));
+    }
+
+    /**
+     * Tests that we will use the phone account suggestion if it exists
+     * @throws Exception
+     */
+    @MediumTest
+    @Test
+    public void testUseSuggestionServiceProvidedAccount() throws Exception {
+        if(!com.android.internal.telecom.flags.Flags.delayRequestedHandleSelection()) {
+            return;
+        }
+        setupCallerInfoLookupHelper();
+        when(mPhoneAccountRegistrar.getCallCapablePhoneAccounts(any(), anyBoolean(),
+                any(), anyInt(), anyInt(), anyBoolean())).thenReturn(
+                new ArrayList<>(Arrays.asList(SIM_1_HANDLE, SIM_2_HANDLE)));
+
+        // WHEN the PhoneAccountSuggestionService suggests SIM_2_HANDLE
+        List<PhoneAccountSuggestion> suggestions = new ArrayList<>();
+        suggestions.add(new PhoneAccountSuggestion(SIM_2_HANDLE,
+                PhoneAccountSuggestion.REASON_USER_SET, true));
+        CompletableFuture<List<PhoneAccountSuggestion>> suggestionFuture =
+                CompletableFuture.completedFuture(suggestions);
+        CallsManager spyCallsManager = Mockito.spy(mCallsManager);
+        doReturn(suggestionFuture).when(spyCallsManager).getAccountSuggestions(any(), any());
+
+        // THEN findOutgoingCallPhoneAccount should return SIM_2_HANDLE
+        List<PhoneAccountHandle> accounts = spyCallsManager.findOutgoingCallPhoneAccount(
+                        null /* phoneAcct */, TEST_ADDRESS, false /* isVideo */,
+                        false /* isEmergency */, null /* userHandle */).get();
+
+        assertEquals(1, accounts.size());
+        assertEquals(SIM_2_HANDLE, accounts.get(0));
     }
 
     /**

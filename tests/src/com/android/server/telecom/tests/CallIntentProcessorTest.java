@@ -26,6 +26,7 @@ import static org.mockito.Mockito.when;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.content.pm.ComponentInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
@@ -36,7 +37,6 @@ import android.os.UserManager;
 import android.platform.test.flag.junit.SetFlagsRule;
 
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
-import com.android.internal.app.IntentForwarderActivity;
 import com.android.server.telecom.Call;
 import com.android.server.telecom.CallIntentProcessor;
 import com.android.server.telecom.CallsManager;
@@ -95,6 +95,7 @@ public class CallIntentProcessorTest extends TelecomTestCase {
                 mMockCreateContextAsUser);
         when(mMockCreateContextAsUser.getSystemService(UserManager.class)).thenReturn(
                 mMockCurrentUserManager);
+        when(mMockCreateContextAsUser.getPackageManager()).thenReturn(mPackageManager);
         mCallIntentProcessor = new CallIntentProcessor(mContext, mCallsManager, mDefaultDialerCache,
                 mFeatureFlags);
         when(mFeatureFlags.telecomResolveHiddenDependencies()).thenReturn(false);
@@ -181,7 +182,7 @@ public class CallIntentProcessorTest extends TelecomTestCase {
         mCallIntentProcessor.processIntent(intent, TEST_PACKAGE_NAME);
 
         // Consent dialog should be shown
-        verify(mContext).startActivityAsUser(any(Intent.class), eq(PRIVATE_SPACE_USERHANDLE));
+        verify(mMockCreateContextAsUser).startActivity(any(Intent.class));
 
         /// Verify that the call does not proceeds as normal since the dialog was shown
         verify(mCallsManager, never()).startOutgoingCall(any(), any(), any(), any(), any(),
@@ -198,15 +199,14 @@ public class CallIntentProcessorTest extends TelecomTestCase {
     }
 
     private void resolveAsIntentForwarderActivity() {
-        when(mComponentName.getShortClassName()).thenReturn(
-                IntentForwarderActivity.FORWARD_INTENT_TO_PARENT);
-        when(mComponentInfo.getComponentName()).thenReturn(mComponentName);
-        when(mResolveInfo.getComponentInfo()).thenReturn(mComponentInfo);
+        ActivityInfo activityInfo = new ActivityInfo();
+        activityInfo.packageName = TEST_PACKAGE_NAME;
+        activityInfo.name = mCallIntentProcessor.FORWARD_INTENT_TO_PARENT;
+        mResolveInfo.activityInfo = activityInfo;
 
         when(mContext.getPackageManager()).thenReturn(mPackageManager);
 
-        when(mPackageManager.resolveActivityAsUser(any(Intent.class),
-                any(PackageManager.ResolveInfoFlags.class),
-                eq(PRIVATE_SPACE_USERHANDLE.getIdentifier()))).thenReturn(mResolveInfo);
+        when(mPackageManager.resolveActivity(any(Intent.class),
+                any(PackageManager.ResolveInfoFlags.class))).thenReturn(mResolveInfo);
     }
 }

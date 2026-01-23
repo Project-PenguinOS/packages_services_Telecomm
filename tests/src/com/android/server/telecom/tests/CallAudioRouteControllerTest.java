@@ -80,7 +80,6 @@ import android.media.AudioAttributes;
 import android.media.AudioDeviceAttributes;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
-import android.media.IAudioService;
 import android.media.audiopolicy.AudioProductStrategy;
 import android.os.Looper;
 import android.os.Parcel;
@@ -100,6 +99,7 @@ import com.android.server.telecom.Call;
 import com.android.server.telecom.CallAudioManager;
 import com.android.server.telecom.CallAudioRouteController;
 import com.android.server.telecom.CallsManager;
+import com.android.server.telecom.CrsAudioController;
 import com.android.server.telecom.PendingAudioRoute;
 import com.android.server.telecom.StatusBarNotifier;
 import com.android.server.telecom.TelecomSystem;
@@ -149,10 +149,6 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
     @Mock
     CallsManager mCallsManager;
     @Mock
-    CallAudioManager.AudioServiceFactory mAudioServiceFactory;
-    @Mock
-    IAudioService mAudioService;
-    @Mock
     BluetoothRouteManager mBluetoothRouteManager;
     @Mock
     BluetoothDeviceManager mBluetoothDeviceManager;
@@ -179,7 +175,7 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
     private AudioRoute mSpeakerRoute;
     private boolean mOverrideSpeakerToBus;
     private boolean mIsScoManagedByAudio;
-    private UserHandle mCurrentUser = new UserHandle(UserHandle.USER_SYSTEM);
+    private UserHandle mCurrentUser = UserHandle.SYSTEM;
     AudioRoute.Factory mAudioRouteFactory = new AudioRoute.Factory() {
         @Override
         public AudioRoute create(@AudioRoute.AudioRouteType int type, String bluetoothAddress,
@@ -207,7 +203,6 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         when(mAudioManager.getCommunicationDevice()).thenReturn(mAudioDeviceInfo);
         when(mAudioManager.setCommunicationDevice(any(AudioDeviceInfo.class)))
                 .thenReturn(true);
-        when(mAudioServiceFactory.getAudioService()).thenReturn(mAudioService);
         when(mContext.getAttributionTag()).thenReturn("");
         doNothing().when(mCallsManager).onCallAudioStateChanged(any(CallAudioState.class),
                 any(CallAudioState.class));
@@ -228,8 +223,8 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
                 .thenReturn(BLUETOOTH_DEVICE_1);
         when(mAudioDeviceInfo.getAddress()).thenReturn(BT_ADDRESS_1);
         mController = new CallAudioRouteController.Factory().create(mContext, mCallsManager,
-                mAudioServiceFactory, mAudioRouteFactory, mWiredHeadsetManager,
-                mBluetoothRouteManager, mockStatusBarNotifier, mFeatureFlags,
+                mAudioRouteFactory, mWiredHeadsetManager,mBluetoothRouteManager,
+                mockStatusBarNotifier, mFeatureFlags,
                 mMockTelecomMetricsController, mRingtonePlayer, mAnomalyReporterAdapter);
         mController.setAudioRouteFactory(mAudioRouteFactory);
         mController.setAudioManager(mAudioManager);
@@ -912,7 +907,6 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testConnectHearindAidPair_RemoveFirstConnected() {
-        when(mFeatureFlags.hearingAidPairFix()).thenReturn(true);
         // This will add the HA as a pair of MACs
         verifyConnectBluetoothDevice(AudioRoute.TYPE_BLUETOOTH_HA);
         mController.sendMessageWithSessionInfo(BT_DEVICE_REMOVED, AudioRoute.TYPE_BLUETOOTH_HA,
@@ -933,7 +927,6 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testConnectHearingAidPair_RemoveSecondConnected() {
-        when(mFeatureFlags.hearingAidPairFix()).thenReturn(true);
         // This will add the HA as a pair of MACs
         verifyConnectBluetoothDevice(AudioRoute.TYPE_BLUETOOTH_HA);
         mController.sendMessageWithSessionInfo(BT_DEVICE_REMOVED, AudioRoute.TYPE_BLUETOOTH_HA,
@@ -2086,7 +2079,11 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         // Verify that no SPEAKER_ON message is pending.
         PendingAudioRoute pendingRoute = mController.getPendingAudioRoute();
         assertTrue(pendingRoute.getPendingMessages().isEmpty());
-        assertEquals(AudioRoute.TYPE_SPEAKER, mController.getCurrentRoute().getType());
+        CallAudioState expectedState = new CallAudioState(false, CallAudioState.ROUTE_SPEAKER,
+                CallAudioState.ROUTE_EARPIECE | CallAudioState.ROUTE_SPEAKER,
+                null, new HashSet<>());
+        verify(mCallsManager, timeout(TEST_TIMEOUT)).onCallAudioStateChanged(
+                any(CallAudioState.class), eq(expectedState));
     }
 
     @Test
@@ -2128,7 +2125,11 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         // Verify that no BT_AUDIO_CONNECTED message is pending.
         PendingAudioRoute pendingRoute = mController.getPendingAudioRoute();
         assertTrue(pendingRoute.getPendingMessages().isEmpty());
-        assertEquals(AudioRoute.TYPE_BLUETOOTH_SCO, mController.getCurrentRoute().getType());
+        CallAudioState expectedState = new CallAudioState(false, CallAudioState.ROUTE_BLUETOOTH,
+                CallAudioState.ROUTE_EARPIECE | CallAudioState.ROUTE_BLUETOOTH
+                        | CallAudioState.ROUTE_SPEAKER, BLUETOOTH_DEVICE_1, BLUETOOTH_DEVICES);
+        verify(mCallsManager, timeout(TEST_TIMEOUT)).onCallAudioStateChanged(
+                any(CallAudioState.class), eq(expectedState));
     }
 
     @SmallTest
@@ -2203,16 +2204,11 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
             waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
             AudioRoute hearingAidRoute = mController.getBluetoothRoute(
                     AudioRoute.TYPE_BLUETOOTH_HA, HEARING_AID_PAIR_ADDRESS);
-            if (mFeatureFlags.hearingAidPairFix()) {
-                // A new route will not be added. Instead, the existing route will be updated to
-                // track the new hearing aid pair. Verify the details from the existing route.
-                assertEquals(BT_ADDRESS_1, hearingAidRoute.getBluetoothAddress());
-                assertEquals(HEARING_AID_PAIR_ADDRESS, hearingAidRoute.getBluetoothHaPairDevice()
-                        .getAddress());
-            } else {
-                // Verify no new route was added
-                assertNull(hearingAidRoute);
-            }
+            // A new route will not be added. Instead, the existing route will be updated to
+            // track the new hearing aid pair. Verify the details from the existing route.
+            assertEquals(BT_ADDRESS_1, hearingAidRoute.getBluetoothAddress());
+            assertEquals(HEARING_AID_PAIR_ADDRESS, hearingAidRoute.getBluetoothHaPairDevice()
+                    .getAddress());
         }
     }
 
@@ -2228,6 +2224,11 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         CallAudioState expectedState = new CallAudioState(false, CallAudioState.ROUTE_EARPIECE,
                 CallAudioState.ROUTE_EARPIECE | CallAudioState.ROUTE_SPEAKER, null,
                 new HashSet<>());
+        // Ensure both hearing aid pairs are removed
+        if (audioType == AudioRoute.TYPE_BLUETOOTH_HA) {
+            BluetoothDevice hearingAidDevice2 = makeBluetoothDevice(HEARING_AID_PAIR_ADDRESS);
+            mController.sendMessageWithSessionInfo(BT_DEVICE_REMOVED, audioType, hearingAidDevice2);
+        }
         if (audioType == AudioRoute.TYPE_BLUETOOTH_SCO && !mIsScoManagedByAudio) {
             verify(mBluetoothDeviceManager, timeout(TEST_TIMEOUT)).disconnectSco();
         } else {
@@ -2360,6 +2361,7 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
 
     @Test
     public void testCrsCall_IgnoresWiredHeadsetConnection() {
+        turnOffShouldControlCrsWithParameters();
         when(mCallAudioManager.isCrsInCallMode()).thenReturn(true);
         mController.initialize();
         mController.sendMessageWithSessionInfo(CONNECT_WIRED_HEADSET);
@@ -2369,6 +2371,7 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
 
     @Test
     public void testCrsCall_IgnoresBluetoothConnection() {
+        turnOffShouldControlCrsWithParameters();
         when(mCallAudioManager.isCrsInCallMode()).thenReturn(true);
         mController.initialize();
         mController.sendMessageWithSessionInfo(BT_DEVICE_ADDED, AudioRoute.TYPE_BLUETOOTH_SCO,
@@ -2379,6 +2382,7 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
 
     @Test
     public void testCrsCall_IgnoresUserSwitchToBluetooth() {
+        turnOffShouldControlCrsWithParameters();
         when(mCallAudioManager.isCrsInCallMode()).thenReturn(true);
         mController.initialize();
         // Add the device so that the switch would otherwise work
@@ -2391,5 +2395,11 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
 
         verify(mCallsManager, never()).onCallAudioStateChanged(any(), any());
+    }
+
+    private void turnOffShouldControlCrsWithParameters() {
+        CrsAudioController mockCrsAudioController = mock(CrsAudioController.class);
+        when(mCallAudioManager.getCrsAudioController()).thenReturn(mockCrsAudioController);
+        when(mockCrsAudioController.shouldControlCrsWithParameters()).thenReturn(false);
     }
 }

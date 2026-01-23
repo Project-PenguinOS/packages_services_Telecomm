@@ -42,7 +42,6 @@ import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.PermissionChecker;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
@@ -61,7 +60,6 @@ import android.os.UserHandle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.permission.PermissionManager;
-import android.provider.BlockedNumberContract;
 import android.provider.BlockedNumbersManager;
 import android.provider.Settings;
 import android.telecom.CallAttributes;
@@ -157,6 +155,14 @@ public class TelecomServiceImpl {
             "call is null or id mismatch";
     public static final UUID ADD_CALL_ON_ERROR_UUID =
             UUID.fromString("f8e7d6c5-b4a3-9210-8765-432109abcdef");
+    // TODO(b/469227855): This is a hidden constant in UiModeManager used by the resetCarMode().
+    // Redefined locally to remove hidden API dependency.
+    //
+    // Original documentation from UiModeManager:
+    // Flag for use with {@link #disableCarMode(int)}: Disables car mode at ALL priority levels.
+    // Primarily intended for use from {@link com.android.internal.app.DisableCarModeActivity} to
+    // provide the user with a means to exit car mode at all priority levels.
+    private static final int DISABLE_CAR_MODE_ALL_PRIORITIES = 0x0002;
 
     private static final String TAG = "TelecomServiceImpl";
     private static final String TIME_LINE_ARG = "timeline";
@@ -170,7 +176,6 @@ public class TelecomServiceImpl {
     private final UserCallIntentProcessorFactory mUserCallIntentProcessorFactory;
     private final DefaultDialerCache mDefaultDialerCache;
     private final SubscriptionManagerAdapter mSubscriptionManagerAdapter;
-    private final SettingsSecureAdapter mSettingsSecureAdapter;
     private final TelecomSystem.SyncRoot mLock;
     private final TransactionalServiceRepository mTransactionalServiceRepository;
     private final BlockedNumbersManager mBlockedNumbersManager;
@@ -182,6 +187,7 @@ public class TelecomServiceImpl {
     private final String mSystemUiPackageName;
     private AnomalyReporterAdapter mAnomalyReporter = new AnomalyReporterAdapterImpl();
     private final Context mContext;
+    private Context mAllUsersContext;
     private final AppOpsManager mAppOpsManager;
     private final PackageManager mPackageManager;
     private final CallsManager mCallsManager;
@@ -446,45 +452,55 @@ public class TelecomServiceImpl {
         public ParceledListSlice<PhoneAccountHandle> getCallCapablePhoneAccounts(
                 boolean includeDisabledAccounts, String callingPackage,
                 String callingFeatureId, boolean acrossProfiles) {
+            boolean hasUiAccess = mContext.checkCallingOrSelfPermission(
+                    TelecomManager.PERMISSION_TELECOM_UI_ACCESS)
+                    == PackageManager.PERMISSION_GRANTED;
             ApiStats.ApiEvent event = new ApiStats.ApiEvent(
                     ApiStats.API_GETCALLCAPABLEPHONEACCOUNTS,
                     Binder.getCallingUid(), ApiStats.RESULT_PERMISSION);
             try {
                 Log.startSession("TSI.gCCPA", Log.getPackageAbbreviation(callingPackage));
 
-                if (mTelephonyFeatureFlags.workProfileApiSplit()) {
-                    if (acrossProfiles) {
-                        enforceInAppCrossProfilePermission();
-                    }
+                if (!hasUiAccess) {
+                    if (mTelephonyFeatureFlags.workProfileApiSplit()) {
+                        if (acrossProfiles) {
+                            enforceInAppCrossProfilePermission();
+                        }
 
-                    if (includeDisabledAccounts && !canReadPrivilegedPhoneState(
-                            callingPackage, "getCallCapablePhoneAccounts")) {
-                        throw new SecurityException(
-                                "Requires READ_PRIVILEGED_PHONE_STATE permission.");
-                    }
-
-                    if (!includeDisabledAccounts && !canReadPhoneState(callingPackage,
-                            callingFeatureId, "Requires READ_PHONE_STATE permission.")) {
-                        throw new SecurityException("Requires READ_PHONE_STATE permission.");
-                    }
-                }
-
-                if (includeDisabledAccounts &&
-                        !canReadPrivilegedPhoneState(
+                        if (includeDisabledAccounts && !canReadPrivilegedPhoneState(
                                 callingPackage, "getCallCapablePhoneAccounts")) {
-                    return ParceledListSlice.emptyList();
-                }
-                if (!canReadPhoneState(callingPackage, callingFeatureId,
-                        "getCallCapablePhoneAccounts")) {
-                    return ParceledListSlice.emptyList();
+                            throw new SecurityException(
+                                    "Requires READ_PRIVILEGED_PHONE_STATE permission.");
+                        }
+
+                        if (!includeDisabledAccounts && !canReadPhoneState(callingPackage,
+                                callingFeatureId, "Requires READ_PHONE_STATE permission.")) {
+                            throw new SecurityException("Requires READ_PHONE_STATE permission.");
+                        }
+                    }
+
+                    if (includeDisabledAccounts &&
+                            !canReadPrivilegedPhoneState(
+                                    callingPackage, "getCallCapablePhoneAccounts")) {
+                        return ParceledListSlice.emptyList();
+                    }
+                    if (!canReadPhoneState(callingPackage, callingFeatureId,
+                            "getCallCapablePhoneAccounts")) {
+                        return ParceledListSlice.emptyList();
+                    }
                 }
                 event.setResult(ApiStats.RESULT_NORMAL);
                 synchronized (mLock) {
                     final UserHandle callingUserHandle = Binder.getCallingUserHandle();
-                    boolean crossUserAccess = (!mTelephonyFeatureFlags.workProfileApiSplit()
-                            || acrossProfiles) && (mTelephonyFeatureFlags.workProfileApiSplit()
-                            ? hasInAppCrossProfilePermission()
-                            : hasInAppCrossUserPermission());
+                    boolean crossUserAccess;
+                    if (hasUiAccess) {
+                        crossUserAccess = acrossProfiles;
+                    } else {
+                        crossUserAccess = (!mTelephonyFeatureFlags.workProfileApiSplit()
+                                || acrossProfiles) && (mTelephonyFeatureFlags.workProfileApiSplit()
+                                ? hasInAppCrossProfilePermission()
+                                : hasInAppCrossUserPermission());
+                    }
                     long token = Binder.clearCallingIdentity();
                     try {
                         return new ParceledListSlice<>(
@@ -669,29 +685,36 @@ public class TelecomServiceImpl {
         @Override
         public PhoneAccount getPhoneAccount(PhoneAccountHandle accountHandle,
                 String callingPackage) {
+            boolean hasUiAccess = mContext.checkCallingOrSelfPermission(
+                    TelecomManager.PERMISSION_TELECOM_UI_ACCESS)
+                    == PackageManager.PERMISSION_GRANTED;
             ApiStats.ApiEvent event = new ApiStats.ApiEvent(ApiStats.API_GETPHONEACCOUNT,
                     Binder.getCallingUid(), ApiStats.RESULT_PERMISSION);
             try {
                 Log.startSession("TSI.gPA", Log.getPackageAbbreviation(callingPackage));
-                try {
-                    enforceCallingPackage(callingPackage, "getPhoneAccount");
-                } catch (SecurityException se) {
-                    EventLog.writeEvent(0x534e4554, "196406138", Binder.getCallingUid(),
-                            "getPhoneAccount: invalid calling package");
-                    throw se;
+                if (!hasUiAccess) {
+                    try {
+                        enforceCallingPackage(callingPackage, "getPhoneAccount");
+                    } catch (SecurityException se) {
+                        EventLog.writeEvent(0x534e4554, "196406138", Binder.getCallingUid(),
+                                "getPhoneAccount: invalid calling package");
+                        throw se;
+                    }
                 }
                 synchronized (mLock) {
                     final UserHandle callingUserHandle = Binder.getCallingUserHandle();
-                    if (CompatChanges.isChangeEnabled(
-                            TelecomManager.ENABLE_GET_PHONE_ACCOUNT_PERMISSION_PROTECTION,
-                            callingPackage, Binder.getCallingUserHandle())) {
-                        if (Binder.getCallingUid() != Process.SHELL_UID &&
-                                !canGetPhoneAccount(callingPackage, accountHandle)) {
-                            SecurityException e = new SecurityException(
-                                    "getPhoneAccount API requires" +
-                                            "READ_PHONE_NUMBERS");
-                            Log.e(this, e, "getPhoneAccount %s", accountHandle);
-                            throw e;
+                    if (!hasUiAccess) {
+                        if (CompatChanges.isChangeEnabled(
+                                TelecomManager.ENABLE_GET_PHONE_ACCOUNT_PERMISSION_PROTECTION,
+                                callingPackage, Binder.getCallingUserHandle())) {
+                            if (Binder.getCallingUid() != Process.SHELL_UID &&
+                                    !canGetPhoneAccount(callingPackage, accountHandle)) {
+                                SecurityException e = new SecurityException(
+                                        "getPhoneAccount API requires" +
+                                                "READ_PHONE_NUMBERS");
+                                Log.e(this, e, "getPhoneAccount %s", accountHandle);
+                                throw e;
+                            }
                         }
                     }
                     Set<String> permissions = computePermissionsForBoundPackage(
@@ -706,6 +729,9 @@ public class TelecomServiceImpl {
                         PhoneAccount account = mPhoneAccountRegistrar
                                 .getPhoneAccount(accountHandle, callingUserHandle,
                                         /* acrossProfiles */ true);
+                        if (hasUiAccess) {
+                            return account;
+                        }
                         return maybeCleansePhoneAccount(account, permissions);
                     } catch (Exception e) {
                         event.setResult(ApiStats.RESULT_EXCEPTION);
@@ -957,9 +983,8 @@ public class TelecomServiceImpl {
                         enforcePhoneAccountModificationForPackage(
                                 account.getAccountHandle().getComponentName().getPackageName());
                         if (account.hasCapabilities(PhoneAccount.CAPABILITY_SELF_MANAGED)
-                                || (mFeatureFlags.enforceTransactionalExclusivity()
-                                && account.hasCapabilities(
-                                PhoneAccount.CAPABILITY_SUPPORTS_TRANSACTIONAL_OPERATIONS))) {
+                                || account.hasCapabilities(
+                                PhoneAccount.CAPABILITY_SUPPORTS_TRANSACTIONAL_OPERATIONS)) {
                             enforceRegisterSelfManaged();
                             if (account.hasCapabilities(PhoneAccount.CAPABILITY_CALL_PROVIDER) ||
                                     account.hasCapabilities(
@@ -1286,7 +1311,6 @@ public class TelecomServiceImpl {
                     Binder.getCallingUid(), ApiStats.RESULT_NORMAL);
             try {
                 Log.startSession("TSI.gDDP", Log.getPackageAbbreviation(callingPackage));
-                int callerUserId = UserHandle.getCallingUserId();
                 UserHandle callerUser = Binder.getCallingUserHandle();
                 final long token = Binder.clearCallingIdentity();
                 try {
@@ -1321,7 +1345,7 @@ public class TelecomServiceImpl {
                 event.setResult(ApiStats.RESULT_NORMAL);
                 try {
                     return mDefaultDialerCache
-                            .getDefaultDialerApplication(new UserHandle(userId));
+                            .getDefaultDialerApplication(UserHandle.of(userId));
                 } finally {
                     Binder.restoreCallingIdentity(token);
                 }
@@ -2348,11 +2372,16 @@ public class TelecomServiceImpl {
          */
         @Override
         public boolean enablePhoneAccount(PhoneAccountHandle accountHandle, boolean isEnabled) {
+            boolean hasUiAccess = mContext.checkCallingOrSelfPermission(
+                            TelecomManager.PERMISSION_TELECOM_UI_ACCESS)
+                    == PackageManager.PERMISSION_GRANTED;
             ApiStats.ApiEvent event = new ApiStats.ApiEvent(ApiStats.API_ENABLEPHONEACCOUNT,
                     Binder.getCallingUid(), ApiStats.RESULT_PERMISSION);
             try {
                 Log.startSession("TSI.ePA");
-                enforceModifyPermission();
+                if (!hasUiAccess) {
+                    enforceModifyPermission();
+                }
                 synchronized (mLock) {
                     long token = Binder.clearCallingIdentity();
                     event.setResult(ApiStats.RESULT_NORMAL);
@@ -2378,7 +2407,6 @@ public class TelecomServiceImpl {
                 enforcePermission(MODIFY_PHONE_STATE);
                 enforcePermission(WRITE_SECURE_SETTINGS);
                 synchronized (mLock) {
-                    int callerUserId = UserHandle.getCallingUserId();
                     UserHandle callerUser = Binder.getCallingUserHandle();
                     long token = Binder.clearCallingIdentity();
                     event.setResult(ApiStats.RESULT_NORMAL);
@@ -2409,7 +2437,7 @@ public class TelecomServiceImpl {
                         if (mBlockedNumbersManager != null) {
                             mBlockedNumbersManager.endBlockSuppression();
                         } else {
-                            BlockedNumberContract.SystemContract.endBlockSuppression(mContext);
+                            SystemBlockedNumberContract.endBlockSuppression(mContext);
                         }
                     } finally {
                         Binder.restoreCallingIdentity(token);
@@ -3043,7 +3071,7 @@ public class TelecomServiceImpl {
                     try {
                         UiModeManager uiModeManager =
                                 mContext.getSystemService(UiModeManager.class);
-                        uiModeManager.disableCarMode(UiModeManager.DISABLE_CAR_MODE_ALL_PRIORITIES);
+                        uiModeManager.disableCarMode(DISABLE_CAR_MODE_ALL_PRIORITIES);
                     } finally {
                         Binder.restoreCallingIdentity(token);
                     }
@@ -3326,8 +3354,8 @@ public class TelecomServiceImpl {
                 // registered the callback intent.
                 UserHandle userHandle = Binder.getCallingUserHandle();
                 if (!doesPackageSupportCallback(packageName, userHandle)) {
-                    throw new IllegalArgumentException("Package" + packageName + " does not"
-                            + " registerthe TelecomManager.ACTION_CALL_BACK intent.");
+                    throw new IllegalArgumentException("Package " + packageName + " does not"
+                            + " register the TelecomManager.ACTION_CALL_BACK intent.");
                 }
 
                 Log.startSession("TSI.sVCLIE", Log.getPackageAbbreviation(callingPackage));
@@ -3368,7 +3396,6 @@ public class TelecomServiceImpl {
             UserCallIntentProcessorFactory userCallIntentProcessorFactory,
             DefaultDialerCache defaultDialerCache,
             SubscriptionManagerAdapter subscriptionManagerAdapter,
-            SettingsSecureAdapter settingsSecureAdapter,
             FeatureFlags featureFlags,
             android.telecom.flags.FeatureFlags moduleFeatureFlags,
             com.android.internal.telecom.flags.FeatureFlags moduleBugFixFeatureFlags,
@@ -3397,7 +3424,6 @@ public class TelecomServiceImpl {
         mDefaultDialerCache = defaultDialerCache;
         mCallIntentProcessorAdapter = callIntentProcessorAdapter;
         mSubscriptionManagerAdapter = subscriptionManagerAdapter;
-        mSettingsSecureAdapter = settingsSecureAdapter;
         mMetricsController = metricsController;
         mSystemUiPackageName = sysUiPackageName;
 
@@ -3405,7 +3431,7 @@ public class TelecomServiceImpl {
 
         mDefaultDialerCache.observeDefaultDialerApplication(mContext.getMainExecutor(), userId -> {
             String defaultDialer = mDefaultDialerCache.getDefaultDialerApplication(
-                    new UserHandle(userId));
+                    UserHandle.of(userId));
             if (defaultDialer == null) {
                 // We are replacing the dialer, just wait for the upcoming callback.
                 return;
@@ -3458,13 +3484,13 @@ public class TelecomServiceImpl {
         try {
             Log.v(TAG, "Registering PackageRemovedReceiver (local thread) for all users" +
                     " with RECEIVER_NOT_EXPORTED flag.");
-            mContext.registerReceiverAsUser(
-                    mPackageRemovedReceiver,
-                    UserHandle.ALL,
-                    filter,
-                    null,
-                    backgroundHandler, // Handler uses the local thread's Looper
-                    Context.RECEIVER_NOT_EXPORTED);
+            mAllUsersContext = mContext.createContextAsUser(UserHandle.ALL, 0 /* flags */);
+            mAllUsersContext.registerReceiver(
+                            mPackageRemovedReceiver,
+                            filter,
+                            null,
+                            backgroundHandler, // Handler uses the local thread's Looper
+                            Context.RECEIVER_NOT_EXPORTED);
             Log.v(TAG, "PackageRemovedReceiver (local thread) registered successfully.");
         } catch (Exception e) {
             if (localHandlerThread.isAlive()) {
@@ -3576,10 +3602,7 @@ public class TelecomServiceImpl {
             }
 
             if (videoState == DEFAULT_VIDEO_STATE || !isValidAcceptVideoState(videoState)) {
-// QTI_BEGIN: 2023-09-13: Telephony: Fix video CRS for VoLTE call is answered as video call through KEYCODE_CALL
-                videoState = call.isVideoCrsForVoLteCall()
-                        ? VideoProfile.STATE_AUDIO_ONLY : call.getVideoState();
-// QTI_END: 2023-09-13: Telephony: Fix video CRS for VoLTE call is answered as video call through KEYCODE_CALL
+                videoState = call.getVideoState();
             }
             mCallsManager.answerCall(call, videoState);
         }
@@ -4226,18 +4249,13 @@ public class TelecomServiceImpl {
         Intent checkIntent = new Intent(TelecomManager.ACTION_CALL_BACK);
         checkIntent.setPackage(packageName);
         // Check if the package supports the callback
-        List<ResolveInfo> resolveInfoList = packageManager.queryBroadcastReceivers(checkIntent, 0);
+        List<ResolveInfo> resolveInfoList = packageManager.queryIntentActivities(checkIntent,
+                PackageManager.MATCH_ALL);
         return !resolveInfoList.isEmpty();
     }
 
     public interface SubscriptionManagerAdapter {
         int getDefaultVoiceSubId();
-    }
-
-    public interface SettingsSecureAdapter {
-        void putStringForUser(ContentResolver resolver, String name, String value, int userHandle);
-
-        String getStringForUser(ContentResolver resolver, String name, int userHandle);
     }
 
     static class SubscriptionManagerAdapterImpl implements SubscriptionManagerAdapter {
@@ -4247,16 +4265,4 @@ public class TelecomServiceImpl {
         }
     }
 
-    static class SettingsSecureAdapterImpl implements SettingsSecureAdapter {
-        @Override
-        public void putStringForUser(ContentResolver resolver, String name, String value,
-                int userHandle) {
-            Settings.Secure.putStringForUser(resolver, name, value, userHandle);
-        }
-
-        @Override
-        public String getStringForUser(ContentResolver resolver, String name, int userHandle) {
-            return Settings.Secure.getStringForUser(resolver, name, userHandle);
-        }
-    }
 }
