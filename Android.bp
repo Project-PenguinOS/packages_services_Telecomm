@@ -20,9 +20,94 @@ filegroup {
 }
 
 filegroup {
-    name: "service-telecom-internal-srcs",
-    srcs: ["src/**/*.java"],
+    name: "service-telecom-api-internal-srcs",
+    srcs: ["src/android/**/*.java"],
     path: "src",
+}
+
+filegroup {
+    name: "service-telecom-internal-srcs",
+    srcs: ["src/com/**/*.java"],
+    path: "src",
+}
+
+soong_config_module_type {
+    name: "telecom_am_availability_src_config",
+    module_type: "filegroup_defaults",
+    config_namespace: "ANDROID",
+    bool_variables: [
+        "release_telecom_mainline_module",
+    ],
+    properties: [
+        "srcs",
+    ],
+}
+
+telecom_am_availability_src_config {
+    name: "telecom_am_mainline_deps_src_default",
+    soong_config_variables: {
+        release_telecom_mainline_module: {
+            srcs: [],
+            conditions_default: {
+                srcs: [
+                    "legacy-src/com/android/server/telecom/callsequencing/voip/VoipCallMonitor.java",
+                ],
+            },
+        },
+    },
+}
+
+telecom_am_availability_src_config {
+    name: "telecom_am_mainline_test_deps_src_default",
+    soong_config_variables: {
+        release_telecom_mainline_module: {
+            srcs: [
+                "tests/src/com/android/server/telecom/tests/VoipCallMonitorTest.java",
+            ],
+            conditions_default: {
+                srcs: [
+                    "tests/legacy-src/com/android/server/telecom/tests/VoipCallMonitorTest.java",
+                ],
+            },
+        },
+    },
+}
+
+telecom_am_availability_src_config {
+    name: "telecom_am_mainline_exclude_test_deps_src_default",
+    soong_config_variables: {
+        release_telecom_mainline_module: {
+            srcs: [
+                "tests/legacy-src/com/android/server/telecom/tests/VoipCallMonitorTest.java",
+            ],
+            conditions_default: {
+                srcs: [
+                    "tests/src/com/android/server/telecom/tests/VoipCallMonitorTest.java",
+                ],
+            },
+        },
+    },
+}
+
+filegroup {
+    name: "telecom_am_mainline_deps_srcs",
+    defaults: [
+        "telecom_am_mainline_deps_src_default",
+    ],
+}
+
+filegroup {
+    name: "telecom_am_mainline_test_deps_srcs",
+    defaults: [
+        "telecom_am_mainline_test_deps_src_default",
+    ],
+}
+
+filegroup {
+    name: "telecom_am_mainline_exclude_test_deps_srcs",
+    defaults: [
+        "telecom_am_mainline_exclude_test_deps_src_default",
+    ],
 }
 
 java_library {
@@ -78,7 +163,10 @@ android_library {
     resource_dirs: ["res"],
     min_sdk_version: "36",
     sdk_version: "system_server_current",
-    apex_available: ["com.android.telephonycore"],
+    apex_available: [
+        "com.android.telephonycore",
+        "//apex_available:platform",
+    ],
     // Do not try to optimize out resources in this library.
     use_resource_processor: false,
     visibility: [
@@ -111,6 +199,7 @@ android_library {
     ],
     libs: [
         "framework-telecom.impl",
+        "services.core",
     ],
     min_sdk_version: "36",
     resource_dirs: ["res"],
@@ -127,15 +216,25 @@ android_library {
 // Build the Telecom service.
 android_app {
     name: "TelecomShim",
-    srcs: [],
-    libs: ["service-telecom.stubs.system_server"],
-    resource_dirs: ["res"],
+    srcs: [
+        "src/com/android/server/telecom/shim/TelecomShimService.java",
+        ":telecom-service-init-sources",
+    ],
+    resource_dirs: [
+        "res",
+        "res_mainline",
+    ],
+    libs: [
+        "framework-annotations-lib",
+        "telecom_module_flags-java",
+    ],
+    aaptflags: ["--auto-add-overlay"],
     min_sdk_version: "36",
-    sdk_version: "system_server_current",
+    sdk_version: "module_current",
     certificate: "platform",
     privileged: true,
     optimize: {
-        proguard_flags_files: ["proguard.flags"],
+        enabled: false,
     },
 }
 
@@ -143,6 +242,7 @@ android_app {
 android_app {
     name: "Telecom",
     srcs: [
+        ":telecom_am_mainline_deps_srcs",
     ],
     static_libs: [
         "TelecomLib",
@@ -171,12 +271,12 @@ android_app {
     ],
     static_libs: [
         "androidx.core_core",
-        "framework-annotations-lib", // For @Nullable, @VisibleForTesting
         "shared-telecom-lib",
         "telecom-strings", // All strings and translations
     ],
     libs: [
         "framework-telecom.stubs.module_lib",
+        "framework-annotations-lib", // For @Nullable, @VisibleForTesting
     ],
     certificate: "platform",
     privileged: true,
@@ -186,6 +286,11 @@ android_app {
         optimize: true,
         shrink_resources: true,
     },
+    apex_available: [
+        "com.android.telephonycore",
+    ],
+    min_sdk_version: "36",
+    updatable: true,
 }
 
 android_library {
@@ -195,12 +300,20 @@ android_library {
         "src/com/android/server/telecom/settings/BlockedNumbersUtil.java",
         "src/com/android/server/telecom/ui/UiConstants.java",
     ],
+    static_libs: [
+        "telecom-resource-id-lib",
+        "telecom_flags_core_java_lib",
+    ],
     libs: [
         "framework-annotations-lib",
         "framework-telecom.stubs.module_lib",
         "telecom-strings",
     ],
     sdk_version: "module_current",
+    apex_available: [
+        "com.android.telephonycore",
+    ],
+    min_sdk_version: "36",
 }
 
 // Contains all Strings and translations
@@ -211,6 +324,10 @@ android_library {
         "res/values*/strings.xml",
     ],
     sdk_version: "module_current",
+    apex_available: [
+        "com.android.telephonycore",
+    ],
+    min_sdk_version: "36",
 }
 
 // Build telecom util static lib
@@ -219,6 +336,37 @@ java_library_static {
     srcs: [
         "src/com/android/server/telecom/util/*.java",
     ],
+    libs: [
+        "framework-annotations-lib",
+        "framework-telecom.stubs.module_lib",
+    ],
+    static_libs: [
+        "telecom_flags_core_java_lib",
+        "telecom_module_flags-java",
+        "telecom-resource-id-lib",
+    ],
+    sdk_version: "module_current",
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.telephonycore",
+    ],
+    min_sdk_version: "36",
+}
+
+java_library_static {
+    name: "telecom-resource-id-lib",
+    srcs: [
+        "src/com/android/server/telecom/TelecomResourceId.java",
+    ],
+    libs: [
+        "framework-annotations-lib",
+    ],
+    sdk_version: "module_current",
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.telephonycore",
+    ],
+    min_sdk_version: "36",
 }
 
 android_test {
@@ -236,9 +384,15 @@ android_test {
         "androidx.fragment_fragment",
         "androidx.test.ext.junit",
         "platform-compat-test-rules",
+        "services.core",
     ],
     srcs: [
         "tests/src/**/*.java",
+        ":telecom_am_mainline_deps_srcs",
+        ":telecom_am_mainline_test_deps_srcs",
+    ],
+    exclude_srcs: [
+        ":telecom_am_mainline_exclude_test_deps_srcs",
     ],
     resource_dirs: [
         "tests/res",

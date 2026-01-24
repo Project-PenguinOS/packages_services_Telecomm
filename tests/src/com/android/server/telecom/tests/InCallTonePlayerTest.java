@@ -21,12 +21,16 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.content.Context;
+import android.content.res.Resources;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.ToneGenerator;
@@ -36,6 +40,7 @@ import androidx.test.filters.SmallTest;
 import com.android.server.telecom.Call;
 import com.android.server.telecom.CallAudioManager;
 import com.android.server.telecom.InCallTonePlayer;
+import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.TelecomSystem;
 
 import org.junit.After;
@@ -54,6 +59,7 @@ public class InCallTonePlayerTest extends TelecomTestCase {
     @Mock private TelecomSystem.SyncRoot mLock;
     @Mock private ToneGenerator mToneGenerator;
     @Mock private InCallTonePlayer.ToneGeneratorFactory mToneGeneratorFactory;
+    @Mock private Resources mResources;
 
     private InCallTonePlayer.MediaPlayerAdapter mMediaPlayerAdapter =
             new InCallTonePlayer.MediaPlayerAdapter() {
@@ -106,8 +112,12 @@ public class InCallTonePlayerTest extends TelecomTestCase {
         when(mMediaPlayerFactory.get(anyInt(), any())).thenReturn(mMediaPlayerAdapter);
         doNothing().when(mCallAudioManager).setIsTonePlaying(any(Call.class), anyBoolean());
 
+        when(mContext.getResources()).thenReturn(mResources);
+        when(mResources.getIdentifier(anyString(), anyString(), anyString())).thenReturn(1);
+
+        TelecomResourceId.setTelecomContext(mContext);
         mFactory = new InCallTonePlayer.Factory(mLock, mToneGeneratorFactory, mMediaPlayerFactory,
-                mAudioManagerAdapter, mFeatureFlags, getLooper());
+                mAudioManagerAdapter, mFeatureFlags, getLooper(), mContext);
         mFactory.setCallAudioManager(mCallAudioManager);
         mInCallTonePlayer = mFactory.createPlayer(mCall, InCallTonePlayer.TONE_CALL_ENDED);
     }
@@ -115,6 +125,7 @@ public class InCallTonePlayerTest extends TelecomTestCase {
     @Override
     @After
     public void tearDown() throws Exception {
+        TelecomResourceId.setTelecomContext(null);
         super.tearDown();
         if (mInCallTonePlayer != null) {
             mInCallTonePlayer.cleanup();

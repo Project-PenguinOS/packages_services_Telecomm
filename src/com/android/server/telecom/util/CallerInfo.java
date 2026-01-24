@@ -37,6 +37,7 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.telecom.TelecomResourceId;
 
 import java.util.Locale;
 
@@ -195,9 +196,9 @@ public class CallerInfo {
                     if (typeColumnIndex != -1) {
                         info.numberType = cursor.getInt(typeColumnIndex);
                         info.numberLabel = cursor.getString(columnIndex);
-                        info.phoneLabel = Phone.getTypeLabel(context.getResources(),
-                                info.numberType, info.numberLabel)
-                            .toString();
+                        info.phoneLabel = Phone.getTypeLabel(
+                                TelecomResourceId.getResources(context), info.numberType,
+                                info.numberLabel).toString();
                     }
                 }
 

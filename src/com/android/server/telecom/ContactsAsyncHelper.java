@@ -166,8 +166,8 @@ public class ContactsAsyncHelper {
             if (!(photo instanceof BitmapDrawable)) {
                 return null;
             }
-            int iconSize = context.getResources()
-                    .getDimensionPixelSize(R.dimen.notification_icon_size);
+            int iconSize = TelecomResourceId.getResources(context).getDimensionPixelSize(
+                    TelecomResourceId.getIdentifier(context, "notification_icon_size", "dimen"));
             Bitmap orgBitmap = ((BitmapDrawable) photo).getBitmap();
             int orgWidth = orgBitmap.getWidth();
             int orgHeight = orgBitmap.getHeight();

@@ -16,6 +16,7 @@
 
 package com.android.server.telecomui.settings;
 
+import android.annotation.SuppressLint;
 import android.annotation.Nullable;
 import android.app.ActionBar;
 import android.app.AlertDialog;
@@ -63,6 +64,9 @@ import com.android.server.telecomui.R;
 /**
  * Activity to manage blocked numbers using {@link BlockedNumberContract}.
  */
+// TODO: b/478043076 - Remove SuppressLint once the BlockedNumbersManager API is finalized
+// and update the SDK check to the final version number.
+@SuppressLint("NewApi")
 public class BlockedNumbersActivity extends ListActivity
         implements LoaderManager.LoaderCallbacks<Cursor>, View.OnClickListener, TextWatcher,
         BlockNumberTaskFragment.Listener {

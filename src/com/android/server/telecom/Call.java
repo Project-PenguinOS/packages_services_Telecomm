@@ -1903,8 +1903,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 mIsTestEmergencyCall = mHandle != null &&
                         isTestEmergencyCall(mHandle.getSchemeSpecificPart());
             }
-            if (mTargetPhoneAccountHandle == null || !mContext.getResources().getString(
-                    R.string.skip_incoming_caller_info_account_package).equalsIgnoreCase(
+            if (mTargetPhoneAccountHandle == null || !TelecomResourceId.getString(
+                    mContext, "skip_incoming_caller_info_account_package").equalsIgnoreCase(
                     mTargetPhoneAccountHandle.getComponentName().getPackageName())) {
                 startCallerInfoLookup();
             } else {
@@ -3597,7 +3597,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                                             return CompletableFuture.completedFuture(true);
                                         }
                                         return CompletableFuture.completedFuture(result);
-                                    });;
+                                    });
                 }
                 mConnectionService.hold(this);
                 return holdFutureHandler;
@@ -4061,8 +4061,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         if (mCallsManager.isInEmergencyCall()) {
             Log.w(this, "pullExternalCall = pullExternalCall - call %s is external but can not be"
                     + " pulled while an emergency call is in progress.", mId);
-            mToastFactory.makeText(mContext, R.string.toast_emergency_can_not_pull_call,
-                    Toast.LENGTH_LONG);
+            mToastFactory.makeText(mContext, TelecomResourceId.getIdentifier(mContext,
+                       "toast_emergency_can_not_pull_call", "string"), Toast.LENGTH_LONG);
             return;
         }
 
@@ -4296,7 +4296,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      * SMSes to that number will silently fail.
      */
     public boolean isRespondViaSmsCapable() {
-        if (mContext.getResources().getBoolean(R.bool.skip_loading_canned_text_response)) {
+        if (TelecomResourceId.getBoolean(mContext, "skip_loading_canned_text_response")) {
             Log.d(this, "maybeLoadCannedSmsResponses: skip loading due to setting");
             return false;
         }

@@ -111,9 +111,8 @@ public final class UserUtil {
                     if (hasDisallowOutgoingCalls(context, userManager, userHandle)) {
                         String reason = "of DISALLOW_OUTGOING_CALLS restriction";
                         showErrorDialogForRestrictedOutgoingCall(context,
-                                context.getString(
-                                        R.string.outgoing_call_not_allowed_user_restriction),
-                                        tag, reason);
+                                TelecomResourceId.getString(context,
+                                        "outgoing_call_not_allowed_user_restriction"), tag, reason);
                         return true;
                     } else if (hasUserRestriction) {
                         final DevicePolicyManager dpm =

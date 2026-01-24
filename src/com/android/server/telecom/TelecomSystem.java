@@ -283,9 +283,6 @@ public class TelecomSystem {
                     new CallerInfoLookupHelper(context, callerInfoAsyncQueryFactory,
                             mContactsAsyncHelper, mLock);
 
-            EmergencyCallHelper emergencyCallHelper = new EmergencyCallHelper(mContext,
-                    defaultDialerCache, timeoutsAdapter, mFeatureFlags);
-
             InCallControllerFactory inCallControllerFactory = new InCallControllerFactory() {
                 @Override
                 public InCallController create(Context context, SyncRoot lock,
@@ -297,6 +294,9 @@ public class TelecomSystem {
                             new CarModeTracker(), clockProxy, featureFlags);
                 }
             };
+
+            EmergencyCallHelper emergencyCallHelper = new EmergencyCallHelper(mContext,
+                    defaultDialerCache, timeoutsAdapter, mFeatureFlags);
 
             CallEndpointControllerFactory callEndpointControllerFactory =
                     new CallEndpointControllerFactory() {
@@ -335,9 +335,8 @@ public class TelecomSystem {
                                     return mCallsManager.getCurrentUserHandle();
                                 }
                             },
-                            mContext.getResources().getString(
-                                    com.android.server.telecom.R.string
-                                            .call_diagnostic_service_package_name),
+                            TelecomResourceId.getString(mContext,
+                                    "call_diagnostic_service_package_name"),
                             mLock
                     );
 

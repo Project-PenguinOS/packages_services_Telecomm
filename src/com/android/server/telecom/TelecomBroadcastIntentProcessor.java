@@ -302,8 +302,9 @@ public final class TelecomBroadcastIntentProcessor {
         } else {
             // Should never happen but toast just in case (skipped the flag since we will never hit
             // this case anyways).
-            Toast.makeText(mContext, com.android.server.telecom.R.string.noApplications,
-                    Toast.LENGTH_SHORT).show();
+            Toast.makeText(mContext,
+                    TelecomResourceId.getIdentifier(mContext, "noApplications", "string"),
+                        Toast.LENGTH_SHORT).show();
         }
     }
 

@@ -44,8 +44,8 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.server.telecom.AppLabelProxy;
 import com.android.server.telecom.Call;
 import com.android.server.telecom.CallsManagerListenerBase;
-import com.android.server.telecom.R;
 import com.android.server.telecom.TelecomBroadcastIntentProcessor;
+import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.UserUtil;
 import com.android.server.telecom.components.TelecomBroadcastReceiver;
 import com.android.server.telecom.flags.FeatureFlags;
@@ -154,14 +154,15 @@ public class CallStreamingNotification extends CallsManagerListenerBase implemen
                 Resources resources = mContext.getResources();
                 String resPackage = null;
                 if (resources != null) {
-                    resPackage = resources.getResourcePackageName(R.drawable.person_circle);
+                    resPackage = resources.getResourcePackageName(
+                            TelecomResourceId.getIdentifier(mContext, "person_circle", "drawable"));
                 }
                 if (resPackage != null) {
-                    contactPhotoIcon = Icon.createWithResource(
-                            resPackage, R.drawable.person_circle);
+                    contactPhotoIcon = Icon.createWithResource(resPackage,
+                            TelecomResourceId.getIdentifier(mContext, "person_circle", "drawable"));
                 } else {
                     contactPhotoIcon = Icon.createWithResource(mContext,
-                            R.drawable.person_circle);
+                            TelecomResourceId.getIdentifier(mContext, "person_circle", "drawable"));
                 }
             } catch (Exception e) {
                 // All loads of things can do wrong when working with bitmaps and images, so to
@@ -227,8 +228,8 @@ public class CallStreamingNotification extends CallsManagerListenerBase implemen
                 switchHereIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
         // Apply a span to the string to colorize it using the "answer" color.
-        Spannable spannable = new SpannableString(
-                mContext.getString(R.string.call_streaming_notification_action_switch_here));
+        Spannable spannable = new SpannableString(TelecomResourceId.getString(mContext,
+                "call_streaming_notification_action_switch_here"));
 
         int resourceId = Resources.getSystem().getIdentifier(
                 "call_notification_answer_color", "color", "android");
@@ -238,7 +239,8 @@ public class CallStreamingNotification extends CallsManagerListenerBase implemen
                 Spannable.SPAN_INCLUSIVE_EXCLUSIVE);
 
         // Use the "phone link" icon per mock.
-        Icon switchHereIcon = Icon.createWithResource(mContext, R.drawable.gm_phonelink);
+        Icon switchHereIcon = Icon.createWithResource(mContext,
+                TelecomResourceId.getIdentifier(mContext, "gm_phonelink", "drawable"));
         Notification.Action.Builder switchHereBuilder = new Notification.Action.Builder(
                 switchHereIcon,
                 spannable,
@@ -271,9 +273,9 @@ public class CallStreamingNotification extends CallsManagerListenerBase implemen
                 // a hangup action with the right action already so we can leverage that.  The
                 // "switch here" action will be a custom action defined later.
                 .setStyle(Notification.CallStyle.forOngoingCall(person, hangupPendingIntent))
-                .setSmallIcon(R.drawable.ic_phone)
-                .setContentText(mContext.getString(
-                        R.string.call_streaming_notification_body))
+                .setSmallIcon(TelecomResourceId.getIdentifier(mContext, "ic_phone", "drawable"))
+                .setContentText(TelecomResourceId.getString(mContext,
+                        "call_streaming_notification_body"))
                 // Report call time
                 .setWhen(connectTimeMillis)
                 .setShowWhen(true)

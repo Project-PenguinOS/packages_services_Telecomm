@@ -17,9 +17,9 @@
 package android.telecom.service;
 
 import android.annotation.FlaggedApi;
+import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SystemApi;
-
 import android.app.Service;
 import android.app.role.RoleManager;
 import android.content.Context;
@@ -37,7 +37,7 @@ import android.os.VibratorManager;
 import android.provider.BlockedNumberContract;
 import android.provider.BlockedNumbersManager;
 import android.telecom.Log;
-
+import android.telecom.TelecomServiceInitializerRepository.Initializer;
 import android.telecom.flags.Flags;
 import android.view.accessibility.AccessibilityManager;
 
@@ -84,21 +84,20 @@ import java.util.concurrent.Executors;
  */
 @SystemApi(client=SystemApi.Client.SYSTEM_SERVER)
 @FlaggedApi(Flags.FLAG_TELECOM_MAINLINE_API)
-public final class TelecomService extends Service {
+public final class TelecomServiceInitializer implements Initializer {
+
+    private final String mSysUiPackage;
+
+    public TelecomServiceInitializer(@NonNull String sysUiPackage) {
+        mSysUiPackage = sysUiPackage;
+    }
 
     @Override
-    @Nullable
-    public IBinder onBind(@Nullable Intent intent) {
-        Log.d(this, "onBind");
-        return new ITelecomLoader.Stub() {
-            @Override
-            public ITelecomService createTelecomService(String sysUiPackageName) {
-                initializeTelecomSystem(TelecomService.this, sysUiPackageName);
-                synchronized (getTelecomSystem().getLock()) {
-                    return getTelecomSystem().getTelecomServiceImpl().getBinder();
-                }
-            }
-        };
+    public @Nullable IBinder initialize(@NonNull Context context) {
+        initializeTelecomSystem(context, mSysUiPackage);
+        synchronized (getTelecomSystem().getLock()) {
+            return getTelecomSystem().getTelecomServiceImpl().getBinder();
+        }
     }
 
     /**
