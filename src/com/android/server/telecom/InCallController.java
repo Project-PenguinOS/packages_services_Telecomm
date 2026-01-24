@@ -2107,7 +2107,7 @@ public class InCallController extends CallsManagerListenerBase implements
         updateCall(call);
         // Show an error dialog to the user mentioning why the disconnect failed.
         UserUtil.showErrorDialogForRestrictedOutgoingCall(mContext,
-                R.string.call_hangup_fail_during_merge, NOTIFICATION_TAG,
+                mContext.getText(R.string.call_hangup_fail_during_merge), NOTIFICATION_TAG,
                 "Call cannot be disconnected during a call merge.");
     }
 

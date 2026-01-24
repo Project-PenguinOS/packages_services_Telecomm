@@ -1307,7 +1307,8 @@ public class CallSequencingController {
         if (cause != null) {
             call.setStartFailCause(cause);
         }
-        showErrorDialogForRestrictedOutgoingCall(mContext, resourceId, TAG, reason);
+        showErrorDialogForRestrictedOutgoingCall(mContext, mContext.getText(resourceId), TAG,
+                reason);
     }
 
     public Handler getHandler() {

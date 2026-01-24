@@ -2444,7 +2444,7 @@ public class CallsManager extends Call.ListenerBase
                         finalCall.setStartFailCause(CallFailureCause.IN_EMERGENCY_CALL);
                         // Show an error message when dialing a MMI code during an emergency call.
                         if (mMmiUtils.isPotentialMMICode(handle)) {
-                            showErrorMessage(R.string.emergencyCall_reject_mmi);
+                            showErrorMessage(mContext.getString(R.string.emergencyCall_reject_mmi));
                         }
                         return CompletableFuture.completedFuture(false);
                     }
@@ -2551,7 +2551,8 @@ public class CallsManager extends Call.ListenerBase
 
                                 Log.i(CallsManager.this, "Aborting call since there are no"
                                         + " available accounts.");
-                                showErrorMessage(R.string.cant_call_due_to_no_supported_service);
+                                showErrorMessage(mContext.getString(
+                                        R.string.cant_call_due_to_no_supported_service));
                                 mListeners.forEach(l -> l.onCreateConnectionFailed(callToPlace));
                                 if (callToPlace.isEmergencyCall()) {
                                     if (mFeatureFlags.telecomMetricsSupport()) {
@@ -2810,7 +2811,7 @@ public class CallsManager extends Call.ListenerBase
                         finalCall.setStartFailCause(CallFailureCause.IN_EMERGENCY_CALL);
                         // Show an error message when dialing a MMI code during an emergency call.
                         if (mMmiUtils.isPotentialMMICode(handle)) {
-                            showErrorMessage(R.string.emergencyCall_reject_mmi);
+                            showErrorMessage(mContext.getString(R.string.emergencyCall_reject_mmi));
                         }
                         return CompletableFuture.completedFuture(null);
                     }
@@ -2858,7 +2859,8 @@ public class CallsManager extends Call.ListenerBase
 
                                 Log.i(CallsManager.this, "Aborting call since there are no"
                                         + " available accounts.");
-                                showErrorMessage(R.string.cant_call_due_to_no_supported_service);
+                                showErrorMessage(mContext.getString(
+                                        R.string.cant_call_due_to_no_supported_service));
                                 mListeners.forEach(l -> l.onCreateConnectionFailed(callToPlace));
                                 if (callToPlace.isEmergencyCall()) {
                                     if (mFeatureFlags.telecomMetricsSupport()) {
@@ -7605,13 +7607,13 @@ public class CallsManager extends Call.ListenerBase
     /**
      * Trigger display of an error message to the user; we do this outside of dialer for calls which
      * fail to be created and added to Dialer.
-     * @param messageId The string resource id.
+     * @param message The error message.
      */
-    private void showErrorMessage(int messageId) {
+    private void showErrorMessage(CharSequence message) {
         final Intent errorIntent = new Intent();
         errorIntent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
               UiConstants.COMPONENT_ERROR_DIALOG);
-        errorIntent.putExtra(UiConstants.ERROR_MESSAGE_ID_EXTRA, messageId);
+        errorIntent.putExtra(UiConstants.ERROR_MESSAGE_STRING_EXTRA, message);
         errorIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         mContext.startActivityAsUser(errorIntent, UserHandle.CURRENT);
     }
