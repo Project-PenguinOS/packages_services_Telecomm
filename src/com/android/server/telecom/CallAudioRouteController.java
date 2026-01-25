@@ -364,8 +364,9 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             }
         };
 
-        mIsScoManagedByAudio = android.media.audio.Flags.scoManagedByAudio()
-                && BluetoothProperties.isScoManagedByAudioEnabled().orElse(false);
+        if (android.media.audio.Flags.amscoAvailableApi() && mAudioManager != null) {
+            mIsScoManagedByAudio = mAudioManager.isScoManagedByAudio();
+        }
 
         // Register the  AudioManager. OnPreferredDevicesForStrategyChangedListener listener to
         // receive updates for the communication device. This is a replacement to directly querying
