@@ -59,6 +59,7 @@ import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.net.Uri;
+import android.os.Build;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.provider.CallLog;
@@ -69,6 +70,7 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import com.android.server.telecom.flags.Flags;
+import com.android.server.telecom.TelecomResourceId;
 
 import java.util.List;
 import java.util.Locale;
@@ -482,6 +484,10 @@ public class CallLogUtils {
         return false;
     }
 
+    /* TODO: b/478043076 - Remove SuppressLint once the addEntryAndRemoveExpiredEntries
+     * API is finalized. And update the SDK check to the final version number.
+     */
+    @SuppressLint("NewApi")
     private static Uri addEntryAndRemoveExpiredEntries(Context context, UserManager userManager,
         UserHandle user, ContentValues values) {
         final ContentResolver resolver = context.getContentResolver();
@@ -491,10 +497,15 @@ public class CallLogUtils {
         final String uuid = values.containsKey(UUID) ? values.getAsString(UUID) : null;
         // Adjust the URI depending on if we're adding a VOIP call log entry.
         boolean handlingVoipEntry = uuid != null;
+        final Uri baseUri;
+        if (handlingVoipEntry && Flags.integratedCallLogs()) {
+            baseUri = CONTENT_VOIP_URI;
+        } else {
+            // Fallback to the regular URI for older devices or non-VOIP entries.
+            baseUri = CONTENT_URI;
+        }
         final Uri uri = maybeAddUserId(userManager.isUserUnlocked(user)
-                        ? (handlingVoipEntry ? CONTENT_VOIP_URI : CONTENT_URI)
-                        : SHADOW_CONTENT_URI,
-                user.getIdentifier());
+                        ? baseUri : SHADOW_CONTENT_URI, user.getIdentifier());
 
         Log.i(LOG_TAG, String.format(Locale.getDefault(),
             "addEntryAndRemoveExpiredEntries: provider uri=%s", uri));

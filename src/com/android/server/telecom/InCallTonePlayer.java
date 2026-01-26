@@ -56,16 +56,18 @@ public class InCallTonePlayer extends Thread {
         private final AudioManagerAdapter mAudioManagerAdapter;
         private final FeatureFlags mFeatureFlags;
         private final Looper mLooper;
+        private final Context mContext;
 
         public Factory(TelecomSystem.SyncRoot lock, ToneGeneratorFactory toneGeneratorFactory,
                 MediaPlayerFactory mediaPlayerFactory, AudioManagerAdapter audioManagerAdapter,
-                FeatureFlags flags, Looper looper) {
+                FeatureFlags flags, Looper looper, Context context) {
             mLock = lock;
             mToneGeneratorFactory = toneGeneratorFactory;
             mMediaPlayerFactory = mediaPlayerFactory;
             mAudioManagerAdapter = audioManagerAdapter;
             mFeatureFlags = flags;
             mLooper = looper;
+            mContext = context;
         }
 
         public void setCallAudioManager(CallAudioManager callAudioManager) {
@@ -74,7 +76,7 @@ public class InCallTonePlayer extends Thread {
 
         public InCallTonePlayer createPlayer(Call call, int tone) {
             return new InCallTonePlayer(call, tone, mCallAudioManager, mLock, mToneGeneratorFactory,
-                    mMediaPlayerFactory, mAudioManagerAdapter, mFeatureFlags, mLooper);
+                    mMediaPlayerFactory, mAudioManagerAdapter, mFeatureFlags, mLooper, mContext);
         }
     }
 
@@ -224,6 +226,7 @@ public class InCallTonePlayer extends Thread {
     private final MediaPlayerFactory mMediaPlayerFactory;
     private final AudioManagerAdapter mAudioManagerAdapter;
     private final FeatureFlags mFeatureFlags;
+    private final Context mContext;
 
     /**
      * Latch used for awaiting on playback, which may be interrupted if the tone is stopped from
@@ -245,8 +248,10 @@ public class InCallTonePlayer extends Thread {
             MediaPlayerFactory mediaPlayerFactor,
             AudioManagerAdapter audioManagerAdapter,
             FeatureFlags flags,
-            Looper looper) {
+            Looper looper,
+            Context context) {
         mCall = call;
+        mContext = context;
         mState = STATE_OFF;
         mToneId = toneId;
         mCallAudioManager = callAudioManager;
@@ -291,7 +296,7 @@ public class InCallTonePlayer extends Thread {
                     toneLengthMillis = 0;
 
                     // Use a tone resource file for a more rich, full-bodied tone experience.
-                    mediaResourceId = R.raw.endcall;
+                    mediaResourceId = TelecomResourceId.getIdentifier(mContext, "endcall", "raw");
                     break;
                 case TONE_OTA_CALL_ENDED:
                     // TODO: fill in
@@ -368,7 +373,8 @@ public class InCallTonePlayer extends Thread {
                     toneLengthMillis = 0;
 
                     // Use a tone resource file for a more rich, full-bodied tone experience.
-                    mediaResourceId = R.raw.InCallQualityNotification;
+                    mediaResourceId = TelecomResourceId.getIdentifier(mContext,
+                            "InCallQualityNotification", "raw");
                     break;
                 case TONE_OUTGOING_CALL_ACCEPTED:
                     // Similar to the call waiting tone, but does not repeat.

@@ -2106,8 +2106,8 @@ public class InCallController extends CallsManagerListenerBase implements
         call.setLocallyDisconnecting(false);
         updateCall(call);
         // Show an error dialog to the user mentioning why the disconnect failed.
-        UserUtil.showErrorDialogForRestrictedOutgoingCall(mContext,
-                mContext.getText(R.string.call_hangup_fail_during_merge), NOTIFICATION_TAG,
+        UserUtil.showErrorDialogForRestrictedOutgoingCall(mContext, TelecomResourceId.getText(
+                mContext, "call_hangup_fail_during_merge"), NOTIFICATION_TAG,
                 "Call cannot be disconnected during a call merge.");
     }
 
@@ -2329,7 +2329,7 @@ public class InCallController extends CallsManagerListenerBase implements
                 mInCallServiceConnections.get(userFromCall);
         inCallServiceConnection.chooseInitialInCallService(shouldUseCarModeUI());
 
-        final boolean isHeadlessDevice = mContext.getResources().getBoolean(R.bool.headless_dialer);
+        final boolean isHeadlessDevice = TelecomResourceId.getBoolean(mContext, "headless_dialer");
         final boolean isSelfManagedCall = call != null && call.isSelfManaged();
         final boolean uiServiceConnected =
                 !isHeadlessDevice
@@ -3561,14 +3561,14 @@ public class InCallController extends CallsManagerListenerBase implements
         }
         Notification.Builder builder = new Notification.Builder(mContext,
                 NotificationChannelManager.CHANNEL_ID_IN_CALL_SERVICE_CRASH);
-        builder.setSmallIcon(R.drawable.ic_phone)
-                .setColor(mContext.getResources().getColor(R.color.theme_color))
-                .setContentTitle(
-                        mContext.getString(
-                                R.string.notification_incallservice_not_responding_title, appName))
+        builder.setSmallIcon(TelecomResourceId.getIdentifier(mContext, "ic_phone", "drawable"))
+                .setColor(TelecomResourceId.getResources(mContext).getColor(
+                        TelecomResourceId.getIdentifier(mContext, "theme_color", "color")))
+                .setContentTitle(TelecomResourceId.getString(mContext,
+                        "notification_incallservice_not_responding_title", appName))
                 .setStyle(new Notification.BigTextStyle()
-                        .bigText(mContext.getText(
-                                R.string.notification_incallservice_not_responding_body)));
+                .bigText(TelecomResourceId.getText(mContext,
+                        "notification_incallservice_not_responding_body")));
         UserUtil.processNotification(mContext, userHandle, NOTIFICATION_TAG,
                 IN_CALL_SERVICE_NOTIFICATION_ID, builder.build());
     }

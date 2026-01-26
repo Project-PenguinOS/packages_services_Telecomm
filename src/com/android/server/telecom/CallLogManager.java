@@ -533,8 +533,8 @@ public final class CallLogManager extends CallsManagerListenerBase {
                 : carrierConfig.getStringArray(
                         CarrierConfigManager.KEY_UNLOGGABLE_NUMBERS_STRING_ARRAY);
         String[] unloggableNumbersFromMccConfig;
-        unloggableNumbersFromMccConfig = mContext.getResources()
-                .getStringArray(com.android.server.telecom.R.array.unloggable_phone_numbers);
+        unloggableNumbersFromMccConfig = TelecomResourceId.getStringArray(mContext,
+                "unloggable_phone_numbers");
         return Stream.concat(
                 unloggableNumbersFromCarrierConfig == null ?
                         Stream.empty() : Arrays.stream(unloggableNumbersFromCarrierConfig),

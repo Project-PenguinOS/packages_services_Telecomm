@@ -15,12 +15,16 @@
 
 package com.android.server.telecom.tests;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.content.Context;
+import android.content.res.Resources;
 import android.media.ToneGenerator;
 
 import androidx.test.filters.SmallTest;
@@ -28,6 +32,7 @@ import androidx.test.filters.SmallTest;
 import com.android.server.telecom.Call;
 import com.android.server.telecom.DtmfLocalTonePlayer;
 import com.android.server.telecom.R;
+import com.android.server.telecom.TelecomResourceId;
 
 import org.junit.After;
 import org.junit.Before;
@@ -42,6 +47,7 @@ public class DtmfLocalTonePlayerTest extends TelecomTestCase {
     private static final int CUSTOM_VOLUME = 120;
     @Mock DtmfLocalTonePlayer.ToneGeneratorProxy mToneProxy;
     @Mock Call mCall;
+    @Mock Resources mResources;
 
     DtmfLocalTonePlayer mPlayer;
 
@@ -50,6 +56,10 @@ public class DtmfLocalTonePlayerTest extends TelecomTestCase {
     public void setUp() throws Exception {
         super.setUp();
         mContext = mComponentContextFixture.getTestDouble().getApplicationContext();
+        TelecomResourceId.setTelecomContext(mContext);
+        when(mContext.getResources()).thenReturn(mResources);
+        when(mResources.getIdentifier(anyString(), anyString(), anyString())).thenReturn(1);
+
         mPlayer = new DtmfLocalTonePlayer(mToneProxy, mFeatureFlags);
         when(mCall.getContext()).thenReturn(mContext);
     }
@@ -57,13 +67,14 @@ public class DtmfLocalTonePlayerTest extends TelecomTestCase {
     @Override
     @After
     public void tearDown() throws Exception {
+        TelecomResourceId.setTelecomContext(null);
         super.tearDown();
     }
 
     @SmallTest
     @Test
     public void testSupportedStart() {
-        when(mContext.getResources().getBoolean(R.bool.allow_local_dtmf_tones)).thenReturn(true);
+        when(mResources.getBoolean(1)).thenReturn(true);
         when(mToneProxy.isPresent()).thenReturn(true);
         mPlayer.onForegroundCallChanged(null, mCall);
         waitForHandlerAction(mPlayer.getHandler(), TIMEOUT);
@@ -73,10 +84,9 @@ public class DtmfLocalTonePlayerTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testSupportedStartWithCustomVolume() {
-        when(mContext.getResources().getBoolean(R.bool.allow_local_dtmf_tones)).thenReturn(true);
+        when(mResources.getBoolean(1)).thenReturn(true);
         when(mToneProxy.isPresent()).thenReturn(true);
-        when(mContext.getResources().getInteger(R.integer.config_dtmf_tone_volume))
-                .thenReturn(CUSTOM_VOLUME);
+        when(mResources.getInteger(1)).thenReturn(CUSTOM_VOLUME);
 
         DtmfLocalTonePlayer playerWithCustomVolume =
                 new DtmfLocalTonePlayer(mToneProxy, CUSTOM_VOLUME, mFeatureFlags);
@@ -91,7 +101,7 @@ public class DtmfLocalTonePlayerTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testUnsupportedStart() {
-        when(mContext.getResources().getBoolean(R.bool.allow_local_dtmf_tones)).thenReturn(false);
+        when(mResources.getBoolean(1)).thenReturn(false);
         when(mToneProxy.isPresent()).thenReturn(true);
         mPlayer.onForegroundCallChanged(null, mCall);
         waitForHandlerAction(mPlayer.getHandler(), TIMEOUT);
@@ -101,7 +111,7 @@ public class DtmfLocalTonePlayerTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testPlayToneWhenUninitialized() {
-        when(mContext.getResources().getBoolean(R.bool.allow_local_dtmf_tones)).thenReturn(false);
+        when(mResources.getBoolean(1)).thenReturn(false);
         when(mToneProxy.isPresent()).thenReturn(false);
         mPlayer.onForegroundCallChanged(null, mCall);
         mPlayer.playTone(mCall, '9');
@@ -112,7 +122,7 @@ public class DtmfLocalTonePlayerTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testPlayToneWhenInitialized() {
-        when(mContext.getResources().getBoolean(R.bool.allow_local_dtmf_tones)).thenReturn(true);
+        when(mResources.getBoolean(1)).thenReturn(true);
         when(mToneProxy.isPresent()).thenReturn(true);
         mPlayer.onForegroundCallChanged(null, mCall);
         mPlayer.playTone(mCall, '9');
@@ -123,7 +133,7 @@ public class DtmfLocalTonePlayerTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testStopToneWhenUninitialized() {
-        when(mContext.getResources().getBoolean(R.bool.allow_local_dtmf_tones)).thenReturn(false);
+        when(mResources.getBoolean(1)).thenReturn(false);
         when(mToneProxy.isPresent()).thenReturn(false);
         mPlayer.onForegroundCallChanged(null, mCall);
         mPlayer.stopTone(mCall);
@@ -134,7 +144,7 @@ public class DtmfLocalTonePlayerTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testStopToneWhenInitialized() {
-        when(mContext.getResources().getBoolean(R.bool.allow_local_dtmf_tones)).thenReturn(true);
+        when(mResources.getBoolean(1)).thenReturn(true);
         when(mToneProxy.isPresent()).thenReturn(true);
         mPlayer.onForegroundCallChanged(null, mCall);
         mPlayer.stopTone(mCall);
@@ -145,7 +155,7 @@ public class DtmfLocalTonePlayerTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testProperTeardown() {
-        when(mContext.getResources().getBoolean(R.bool.allow_local_dtmf_tones)).thenReturn(true);
+        when(mResources.getBoolean(1)).thenReturn(true);
         when(mToneProxy.isPresent()).thenReturn(true);
         mPlayer.onForegroundCallChanged(null, mCall);
         mPlayer.onForegroundCallChanged(mCall, null);

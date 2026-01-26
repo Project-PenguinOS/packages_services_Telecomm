@@ -40,6 +40,7 @@ import static org.junit.Assert.assertFalse;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.Resources;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.OutcomeReceiver;
@@ -64,6 +65,7 @@ import com.android.server.telecom.ClockProxy;
 import com.android.server.telecom.ConnectionServiceFocusManager;
 import com.android.server.telecom.MmiUtils;
 import com.android.server.telecom.PhoneAccountRegistrar;
+import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.Timeouts;
 import com.android.server.telecom.callsequencing.CallSequencingController;
 import com.android.server.telecom.callsequencing.CallTransaction;
@@ -98,8 +100,7 @@ public class CallSequencingTests extends TelecomTestCase {
     private static final String NEW_CALL_ID = "TC@2";
 
     private CallSequencingController mController;
-    @Mock
-    private CallsManager mCallsManager;
+    @Mock CallsManager mCallsManager;
     @Mock Context mContext;
     @Mock ClockProxy mClockProxy;
     @Mock AnomalyReporterAdapter mAnomalyReporter;
@@ -112,11 +113,14 @@ public class CallSequencingTests extends TelecomTestCase {
     @Mock Call mHeldCall;
     @Mock Call mNewCall;
     @Mock Call mRingingCall;
+    @Mock Resources mResources;
 
     @Override
     @Before
     public void setUp() throws Exception {
         super.setUp();
+        when(mContext.getResources()).thenReturn(mResources);
+        TelecomResourceId.setTelecomContext(mContext);
         mController = new CallSequencingController(mCallsManager, mContext, mClockProxy,
                 mAnomalyReporter, mTimeoutsAdapter, mMetricsController, mMmiUtils, mFeatureFlags);
 
@@ -131,6 +135,7 @@ public class CallSequencingTests extends TelecomTestCase {
     @Override
     @After
     public void tearDown() throws Exception {
+        TelecomResourceId.setTelecomContext(null);
         super.tearDown();
     }
 

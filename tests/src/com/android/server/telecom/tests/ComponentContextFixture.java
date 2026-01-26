@@ -493,6 +493,12 @@ public class ComponentContextFixture implements TestFixture<Context> {
         }
 
         @Override
+        public Context createPackageContext(String packageName, int flags)
+                throws PackageManager.NameNotFoundException {
+            return this;
+        }
+
+        @Override
         public Context createPackageContextAsUser(String packageName, int flags, UserHandle user)
                 throws PackageManager.NameNotFoundException {
             return this;
@@ -693,6 +699,7 @@ public class ComponentContextFixture implements TestFixture<Context> {
         when(mResources.getConfiguration()).thenReturn(mResourceConfiguration);
         when(mResources.getString(anyInt())).thenReturn("");
         when(mResources.getStringArray(anyInt())).thenReturn(new String[0]);
+        doReturn(0).when(mResources).getIdentifier(anyString(), anyString(), anyString());
         when(mResources.newTheme()).thenReturn(mResourcesTheme);
         when(mResources.getDisplayMetrics()).thenReturn(mDisplayMetrics);
         mDisplayMetrics.density = 3.125f;

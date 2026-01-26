@@ -113,6 +113,7 @@ import com.android.server.telecom.PhoneAccountRegistrar;
 import com.android.server.telecom.R;
 import com.android.server.telecom.RoleManagerAdapter;
 import com.android.server.telecom.SystemStateHelper;
+import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.TelecomSystem;
 import com.android.server.telecom.Timeouts;
 import com.android.server.telecom.flags.FeatureFlags;
@@ -225,6 +226,25 @@ public class InCallControllerTests extends TelecomTestCase {
     public void setUp() throws Exception {
         super.setUp();
         MockitoAnnotations.initMocks(this);
+        TelecomResourceId.setTelecomContext(mMockContext);
+        when(mMockContext.getPackageName()).thenReturn("com.android.server.telecom.tests");
+
+        // Default to ID 1 for everything
+        doReturn(1).when(mMockResources).getIdentifier(any(), any(), any());
+
+        // Specific ID for grant_location_permission_enabled
+        doReturn(100).when(mMockResources).getIdentifier(eq("grant_location_permission_enabled"),
+                any(), any());
+
+        // Default boolean false, specific true
+        doReturn(false).when(mMockResources).getBoolean(anyInt());
+        doReturn(true).when(mMockResources).getBoolean(eq(100));
+
+        // Strings always return mock string
+        doReturn("Mock String").when(mMockResources).getString(anyInt());
+        doReturn("Mock String").when(mMockContext).getString(anyInt());
+        doReturn("Mock Text").when(mMockResources).getText(anyInt());
+
         when(mMockCall.getAnalytics()).thenReturn(new Analytics.CallInfo());
         when(mMockCall.getAssociatedUser()).thenReturn(mUserHandle);
         when(mMockCall.getId()).thenReturn("TC@1");
@@ -347,6 +367,7 @@ public class InCallControllerTests extends TelecomTestCase {
     @Override
     @After
     public void tearDown() throws Exception {
+        TelecomResourceId.setTelecomContext(null);
         mInCallController.getHandler().removeCallbacksAndMessages(null);
         waitForHandlerAction(mInCallController.getHandler(), 1000);
         super.tearDown();
@@ -804,6 +825,11 @@ public class InCallControllerTests extends TelecomTestCase {
         // Emulate a crash in the system dialer; we'll use the captured service connection to signal
         // to InCallController that the dialer died.
         ServiceConnection serviceConnection = serviceConnectionCaptor.getValue();
+        serviceConnection.onServiceConnected(bindIntent.getComponent(), mock(IBinder.class));
+
+        verify(mMockPackageManager).grantRuntimePermission(eq(SYS_PKG),
+                eq(Manifest.permission.ACCESS_FINE_LOCATION), eq(mUserHandle));
+
         serviceConnection.onServiceDisconnected(bindIntent.getComponent());
 
         // We expect that the permission is revoked at this point.
@@ -2053,16 +2079,18 @@ public class InCallControllerTests extends TelecomTestCase {
 
         // Verify binding
         ArgumentCaptor<Intent> bindIntentCaptor = ArgumentCaptor.forClass(Intent.class);
-        verify(mMockContext)
+        verify(mMockContext, times(2))
                 .bindServiceAsUser(
                         bindIntentCaptor.capture(),
                         any(ServiceConnection.class),
                         anyInt(),
                         any(UserHandle.class));
-        assertEquals(1, bindIntentCaptor.getAllValues().size());
+        assertEquals(2, bindIntentCaptor.getAllValues().size());
 
+        // Should have bound to the system dialer
+        verifyBinding(bindIntentCaptor, 0, SYS_PKG, SYS_CLASS);
         // Should have bound to the third party non ui app.
-        verifyBinding(bindIntentCaptor, 0, NONUI_PKG, NONUI_CLASS);
+        verifyBinding(bindIntentCaptor, 1, NONUI_PKG, NONUI_CLASS);
 
         // Verify notification is not sent by NotificationManager
         verify(mNotificationManager, times(0)).notify(

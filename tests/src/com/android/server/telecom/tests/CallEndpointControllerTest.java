@@ -31,6 +31,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.bluetooth.BluetoothDevice;
+import android.content.res.Resources;
 import android.os.ResultReceiver;
 import android.telecom.CallAudioState;
 import android.telecom.CallEndpoint;
@@ -41,6 +42,7 @@ import com.android.server.telecom.CallAudioManager;
 import com.android.server.telecom.CallEndpointController;
 import com.android.server.telecom.CallsManager;
 import com.android.server.telecom.ConnectionServiceWrapper;
+import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.flags.FeatureFlags;
 
 import org.junit.Before;
@@ -96,12 +98,15 @@ public class CallEndpointControllerTest extends TelecomTestCase {
     @Mock private ConnectionServiceWrapper mConnectionService;
     @Mock private CallAudioManager mCallAudioManager;
     @Mock private MockContext mMockContext;
+    @Mock private Resources mResources;
     @Mock private ResultReceiver mResultReceiver;
 
     @Override
     @Before
     public void setUp() throws Exception {
         super.setUp();
+        when(mMockContext.getResources()).thenReturn(mResources);
+        TelecomResourceId.setTelecomContext(mMockContext);
         mCallEndpointController = new CallEndpointController(
                 mMockContext,
                 mCallsManager,
@@ -122,6 +127,7 @@ public class CallEndpointControllerTest extends TelecomTestCase {
     @Override
     @After
     public void tearDown() throws Exception {
+        TelecomResourceId.setTelecomContext(null);
         super.tearDown();
     }
 
