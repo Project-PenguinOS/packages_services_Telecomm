@@ -201,10 +201,12 @@ public class SystemStateHelper implements UiModeManager.OnProjectionStateChanged
         CountDownLatch gravLatch = new CountDownLatch(1);
         CountDownLatch proxLatch = new CountDownLatch(1);
 
-        final double xyGravityThreshold = context.getResources().getFloat(
-                R.dimen.device_on_ear_xy_gravity_threshold);
-        final double yGravityNegativeThreshold = context.getResources().getFloat(
-                R.dimen.device_on_ear_y_gravity_negative_threshold);
+        final double xyGravityThreshold = TelecomResourceId.getResources(context).getFloat(
+                TelecomResourceId.getIdentifier(context,
+                        "device_on_ear_xy_gravity_threshold", "dimen"));
+        final double yGravityNegativeThreshold = TelecomResourceId.getResources(context).getFloat(
+                TelecomResourceId.getIdentifier(context,
+                        "device_on_ear_y_gravity_negative_threshold", "dimen"));
 
         SensorEventListener listener = new SensorEventListener() {
             @Override

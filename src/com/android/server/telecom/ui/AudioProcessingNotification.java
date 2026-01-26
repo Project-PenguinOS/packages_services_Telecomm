@@ -24,7 +24,7 @@ import android.telecom.Log;
 import com.android.server.telecom.Call;
 import com.android.server.telecom.CallState;
 import com.android.server.telecom.CallsManagerListenerBase;
-import com.android.server.telecom.R;
+import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.UserUtil;
 import com.android.server.telecom.flags.FeatureFlags;
 
@@ -85,13 +85,14 @@ public class AudioProcessingNotification extends CallsManagerListenerBase {
 
         Notification.Builder builder = new Notification.Builder(mContext,
                 NotificationChannelManager.CHANNEL_ID_AUDIO_PROCESSING);
-        builder.setSmallIcon(R.drawable.ic_phone)
-                .setColor(mContext.getResources().getColor(R.color.theme_color))
-                .setContentTitle(mContext.getText(R.string.notification_audioProcessing_title))
+        builder.setSmallIcon(TelecomResourceId.getIdentifier(mContext, "ic_phone", "drawable"))
+                .setColor(TelecomResourceId.getResources(mContext).getColor(
+                        TelecomResourceId.getIdentifier(mContext, "theme_color", "color")))
+                .setContentTitle(TelecomResourceId.getText(mContext,
+                        "notification_audioProcessing_title"))
                 .setStyle(new Notification.BigTextStyle()
-                        .bigText(mContext.getString(
-                                R.string.notification_audioProcessing_body,
-                                call.getAudioProcessingRequestingApp())))
+                .bigText(TelecomResourceId.getString(mContext,"notification_audioProcessing_body",
+                        call.getAudioProcessingRequestingApp())))
                 .setOngoing(true);
 
         Notification notification = builder.build();

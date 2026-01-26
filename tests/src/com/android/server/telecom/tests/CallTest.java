@@ -24,6 +24,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
@@ -74,6 +75,7 @@ import com.android.server.telecom.ConnectionServiceWrapper;
 import com.android.server.telecom.EmergencyCallHelper;
 import com.android.server.telecom.PhoneAccountRegistrar;
 import com.android.server.telecom.PhoneNumberUtilsAdapter;
+import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.TelecomSystem;
 import com.android.server.telecom.TransactionalServiceWrapper;
 import com.android.server.telecom.ui.ToastFactory;
@@ -119,12 +121,15 @@ public class CallTest extends TelecomTestCase {
     @Mock private PhoneNumberUtilsAdapter mMockPhoneNumberUtilsAdapter;
     @Mock private ConnectionServiceWrapper mMockConnectionService;
     @Mock private TransactionalServiceWrapper mMockTransactionalService;
+    @Mock private Resources mMockResources;
 
     private final TelecomSystem.SyncRoot mLock = new TelecomSystem.SyncRoot() { };
 
     @Before
     public void setUp() throws Exception {
         super.setUp();
+        when(mContext.getResources()).thenReturn(mMockResources);
+        TelecomResourceId.setTelecomContext(mContext);
         doReturn(mMockCallerInfoLookupHelper).when(mMockCallsManager).getCallerInfoLookupHelper();
         doReturn(mMockPhoneAccountRegistrar).when(mMockCallsManager).getPhoneAccountRegistrar();
         doReturn(0L).when(mMockClockProxy).elapsedRealtime();
@@ -133,17 +138,24 @@ public class CallTest extends TelecomTestCase {
         doReturn(new ComponentName(mContext, CallTest.class))
                 .when(mMockConnectionService).getComponentName();
         doReturn(UserHandle.CURRENT).when(mMockCallsManager).getCurrentUserHandle();
-        Resources mockResources = mContext.getResources();
-        when(mockResources.getBoolean(R.bool.skip_loading_canned_text_response))
+        when(mMockResources.getBoolean(R.bool.skip_loading_canned_text_response))
                 .thenReturn(false);
-        when(mockResources.getString(R.string.skip_incoming_caller_info_account_package))
+        when(mMockResources.getString(R.string.skip_incoming_caller_info_account_package))
                 .thenReturn("");
+        when(mMockResources.getIdentifier(eq("skip_incoming_caller_info_account_package"),
+                eq("string"), anyString()))
+                .thenReturn(R.string.skip_incoming_caller_info_account_package);
+        when(mMockResources.getIdentifier(eq("skip_loading_canned_text_response"),
+                eq("bool"), anyString()))
+                .thenReturn(R.bool.skip_loading_canned_text_response);
+
         EmergencyCallHelper helper = mock(EmergencyCallHelper.class);
         doReturn(helper).when(mMockCallsManager).getEmergencyCallHelper();
     }
 
     @After
     public void tearDown() throws Exception {
+        TelecomResourceId.setTelecomContext(null);
         super.tearDown();
     }
 
@@ -799,8 +811,7 @@ public class CallTest extends TelecomTestCase {
     @Test
     @SmallTest
     public void testGetFromCallerInfo_skipLookup() {
-        Resources mockResources = mContext.getResources();
-        when(mockResources.getString(R.string.skip_incoming_caller_info_account_package))
+        when(mMockResources.getString(R.string.skip_incoming_caller_info_account_package))
                 .thenReturn("com.foo");
 
         createCall("1");
@@ -1194,8 +1205,7 @@ public class CallTest extends TelecomTestCase {
     @SmallTest
     public void testSkipLoadingCannedTextResponse() {
         Call call = createCall("any");
-        Resources mockResources = mContext.getResources();
-        when(mockResources.getBoolean(R.bool.skip_loading_canned_text_response))
+        when(mMockResources.getBoolean(R.bool.skip_loading_canned_text_response))
                 .thenReturn(true);
 
 

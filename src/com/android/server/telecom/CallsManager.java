@@ -784,8 +784,7 @@ public class CallsManager extends Call.ListenerBase
                 }, clockProxy, mAudioCallbackHandler,
                 featureFlags.telecomMetricsSupport() ? metricsController : null);
 
-        int volume = mContext.getResources().getInteger(
-                R.integer.config_dtmf_tone_volume);
+        int volume = TelecomResourceId.getInteger(mContext, "config_dtmf_tone_volume");
         mDtmfLocalTonePlayer = new DtmfLocalTonePlayer(
                 new DtmfLocalTonePlayer.ToneGeneratorProxy(), volume, featureFlags);
         mCallAudioRouteAdapter = audioRouteControllerFactory.create(context, this,
@@ -805,8 +804,13 @@ public class CallsManager extends Call.ListenerBase
         InCallTonePlayer.MediaPlayerFactory mediaPlayerFactory = (resourceId, attributes) -> {
           MediaPlayer mediaPlayer;
           try {
-            mediaPlayer = MediaPlayer.create(
-                mContext, resourceId, attributes, audioManager.generateAudioSessionId());
+            if (resourceId != InCallTonePlayer.TONE_INVALID) {
+                mediaPlayer = MediaPlayer.create(
+                        TelecomResourceId.getTelecomContext(mContext), resourceId, attributes,
+                        audioManager.generateAudioSessionId());
+            } else {
+                mediaPlayer = null;
+            }
           } catch (IllegalStateException e) {
             Log.e(TAG, e, "Failed to create mediaplayer");
             mediaPlayer = null;
@@ -816,7 +820,7 @@ public class CallsManager extends Call.ListenerBase
         InCallTonePlayer.Factory playerFactory = new InCallTonePlayer.Factory(lock,
                 toneGeneratorFactory, mediaPlayerFactory,
                 () -> audioManager.getStreamVolume(AudioManager.STREAM_RING) > 0, featureFlags,
-                Looper.getMainLooper());
+                Looper.getMainLooper(), mContext);
 
         SystemSettingsUtil systemSettingsUtil = new SystemSettingsUtil();
         RingtoneFactory ringtoneFactory = new RingtoneFactory(this, context, featureFlags);
@@ -937,8 +941,7 @@ public class CallsManager extends Call.ListenerBase
                     mContext,
                     scheduledExecutorService,
                     mLock,
-                    mContext.getResources().getString(
-                            com.android.server.telecom.R.string.local_voicemail_package_name));
+                    TelecomResourceId.getString(mContext, "local_voicemail_package_name"));
             mLocalVoicemailNotification = new LocalVoicemailNotification(mContext,
                     (packageName, userHandle) -> AppLabelProxy.Util.getAppLabel(mContext,
                     userHandle, packageName, mFeatureFlags), asyncTaskExecutor,
@@ -1348,8 +1351,8 @@ public class CallsManager extends Call.ListenerBase
      * that the incoming call is from a different source (connection service).
      */
     private boolean shouldSilenceInsteadOfReject(Call incomingCall) {
-        if (!mContext.getResources().getBoolean(
-                R.bool.silence_incoming_when_different_service_and_maximum_ringing)) {
+        if (!TelecomResourceId.getBoolean(mContext,
+                "silence_incoming_when_different_service_and_maximum_ringing")) {
             return false;
         }
 
@@ -2444,7 +2447,8 @@ public class CallsManager extends Call.ListenerBase
                         finalCall.setStartFailCause(CallFailureCause.IN_EMERGENCY_CALL);
                         // Show an error message when dialing a MMI code during an emergency call.
                         if (mMmiUtils.isPotentialMMICode(handle)) {
-                            showErrorMessage(mContext.getString(R.string.emergencyCall_reject_mmi));
+                            showErrorMessage(TelecomResourceId.getString(mContext,
+                                    "emergencyCall_reject_mmi"));
                         }
                         return CompletableFuture.completedFuture(false);
                     }
@@ -2551,8 +2555,8 @@ public class CallsManager extends Call.ListenerBase
 
                                 Log.i(CallsManager.this, "Aborting call since there are no"
                                         + " available accounts.");
-                                showErrorMessage(mContext.getString(
-                                        R.string.cant_call_due_to_no_supported_service));
+                                showErrorMessage(TelecomResourceId.getString(mContext,
+                                        "cant_call_due_to_no_supported_service"));
                                 mListeners.forEach(l -> l.onCreateConnectionFailed(callToPlace));
                                 if (callToPlace.isEmergencyCall()) {
                                     if (mFeatureFlags.telecomMetricsSupport()) {
@@ -2811,7 +2815,8 @@ public class CallsManager extends Call.ListenerBase
                         finalCall.setStartFailCause(CallFailureCause.IN_EMERGENCY_CALL);
                         // Show an error message when dialing a MMI code during an emergency call.
                         if (mMmiUtils.isPotentialMMICode(handle)) {
-                            showErrorMessage(mContext.getString(R.string.emergencyCall_reject_mmi));
+                            showErrorMessage(TelecomResourceId.getString(mContext,
+                                    "emergencyCall_reject_mmi"));
                         }
                         return CompletableFuture.completedFuture(null);
                     }
@@ -2859,8 +2864,8 @@ public class CallsManager extends Call.ListenerBase
 
                                 Log.i(CallsManager.this, "Aborting call since there are no"
                                         + " available accounts.");
-                                showErrorMessage(mContext.getString(
-                                        R.string.cant_call_due_to_no_supported_service));
+                                showErrorMessage(TelecomResourceId.getString(mContext,
+                                        "cant_call_due_to_no_supported_service"));
                                 mListeners.forEach(l -> l.onCreateConnectionFailed(callToPlace));
                                 if (callToPlace.isEmergencyCall()) {
                                     if (mFeatureFlags.telecomMetricsSupport()) {
@@ -3704,9 +3709,11 @@ public class CallsManager extends Call.ListenerBase
     private void showRedirectionDialog(@NonNull String callId, @NonNull CharSequence appName) {
         AlertDialog confirmDialog = (new AlertDialog.Builder(mContext)).create();
         LayoutInflater layoutInflater = mContext.getSystemService(LayoutInflater.class);
-        View dialogView = layoutInflater.inflate(R.layout.call_redirection_confirm_dialog, null);
+        View dialogView = layoutInflater.inflate(TelecomResourceId.getIdentifier(mContext,
+                "call_redirection_confirm_dialog", "layout"), null);
 
-        Button buttonFirstLine = (Button) dialogView.findViewById(R.id.buttonFirstLine);
+        Button buttonFirstLine = (Button) dialogView.findViewById(
+                TelecomResourceId.getIdentifier(mContext, "buttonFirstLine", "id"));
         buttonFirstLine.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -3722,9 +3729,12 @@ public class CallsManager extends Call.ListenerBase
             }
         });
 
-        Button buttonSecondLine = (Button) dialogView.findViewById(R.id.buttonSecondLine);
+        Button buttonSecondLine = (Button)
+                dialogView.findViewById(TelecomResourceId.getIdentifier(mContext,
+                        "buttonSecondLine", "id"));
         buttonSecondLine.setText(mContext.getString(
-                R.string.alert_place_outgoing_call_with_redirection, appName));
+                TelecomResourceId.getIdentifier(mContext,
+                        "alert_place_outgoing_call_with_redirection", "string"), appName));
         buttonSecondLine.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -3740,7 +3750,9 @@ public class CallsManager extends Call.ListenerBase
             }
         });
 
-        Button buttonThirdLine = (Button) dialogView.findViewById(R.id.buttonThirdLine);
+        Button buttonThirdLine = (Button)
+                 dialogView.findViewById(TelecomResourceId.getIdentifier(mContext,
+                         "buttonThirdLine", "id"));
         buttonThirdLine.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 cancelRedirection(callId);
@@ -3862,8 +3874,8 @@ public class CallsManager extends Call.ListenerBase
         call.setHandle(uriHandle);
         call.setGatewayInfo(gatewayInfo);
 
-        final boolean useSpeakerWhenDocked = mContext.getResources().getBoolean(
-                R.bool.use_speaker_when_docked);
+        final boolean useSpeakerWhenDocked = TelecomResourceId.getBoolean(mContext,
+                "use_speaker_when_docked");
         final boolean useSpeakerForDock = isSpeakerphoneEnabledForDock();
         final boolean useSpeakerForVideoCall = isSpeakerphoneAutoEnabledForVideoCalls(videoState);
 
@@ -5193,10 +5205,12 @@ public class CallsManager extends Call.ListenerBase
         CharSequence errorMessage;
         if (activeCall == null) {
             // Realistically this shouldn't happen, but best to handle gracefully
-            errorMessage = mContext.getText(R.string.cant_call_due_to_ongoing_unknown_call);
+            errorMessage = TelecomResourceId.getText(mContext,
+                    "cant_call_due_to_ongoing_unknown_call");
         } else {
-            errorMessage = mContext.getString(R.string.cant_call_due_to_ongoing_call,
-                    activeCall.getTargetPhoneAccountLabel());
+            CharSequence appName = activeCall.getTargetPhoneAccountLabel();
+            errorMessage = TelecomResourceId.getString(mContext, "cant_call_due_to_ongoing_call",
+                    appName);
         }
         // Call is managed and there are ongoing self-managed calls.
         markCallAsDisconnected(call, new DisconnectCause(DisconnectCause.ERROR,
@@ -7127,8 +7141,8 @@ public class CallsManager extends Call.ListenerBase
 
         // Auto-enable speakerphone if the originating intent specified to do so, if the call
         // is a video call, of if using speaker when docked
-        final boolean useSpeakerWhenDocked = mContext.getResources().getBoolean(
-                R.bool.use_speaker_when_docked);
+        final boolean useSpeakerWhenDocked = TelecomResourceId.getBoolean(mContext,
+                "use_speaker_when_docked");
         final boolean useSpeakerForDock = isSpeakerphoneEnabledForDock();
         final boolean useSpeakerForVideoCall = isSpeakerphoneAutoEnabledForVideoCalls(videoState);
         call.setStartWithSpeakerphoneOn(false || useSpeakerForVideoCall

@@ -98,6 +98,7 @@ import com.android.server.telecom.Ringer;
 import com.android.server.telecom.RoleManagerAdapter;
 import com.android.server.telecom.StatusBarNotifier;
 import com.android.server.telecom.SystemStateHelper;
+import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.TelecomSystem;
 import com.android.server.telecom.Timeouts;
 import com.android.server.telecom.WiredHeadsetManager;
@@ -376,6 +377,7 @@ public class TelecomSystemTest extends TelecomTestCase{
     public void setUp() throws Exception {
         super.setUp();
         mSpyContext = mComponentContextFixture.getTestDouble().getApplicationContext();
+        TelecomResourceId.setTelecomContext(mSpyContext);
         doReturn(mSpyContext).when(mSpyContext).getApplicationContext();
         doNothing().when(mSpyContext).sendBroadcastAsUser(any(), any(), any());
 
@@ -410,6 +412,7 @@ public class TelecomSystemTest extends TelecomTestCase{
 
     @Override
     public void tearDown() throws Exception {
+        TelecomResourceId.setTelecomContext(null);
         if (mTelecomSystem != null && mTelecomSystem.getCallsManager() != null) {
             mTelecomSystem.getCallsManager().waitOnHandlers();
             LinkedList<HandlerThread> handlerThreads = mTelecomSystem.getCallsManager()
@@ -650,6 +653,10 @@ public class TelecomSystemTest extends TelecomTestCase{
         mComponentContextFixture.putResource(
                 com.android.server.telecom.R.string.incall_default_class,
                 mInCallServiceComponentNameX.getClassName());
+
+        when(mSpyContext.getResources().getIdentifier(eq("incall_default_class"),
+                eq("string"), anyString()))
+                .thenReturn(com.android.server.telecom.R.string.incall_default_class);
 
         mInCallServiceFixtureX = new InCallServiceFixture();
         mInCallServiceFixtureY = new InCallServiceFixture();

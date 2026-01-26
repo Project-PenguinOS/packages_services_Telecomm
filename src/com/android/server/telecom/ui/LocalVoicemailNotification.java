@@ -36,8 +36,8 @@ import com.android.server.telecom.Call;
 import com.android.server.telecom.CallState;
 import com.android.server.telecom.CallsManagerListenerBase;
 import com.android.server.telecom.LocalVoicemailController;
-import com.android.server.telecom.R;
 import com.android.server.telecom.TelecomBroadcastIntentProcessor;
+import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.UserUtil;
 import com.android.server.telecom.components.TelecomBroadcastReceiver;
 import com.android.server.telecom.flags.FeatureFlags;
@@ -136,7 +136,8 @@ public class LocalVoicemailNotification extends CallsManagerListenerBase {
             Icon contactPhotoIcon = null;
             try {
                 // Re-using the same logic for default icon as CallStreamingNotification
-                contactPhotoIcon = Icon.createWithResource(mContext, R.drawable.person_circle);
+                contactPhotoIcon = Icon.createWithResource(mContext,
+                        TelecomResourceId.getIdentifier(mContext, "person_circle", "drawable"));
             } catch (Exception e) {
                 Log.e(this, e, "enqueueVoicemailNotification: Couldn't build avatar icon");
             }
@@ -189,7 +190,8 @@ public class LocalVoicemailNotification extends CallsManagerListenerBase {
             personBuilder.setName(callerName);
         } else {
             // Person builder REQUIRES a name, so use "unknown" presentation.
-            personBuilder.setName(mContext.getString(R.string.phone_settings_unknown_txt));
+            personBuilder.setName(TelecomResourceId.getString(mContext,
+                    "phone_settings_unknown_txt"));
         }
         if (callerAddress != null && PhoneAccount.SCHEME_TEL.equals(callerAddress.getScheme())
                 && callerPresentation == TelecomManager.PRESENTATION_ALLOWED) {
@@ -206,21 +208,22 @@ public class LocalVoicemailNotification extends CallsManagerListenerBase {
         PendingIntent nullPendingIntent = PendingIntent.getBroadcast(mContext, 0, nullIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        CharSequence title = mContext.getString(R.string.notification_local_voicemail_title);
+        CharSequence title = TelecomResourceId.getString(mContext,
+                "notification_local_voicemail_title");
         CharSequence contentText;
         if (TextUtils.isEmpty(callerName) ||
                 callerPresentation != TelecomManager.PRESENTATION_ALLOWED) {
-            contentText = mContext.getString(R.string.notification_local_voicemail_unknown_details,
-                    appName);
+            contentText = TelecomResourceId.getString(mContext,
+                    "notification_local_voicemail_unknown_details", appName);
         } else {
-            contentText = mContext.getString(R.string.notification_local_voicemail_details,
-                    appName, callerName);
+            contentText = TelecomResourceId.getString(mContext,
+                    "notification_local_voicemail_details", appName, callerName);
         }
 
         Notification.Builder builder = new Notification.Builder(mContext,
                 NotificationChannelManager.CHANNEL_ID_AUDIO_PROCESSING)
                 .setStyle(Notification.CallStyle.forOngoingCall(person, hangupPendingIntent))
-                .setSmallIcon(R.drawable.ic_phone)
+                .setSmallIcon(TelecomResourceId.getIdentifier(mContext, "ic_phone", "drawable"))
                 .setContentTitle(title)
                 .setContentText(contentText)
                 .setWhen(connectTimeMillis)

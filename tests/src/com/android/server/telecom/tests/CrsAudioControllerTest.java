@@ -42,7 +42,9 @@ import com.android.server.telecom.CallState;
 import com.android.server.telecom.CallsManager;
 import com.android.server.telecom.CrsAudioController;
 import com.android.server.telecom.RingerAttributes;
+import com.android.server.telecom.TelecomResourceId;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -77,7 +79,11 @@ public class CrsAudioControllerTest extends TelecomTestCase {
     public void setUp() throws Exception {
         super.setUp();
         MockitoAnnotations.initMocks(this);
+        TelecomResourceId.setTelecomContext(mContext);
         when(mContext.getResources()).thenReturn(mResources);
+        when(mResources.getIdentifier(any(), any(), any())).thenReturn(1);
+        when(mResources.getString(1)).thenReturn("dummy_value");
+
         // Mock the executor to run tasks immediately
         doAnswer(invocation -> {
             ((Runnable) invocation.getArgument(0)).run();
@@ -93,6 +99,13 @@ public class CrsAudioControllerTest extends TelecomTestCase {
                 return mTimeoutFuture;
             }
         };
+    }
+
+    @Override
+    @After
+    public void tearDown() throws Exception {
+        TelecomResourceId.setTelecomContext(null);
+        super.tearDown();
     }
 
     @Test // Added @Test annotation to fix [JUnit4TestNotRun]
@@ -272,9 +285,17 @@ public class CrsAudioControllerTest extends TelecomTestCase {
                 eq(AudioManager.ADJUST_MUTE), anyInt());
     }
 
+    private void mockStringResource(String key, String value) {
+        int hashCode = key.hashCode();
+        int id = (hashCode == Integer.MIN_VALUE) ? Integer.MAX_VALUE : Math.abs(hashCode);
+        when(mResources.getIdentifier(eq(key), any(), any())).thenReturn(id);
+        when(mResources.getString(id)).thenReturn(value);
+        when(mContext.getString(id)).thenReturn(value);
+    }
+
     @Test
     public void testSetVolumeLevelForCrsInRingtoneMode() {
-        when(mResources.getString(anyInt())).thenReturn("crs_volume_key");
+        mockStringResource("config_audio_parameter_key_crs_volume", "crs_volume_key");
         mCrsAudioController.setVolumeLevelForCrsInRingtoneMode(5);
         verify(mAudioManager, times(1)).setParameters("crs_volume_key5");
     }
@@ -283,6 +304,7 @@ public class CrsAudioControllerTest extends TelecomTestCase {
     public void testConfigureCrsAudioVolume_ringtoneMode() {
         RingerAttributes ringerAttributes = new RingerAttributes.Builder().setRingToneType(
                 Call.RINGTONE_SOURCE_NETWORK_RING_MODE).build();
+        mockStringResource("config_audio_parameter_key_crs_volume", "crs_volume_key");
         mCrsAudioController.configureCrsRingVolume(ringerAttributes);
         verify(mAudioManager, times(1)).getStreamVolume(AudioManager.STREAM_RING);
     }
@@ -291,14 +313,15 @@ public class CrsAudioControllerTest extends TelecomTestCase {
     public void testResetCrsAudioVolume_ringtoneMode() {
         RingerAttributes ringerAttributes = new RingerAttributes.Builder().setRingToneType(
                 Call.RINGTONE_SOURCE_NETWORK_RING_MODE).build();
+        mockStringResource("config_audio_parameter_key_crs_volume", "crs_volume_key");
         mCrsAudioController.resetCrsAudioVolume(mCall, ringerAttributes);
-        verify(mResources, times(1)).getString(anyInt());
+        verify(mContext, times(1)).getString(anyInt());
     }
 
     @Test
     public void testResetCrsAudioVolume_nullAttributes() {
         mCrsAudioController.resetCrsAudioVolume(mCall, null);
-        verify(mResources, times(0)).getString(anyInt());
+        verify(mContext, times(0)).getString(anyInt());
     }
 
     @Test
@@ -349,27 +372,17 @@ public class CrsAudioControllerTest extends TelecomTestCase {
 
     @Test
     public void testShouldControlCrsWithParameters_True() {
-        when(mResources.getString(
-                com.android.server.telecom.R.string.config_audio_parameter_key_crs_volume)).thenReturn(
-                "");
-        when(mResources.getString(
-                com.android.server.telecom.R.string.config_crs_speech_mute_param)).thenReturn(
-                "mute_param");
+        mockStringResource("config_audio_parameter_key_crs_volume", "");
+        mockStringResource("config_crs_speech_mute_param", "mute_param");
         assertTrue(mCrsAudioController.shouldControlCrsWithParameters());
     }
 
     @Test
     public void testSetAudioModeForCrs_WithParams() {
         // Setup for shouldControlCrsWithParameters = true
-        when(mResources.getString(
-                com.android.server.telecom.R.string.config_audio_parameter_key_crs_volume)).thenReturn(
-                "");
-        when(mResources.getString(
-                com.android.server.telecom.R.string.config_crs_speech_mute_param)).thenReturn(
-                "mute_param");
-        when(mResources.getString(
-                com.android.server.telecom.R.string.config_crs_mode_on_param)).thenReturn(
-                "on_param");
+        mockStringResource("config_audio_parameter_key_crs_volume", "");
+        mockStringResource("config_crs_speech_mute_param", "mute_param");
+        mockStringResource("config_crs_mode_on_param", "on_param");
         mCrsAudioController.setAudioModeForCrs();
 
         verify(mAudioManager).setParameters("on_param");
@@ -378,12 +391,8 @@ public class CrsAudioControllerTest extends TelecomTestCase {
 
     @Test
     public void testSetCrsSpeechMuted() {
-        when(mResources.getString(
-                com.android.server.telecom.R.string.config_crs_speech_mute_param)).thenReturn(
-                "mute_param");
-        when(mResources.getString(
-                com.android.server.telecom.R.string.config_crs_speech_unmute_param)).thenReturn(
-                "unmute_param");
+        mockStringResource("config_crs_speech_mute_param", "mute_param");
+        mockStringResource("config_crs_speech_unmute_param", "unmute_param");
 
         mCrsAudioController.setCrsSpeechMuted(true);
         verify(mAudioManager).setParameters("mute_param");
@@ -394,12 +403,8 @@ public class CrsAudioControllerTest extends TelecomTestCase {
 
     @Test
     public void testSetCrsModeParams() {
-        when(mResources.getString(
-                com.android.server.telecom.R.string.config_crs_mode_on_param)).thenReturn(
-                "on_param");
-        when(mResources.getString(
-                com.android.server.telecom.R.string.config_crs_mode_off_param)).thenReturn(
-                "off_param");
+        mockStringResource("config_crs_mode_on_param", "on_param");
+        mockStringResource("config_crs_mode_off_param", "off_param");
 
         mCrsAudioController.setCrsModeParams(true);
         verify(mAudioManager).setParameters("on_param");
@@ -411,12 +416,8 @@ public class CrsAudioControllerTest extends TelecomTestCase {
     @Test
     public void testSetCrsAudioRoute_WithParams() {
         // Setup for shouldControlCrsWithParameters = true
-        when(mResources.getString(
-                com.android.server.telecom.R.string.config_audio_parameter_key_crs_volume)).thenReturn(
-                "");
-        when(mResources.getString(
-                com.android.server.telecom.R.string.config_crs_speech_mute_param)).thenReturn(
-                "mute_param");
+        mockStringResource("config_audio_parameter_key_crs_volume", "");
+        mockStringResource("config_crs_speech_mute_param", "mute_param");
 
         mCrsAudioController.setCrsAudioRoute(mCallAudioManager);
 

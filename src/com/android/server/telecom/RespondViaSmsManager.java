@@ -23,7 +23,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.content.res.Resources;
 import android.os.Handler;
 import android.telecom.Connection;
 import android.telecom.Log;
@@ -129,7 +128,6 @@ public class RespondViaSmsManager extends CallsManagerListenerBase {
         final SharedPreferences prefs = context.getSharedPreferences(
                 QuickResponseUtils.SHARED_PREFERENCES_NAME,
                 Context.MODE_PRIVATE | Context.MODE_MULTI_PROCESS);
-        final Resources res = context.getResources();
 
         final ArrayList<String> textMessages = new ArrayList<>(
                 QuickResponseUtils.NUM_CANNED_RESPONSES);
@@ -142,13 +140,13 @@ public class RespondViaSmsManager extends CallsManagerListenerBase {
         // Note the default values here must agree with the corresponding
         // android:defaultValue attributes in respond_via_sms_settings.xml.
         textMessages.add(0, prefs.getString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_1,
-                res.getString(R.string.respond_via_sms_canned_response_1)));
+                TelecomResourceId.getString(context, "respond_via_sms_canned_response_1")));
         textMessages.add(1, prefs.getString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_2,
-                res.getString(R.string.respond_via_sms_canned_response_2)));
+                TelecomResourceId.getString(context, "respond_via_sms_canned_response_2")));
         textMessages.add(2, prefs.getString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_3,
-                res.getString(R.string.respond_via_sms_canned_response_3)));
+                TelecomResourceId.getString(context, "respond_via_sms_canned_response_3")));
         textMessages.add(3, prefs.getString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_4,
-                res.getString(R.string.respond_via_sms_canned_response_4)));
+                TelecomResourceId.getString(context, "respond_via_sms_canned_response_4")));
 
         Log.d(RespondViaSmsManager.this,
                 "loadCannedResponses() completed, found responses: %s",
@@ -173,10 +171,9 @@ public class RespondViaSmsManager extends CallsManagerListenerBase {
         // ...and show a brief confirmation to the user (since
         // otherwise it's hard to be sure that anything actually
         // happened.)
-        final Resources res = context.getResources();
-        final String formatString = res.getString(success
-                ? R.string.respond_via_sms_confirmation_format
-                : R.string.respond_via_sms_failure_format);
+        final String formatString = TelecomResourceId.getString(context, success
+                ? "respond_via_sms_confirmation_format"
+                : "respond_via_sms_failure_format");
         final BidiFormatter phoneNumberFormatter = BidiFormatter.getInstance();
         final String confirmationMsg = String.format(formatString,
                 phoneNumberFormatter.unicodeWrap(phoneNumber));

@@ -37,6 +37,7 @@ import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
 
 import com.android.server.telecom.ContactsAsyncHelper;
+import com.android.server.telecom.TelecomResourceId;
 
 import org.junit.After;
 import org.junit.Before;
@@ -95,11 +96,13 @@ public class ContactsAsyncHelperTest extends TelecomTestCase {
     public void setUp() throws Exception {
         super.setUp();
         mContext = InstrumentationRegistry.getTargetContext();
+        TelecomResourceId.setTelecomContext(mContext);
     }
 
     @Override
     @After
     public void tearDown() throws Exception {
+        TelecomResourceId.setTelecomContext(null);
         super.tearDown();
     }
 

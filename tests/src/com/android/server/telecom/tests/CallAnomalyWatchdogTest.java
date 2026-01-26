@@ -43,6 +43,7 @@ import com.android.server.telecom.ConnectionServiceWrapper;
 import com.android.server.telecom.EmergencyCallDiagnosticLogger;
 import com.android.server.telecom.PhoneAccountRegistrar;
 import com.android.server.telecom.PhoneNumberUtilsAdapter;
+import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.TelecomSystem;
 import com.android.server.telecom.Timeouts;
 import com.android.server.telecom.metrics.TelecomMetricsController;
@@ -97,6 +98,7 @@ public class CallAnomalyWatchdogTest extends TelecomTestCase {
     @Before
     public void setUp() throws Exception {
         super.setUp();
+        TelecomResourceId.setTelecomContext(mContext);
         doReturn(mMockCallerInfoLookupHelper).when(mMockCallsManager).getCallerInfoLookupHelper();
         doReturn(mMockPhoneAccountRegistrar).when(mMockCallsManager).getPhoneAccountRegistrar();
         doReturn(SIM_1_ACCOUNT).when(mMockPhoneAccountRegistrar).getPhoneAccountUnchecked(
@@ -133,6 +135,7 @@ public class CallAnomalyWatchdogTest extends TelecomTestCase {
     @Override
     @After
     public void tearDown() throws Exception {
+        TelecomResourceId.setTelecomContext(null);
         super.tearDown();
     }
 

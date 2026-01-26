@@ -1005,9 +1005,9 @@ public class Ringer {
             Context context,
             VibrationEffectProxy vibrationEffectProxy,
             FeatureFlags featureFlags) {
-        Resources resources = context.getResources();
+        Resources resources = TelecomResourceId.getResources(context);
 
-        if (resources.getBoolean(R.bool.use_simple_vibration_pattern)) {
+        if (TelecomResourceId.getBoolean(context, "use_simple_vibration_pattern")) {
             Log.i(TAG, "Using simple default ring vibration.");
             return createSimpleRingVibration(vibrationEffectProxy);
         }

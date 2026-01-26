@@ -16,13 +16,13 @@
 
 package com.android.server.telecom.settings;
 
+import android.annotation.SuppressLint;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.os.PersistableBundle;
-import android.os.UserHandle;
 import android.provider.BlockedNumbersManager;
 import android.telephony.CarrierConfigManager;
 import android.telephony.PhoneNumberUtils;
@@ -32,7 +32,7 @@ import android.text.SpannableString;
 import android.text.TextDirectionHeuristics;
 import android.widget.Toast;
 
-import com.android.server.telecom.R;
+import com.android.server.telecom.flags.Flags;
 import com.android.server.telecom.ui.UiConstants;
 
 import java.util.Locale;
@@ -100,10 +100,10 @@ public final class BlockedNumbersUtil {
                     context, 0, intent, PendingIntent.FLAG_CANCEL_CURRENT
                             | PendingIntent.FLAG_IMMUTABLE);
 
-            String title = context.getString(
-                    R.string.phone_strings_call_blocking_turned_off_notification_title_txt);
-            String message = context.getString(
-                    R.string.phone_strings_call_blocking_turned_off_notification_text_txt);
+            String title = com.android.server.telecom.TelecomResourceId.getString(context,
+                    "phone_strings_call_blocking_turned_off_notification_title_txt");
+            String message = com.android.server.telecom.TelecomResourceId.getString(context,
+                    "phone_strings_call_blocking_turned_off_notification_text_txt");
             Notification.Builder builder = new Notification.Builder(context,
                     CHANNEL_ID_CALL_BLOCKING);
             Notification notification = builder.setSmallIcon(android.R.drawable.stat_sys_warning)
@@ -150,8 +150,15 @@ public final class BlockedNumbersUtil {
      * @return If {@code true} means the key enabled in the SharedPreferences,
      *            {@code false} otherwise.
      */
+    // TODO: b/478043076 - Remove SuppressLint once the BlockedNumbersManager API is finalized
+    // and update the SDK check to the final version number.
+    @SuppressLint("NewApi")
     public static boolean getBlockedNumberSetting(Context context, String key) {
-        return context.getSystemService(BlockedNumbersManager.class).getBlockedNumberSetting(key);
+        if (Flags.telecomMainlineBlockedNumbersManager()) {
+            return context.getSystemService(BlockedNumbersManager.class)
+                    .getBlockedNumberSetting(key);
+        }
+        return false;
     }
 
     /**
@@ -161,8 +168,13 @@ public final class BlockedNumbersUtil {
      * @param key preference key of SharedPreferences.
      * @param value the register value to the SharedPreferences.
      */
+    // TODO: b/478043076 - Remove SuppressLint once the BlockedNumbersManager API is finalized
+    // and update the SDK check to the final version number.
+    @SuppressLint("NewApi")
     public static void setBlockedNumberSetting(Context context, String key, boolean value) {
-        context.getSystemService(BlockedNumbersManager.class).setBlockedNumberSetting(key, value);
-
+        if (Flags.telecomMainlineBlockedNumbersManager()) {
+            context.getSystemService(BlockedNumbersManager.class)
+                    .setBlockedNumberSetting(key, value);
+        }
     }
 }

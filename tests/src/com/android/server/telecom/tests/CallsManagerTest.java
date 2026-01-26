@@ -139,6 +139,7 @@ import com.android.server.telecom.ProximitySensorManagerFactory;
 import com.android.server.telecom.Ringer;
 import com.android.server.telecom.RoleManagerAdapter;
 import com.android.server.telecom.SystemStateHelper;
+import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.TelecomSystem;
 import com.android.server.telecom.Timeouts;
 import com.android.server.telecom.WiredHeadsetManager;
@@ -181,6 +182,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import android.content.res.Resources;
 
 @RunWith(JUnit4.class)
 public class CallsManagerTest extends TelecomTestCase {
@@ -345,6 +347,7 @@ public class CallsManagerTest extends TelecomTestCase {
     @Mock private TelecomMetricsController mMockTelecomMetricsController;
     @Mock private Ringer.VibratorAdapter mMockVibratorAdapter;
     @Mock private LowBatteryAlertListener mLowBatteryAlertListener;
+    @Mock private Resources mMockResources;
     private CallsManager mCallsManager;
     private TestScheduledExecutorService mTestScheduledExecutorService;
 
@@ -353,6 +356,18 @@ public class CallsManagerTest extends TelecomTestCase {
     public void setUp() throws Exception {
         super.setUp();
         MockitoAnnotations.initMocks(this);
+        TelecomResourceId.setTelecomContext(mComponentContextFixture.getTestDouble()
+                .getApplicationContext());
+        when(mComponentContextFixture.getTestDouble().getApplicationContext().getResources())
+                .thenReturn(mMockResources);
+        when(mMockResources.getString(anyInt())).thenReturn("");
+        when(mMockResources.getString(eq(com.android.server.telecom.R.string
+                .skip_incoming_caller_info_account_package)))
+                .thenReturn("");
+        when(mMockResources.getIdentifier(eq("skip_incoming_caller_info_account_package"),
+                eq("string"), anyString()))
+                .thenReturn(com.android.server.telecom.R.string
+                        .skip_incoming_caller_info_account_package);
         when(mInCallWakeLockControllerFactory.create(any(), any())).thenReturn(
                 mInCallWakeLockController);
         when(mHeadsetMediaButtonFactory.create(any(), any(), any())).thenReturn(
@@ -468,6 +483,7 @@ public class CallsManagerTest extends TelecomTestCase {
     @Override
     @After
     public void tearDown() throws Exception {
+        TelecomResourceId.setTelecomContext(null);
         mComponentContextFixture.removeConnectionService(
                 SIM_1_ACCOUNT.getAccountHandle().getComponentName(), mIConnectionService);
         super.tearDown();

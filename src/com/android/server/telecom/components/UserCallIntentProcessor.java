@@ -35,7 +35,7 @@ import android.telecom.VideoProfile;
 import android.telephony.PhoneNumberUtils;
 
 import com.android.server.telecom.CallIntentProcessor;
-import com.android.server.telecom.R;
+import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.TelecomSystem;
 import com.android.server.telecom.TelephonyUtil;
 import com.android.server.telecom.UserUtil;
@@ -119,8 +119,9 @@ public class UserCallIntentProcessor {
                 !TelephonyUtil.shouldProcessAsEmergency(mContext, handle)) {
             String reason = android.Manifest.permission.CALL_PHONE + " permission is not granted.";
             UserUtil.showErrorDialogForRestrictedOutgoingCall(mContext,
-                    mContext.getString(R.string.outgoing_call_not_allowed_no_permission),
-                    this.getClass().getCanonicalName(), reason);
+                    TelecomResourceId.getString(mContext,
+                            "outgoing_call_not_allowed_no_permission"),
+                            this.getClass().getCanonicalName(), reason);
             return;
         }
 

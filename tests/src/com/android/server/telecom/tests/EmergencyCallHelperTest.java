@@ -22,6 +22,7 @@ import static android.Manifest.permission.ACCESS_FINE_LOCATION;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doThrow;
@@ -34,6 +35,7 @@ import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.content.res.Resources;
 import android.os.UserHandle;
 import android.telecom.PhoneAccountHandle;
 
@@ -42,6 +44,8 @@ import androidx.test.filters.SmallTest;
 import com.android.server.telecom.Call;
 import com.android.server.telecom.DefaultDialerCache;
 import com.android.server.telecom.EmergencyCallHelper;
+import com.android.server.telecom.R;
+import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.Timeouts;
 import com.android.server.telecom.flags.FeatureFlags;
 
@@ -68,6 +72,7 @@ public class EmergencyCallHelperTest extends TelecomTestCase {
   @Mock
   private Call mCall;
   @Mock private PhoneAccountHandle mPhoneAccountHandle;
+  @Mock private Resources mResources;
 
   @Override
   @Before
@@ -75,7 +80,14 @@ public class EmergencyCallHelperTest extends TelecomTestCase {
     super.setUp();
     MockitoAnnotations.initMocks(this);
     mContext = mComponentContextFixture.getTestDouble().getApplicationContext();
+    TelecomResourceId.setTelecomContext(mContext);
+    when(mContext.getResources()).thenReturn(mResources);
     when(mContext.getPackageManager()).thenReturn(mPackageManager);
+
+    // Mock getIdentifier for grant_location_permission_enabled
+    when(mResources.getIdentifier(eq("grant_location_permission_enabled"), eq("bool"), anyString()))
+            .thenReturn(R.bool.grant_location_permission_enabled);
+
     mEmergencyCallHelper = new EmergencyCallHelper(mContext, mDefaultDialerCache,
         mTimeoutsAdapter, mFeatureFlags);
     when(mDefaultDialerCache.getSystemDialerApplication()).thenReturn(SYSTEM_DIALER_PACKAGE);
@@ -90,7 +102,7 @@ public class EmergencyCallHelperTest extends TelecomTestCase {
         PackageManager.PERMISSION_DENIED);
 
     when(mCall.isEmergencyCall()).thenReturn(true);
-    when(mContext.getResources().getBoolean(R.bool.grant_location_permission_enabled)).thenReturn(
+    when(mResources.getBoolean(R.bool.grant_location_permission_enabled)).thenReturn(
         true);
     when(mTimeoutsAdapter.getEmergencyCallbackWindowMillis(any(Context.class),
             any(FeatureFlags.class))).thenReturn(5000L);
@@ -99,6 +111,7 @@ public class EmergencyCallHelperTest extends TelecomTestCase {
   @Override
   @After
   public void tearDown() throws Exception {
+    TelecomResourceId.setTelecomContext(null);
     super.tearDown();
   }
 

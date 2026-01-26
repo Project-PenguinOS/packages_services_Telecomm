@@ -174,7 +174,7 @@ public class RoleManagerAdapterImpl implements RoleManagerAdapter {
     }
 
     private String[] getBluetoothInCallServicePackageName() {
-        return mContext.getResources().getStringArray(R.array.system_bluetooth_stack_package_name);
+        return TelecomResourceId.getStringArray(mContext, "system_bluetooth_stack_package_name");
     }
 
     /**
