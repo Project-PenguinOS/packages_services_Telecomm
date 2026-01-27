@@ -22,6 +22,8 @@ import static com.android.server.telecom.TelecomStatsLog.CALL_AUDIO_ROUTE_STATS_
 import static com.android.server.telecom.TelecomStatsLog.CALL_AUDIO_ROUTE_STATS__ROUTE_SOURCE__CALL_AUDIO_EARPIECE;
 import static com.android.server.telecom.TelecomStatsLog.CALL_STATS__ACCOUNT_TYPE__ACCOUNT_SIM;
 import static com.android.server.telecom.TelecomStatsLog.CALL_STATS__CALL_DIRECTION__DIR_INCOMING;
+import static com.android.server.telecom.TelecomStatsLog.CALL_STATS__RAT_ON_END__NETWORK_TYPE_SATELLITE;
+import static com.android.server.telecom.TelecomStatsLog.CALL_STATS__RAT_ON_END__NETWORK_TYPE_WIFI;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
@@ -42,10 +44,14 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.os.Looper;
 import android.telecom.DisconnectCause;
 import android.telecom.PhoneAccount;
 import android.telecom.PhoneAccountHandle;
+import android.telephony.TelephonyManager;
 import android.util.StatsEvent;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -103,6 +109,7 @@ public class TelecomPulledAtomTest extends TelecomTestCase {
 
     private static final int VALUE_CALL_DIRECTION = 1;
     private static final int VALUE_CALL_ACCOUNT_TYPE = 1;
+    private static final int VALUE_CALL_RAT = 1;
     private static final int VALUE_CALL_COUNT = 1;
     private static final int VALUE_CALL_DURATION = 3000;
 
@@ -149,6 +156,11 @@ public class TelecomPulledAtomTest extends TelecomTestCase {
         doReturn(mMockDestRoute).when(mMockPendingAudioRoute).getDestRoute();
         doReturn(TYPE_EARPIECE).when(mMockSourceRoute).getType();
         doReturn(TYPE_BLUETOOTH_LE).when(mMockDestRoute).getType();
+
+        TelephonyManager tm = mock(TelephonyManager.class);
+        doReturn(tm).when(mSpyContext).getSystemService(TelephonyManager.class);
+        ConnectivityManager cm = mock(ConnectivityManager.class);
+        doReturn(cm).when(mSpyContext).getSystemService(ConnectivityManager.class);
     }
 
     @After
@@ -737,24 +749,26 @@ public class TelecomPulledAtomTest extends TelecomTestCase {
         CallStats callStats = spy(new CallStats(mSpyContext, mLooper, false));
 
         callStats.log(VALUE_CALL_DIRECTION, false, false, true, VALUE_CALL_ACCOUNT_TYPE,
-                VALUE_UID, VALUE_CALL_DURATION);
+                VALUE_UID, 0, 0, false, VALUE_CALL_RAT, VALUE_CALL_DURATION);
         waitForHandlerAction(callStats, TEST_TIMEOUT);
 
         verify(callStats, times(1)).onAggregate();
         verify(callStats, times(1)).save(eq(DELAY_FOR_PERSISTENT_MILLIS));
         assertEquals(callStats.mPulledAtoms.callStats.length, 1);
         verifyMessageForCallStats(callStats.mPulledAtoms.callStats[0], VALUE_CALL_DIRECTION,
-                false, false, true, VALUE_CALL_ACCOUNT_TYPE, VALUE_UID, 1, VALUE_CALL_DURATION);
+                false, false, true, VALUE_CALL_ACCOUNT_TYPE, VALUE_UID, 1, VALUE_CALL_DURATION,
+                VALUE_CALL_RAT);
 
         callStats.log(VALUE_CALL_DIRECTION, false, false, true, VALUE_CALL_ACCOUNT_TYPE,
-                VALUE_UID, VALUE_CALL_DURATION);
+                VALUE_UID, 0, 0, false, VALUE_CALL_RAT, VALUE_CALL_DURATION);
         waitForHandlerAction(callStats, TEST_TIMEOUT);
 
         verify(callStats, times(2)).onAggregate();
         verify(callStats, times(2)).save(eq(DELAY_FOR_PERSISTENT_MILLIS));
         assertEquals(callStats.mPulledAtoms.callStats.length, 1);
         verifyMessageForCallStats(callStats.mPulledAtoms.callStats[0], VALUE_CALL_DIRECTION,
-                false, false, true, VALUE_CALL_ACCOUNT_TYPE, VALUE_UID, 2, VALUE_CALL_DURATION);
+                false, false, true, VALUE_CALL_ACCOUNT_TYPE, VALUE_UID, 2, VALUE_CALL_DURATION,
+                VALUE_CALL_RAT);
     }
 
     @Test
@@ -787,11 +801,14 @@ public class TelecomPulledAtomTest extends TelecomTestCase {
         doReturn(handle).when(call).getTargetPhoneAccount();
         CallStats callStats = spy(new CallStats(mSpyContext, mLooper, false));
 
-        callStats.onCallStart(call);
-        waitForHandlerAction(callStats, TEST_TIMEOUT);
-
         callStats.onCallEnd(call);
         waitForHandlerAction(callStats, TEST_TIMEOUT);
+
+        assertEquals(callStats.mPulledAtoms.callStats.length, 1);
+        verifyMessageForCallStats(callStats.mPulledAtoms.callStats[0],
+                CALL_STATS__CALL_DIRECTION__DIR_INCOMING, false, false, false,
+                CALL_STATS__ACCOUNT_TYPE__ACCOUNT_SIM, fakeUid, 1, duration,
+                TelephonyManager.NETWORK_TYPE_UNKNOWN);
     }
 
     @Test
@@ -832,6 +849,72 @@ public class TelecomPulledAtomTest extends TelecomTestCase {
 
         callStats.onCallEnd(call);
         waitForHandlerAction(callStats, TEST_TIMEOUT);
+
+        assertEquals(callStats.mPulledAtoms.callStats.length, 1);
+        verifyMessageForCallStats(callStats.mPulledAtoms.callStats[0],
+                CALL_STATS__CALL_DIRECTION__DIR_INCOMING, false, false, true,
+                CALL_STATS__ACCOUNT_TYPE__ACCOUNT_SIM, fakeUid, 1, duration,
+                TelephonyManager.NETWORK_TYPE_UNKNOWN);
+    }
+
+    @Test
+    public void testCallStatsOnEndWithRat() throws Exception {
+        int duration = 1000;
+        int fakeUid = 10010;
+        int voiceNetworkType = TelephonyManager.NETWORK_TYPE_LTE;
+        PhoneAccount account = mock(PhoneAccount.class);
+        Call.CallingPackageIdentity callingPackage = new Call.CallingPackageIdentity();
+        PackageManager pm = mock(PackageManager.class);
+        ApplicationInfo ai = new ApplicationInfo();
+        ai.uid = fakeUid;
+        doReturn(ai).when(pm).getApplicationInfo(any(), anyInt());
+        doReturn(pm).when(mSpyContext).getPackageManager();
+        doReturn(true).when(pm).hasSystemFeature(PackageManager.FEATURE_TELEPHONY_RADIO_ACCESS);
+        Context fakeContext = spy(mContext);
+        doReturn("").when(fakeContext).getPackageName();
+        ComponentName cn = new ComponentName(fakeContext, this.getClass());
+        PhoneAccountHandle handle = mock(PhoneAccountHandle.class);
+        doReturn(cn).when(handle).getComponentName();
+        Call call = mock(Call.class);
+        doReturn(true).when(call).isIncoming();
+        doReturn(new DisconnectCause(0)).when(call).getDisconnectCause();
+        doReturn(0).when(call).getSimultaneousType();
+        doReturn(false).when(call).hasVideoCall();
+        doReturn(account).when(call).getPhoneAccountFromHandle();
+        doReturn((long) duration).when(call).getAgeMillis();
+        doReturn(false).when(account).hasCapabilities(eq(PhoneAccount.CAPABILITY_SELF_MANAGED));
+        doReturn(true).when(account).hasCapabilities(eq(PhoneAccount.CAPABILITY_CALL_PROVIDER));
+        doReturn(true).when(account).hasCapabilities(eq(PhoneAccount.CAPABILITY_SIM_SUBSCRIPTION));
+        doReturn(callingPackage).when(call).getCallingPackageIdentity();
+        doReturn(handle).when(call).getTargetPhoneAccount();
+
+        TelephonyManager tm = mSpyContext.getSystemService(TelephonyManager.class);
+        doReturn(voiceNetworkType).when(tm).getVoiceNetworkType();
+
+        ConnectivityManager cm = mSpyContext.getSystemService(ConnectivityManager.class);
+        Network network = mock(Network.class);
+        NetworkCapabilities nc = mock(NetworkCapabilities.class);
+        doReturn(network).when(cm).getActiveNetwork();
+        doReturn(nc).when(cm).getNetworkCapabilities(network);
+        doReturn(true).when(nc).hasTransport(NetworkCapabilities.TRANSPORT_WIFI);
+        doReturn(true).when(nc).hasTransport(NetworkCapabilities.TRANSPORT_SATELLITE);
+
+        CallStats callStats = spy(new CallStats(mSpyContext, mLooper, false));
+
+        callStats.onCallStart(call);
+        waitForHandlerAction(callStats, TEST_TIMEOUT);
+
+        callStats.onCallEnd(call);
+        waitForHandlerAction(callStats, TEST_TIMEOUT);
+
+        int expectedRat = voiceNetworkType | CALL_STATS__RAT_ON_END__NETWORK_TYPE_WIFI
+                | CALL_STATS__RAT_ON_END__NETWORK_TYPE_SATELLITE;
+
+        assertEquals(callStats.mPulledAtoms.callStats.length, 1);
+        verifyMessageForCallStats(callStats.mPulledAtoms.callStats[0],
+                CALL_STATS__CALL_DIRECTION__DIR_INCOMING, false, false, false,
+                CALL_STATS__ACCOUNT_TYPE__ACCOUNT_SIM, fakeUid, 1, duration,
+                expectedRat);
     }
 
     @Test
@@ -1275,6 +1358,7 @@ public class TelecomPulledAtomTest extends TelecomTestCase {
             atom.callStats[i].setMultipleAudioAvailable(false);
             atom.callStats[i].setAccountType(VALUE_CALL_ACCOUNT_TYPE);
             atom.callStats[i].setUid(VALUE_UID);
+            atom.callStats[i].setRatOnEnd(VALUE_CALL_RAT);
             atom.callStats[i].setCount(VALUE_CALL_COUNT);
             atom.callStats[i].setAverageDurationMs(VALUE_CALL_DURATION);
         }
@@ -1294,13 +1378,13 @@ public class TelecomPulledAtomTest extends TelecomTestCase {
             assertNotNull(atom.callStats[i]);
             verifyMessageForCallStats(atom.callStats[i], VALUE_CALL_DIRECTION, false, false,
                     false, VALUE_CALL_ACCOUNT_TYPE, VALUE_UID, VALUE_CALL_COUNT,
-                    VALUE_CALL_DURATION);
+                    VALUE_CALL_DURATION, VALUE_CALL_RAT);
         }
     }
 
     private void verifyMessageForCallStats(final PulledAtomsClass.CallStats msg,
             int direction, boolean external, boolean emergency, boolean multipleAudio,
-            int accountType, int uid, int count, int duration) {
+            int accountType, int uid, int count, int duration, int rat) {
         assertEquals(msg.getCallDirection(), direction);
         assertEquals(msg.getExternalCall(), external);
         assertEquals(msg.getEmergencyCall(), emergency);
@@ -1309,6 +1393,7 @@ public class TelecomPulledAtomTest extends TelecomTestCase {
         assertEquals(msg.getUid(), uid);
         assertEquals(msg.getCount(), count);
         assertEquals(msg.getAverageDurationMs(), duration);
+        assertEquals(msg.getRatOnEnd(), rat);
     }
 
     private void createTestFileForErrorStats(long timestamps) throws IOException {
