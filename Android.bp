@@ -89,6 +89,50 @@ telecom_am_availability_src_config {
     },
 }
 
+soong_config_module_type {
+    name: "telecom_ut_availability_jarjar_config",
+    module_type: "java_defaults",
+    config_namespace: "ANDROID",
+    bool_variables: [
+        "release_telecom_mainline_module",
+    ],
+    properties: [
+        "jarjar_rules",
+        "static_libs",
+    ],
+}
+
+telecom_ut_availability_jarjar_config {
+    name: "telecom_ut_mainline_jarjar_default",
+    soong_config_variables: {
+        release_telecom_mainline_module: {
+            jarjar_rules: ":framework-telecom-jarjar-rules",
+            static_libs: ["modules-utils-binary-xml"],
+        },
+    },
+}
+
+soong_config_module_type {
+    name: "telecom_ut_fwk_internal_deps_config",
+    module_type: "filegroup_defaults",
+    config_namespace: "ANDROID",
+    bool_variables: [
+        "release_telecom_mainline_module",
+    ],
+    properties: [
+        "srcs",
+    ],
+}
+
+telecom_ut_fwk_internal_deps_config {
+    name: "telecom_ut_fwk_internal_deps_srcs_default",
+    soong_config_variables: {
+        release_telecom_mainline_module: {
+            srcs: [":framework-telecom-internal-sources"],
+        },
+    },
+}
+
 filegroup {
     name: "telecom_am_mainline_deps_srcs",
     defaults: [
@@ -107,6 +151,13 @@ filegroup {
     name: "telecom_am_mainline_exclude_test_deps_srcs",
     defaults: [
         "telecom_am_mainline_exclude_test_deps_src_default",
+    ],
+}
+
+filegroup {
+    name: "telecom_ut_fwk_internal_deps_srcs",
+    defaults: [
+        "telecom_ut_fwk_internal_deps_srcs_default",
     ],
 }
 
@@ -179,10 +230,15 @@ android_library {
     manifest: "AndroidManifestLib.xml",
     srcs: [
         "src/**/*.java",
+        "legacy-src/com/android/server/telecom/components/TelecomService.java", // This is needed for the platform path.
         ":statslog-telecom-java-gen",
         "proto/**/*.proto",
         ":framework-telecom-aidl-internal-sources",
         ":framework-telecom-aidl-export-sources",
+        ":telecom_ut_fwk_internal_deps_srcs",
+    ],
+    exclude_srcs: [
+        "src/com/android/server/telecom/components/TelecomService.java", // This should only be used by the mainline path.
     ],
     aidl: {
         include_dirs: [
@@ -217,18 +273,14 @@ android_library {
 android_app {
     name: "TelecomShim",
     srcs: [
-        "src/com/android/server/telecom/shim/TelecomShimService.java",
+        "src/com/android/server/telecom/components/TelecomService.java",
         ":telecom-service-init-sources",
     ],
-    resource_dirs: [
-        "res",
-        "res_mainline",
-    ],
+    resource_dirs: ["res"],
     libs: [
         "framework-annotations-lib",
         "telecom_module_flags-java",
     ],
-    aaptflags: ["--auto-add-overlay"],
     min_sdk_version: "36",
     sdk_version: "module_current",
     certificate: "platform",
@@ -371,6 +423,7 @@ java_library_static {
 
 android_test {
     name: "TelecomUnitTests",
+    defaults: ["telecom_ut_mainline_jarjar_default"],
     static_libs: [
         "TelecomLib",
         "android-ex-camera2",
@@ -390,6 +443,7 @@ android_test {
         "tests/src/**/*.java",
         ":telecom_am_mainline_deps_srcs",
         ":telecom_am_mainline_test_deps_srcs",
+        ":telecom_ut_fwk_internal_deps_srcs",
     ],
     exclude_srcs: [
         ":telecom_am_mainline_exclude_test_deps_srcs",
