@@ -39,7 +39,7 @@ import java.util.List;
  * {@link InCallController} creates an instance of this class and passes it to the in-call app after
  * binding to it. This adapter can receive commands and updates until the in-call app is unbound.
  */
-class InCallAdapter extends IInCallAdapter.Stub {
+public class InCallAdapter extends IInCallAdapter.Stub {
     private final CallsManager mCallsManager;
     private final CallIdMapper mCallIdMapper;
     private final TelecomSystem.SyncRoot mLock;

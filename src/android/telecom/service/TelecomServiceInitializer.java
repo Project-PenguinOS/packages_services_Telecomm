@@ -79,7 +79,13 @@ import com.android.server.telecom.util.CallerInfoAsyncQuery;
 import java.util.concurrent.Executors;
 
 /**
- * Entry-point for Telecom Service
+ * Initialize the Telecom library.
+ * 
+ * Telecom can't load directly as a SystemService due to the requirement of separate package
+ * attribution in permissions and other system services. Therefore, there must be a Telecom
+ * shim app signed with the platform certificate that initializes the updatable Telecom code
+ * using this Initializer implementation that runs in the system process and UID.
+ *
  * @hide
  */
 @SystemApi(client=SystemApi.Client.SYSTEM_SERVER)

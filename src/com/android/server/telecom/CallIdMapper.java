@@ -93,42 +93,42 @@ public class CallIdMapper {
         mCallInfo = callInfo;
     }
 
-    void replaceCall(Call newCall, Call callToReplace) {
+    public void replaceCall(Call newCall, Call callToReplace) {
         // Use the old call's ID for the new call.
         String callId = getCallId(callToReplace);
         mCalls.put(callId, newCall);
     }
 
-    void addCall(Call call, String id) {
+    public void addCall(Call call, String id) {
         if (call == null) {
             return;
         }
         mCalls.put(id, call);
     }
 
-    void addCall(Call call) {
+    public void addCall(Call call) {
         addCall(call, mCallInfo.getCallId(call));
     }
 
-    void removeCall(Call call) {
+    public void removeCall(Call call) {
         if (call == null) {
             return;
         }
         mCalls.removeValue(call);
     }
 
-    void removeCall(String callId) {
+    public void removeCall(String callId) {
         mCalls.remove(callId);
     }
 
-    String getCallId(Call call) {
+    public String getCallId(Call call) {
         if (call == null || mCalls.getKey(call) == null) {
             return null;
         }
         return mCallInfo.getCallId(call);
     }
 
-    Call getCall(Object objId) {
+    public Call getCall(Object objId) {
         String callId = null;
         if (objId instanceof String) {
             callId = (String) objId;
@@ -137,22 +137,22 @@ public class CallIdMapper {
         return mCalls.getValue(callId);
     }
 
-    Collection<Call> getCalls() {
+    public Collection<Call> getCalls() {
         return mCalls.getValues();
     }
 
-    boolean containsCall(Call call) {
+    public boolean containsCall(Call call) {
         if (call == null) {
             return false;
         }
         return containsCallId(call.getId());
     }
 
-    boolean containsCallId(String callId) {
+    public boolean containsCallId(String callId) {
         return mCalls.mPrimaryMap.containsKey(callId);
     }
 
-    void clear() {
+    public void clear() {
         mCalls.clear();
     }
 }
