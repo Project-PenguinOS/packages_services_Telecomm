@@ -4295,7 +4295,7 @@ public class CallsManager extends Call.ListenerBase
     /**
      * Instructs Telecom to continue (or not) the current post-dial DTMF string, if any.
      */
-    void postDialContinue(Call call, boolean proceed) {
+    public void postDialContinue(Call call, boolean proceed) {
         if (!mCalls.contains(call)) {
             Log.i(this, "Request to continue post-dial string in a non-existent call %s", call);
         } else {
@@ -4630,7 +4630,7 @@ public class CallsManager extends Call.ListenerBase
       * Called by the in-call UI to change the audio route, for example to change from earpiece to
       * speaker phone.
       */
-    void setAudioRoute(int uid, int route, String bluetoothAddress) {
+    public void setAudioRoute(int uid, int route, String bluetoothAddress) {
         if (mFeatureFlags.telecomMetricsSupport()) {
             mMetricsController.getCallEndpointStats().onRequested(uid, route, bluetoothAddress);
         }
@@ -4676,7 +4676,7 @@ public class CallsManager extends Call.ListenerBase
     }
 
     /** Called by the in-call UI to turn the proximity sensor on. */
-    void turnOnProximitySensor() {
+    public void turnOnProximitySensor() {
         mProximitySensorManager.turnOn();
     }
 
@@ -4685,7 +4685,7 @@ public class CallsManager extends Call.ListenerBase
      * @param screenOnImmediately If true, the screen will be turned on immediately. Otherwise,
      *        the screen will be kept off until the proximity sensor goes negative.
      */
-    void turnOffProximitySensor(boolean screenOnImmediately) {
+    public void turnOffProximitySensor(boolean screenOnImmediately) {
         mProximitySensorManager.turnOff(screenOnImmediately);
     }
 
@@ -4726,7 +4726,7 @@ public class CallsManager extends Call.ListenerBase
         return result == null ? defaultBundle : result;
     }
 
-    void phoneAccountSelected(Call call, PhoneAccountHandle account, boolean setDefault) {
+    public void phoneAccountSelected(Call call, PhoneAccountHandle account, boolean setDefault) {
         if (!mCalls.contains(call)) {
             Log.i(this, "Attempted to add account to unknown call %s", call);
         } else {

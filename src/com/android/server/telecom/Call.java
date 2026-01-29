@@ -3873,7 +3873,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      * @param source The source of the extras removal.
      * @param keys The extra keys to remove.
      */
-    void removeExtras(int source, List<String> keys) {
+    public void removeExtras(int source, List<String> keys) {
         if (mExtras == null) {
             return;
         }
@@ -3965,7 +3965,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         }
     }
 
-    void splitFromConference() {
+    public void splitFromConference() {
         if (mTransactionalService != null) {
             Log.i(this, "splitFromConference: called on TransactionalService. doing nothing");
         } else if (mConnectionService == null) {
