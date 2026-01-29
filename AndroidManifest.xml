@@ -223,15 +223,6 @@
             </intent-filter>
         </receiver>
 
-        <receiver android:name=".components.AppUninstallBroadcastReceiver"
-             android:process="system"
-             android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.PACKAGE_FULLY_REMOVED"/>
-                <data android:scheme="package"/>
-            </intent-filter>
-        </receiver>
-
         <service android:name=".components.TelecomService"
              android:singleUser="true"
              android:process="system"
