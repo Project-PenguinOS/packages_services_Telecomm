@@ -21,11 +21,12 @@ import android.content.ComponentName;
 import android.content.Intent;
 import android.net.Uri;
 import android.telecom.CallRedirectionService;
-import android.telecom.Log;
 import android.telecom.PhoneAccount;
 import android.telecom.PhoneAccountHandle;
+import android.util.Log;
 
 public class TestCallRedirectionService extends CallRedirectionService {
+    private static final String TAG = TestCallRedirectionService.class.getSimpleName();
 
     public static TestCallRedirectionService getInstance() {
         return sTestCallRedirectionService;
@@ -49,7 +50,7 @@ public class TestCallRedirectionService extends CallRedirectionService {
     @Override
     public void onPlaceCall(@NonNull Uri handle, @NonNull PhoneAccountHandle initialPhoneAccount,
                             boolean allowInteractiveResponse) {
-        Log.i(this, "onPlaceCall: received call %s", handle);
+        Log.i(TAG, String.format("onPlaceCall: received call %s", handle));
         sTestCallRedirectionService = this;
         mDestinationPhoneAccount = initialPhoneAccount;
         Intent intent = new Intent(this, CallRedirectionActivity.class);
@@ -65,8 +66,8 @@ public class TestCallRedirectionService extends CallRedirectionService {
     public void onPlaceCall(@NonNull Uri handle, @NonNull Uri originalHandle,
             @NonNull PhoneAccountHandle initialPhoneAccount,
                         boolean allowInteractiveResponse) {
-        Log.i(this, "onPlaceCall: received call with OriginalHandle %s and handle %s",
-                originalHandle, handle);
+        Log.i(TAG, String.format("onPlaceCall: received call with OriginalHandle %s and handle %s",
+                originalHandle, handle));
         sTestCallRedirectionService = this;
         mDestinationPhoneAccount = initialPhoneAccount;
         Intent intent = new Intent(this, CallRedirectionActivity.class);
