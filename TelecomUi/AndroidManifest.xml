@@ -114,7 +114,7 @@
             android:theme="@style/Theme.Telecomm.Transparent"
             android:exported="true">
             <intent-filter>
-                <action android:name="android.intent.action.CALL_TRAMPOLINE"/>
+                <action android:name="com.android.internal.telecom.action.CALL_TRAMPOLINE"/>
                 <category android:name="android.intent.category.DEFAULT"/>
             </intent-filter>
         </activity>

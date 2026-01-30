@@ -24,8 +24,15 @@ import android.telecom.TelecomManager;
 import android.util.Log;
 
 /**
- * TelecomUi activity that handles system CALL & CALL_TRAMPOLINE actions and forwards them to
- * TelecomManager.
+ * Activity in TelecomUi responsible for handling call initiation requests.
+ *
+ * <p>This activity serves as the entry point for outgoing calls within the TelecomUi module.
+ * It is designed to handle the {@code com.android.internal.telecom.action.CALL_TRAMPOLINE} intent,
+ * which is used by the system (via {@code TelecomShim}) to bridge {@link Intent#ACTION_CALL}
+ * requests from applications into the Mainline module context.
+ *
+ * <p>Upon receiving the request, this activity initiates the call via
+ * {@link TelecomManager#placeCall(android.net.Uri, Bundle)}.
  */
 public class UserCallActivity extends Activity {
     private static final String TAG = "UserCallActivity TelecomUi";
