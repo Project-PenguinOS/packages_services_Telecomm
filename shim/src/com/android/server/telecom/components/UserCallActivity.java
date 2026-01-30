@@ -23,12 +23,12 @@ import android.os.Bundle;
 import android.util.Log;
 
 /**
- * Activity that handles system CALL actions and forwards them to TelecomUi with the CALL_TRAMPOLINE
- * action.
+ * Activity that handles system CALL actions and forwards them to TelecomUi.
  */
 public class UserCallActivity extends Activity {
     private static final String TAG = "UserCallActivity TelecomShim";
-    private static final String ACTION_CALL_TRAMPOLINE = "android.intent.action.CALL_TRAMPOLINE";
+    private static final String ACTION_CALL_TRAMPOLINE =
+            "com.android.internal.telecom.action.CALL_TRAMPOLINE";
 
     @Override
     protected void onCreate(Bundle bundle) {
