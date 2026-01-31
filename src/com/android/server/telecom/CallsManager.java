@@ -7318,9 +7318,7 @@ public class CallsManager extends Call.ListenerBase
                 String msg = "failed to switch focus to requested call";
                 mCallback.onError(new CallException(msg,
                         CallException.CODE_CALL_CANNOT_BE_SET_TO_ACTIVE));
-                if (mFeatureFlags.enableCallExceptionAnomReports()) {
-                    mAnomalyReporter.reportAnomaly(FAILED_TO_SWITCH_FOCUS_ERROR_UUID, msg);
-                }
+                mAnomalyReporter.reportAnomaly(FAILED_TO_SWITCH_FOCUS_ERROR_UUID, msg);
                 return;
             }
             // at this point, we know the FocusManager is able to update successfully

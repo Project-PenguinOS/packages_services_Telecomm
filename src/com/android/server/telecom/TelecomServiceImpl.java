@@ -266,11 +266,9 @@ public class TelecomServiceImpl {
                                     onAddCallControl(callId, callEventCallback, null,
                                             new CallException(ADD_CALL_ERR_MSG,
                                                     CODE_ERROR_UNKNOWN));
-                                    if (mFeatureFlags.enableCallExceptionAnomReports()) {
-                                        mAnomalyReporter.reportAnomaly(
-                                                CALL_IS_NULL_OR_ID_MISMATCH_UUID,
-                                                CALL_IS_NULL_OR_ID_MISMATCH_MSG);
-                                    }
+                                    mAnomalyReporter.reportAnomaly(
+                                            CALL_IS_NULL_OR_ID_MISMATCH_UUID,
+                                            CALL_IS_NULL_OR_ID_MISMATCH_MSG);
                                     return;
                                 }
 
@@ -308,11 +306,9 @@ public class TelecomServiceImpl {
                             public void onError(@NonNull CallException exception) {
                                 Log.d(TAG, "addCall: onError: e=[%s]", exception.toString());
                                 onAddCallControl(callId, callEventCallback, null, exception);
-                                if (mFeatureFlags.enableCallExceptionAnomReports()) {
-                                    mAnomalyReporter.reportAnomaly(
-                                            ADD_CALL_ON_ERROR_UUID,
-                                            exception.getMessage());
-                                }
+                                mAnomalyReporter.reportAnomaly(
+                                        ADD_CALL_ON_ERROR_UUID,
+                                        exception.getMessage());
                                 mMetricsController.getEventStats().log(new CriticalEvent(
                                         EventStats.ID_ADD_CALL, uid,
                                         EventStats.CAUSE_CALL_TRANSACTION_BASE

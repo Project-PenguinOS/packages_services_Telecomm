@@ -355,11 +355,9 @@ public class TransactionalServiceWrapper implements
                                 + " via TelecomManager#addCall", action, callId),
                                 CODE_CALL_IS_NOT_BEING_TRACKED));
                 callback.send(CODE_CALL_IS_NOT_BEING_TRACKED, exceptionBundle);
-                if (mFeatureFlags.enableCallExceptionAnomReports()) {
-                    mAnomalyReporter.reportAnomaly(
-                            CALL_IS_NO_LONGER_BEING_TRACKED_ERROR_UUID,
-                            CALL_IS_NO_LONGER_BEING_TRACKED_ERROR_MSG);
-                }
+                mAnomalyReporter.reportAnomaly(
+                        CALL_IS_NO_LONGER_BEING_TRACKED_ERROR_UUID,
+                        CALL_IS_NO_LONGER_BEING_TRACKED_ERROR_MSG);
             }
         }
 
