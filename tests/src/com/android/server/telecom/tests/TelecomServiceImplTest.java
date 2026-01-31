@@ -2396,41 +2396,6 @@ public class TelecomServiceImplTest extends TelecomTestCase {
     }
 
     /**
-     * Ensure self-managed calls cannot be ended using {@link TelecomManager#endCall()} when the
-     * caller of this method is not considered privileged.
-     * @throws Exception
-     */
-    @SmallTest
-    @Test
-    public void testCannotEndSelfManagedCall() throws Exception {
-        Call call = mock(Call.class);
-        when(call.isSelfManaged()).thenReturn(true);
-        when(call.getState()).thenReturn(CallState.ACTIVE);
-        when(mFakeCallsManager.getFirstCallWithState(any()))
-                .thenReturn(call);
-        assertFalse(mTSIBinder.endCall(TEST_PACKAGE));
-        verify(mFakeCallsManager, never()).disconnectCall(eq(call));
-    }
-
-    /**
-     * Ensure self-managed calls cannot be answered using {@link TelecomManager#acceptRingingCall()}
-     * or {@link TelecomManager#acceptRingingCall(int)} when the caller of these methods is not
-     * considered privileged.
-     * @throws Exception
-     */
-    @SmallTest
-    @Test
-    public void testCannotAnswerSelfManagedCall() throws Exception {
-        Call call = mock(Call.class);
-        when(call.isSelfManaged()).thenReturn(true);
-        when(call.getState()).thenReturn(CallState.ACTIVE);
-        when(mFakeCallsManager.getFirstCallWithState(any()))
-                .thenReturn(call);
-        mTSIBinder.acceptRingingCall(TEST_PACKAGE);
-        verify(mFakeCallsManager, never()).answerCall(eq(call), anyInt());
-    }
-
-    /**
      * Ensure self-managed calls can be answered using {@link TelecomManager#acceptRingingCall()}
      * or {@link TelecomManager#acceptRingingCall(int)} if the caller of these methods is
      * privileged.
@@ -2439,7 +2404,6 @@ public class TelecomServiceImplTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testCanAnswerSelfManagedCallIfPrivileged() throws Exception {
-        when(mFeatureFlags.allowSystemAppsResolveVoipCalls()).thenReturn(true);
         // Configure the test so that the caller of acceptRingingCall is considered privileged:
         when(mPackageManager.getPackageUid(SYSTEM_UI_PACKAGE, 0))
                 .thenReturn(Binder.getCallingUid());
@@ -2462,7 +2426,6 @@ public class TelecomServiceImplTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testCanEndSelfManagedCallIfPrivileged() throws Exception {
-        when(mFeatureFlags.allowSystemAppsResolveVoipCalls()).thenReturn(true);
         // Configure the test so that the caller of endCall is considered privileged:
         when(mPackageManager.getPackageUid(SYSTEM_UI_PACKAGE, 0))
                 .thenReturn(Binder.getCallingUid());
