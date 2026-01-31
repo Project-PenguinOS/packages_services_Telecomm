@@ -20,14 +20,15 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.os.Bundle;
-import android.telecom.Log;
+import android.util.Log;
 
 public class CallRedirectionActivity extends Activity {
+    private static final String TAG = CallRedirectionActivity.class.getSimpleName();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Log.i(this, "onCreate: CallRedirectionActivity");
+        Log.i(TAG, "onCreate: CallRedirectionActivity");
 
         AlertDialog alertDialog = new AlertDialog.Builder(this)
                 .setTitle("Test Call Redirection")

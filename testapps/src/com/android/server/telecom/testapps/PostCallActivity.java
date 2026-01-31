@@ -23,10 +23,10 @@ import static android.telecom.TelecomManager.EXTRA_HANDLE;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
-import android.telecom.Log;
+import android.util.Log;
 
 public class PostCallActivity extends Activity {
-
+    private static final String TAG = PostCallActivity.class.getSimpleName();
     public static final String ACTION_POST_CALL = "android.telecom.action.POST_CALL";
     public static final int DEFAULT_DISCONNECT_CAUSE = -1;
     public static final int DEFAULT_DURATION = -1;
@@ -37,13 +37,13 @@ public class PostCallActivity extends Activity {
 
         final Intent intent = getIntent();
         final String action = intent != null ? intent.getAction() : null;
-        Log.i(this, "action: %s", action);
+        Log.i(TAG, String.format("action: %s", action));
         if (ACTION_POST_CALL.equals(action)) {
-            Log.i(this, "extra handle: " +
+            Log.i(TAG, "extra handle: " +
                     intent.getParcelableExtra(EXTRA_HANDLE));
-            Log.i(this, "extra disconnect cause: " +
+            Log.i(TAG, "extra disconnect cause: " +
                     intent.getIntExtra(EXTRA_DISCONNECT_CAUSE, DEFAULT_DISCONNECT_CAUSE));
-            Log.i(this, "extra duration: " +
+            Log.i(TAG, "extra duration: " +
                     intent.getIntExtra(EXTRA_CALL_DURATION, DEFAULT_DURATION));
         }
     }

@@ -74,14 +74,18 @@
     <uses-permission android:name="android.permission.BIND_LOCAL_VOICEMAIL_SERVICE"/>
     <uses-permission android:name="android.permission.QUERY_AUDIO_VOLUME" />
 
+    <uses-permission android:name="com.android.telephonycore.permission.TELECOM_UI_ACCESS" />
+
     <!-- protectionLevel system has been deprecated, beware when modifying this permission. -->
     <permission android:name="android.permission.PROCESS_PHONE_ACCOUNT_REGISTRATION"
          android:label="Process phone account registration"
          android:protectionLevel="signature|system"/>
 
+    <!-- This should only be used internally by telecom so signature level permission should
+         suffice. -->
     <permission android:name="android.permission.HANDLE_CALL_INTENT"
          android:label="Protects handling the call intent via the TelecomManager API."
-         android:protectionLevel="signature|system"/>
+         android:protectionLevel="signature"/>
 
     <application android:label="@string/telecommAppLabel"
          android:icon="@mipmap/ic_launcher_phone"
@@ -220,15 +224,6 @@
                 <action android:name="com.android.server.telecom.CANCEL_CALL"/>
                 <action android:name="com.android.server.telecom.PROCEED_WITH_REDIRECTED_CALL"/>
                 <action android:name="com.android.server.telecom.CANCEL_REDIRECTED_CALL"/>
-            </intent-filter>
-        </receiver>
-
-        <receiver android:name=".components.AppUninstallBroadcastReceiver"
-             android:process="system"
-             android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.PACKAGE_FULLY_REMOVED"/>
-                <data android:scheme="package"/>
             </intent-filter>
         </receiver>
 

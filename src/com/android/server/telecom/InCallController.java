@@ -2042,7 +2042,7 @@ public class InCallController extends CallsManagerListenerBase implements
         return mInCallServiceConnections;
     }
 
-    void silenceRinger(Set<UserHandle> userHandles) {
+    public void silenceRinger(Set<UserHandle> userHandles) {
         Map<UserHandle, Map<InCallController.InCallServiceInfo, IInCallService>> serviceMap =
                 getCombinedInCallServiceMap();
         userHandles.forEach(userHandle -> {

@@ -1669,11 +1669,13 @@ public class CallsManager extends Call.ListenerBase
         return mCallAudioManager.getCallAudioState();
     }
 
-    boolean isTtySupported() {
+    @VisibleForTesting
+    public boolean isTtySupported() {
         return mTtyManager.isTtySupported();
     }
 
-    int getCurrentTtyMode() {
+    @VisibleForTesting
+    public int getCurrentTtyMode() {
         return mTtyManager.getCurrentTtyMode();
     }
 
@@ -5425,7 +5427,8 @@ public class CallsManager extends Call.ListenerBase
     /**
      * @return the call state currently tracked by {@link PhoneStateBroadcaster}
      */
-    int getCallState() {
+    @VisibleForTesting
+    public int getCallState() {
         return mPhoneStateBroadcaster.getCallState();
     }
 
@@ -5451,7 +5454,8 @@ public class CallsManager extends Call.ListenerBase
      * Retrieves the {@link MissedCallNotifier}
      * @return The {@link MissedCallNotifier}.
      */
-    MissedCallNotifier getMissedCallNotifier() {
+    @VisibleForTesting
+    public MissedCallNotifier getMissedCallNotifier() {
         return mMissedCallNotifier;
     }
 

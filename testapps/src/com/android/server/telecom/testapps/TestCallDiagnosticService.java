@@ -21,14 +21,15 @@ import android.telecom.Call;
 import android.telecom.CallAudioState;
 import android.telecom.CallDiagnosticService;
 import android.telecom.CallDiagnostics;
-import android.telecom.Log;
 import android.telephony.CallQuality;
 import android.telephony.ims.ImsReasonInfo;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 public class TestCallDiagnosticService extends CallDiagnosticService {
+    private static final String TAG = TestCallDiagnosticService.class.getSimpleName();
 
     public static final class TestCallDiagnostics extends CallDiagnostics {
         public Call.Details details;
@@ -39,54 +40,54 @@ public class TestCallDiagnosticService extends CallDiagnosticService {
 
         @Override
         public void onCallDetailsChanged(@NonNull Call.Details details) {
-            Log.i(this, "onCallDetailsChanged; %s", details);
+            Log.i(TAG, String.format("onCallDetailsChanged; %s", details));
         }
 
         @Override
         public void onReceiveDeviceToDeviceMessage(int message, int value) {
-            Log.i(this, "onReceiveDeviceToDeviceMessage; %d/%d", message, value);
+            Log.i(TAG, String.format("onReceiveDeviceToDeviceMessage; %d/%d", message, value));
         }
 
         @Nullable
         @Override
         public CharSequence onCallDisconnected(int disconnectCause, int preciseDisconnectCause) {
-            Log.i(this, "onCallDisconnected");
+            Log.i(TAG, "onCallDisconnected");
             return "GSM/CDMA call dropped because " + disconnectCause;
         }
 
         @Nullable
         @Override
         public CharSequence onCallDisconnected(@NonNull ImsReasonInfo disconnectReason) {
-            Log.i(this, "onCallDisconnected");
+            Log.i(TAG, "onCallDisconnected");
             return "ImsCall dropped because something happened " + disconnectReason.mExtraMessage;
         }
 
         @Override
         public void onCallQualityReceived(@NonNull CallQuality callQuality) {
-            Log.i(this, "onCallQualityReceived %s", callQuality);
+            Log.i(TAG, String.format("onCallQualityReceived %s", callQuality));
         }
     }
 
     @NonNull
     @Override
     public CallDiagnostics onInitializeCallDiagnostics(@NonNull Call.Details call) {
-        Log.i(this, "onInitiatlizeDiagnosticCall %s", call);
+        Log.i(TAG, String.format("onInitiatlizeDiagnosticCall %s", call));
         return new TestCallDiagnostics(call);
     }
 
     @Override
     public void onRemoveCallDiagnostics(@NonNull CallDiagnostics call) {
-        Log.i(this, "onRemoveDiagnosticCall %s", call);
+        Log.i(TAG, String.format("onRemoveDiagnosticCall %s", call));
     }
 
     @Override
     public void onCallAudioStateChanged(@NonNull CallAudioState audioState) {
-        Log.i(this, "onCallAudioStateChanged %s", audioState);
+        Log.i(TAG, String.format("onCallAudioStateChanged %s", audioState));
     }
 
     @Override
     public void onBluetoothCallQualityReportReceived(
             @NonNull BluetoothCallQualityReport qualityReport) {
-        Log.i(this, "onBluetoothCallQualityReportReceived %s", qualityReport);
+        Log.i(TAG, String.format("onBluetoothCallQualityReportReceived %s", qualityReport));
     }
 }

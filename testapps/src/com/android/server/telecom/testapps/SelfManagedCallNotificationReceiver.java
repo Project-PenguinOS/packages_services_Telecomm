@@ -20,13 +20,14 @@ import android.app.NotificationManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.telecom.Log;
 import android.telephony.DisconnectCause;
+import android.util.Log;
 
 /**
  * Handles actions from the self-managed calling sample app incoming call UX.
  */
 public class SelfManagedCallNotificationReceiver extends BroadcastReceiver {
+    private static final String TAG = SelfManagedCallNotificationReceiver.class.getSimpleName();
     public static final String ACTION_ANSWER_CALL =
             "com.android.server.telecom.testapps.action.ANSWER_CALL";
     public static final String ACTION_REJECT_CALL =
@@ -42,7 +43,7 @@ public class SelfManagedCallNotificationReceiver extends BroadcastReceiver {
                 .getConnectionById(callId);
         switch (action) {
             case ACTION_ANSWER_CALL:
-                Log.i(this, "onReceive - answerCall %d", callId);
+                Log.i(TAG, String.format("onReceive - answerCall %d", callId));
                 if (connection != null) {
                     connection.setConnectionActive();
                 }
@@ -50,7 +51,7 @@ public class SelfManagedCallNotificationReceiver extends BroadcastReceiver {
                 break;
 
             case ACTION_REJECT_CALL:
-                Log.i(this, "onReceive - rejectCall %d", callId);
+                Log.i(TAG, String.format("onReceive - rejectCall %d", callId));
                 if (connection != null) {
                     connection.setConnectionDisconnected(DisconnectCause.INCOMING_REJECTED);
                     connection.destroy();

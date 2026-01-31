@@ -20,9 +20,9 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
-import android.telecom.Log;
 import android.telecom.TelecomManager;
 import android.telephony.DisconnectCause;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 
@@ -30,6 +30,7 @@ import android.widget.Button;
  * Displays a UX to the user confirming whether they want to handover a call to the self-managed CS.
  */
 public class HandoverActivity extends Activity {
+    private static final String TAG = HandoverActivity.class.getSimpleName();
     public static final String EXTRA_CALL_ID = "com.android.server.telecom.testapps.extra.CALL_ID";
 
     private Button mAcceptHandoverButton;
@@ -40,7 +41,7 @@ public class HandoverActivity extends Activity {
         super.onCreate(savedInstanceState);
         Intent launchingIntent = getIntent();
         int callId = launchingIntent.getIntExtra(EXTRA_CALL_ID, 0);
-        Log.i(this, "showing fullscreen upgrade ux for call id %d", callId);
+        Log.i(TAG, String.format("showing fullscreen upgrade ux for call id %d", callId));
 
         setContentView(R.layout.self_managed_handover);
         final SelfManagedConnection connection = SelfManagedCallList.getInstance()

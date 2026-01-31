@@ -19,8 +19,8 @@ package com.android.server.telecom.testapps;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
-import android.telecom.Log;
 import android.telephony.DisconnectCause;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 
@@ -30,6 +30,7 @@ import com.android.server.telecom.testapps.R;
  * Sample Incoming Call activity for Self-Managed calls.
  */
 public class IncomingSelfManagedCallActivity extends Activity {
+    private static final String TAG = IncomingSelfManagedCallActivity.class.getSimpleName();
     public static final String EXTRA_CALL_ID = "com.android.server.telecom.testapps.extra.CALL_ID";
 
     private Button mAnswerCallButton;
@@ -40,7 +41,7 @@ public class IncomingSelfManagedCallActivity extends Activity {
         super.onCreate(savedInstanceState);
         Intent launchingIntent = getIntent();
         int callId = launchingIntent.getIntExtra(EXTRA_CALL_ID, 0);
-        Log.i(this, "showing fullscreen answer ux for call id %d", callId);
+        Log.i(TAG, String.format("showing fullscreen answer ux for call id %d", callId));
 
         setContentView(R.layout.self_managed_incoming_call);
         final SelfManagedConnection connection = SelfManagedCallList.getInstance()
