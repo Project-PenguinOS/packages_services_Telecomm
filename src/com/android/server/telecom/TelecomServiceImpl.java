@@ -255,11 +255,9 @@ public class TelecomServiceImpl {
                             public void onResult(CallTransactionResult result) {
                                 Log.d(TAG, "addCall: onResult");
                                 Call call = result.getCall();
-                                if (mFeatureFlags.telecomMetricsSupport()) {
-                                    mMetricsController.getEventStats().log(new CriticalEvent(
-                                            EventStats.ID_ADD_CALL, uid,
-                                            EventStats.CAUSE_CALL_TRANSACTION_SUCCESS));
-                                }
+                                mMetricsController.getEventStats().log(new CriticalEvent(
+                                        EventStats.ID_ADD_CALL, uid,
+                                        EventStats.CAUSE_CALL_TRANSACTION_SUCCESS));
 
                                 if (call == null || !call.getId().equals(callId)) {
                                     Log.i(TAG, "addCall: onResult: call is null or id mismatch");
@@ -315,12 +313,10 @@ public class TelecomServiceImpl {
                                             ADD_CALL_ON_ERROR_UUID,
                                             exception.getMessage());
                                 }
-                                if (mFeatureFlags.telecomMetricsSupport()) {
-                                    mMetricsController.getEventStats().log(new CriticalEvent(
-                                            EventStats.ID_ADD_CALL, uid,
-                                            EventStats.CAUSE_CALL_TRANSACTION_BASE
-                                                    + exception.getCode()));
-                                }
+                                mMetricsController.getEventStats().log(new CriticalEvent(
+                                        EventStats.ID_ADD_CALL, uid,
+                                        EventStats.CAUSE_CALL_TRANSACTION_BASE
+                                                + exception.getCode()));
                             }
                         });
                     }
@@ -3214,9 +3210,7 @@ public class TelecomServiceImpl {
 
         @Override
         public void setMetricsTestMode(boolean enabled) {
-            if (mFeatureFlags.telecomMetricsSupport()) {
-                mMetricsController.setTestMode(enabled);
-            }
+            mMetricsController.setTestMode(enabled);
         }
 
         @Override
@@ -4215,9 +4209,7 @@ public class TelecomServiceImpl {
     }
 
     private void logEvent(ApiStats.ApiEvent event) {
-        if (mFeatureFlags.telecomMetricsSupport()) {
-            mMetricsController.getApiStats().log(event);
-        }
+        mMetricsController.getApiStats().log(event);
     }
 
     /**

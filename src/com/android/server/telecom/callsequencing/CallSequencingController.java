@@ -806,10 +806,8 @@ public class CallSequencingController {
         if (liveCall.getState() == CallState.CONNECTING
                 && ((mClockProxy.elapsedRealtime() - liveCall.getCreationElapsedRealtimeMillis())
                 > mTimeoutsAdapter.getNonVoipCallTransitoryStateTimeoutMillis())) {
-            if (mFeatureFlags.telecomMetricsSupport()) {
-                mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_MANAGER,
-                        ErrorStats.ERROR_STUCK_CONNECTING);
-            }
+            mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_MANAGER,
+                    ErrorStats.ERROR_STUCK_CONNECTING);
             mAnomalyReporter.reportAnomaly(LIVE_CALL_STUCK_CONNECTING_ERROR_UUID,
                     LIVE_CALL_STUCK_CONNECTING_ERROR_MSG);
             // Skip auto-unhold for when the live call is disconnected. Consider a scenario where

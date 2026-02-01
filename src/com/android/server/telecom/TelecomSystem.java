@@ -363,8 +363,7 @@ public class TelecomSystem {
                             BugreportManager.class), timeoutsAdapter, mContext.getSystemService(
                             DropBoxManager.class), asyncTaskExecutor, clockProxy);
 
-            mMetricsController = featureFlags.telecomMetricsSupport()
-                    ? TelecomMetricsController.make(mContext) : null;
+            mMetricsController = TelecomMetricsController.make(mContext);
 
             ScheduledExecutorService scheduledExecutorService =
                     Executors.newSingleThreadScheduledExecutor();
