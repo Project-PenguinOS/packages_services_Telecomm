@@ -670,7 +670,7 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
         }
 
         String dialerPackage = getDefaultDialerPackage(userHandle);
-        if (dialerPackage == null && mFeatureFlags.dontNotifyMissedCallsWhenNoDialer()) {
+        if (dialerPackage == null) {
             // There is no default dialer, so it would be impossible for the user to go to the
             // call log to see the missed calls.
             Log.i(this, "reloadFromDatabase: no dialer; not notifying missed calls for "
