@@ -1592,13 +1592,9 @@ public class TelecomServiceImpl {
 
         private boolean isPrivilegedUid() {
             int callingUid = Binder.getCallingUid();
-            return mFeatureFlags.allowSystemAppsResolveVoipCalls()
-                    ? (isSameApp(callingUid, Process.ROOT_UID)
-                            || isSameApp(callingUid, Process.SYSTEM_UID)
-                            || isSameApp(callingUid, Process.SHELL_UID))
-                    : (callingUid == Process.ROOT_UID
-                            || callingUid == Process.SYSTEM_UID
-                            || callingUid == Process.SHELL_UID);
+            return isSameApp(callingUid, Process.ROOT_UID)
+                    || isSameApp(callingUid, Process.SYSTEM_UID)
+                    || isSameApp(callingUid, Process.SHELL_UID);
         }
 
         private boolean isSameApp(int uid1, int uid2) {
@@ -1646,13 +1642,10 @@ public class TelecomServiceImpl {
                         throw new SecurityException("requires ANSWER_PHONE_CALLS permission");
                     }
                     // Legacy behavior is to ignore whether the invocation is from a system app:
-                    boolean isCallerPrivileged = false;
-                    if (mFeatureFlags.allowSystemAppsResolveVoipCalls()) {
-                        isCallerPrivileged = isPrivilegedUid() || isSysUiUid();
-                        Log.i(TAG, "endCall: Binder.getCallingUid = [" +
-                                Binder.getCallingUid() + "] isCallerPrivileged = " +
-                                isCallerPrivileged);
-                    }
+                    boolean isCallerPrivileged = isPrivilegedUid() || isSysUiUid();
+                    Log.i(TAG, "endCall: Binder.getCallingUid = [" +
+                            Binder.getCallingUid() + "] isCallerPrivileged = " +
+                            isCallerPrivileged);
                     long token = Binder.clearCallingIdentity();
                     event.setResult(ApiStats.RESULT_NORMAL);
                     try {
@@ -1679,13 +1672,10 @@ public class TelecomServiceImpl {
                 synchronized (mLock) {
                     if (!enforceAnswerCallPermission(packageName, Binder.getCallingUid())) return;
                     // Legacy behavior is to ignore whether the invocation is from a system app:
-                    boolean isCallerPrivileged = false;
-                    if (mFeatureFlags.allowSystemAppsResolveVoipCalls()) {
-                        isCallerPrivileged = isPrivilegedUid() || isSysUiUid();
-                        Log.i(TAG, "acceptRingingCall: Binder.getCallingUid = [" +
-                                Binder.getCallingUid() + "] isCallerPrivileged = " +
-                                isCallerPrivileged);
-                    }
+                    boolean isCallerPrivileged = isPrivilegedUid() || isSysUiUid();
+                    Log.i(TAG, "acceptRingingCall: Binder.getCallingUid = [" +
+                            Binder.getCallingUid() + "] isCallerPrivileged = " +
+                            isCallerPrivileged);
                     long token = Binder.clearCallingIdentity();
                     event.setResult(ApiStats.RESULT_NORMAL);
                     try {
@@ -1714,13 +1704,10 @@ public class TelecomServiceImpl {
                 synchronized (mLock) {
                     if (!enforceAnswerCallPermission(packageName, Binder.getCallingUid())) return;
                     // Legacy behavior is to ignore whether the invocation is from a system app:
-                    boolean isCallerPrivileged = false;
-                    if (mFeatureFlags.allowSystemAppsResolveVoipCalls()) {
-                        isCallerPrivileged = isPrivilegedUid() || isSysUiUid();
-                        Log.i(TAG, "acceptRingingCallWithVideoState: Binder.getCallingUid = "
-                                + "[" + Binder.getCallingUid() + "] isCallerPrivileged = " +
-                                isCallerPrivileged);
-                    }
+                    boolean isCallerPrivileged = isPrivilegedUid() || isSysUiUid();
+                    Log.i(TAG, "acceptRingingCallWithVideoState: Binder.getCallingUid = "
+                            + "[" + Binder.getCallingUid() + "] isCallerPrivileged = " +
+                            isCallerPrivileged);
                     long token = Binder.clearCallingIdentity();
                     event.setResult(ApiStats.RESULT_NORMAL);
                     try {
