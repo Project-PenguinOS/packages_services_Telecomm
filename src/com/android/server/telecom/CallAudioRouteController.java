@@ -1012,11 +1012,10 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             // device if the BT stack has indicated that SCO audio has disconnected.
             mPendingAudioRoute.clearPendingMessage(
                     new Pair<>(BT_AUDIO_CONNECTED, bluetoothDevice.getAddress()));
-            if (Objects.equals(mPendingAudioRoute.getOrigRoute().getBluetoothAddress(),
-                    bluetoothDevice.getAddress())) {
-                mPendingAudioRoute.onMessageReceived(new Pair<>(BT_AUDIO_DISCONNECTED,
-                        bluetoothDevice.getAddress()), null);
-            }
+            // Always ensure that we process the BT_AUDIO_DISCONNECTED message if the device is
+            // no longer the communication device.
+            mPendingAudioRoute.onMessageReceived(new Pair<>(BT_AUDIO_DISCONNECTED,
+                    bluetoothDevice.getAddress()), null);
         }
     }
 
