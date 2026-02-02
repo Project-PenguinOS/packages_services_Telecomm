@@ -134,8 +134,7 @@ public class BluetoothDeviceManagerTest extends TelecomTestCase {
                 serviceCaptor.capture(), eq(BluetoothProfile.HEADSET));
         serviceListenerUnderTest = serviceCaptor.getValue();
 
-        receiverUnderTest = new BluetoothStateReceiver(mContext, mBluetoothDeviceManager,
-                mFeatureFlags);
+        receiverUnderTest = new BluetoothStateReceiver(mContext, mBluetoothDeviceManager);
         receiverUnderTest.setCallAudioRouteAdapter(mCallAudioRouteController);
 
         mBluetoothDeviceManager.setHeadsetServiceForTesting(mBluetoothHeadset);
@@ -147,7 +146,6 @@ public class BluetoothDeviceManagerTest extends TelecomTestCase {
         verify(mBluetoothLeAudio).registerCallback(any(), leAudioCallbacksTest.capture());
 
         when(mSpeakerInfo.getType()).thenReturn(TYPE_BUILTIN_SPEAKER);
-        when(mFeatureFlags.keepBluetoothDevicesCacheUpdated()).thenReturn(true);
     }
 
     @Override

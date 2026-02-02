@@ -266,7 +266,7 @@ public class TelecomSystem {
             BluetoothRouteManager bluetoothRouteManager = new BluetoothRouteManager(
                     bluetoothDeviceManager);
             BluetoothStateReceiver bluetoothStateReceiver = new BluetoothStateReceiver(mContext,
-                    bluetoothDeviceManager, featureFlags);
+                    bluetoothDeviceManager);
             mContext.registerReceiver(bluetoothStateReceiver, BluetoothStateReceiver.INTENT_FILTER);
 
             WiredHeadsetManager wiredHeadsetManager = new WiredHeadsetManager(mContext);
