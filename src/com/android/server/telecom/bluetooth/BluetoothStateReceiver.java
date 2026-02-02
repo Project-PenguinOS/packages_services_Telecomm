@@ -44,7 +44,6 @@ import com.android.internal.os.SomeArgs;
 import com.android.server.telecom.AudioRoute;
 import com.android.server.telecom.CallAudioRouteAdapter;
 import com.android.server.telecom.CallAudioRouteController;
-import com.android.server.telecom.flags.FeatureFlags;
 
 import java.util.Objects;
 
@@ -67,7 +66,6 @@ public class BluetoothStateReceiver extends BroadcastReceiver {
     // other apps could be turning it on and off. We don't want to interfere.
     private boolean mIsInCall = false;
     private final BluetoothDeviceManager mBluetoothDeviceManager;
-    private FeatureFlags mFeatureFlags;
     private boolean mIsScoManagedByAudio;
     private CallAudioRouteAdapter mCallAudioRouteAdapter;
     private final Context mContext;
@@ -133,16 +131,12 @@ public class BluetoothStateReceiver extends BroadcastReceiver {
         if (bluetoothHeadsetState == BluetoothProfile.STATE_CONNECTED) {
             mCallAudioRouteAdapter.sendMessageWithSessionInfo(BT_DEVICE_ADDED,
                     audioRouteType, device);
-            if (mFeatureFlags.keepBluetoothDevicesCacheUpdated()) {
-                mBluetoothDeviceManager.onDeviceConnected(device, deviceType);
-            }
+            mBluetoothDeviceManager.onDeviceConnected(device, deviceType);
         } else if (bluetoothHeadsetState == BluetoothProfile.STATE_DISCONNECTED
                 || bluetoothHeadsetState == BluetoothProfile.STATE_DISCONNECTING) {
             mCallAudioRouteAdapter.sendMessageWithSessionInfo(BT_DEVICE_REMOVED,
                     audioRouteType, device);
-            if (mFeatureFlags.keepBluetoothDevicesCacheUpdated()) {
-                mBluetoothDeviceManager.onDeviceDisconnected(device, deviceType);
-            }
+            mBluetoothDeviceManager.onDeviceDisconnected(device, deviceType);
         }
     }
 
@@ -207,10 +201,8 @@ public class BluetoothStateReceiver extends BroadcastReceiver {
         return mBluetoothDeviceManager;
     }
 
-    public BluetoothStateReceiver(Context context, BluetoothDeviceManager deviceManager,
-            FeatureFlags featureFlags) {
+    public BluetoothStateReceiver(Context context, BluetoothDeviceManager deviceManager) {
         mBluetoothDeviceManager = deviceManager;
-        mFeatureFlags = featureFlags;
         mContext = context;
         AudioManager audioManager = mContext.getSystemService(AudioManager.class);
         // Indication that SCO is managed by audio (i.e. supports setCommunicationDevice).
