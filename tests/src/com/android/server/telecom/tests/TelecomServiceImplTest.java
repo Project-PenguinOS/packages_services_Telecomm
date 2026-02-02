@@ -306,7 +306,6 @@ public class TelecomServiceImplTest extends TelecomTestCase {
 
         mPackageManager = mContext.getPackageManager();
         when(mPackageManager.getPackageUid(anyString(), eq(0))).thenReturn(Binder.getCallingUid());
-        when(mFeatureFlags.earlyBindingToIncallService()).thenReturn(true);
         when(mTelephonyFeatureFlags.workProfileApiSplit()).thenReturn(false);
     }
 
@@ -1270,25 +1269,6 @@ public class TelecomServiceImplTest extends TelecomTestCase {
         addCallTestHelper(TelecomManager.ACTION_INCOMING_CALL,
                 CallIntentProcessor.KEY_IS_INCOMING_CALL, extras,
                 TEL_PA_HANDLE_16, false);
-    }
-
-    @SmallTest
-    @Test
-    public void testAddNewIncomingFlagDisabledNoEarlyBinding() throws Exception {
-        when(mFeatureFlags.earlyBindingToIncallService()).thenReturn(false);
-        PhoneAccount phoneAccount = makeSkipCallFilteringPhoneAccount(TEL_PA_HANDLE_16).build();
-        phoneAccount.setIsEnabled(true);
-        doReturn(phoneAccount).when(mFakePhoneAccountRegistrar).getPhoneAccount(
-                eq(TEL_PA_HANDLE_16), any(UserHandle.class));
-        doReturn(phoneAccount).when(mFakePhoneAccountRegistrar).getPhoneAccountUnchecked(
-                eq(TEL_PA_HANDLE_16));
-        doNothing().when(mAppOpsManager).checkPackage(anyInt(), anyString());
-        when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_WATCH)).thenReturn(true);
-        Bundle extras = createSampleExtras();
-
-        mTSIBinder.addNewIncomingCall(TEL_PA_HANDLE_16, extras, CALLING_PACKAGE);
-
-        verify(mInCallController, never()).bindToServices(eq(null));
     }
 
     @SmallTest
