@@ -106,6 +106,13 @@ import com.android.server.telecom.TelecomSystem;
 import com.android.server.telecom.WiredHeadsetManager;
 import com.android.server.telecom.bluetooth.BluetoothDeviceManager;
 import com.android.server.telecom.bluetooth.BluetoothRouteManager;
+import com.android.server.telecom.metrics.ApiStats;
+import com.android.server.telecom.metrics.AudioRouteStats;
+import com.android.server.telecom.metrics.CallEndpointStats;
+import com.android.server.telecom.metrics.CallSequencingStats;
+import com.android.server.telecom.metrics.CallStats;
+import com.android.server.telecom.metrics.ErrorStats;
+import com.android.server.telecom.metrics.EventStats;
 import com.android.server.telecom.metrics.TelecomMetricsController;
 
 import com.google.common.base.Predicate;
@@ -171,6 +178,13 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
     private TelecomSystem.SyncRoot mLock;
     @Mock
     private TelecomMetricsController mMockTelecomMetricsController;
+    @Mock private ApiStats mApiStats;
+    @Mock private AudioRouteStats mAudioRouteStats;
+    @Mock private CallStats mCallStats;
+    @Mock private ErrorStats mErrorStats;
+    @Mock private EventStats mEventStats;
+    @Mock private CallSequencingStats mCallSequencingStats;
+    @Mock private CallEndpointStats mCallEndpointStats;
     @Mock private AsyncRingtonePlayer mRingtonePlayer;
     @Mock private AnomalyReporterAdapter mAnomalyReporterAdapter;
     private AudioRoute mEarpieceRoute;
@@ -236,6 +250,15 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         when(mBluetoothLeAudio.getConnectedGroupLeadDevice(anyInt()))
                 .thenReturn(BLUETOOTH_DEVICE_1);
         when(mAudioDeviceInfo.getAddress()).thenReturn(BT_ADDRESS_1);
+        when(mMockTelecomMetricsController.getApiStats()).thenReturn(mApiStats);
+        when(mMockTelecomMetricsController.getAudioRouteStats()).thenReturn(mAudioRouteStats);
+        when(mMockTelecomMetricsController.getCallStats()).thenReturn(mCallStats);
+        when(mMockTelecomMetricsController.getErrorStats()).thenReturn(mErrorStats);
+        when(mMockTelecomMetricsController.getEventStats()).thenReturn(mEventStats);
+        when(mMockTelecomMetricsController.getCallSequencingStats()).thenReturn(
+                mCallSequencingStats);
+        when(mMockTelecomMetricsController.getCallEndpointStats()).thenReturn(
+                mCallEndpointStats);
         mController = new CallAudioRouteController.Factory().create(mContext, mCallsManager,
                 mAudioRouteFactory, mWiredHeadsetManager,mBluetoothRouteManager,
                 mockStatusBarNotifier, mFeatureFlags,

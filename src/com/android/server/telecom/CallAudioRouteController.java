@@ -680,10 +680,8 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         if (destRoute == null || (!destRoute.equals(mStreamingRoute)
                 && !getCallSupportedRoutes().contains(destRoute))) {
             Log.i(this, "Ignore routing to unavailable route: %s", destRoute);
-            if (mFeatureFlags.telecomMetricsSupport()) {
-                mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_AUDIO,
-                        ErrorStats.ERROR_AUDIO_ROUTE_UNAVAILABLE);
-            }
+            mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_AUDIO,
+                    ErrorStats.ERROR_AUDIO_ROUTE_UNAVAILABLE);
             return;
         }
         // If another BT device connects during RINGING_FOCUS, in-band ringing will be disabled by
@@ -763,9 +761,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         mIsActive = isDestRouteActive;
         maybeClearPendingMessage();
         mPendingAudioRoute.evaluatePendingState();
-        if (mFeatureFlags.telecomMetricsSupport()) {
-            mMetricsController.getAudioRouteStats().onRouteEnter(mPendingAudioRoute);
-        }
+        mMetricsController.getAudioRouteStats().onRouteEnter(mPendingAudioRoute);
     }
 
     /**
@@ -826,10 +822,8 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             wiredHeadsetRoute = mAudioRouteFactory.create(AudioRoute.TYPE_WIRED, null,
                     mAudioManager, mIsScoManagedByAudio);
         } catch (IllegalArgumentException e) {
-            if (mFeatureFlags.telecomMetricsSupport()) {
-                mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_AUDIO,
-                        ErrorStats.ERROR_EXTERNAL_EXCEPTION);
-            }
+            mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_AUDIO,
+                    ErrorStats.ERROR_EXTERNAL_EXCEPTION);
             Log.e(this, e, "Can't find available audio device info for route type:"
                     + AudioRoute.DEVICE_TYPE_STRINGS.get(AudioRoute.TYPE_WIRED));
         }
@@ -860,10 +854,8 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                     mAudioManager, mIsScoManagedByAudio)
                 : mTypeRoutes.get(AudioRoute.TYPE_EARPIECE);
         } catch (IllegalArgumentException e) {
-            if (mFeatureFlags.telecomMetricsSupport()) {
-                mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_AUDIO,
-                        ErrorStats.ERROR_EXTERNAL_EXCEPTION);
-            }
+            mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_AUDIO,
+                    ErrorStats.ERROR_EXTERNAL_EXCEPTION);
             Log.e(this, e, "Can't find available audio device info for route type:"
                     + AudioRoute.DEVICE_TYPE_STRINGS.get(AudioRoute.TYPE_EARPIECE));
         }
@@ -893,10 +885,8 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             dockRoute = mAudioRouteFactory.create(AudioRoute.TYPE_DOCK, null,
                     mAudioManager, mIsScoManagedByAudio);
         } catch (IllegalArgumentException e) {
-            if (mFeatureFlags.telecomMetricsSupport()) {
-                mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_AUDIO,
-                        ErrorStats.ERROR_EXTERNAL_EXCEPTION);
-            }
+            mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_AUDIO,
+                    ErrorStats.ERROR_EXTERNAL_EXCEPTION);
             Log.e(this, e, "Can't find available audio device info for route type:"
                     + AudioRoute.DEVICE_TYPE_STRINGS.get(AudioRoute.TYPE_WIRED));
         }
@@ -1054,10 +1044,8 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             Log.i(this, "bluetooth route added: " + bluetoothRoute);
             updateAvailableRoutes(bluetoothRoute, true);
             mBluetoothRoutes.put(bluetoothRoute, bluetoothDevice);
-            if (mFeatureFlags.telecomMetricsSupport()) {
-                mMetricsController.getCallEndpointStats().updateBluetoothDevices(
-                        new HashMap<>(mBluetoothRoutes));
-            }
+            mMetricsController.getCallEndpointStats().updateBluetoothDevices(
+                    new HashMap<>(mBluetoothRoutes));
             onAvailableRoutesChanged();
         }
     }
@@ -1090,10 +1078,8 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                 // new state in the available routes.
                 updateAvailableRoutes(adjustedHaRoute, true);
             }
-            if (mFeatureFlags.telecomMetricsSupport()) {
-                mMetricsController.getCallEndpointStats().updateBluetoothDevices(
-                        new HashMap<>(mBluetoothRoutes));
-            }
+            mMetricsController.getCallEndpointStats().updateBluetoothDevices(
+                    new HashMap<>(mBluetoothRoutes));
             onAvailableRoutesChanged();
         }
 
@@ -1477,9 +1463,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                 }
                 mAudioOperationsCompleteLatch.countDown();
             }
-            if (mFeatureFlags.telecomMetricsSupport()) {
-                mMetricsController.getAudioRouteStats().onRouteExit(mPendingAudioRoute, true);
-            }
+            mMetricsController.getAudioRouteStats().onRouteExit(mPendingAudioRoute, true);
         }
     }
 

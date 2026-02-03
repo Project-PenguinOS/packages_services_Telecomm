@@ -104,6 +104,13 @@ import com.android.server.telecom.callsequencing.voip.VoipCallMonitor;
 import com.android.server.telecom.components.UserCallIntentProcessor;
 import com.android.server.telecom.components.UserCallIntentProcessorFactory;
 import com.android.server.telecom.flags.FeatureFlags;
+import com.android.server.telecom.metrics.ApiStats;
+import com.android.server.telecom.metrics.AudioRouteStats;
+import com.android.server.telecom.metrics.CallEndpointStats;
+import com.android.server.telecom.metrics.CallSequencingStats;
+import com.android.server.telecom.metrics.CallStats;
+import com.android.server.telecom.metrics.ErrorStats;
+import com.android.server.telecom.metrics.EventStats;
 import com.android.server.telecom.metrics.TelecomMetricsController;
 import com.android.server.telecom.callsequencing.voip.IncomingCallTransaction;
 import com.android.server.telecom.callsequencing.voip.OutgoingCallTransaction;
@@ -201,6 +208,13 @@ public class TelecomServiceImplTest extends TelecomTestCase {
 
     @Mock private InCallController mInCallController;
     @Mock private TelecomMetricsController mMockTelecomMetricsController;
+    @Mock private ApiStats mApiStats;
+    @Mock private AudioRouteStats mAudioRouteStats;
+    @Mock private CallStats mCallStats;
+    @Mock private ErrorStats mErrorStats;
+    @Mock private EventStats mEventStats;
+    @Mock private CallSequencingStats mCallSequencingStats;
+    @Mock private CallEndpointStats mCallEndpointStats;
     @Mock private OutgoingCallTransaction mOutgoingCallTransaction;
     @Mock private IncomingCallTransaction mIncomingCallTransaction;
     @Mock private PermissionManager mPermissionManager;
@@ -245,6 +259,15 @@ public class TelecomServiceImplTest extends TelecomTestCase {
             return null;
         }).when(mDefaultDialerCache).observeDefaultDialerApplication(any(Executor.class),
                 any(IntConsumer.class));
+        when(mMockTelecomMetricsController.getApiStats()).thenReturn(mApiStats);
+        when(mMockTelecomMetricsController.getAudioRouteStats()).thenReturn(mAudioRouteStats);
+        when(mMockTelecomMetricsController.getCallStats()).thenReturn(mCallStats);
+        when(mMockTelecomMetricsController.getErrorStats()).thenReturn(mErrorStats);
+        when(mMockTelecomMetricsController.getEventStats()).thenReturn(mEventStats);
+        when(mMockTelecomMetricsController.getCallSequencingStats()).thenReturn(
+                mCallSequencingStats);
+        when(mMockTelecomMetricsController.getCallEndpointStats()).thenReturn(
+                mCallEndpointStats);
         TelecomServiceImpl telecomServiceImpl = new TelecomServiceImpl(
                 mContext,
                 mFakeCallsManager,
@@ -283,7 +306,6 @@ public class TelecomServiceImplTest extends TelecomTestCase {
 
         mPackageManager = mContext.getPackageManager();
         when(mPackageManager.getPackageUid(anyString(), eq(0))).thenReturn(Binder.getCallingUid());
-        when(mFeatureFlags.earlyBindingToIncallService()).thenReturn(true);
         when(mTelephonyFeatureFlags.workProfileApiSplit()).thenReturn(false);
     }
 
@@ -1247,25 +1269,6 @@ public class TelecomServiceImplTest extends TelecomTestCase {
         addCallTestHelper(TelecomManager.ACTION_INCOMING_CALL,
                 CallIntentProcessor.KEY_IS_INCOMING_CALL, extras,
                 TEL_PA_HANDLE_16, false);
-    }
-
-    @SmallTest
-    @Test
-    public void testAddNewIncomingFlagDisabledNoEarlyBinding() throws Exception {
-        when(mFeatureFlags.earlyBindingToIncallService()).thenReturn(false);
-        PhoneAccount phoneAccount = makeSkipCallFilteringPhoneAccount(TEL_PA_HANDLE_16).build();
-        phoneAccount.setIsEnabled(true);
-        doReturn(phoneAccount).when(mFakePhoneAccountRegistrar).getPhoneAccount(
-                eq(TEL_PA_HANDLE_16), any(UserHandle.class));
-        doReturn(phoneAccount).when(mFakePhoneAccountRegistrar).getPhoneAccountUnchecked(
-                eq(TEL_PA_HANDLE_16));
-        doNothing().when(mAppOpsManager).checkPackage(anyInt(), anyString());
-        when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_WATCH)).thenReturn(true);
-        Bundle extras = createSampleExtras();
-
-        mTSIBinder.addNewIncomingCall(TEL_PA_HANDLE_16, extras, CALLING_PACKAGE);
-
-        verify(mInCallController, never()).bindToServices(eq(null));
     }
 
     @SmallTest
@@ -2396,41 +2399,6 @@ public class TelecomServiceImplTest extends TelecomTestCase {
     }
 
     /**
-     * Ensure self-managed calls cannot be ended using {@link TelecomManager#endCall()} when the
-     * caller of this method is not considered privileged.
-     * @throws Exception
-     */
-    @SmallTest
-    @Test
-    public void testCannotEndSelfManagedCall() throws Exception {
-        Call call = mock(Call.class);
-        when(call.isSelfManaged()).thenReturn(true);
-        when(call.getState()).thenReturn(CallState.ACTIVE);
-        when(mFakeCallsManager.getFirstCallWithState(any()))
-                .thenReturn(call);
-        assertFalse(mTSIBinder.endCall(TEST_PACKAGE));
-        verify(mFakeCallsManager, never()).disconnectCall(eq(call));
-    }
-
-    /**
-     * Ensure self-managed calls cannot be answered using {@link TelecomManager#acceptRingingCall()}
-     * or {@link TelecomManager#acceptRingingCall(int)} when the caller of these methods is not
-     * considered privileged.
-     * @throws Exception
-     */
-    @SmallTest
-    @Test
-    public void testCannotAnswerSelfManagedCall() throws Exception {
-        Call call = mock(Call.class);
-        when(call.isSelfManaged()).thenReturn(true);
-        when(call.getState()).thenReturn(CallState.ACTIVE);
-        when(mFakeCallsManager.getFirstCallWithState(any()))
-                .thenReturn(call);
-        mTSIBinder.acceptRingingCall(TEST_PACKAGE);
-        verify(mFakeCallsManager, never()).answerCall(eq(call), anyInt());
-    }
-
-    /**
      * Ensure self-managed calls can be answered using {@link TelecomManager#acceptRingingCall()}
      * or {@link TelecomManager#acceptRingingCall(int)} if the caller of these methods is
      * privileged.
@@ -2439,7 +2407,6 @@ public class TelecomServiceImplTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testCanAnswerSelfManagedCallIfPrivileged() throws Exception {
-        when(mFeatureFlags.allowSystemAppsResolveVoipCalls()).thenReturn(true);
         // Configure the test so that the caller of acceptRingingCall is considered privileged:
         when(mPackageManager.getPackageUid(SYSTEM_UI_PACKAGE, 0))
                 .thenReturn(Binder.getCallingUid());
@@ -2462,7 +2429,6 @@ public class TelecomServiceImplTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testCanEndSelfManagedCallIfPrivileged() throws Exception {
-        when(mFeatureFlags.allowSystemAppsResolveVoipCalls()).thenReturn(true);
         // Configure the test so that the caller of endCall is considered privileged:
         when(mPackageManager.getPackageUid(SYSTEM_UI_PACKAGE, 0))
                 .thenReturn(Binder.getCallingUid());
