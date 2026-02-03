@@ -234,7 +234,6 @@ public class TransactionalServiceWrapperTest extends TelecomTestCase {
     @EnableFlags(android.telecom.flags.Flags.FLAG_INTEGRATED_CALL_LOGS_STAGE2)
     public void testSetGroupCallState_untrackedCall() throws RemoteException {
         // GIVEN a call ID that is not being tracked and anomaly reporting is enabled
-        Mockito.when(mFeatureFlags.enableCallExceptionAnomReports()).thenReturn(true);
 
         // WHEN setGroupCallState is called for the untracked call
         ICallControl callControl = mTransactionalServiceWrapper.getICallControl();
@@ -268,7 +267,6 @@ public class TransactionalServiceWrapperTest extends TelecomTestCase {
     public void testSetContactUri_untrackedCall() throws RemoteException {
         // GIVEN a call ID that is not being tracked and anomaly reporting is enabled
         Uri uri = Uri.fromParts("sip", "foo@bar.com", null);
-        Mockito.when(mFeatureFlags.enableCallExceptionAnomReports()).thenReturn(true);
 
         // WHEN setContactUri is called for the untracked call
         ICallControl callControl = mTransactionalServiceWrapper.getICallControl();

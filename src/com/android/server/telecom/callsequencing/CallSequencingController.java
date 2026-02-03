@@ -247,12 +247,10 @@ public class CallSequencingController {
                         callback.onError(
                                 new CallException("activeCall could not be held or disconnected",
                                 CallException.CODE_CANNOT_HOLD_CURRENT_ACTIVE_CALL));
-                        if (mFeatureFlags.enableCallExceptionAnomReports()) {
-                            mAnomalyReporter.reportAnomaly(
-                                    SEQUENCING_CANNOT_HOLD_ACTIVE_CALL_UUID,
-                                    SEQUENCING_CANNOT_HOLD_ACTIVE_CALL_MSG
-                            );
-                        }
+                        mAnomalyReporter.reportAnomaly(
+                                SEQUENCING_CANNOT_HOLD_ACTIVE_CALL_UUID,
+                                SEQUENCING_CANNOT_HOLD_ACTIVE_CALL_MSG
+                        );
                     }
                     return CompletableFuture.completedFuture(result);
                 }, new LoggedHandlerExecutor(mHandler, "CM.mCAA", mCallsManager.getLock()));
