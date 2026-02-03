@@ -34,6 +34,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.annotation.SuppressLint;
 import android.media.AudioManager;
 import android.sysprop.BluetoothProperties;
 import android.telecom.Log;
@@ -201,6 +202,10 @@ public class BluetoothStateReceiver extends BroadcastReceiver {
         return mBluetoothDeviceManager;
     }
 
+    /* TODO: b/478043076 - Remove SuppressLint once the API is finalized.
+     * And update the SDK check to the final version number.
+     */
+    @SuppressLint("NewApi")
     public BluetoothStateReceiver(Context context, BluetoothDeviceManager deviceManager) {
         mBluetoothDeviceManager = deviceManager;
         mContext = context;

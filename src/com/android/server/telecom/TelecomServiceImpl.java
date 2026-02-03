@@ -31,6 +31,8 @@ import static android.telecom.CallException.CODE_ERROR_UNKNOWN;
 import static android.telecom.TelecomManager.TELECOM_TRANSACTION_SUCCESS;
 
 import android.Manifest;
+
+import android.annotation.SuppressLint;
 import android.app.ActivityManager;
 import android.app.AppOpsManager;
 import android.app.UiModeManager;
@@ -116,6 +118,10 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Implementation of the ITelecom interface.
  */
+/* TODO: b/478043076 - Remove SuppressLint once the API is finalized.
+ * And update the SDK check to the final version number.
+ */
+@SuppressLint("NewApi")
 public class TelecomServiceImpl {
 
     /**
