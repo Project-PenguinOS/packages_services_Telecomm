@@ -357,6 +357,7 @@ android_library {
     srcs: [
         "src/com/android/server/telecom/settings/BlockedNumbersUtil.java",
         "src/com/android/server/telecom/ui/UiConstants.java",
+        "src/com/android/server/telecom/QuickResponseUtils.java",
     ],
     static_libs: [
         "telecom-resource-id-lib",

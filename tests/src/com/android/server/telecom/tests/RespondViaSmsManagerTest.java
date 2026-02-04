@@ -64,6 +64,7 @@ public class RespondViaSmsManagerTest extends TelecomTestCase {
     @Before
     public void setUp() throws Exception {
         super.setUp();
+        when(mCallsManager.getContext()).thenReturn(mContext);
         mRespondViaSmsManager = new RespondViaSmsManager(mCallsManager, mLock, mExecutor);
     }
 

@@ -31,6 +31,8 @@ import android.content.res.Resources;
 
 import androidx.test.runner.AndroidJUnit4;
 
+import com.android.server.telecom.QuickResponseUtils;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;

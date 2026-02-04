@@ -56,4 +56,10 @@ public class UiConstants {
     public static final String EXTRA_OUTGOING_CALL_ID = "android.telecom.extra.OUTGOING_CALL_ID";
     public static final String EXTRA_REDIRECTION_APP_NAME =
         "android.telecom.extra.REDIRECTION_APP_NAME";
+
+    /**
+     * Permission for Telecom UI access.
+     */
+    public static final String TELECOM_UI_ACCESS_PERMISSION =
+        "com.android.telephonycore.permission.TELECOM_UI_ACCESS";
 }
