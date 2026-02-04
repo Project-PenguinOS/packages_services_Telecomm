@@ -332,7 +332,7 @@ android_app {
         "framework-annotations-lib", // For @Nullable, @VisibleForTesting
     ],
     certificate: select(release_flag("RELEASE_TELECOM_MAINLINE_MODULE"), {
-        true: ":com.android.telephonycore.certificate",
+        true: ":com.android.telecomui.certificate",
         default: "platform",
     }),
     privileged: true,
