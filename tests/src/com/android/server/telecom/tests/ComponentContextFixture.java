@@ -219,7 +219,7 @@ public class ComponentContextFixture implements TestFixture<Context> {
                 ServiceConnection connection) {
             IInterface service = mServiceByServiceConnection.remove(connection);
             if (service == null) {
-                throw new RuntimeException("ServiceConnection not found: " + connection);
+                throw new IllegalArgumentException("ServiceConnection not found: " + connection);
             }
             connection.onServiceDisconnected(mComponentNameByService.get(service));
         }

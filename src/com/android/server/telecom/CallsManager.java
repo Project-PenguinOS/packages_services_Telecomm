@@ -44,6 +44,7 @@ import android.Manifest;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.SuppressLint;
 import android.app.ActivityManager;
 import android.app.AlertDialog;
 import android.app.KeyguardManager;
@@ -669,7 +670,11 @@ public class CallsManager extends Call.ListenerBase
     /**
      * Initializes the required Telecom components.
      */
+    /* TODO: b/478043076 - Remove SuppressLint once the API is finalized.
+     * And update the SDK check to the final version number.
+     */
     @VisibleForTesting
+    @SuppressLint("NewApi")
     public CallsManager(
             Context context,
             TelecomSystem.SyncRoot lock,
@@ -3755,7 +3760,11 @@ public class CallsManager extends Call.ListenerBase
      * @param speakerphoneOn Whether or not to turn the speakerphone on once the call connects.
      * @param videoState The desired video state for the outgoing call.
      */
+    /* TODO: b/478043076 - Remove SuppressLint once the API is finalized.
+     * And update the SDK check to the final version number.
+     */
     @VisibleForTesting
+    @SuppressLint("NewApi")
     public void placeOutgoingCall(Call call, Uri handle, GatewayInfo gatewayInfo,
             boolean speakerphoneOn, int videoState) {
         if (call == null) {
@@ -7318,9 +7327,7 @@ public class CallsManager extends Call.ListenerBase
                 String msg = "failed to switch focus to requested call";
                 mCallback.onError(new CallException(msg,
                         CallException.CODE_CALL_CANNOT_BE_SET_TO_ACTIVE));
-                if (mFeatureFlags.enableCallExceptionAnomReports()) {
-                    mAnomalyReporter.reportAnomaly(FAILED_TO_SWITCH_FOCUS_ERROR_UUID, msg);
-                }
+                mAnomalyReporter.reportAnomaly(FAILED_TO_SWITCH_FOCUS_ERROR_UUID, msg);
                 return;
             }
             // at this point, we know the FocusManager is able to update successfully

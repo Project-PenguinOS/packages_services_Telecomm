@@ -16,6 +16,7 @@
 
 package com.android.server.telecom.callfiltering;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.os.Bundle;
 import android.provider.BlockedNumbersManager;
@@ -51,6 +52,10 @@ public class BlockCheckerAdapter {
      *         {@link BlockCheckerFilter#STATUS_BLOCKED_RESTRICTED},
      *         {@link BlockCheckerFilter#STATUS_BLOCKED_UNKNOWN_NUMBER}.
      */
+    /* TODO: b/478043076 - Remove SuppressLint once the API is finalized.
+     * And update the SDK check to the final version number.
+     */
+    @SuppressLint("NewApi")
     public int getBlockStatus(Context context, String phoneNumber,
             int numberPresentation, boolean isNumberInContacts) {
         int blockStatus = Constants.STATUS_NOT_BLOCKED;

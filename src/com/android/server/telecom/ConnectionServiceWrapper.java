@@ -2013,7 +2013,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                         NULL_SCHEDULED_EXECUTOR_ERROR_MSG);
                 }
                 try {
-                    if (mFlags.cswServiceInterfaceIsNull() && mServiceInterface == null) {
+                    if (mServiceInterface == null) {
                         maybeRemoveCleanupFuture(call);
                         CreateConnectionResponse response = mPendingResponses.remove(callId);
                         if (response != null) {

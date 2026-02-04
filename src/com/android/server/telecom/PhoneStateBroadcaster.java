@@ -16,6 +16,7 @@
 
 package com.android.server.telecom;
 
+import android.annotation.SuppressLint;
 import android.content.pm.PackageManager;
 import android.telecom.Log;
 import android.telephony.PhoneNumberUtils;
@@ -44,6 +45,10 @@ public final class PhoneStateBroadcaster extends CallsManagerListenerBase {
     // Redefined locally to remove hidden API dependency.
     private static final int DEFAULT_PHONE_INDEX = Integer.MAX_VALUE;
 
+    /* TODO: b/478043076 - Remove SuppressLint once the API is finalized.
+     * And update the SDK check to the final version number.
+     */
+    @SuppressLint("NewApi")
     public PhoneStateBroadcaster(CallsManager callsManager) {
         mCallsManager = callsManager;
         mRegistry = callsManager.getContext().getSystemService(TelephonyRegistryManager.class);
@@ -112,6 +117,10 @@ public final class PhoneStateBroadcaster extends CallsManagerListenerBase {
         return mCurrentState;
     }
 
+    /* TODO: b/478043076 - Remove SuppressLint once the API is finalized.
+     * And update the SDK check to the final version number.
+     */
+    @SuppressLint("NewApi")
     private void sendPhoneStateChangedBroadcast(Call call, int phoneState) {
         if (phoneState == mCurrentState) {
             return;
@@ -132,6 +141,10 @@ public final class PhoneStateBroadcaster extends CallsManagerListenerBase {
         }
     }
 
+    /* TODO: b/478043076 - Remove SuppressLint once the API is finalized.
+     * And update the SDK check to the final version number.
+     */
+    @SuppressLint("NewApi")
     private void sendOutgoingEmergencyCallEvent(Call call) {
         TelephonyManager tm = mCallsManager.getContext().getSystemService(TelephonyManager.class);
         String strippedNumber =

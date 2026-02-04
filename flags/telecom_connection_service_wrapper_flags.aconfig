@@ -1,13 +1,2 @@
 package: "com.android.server.telecom.flags"
 container: "system"
-
-# OWNER=tjstuart TARGET=24Q4
-flag {
-  name: "csw_service_interface_is_null"
-  namespace: "telecom"
-  description: "fix potential NPE in onCreateConnection when the ServiceInterface is cleared out"
-  bug: "364811868"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-      }
-}

@@ -322,7 +322,7 @@ public final class CallLogManager extends CallsManagerListenerBase {
             @Nullable LogCallCompletedListener logCallCompletedListener, CallFilteringResult result) {
         // If the call has already been logged, do not log it again. This is an atomic check-and-set
         // to prevent race conditions from multiple disconnect events.
-        if (mFeatureFlags.avoidLoggingMoreThanOnce() && call.getAndSetHasBeenLogged()) {
+        if (call.getAndSetHasBeenLogged()) {
             Log.i(TAG, "LogCall: skipping already-logged call: %s", call.getId());
             return;
         }
