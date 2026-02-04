@@ -342,6 +342,7 @@ android_app {
     },
     apex_available: [
         "com.android.telephonycore",
+        "//apex_available:platform",
     ],
     min_sdk_version: "36",
     updatable: true,
@@ -366,6 +367,7 @@ android_library {
     sdk_version: "module_current",
     apex_available: [
         "com.android.telephonycore",
+        "//apex_available:platform",
     ],
     min_sdk_version: "36",
 }
@@ -380,6 +382,7 @@ android_library {
     sdk_version: "module_current",
     apex_available: [
         "com.android.telephonycore",
+        "//apex_available:platform",
     ],
     min_sdk_version: "36",
 }
