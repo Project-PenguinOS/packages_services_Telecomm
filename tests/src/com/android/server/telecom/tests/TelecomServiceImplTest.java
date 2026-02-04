@@ -57,12 +57,14 @@ import static org.mockito.Mockito.when;
 import android.Manifest;
 import android.app.ActivityManager;
 import android.app.AppOpsManager;
+import android.content.AttributionSource;
 import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.graphics.drawable.Icon;
 import android.net.Uri;
 import android.os.Binder;
@@ -87,18 +89,28 @@ import com.android.internal.telecom.ICallEventCallback;
 import com.android.internal.telecom.ITelecomService;
 import com.android.server.telecom.AnomalyReporterAdapter;
 import com.android.server.telecom.Call;
+import com.android.server.telecom.CallAudioManager;
 import com.android.server.telecom.CallIntentProcessor;
 import com.android.server.telecom.CallState;
 import com.android.server.telecom.CallsManager;
 import com.android.server.telecom.DefaultDialerCache;
 import com.android.server.telecom.InCallController;
+import com.android.server.telecom.MissedCallNotifier;
 import com.android.server.telecom.PhoneAccountRegistrar;
 import com.android.server.telecom.TelecomServiceImpl;
 import com.android.server.telecom.TelecomSystem;
 import com.android.server.telecom.callsequencing.CallTransaction;
+import com.android.server.telecom.callsequencing.voip.VoipCallMonitor;
 import com.android.server.telecom.components.UserCallIntentProcessor;
 import com.android.server.telecom.components.UserCallIntentProcessorFactory;
 import com.android.server.telecom.flags.FeatureFlags;
+import com.android.server.telecom.metrics.ApiStats;
+import com.android.server.telecom.metrics.AudioRouteStats;
+import com.android.server.telecom.metrics.CallEndpointStats;
+import com.android.server.telecom.metrics.CallSequencingStats;
+import com.android.server.telecom.metrics.CallStats;
+import com.android.server.telecom.metrics.ErrorStats;
+import com.android.server.telecom.metrics.EventStats;
 import com.android.server.telecom.metrics.TelecomMetricsController;
 import com.android.server.telecom.callsequencing.voip.IncomingCallTransaction;
 import com.android.server.telecom.callsequencing.voip.OutgoingCallTransaction;
@@ -196,9 +208,19 @@ public class TelecomServiceImplTest extends TelecomTestCase {
 
     @Mock private InCallController mInCallController;
     @Mock private TelecomMetricsController mMockTelecomMetricsController;
+    @Mock private ApiStats mApiStats;
+    @Mock private AudioRouteStats mAudioRouteStats;
+    @Mock private CallStats mCallStats;
+    @Mock private ErrorStats mErrorStats;
+    @Mock private EventStats mEventStats;
+    @Mock private CallSequencingStats mCallSequencingStats;
+    @Mock private CallEndpointStats mCallEndpointStats;
     @Mock private OutgoingCallTransaction mOutgoingCallTransaction;
     @Mock private IncomingCallTransaction mIncomingCallTransaction;
     @Mock private PermissionManager mPermissionManager;
+    @Mock private VoipCallMonitor mVoipCallMonitor;
+    @Mock private CallAudioManager mCallAudioManager;
+    @Mock private MissedCallNotifier mMissedCallNotifier;
 
     private final TelecomSystem.SyncRoot mLock = new TelecomSystem.SyncRoot() { };
 
@@ -237,6 +259,15 @@ public class TelecomServiceImplTest extends TelecomTestCase {
             return null;
         }).when(mDefaultDialerCache).observeDefaultDialerApplication(any(Executor.class),
                 any(IntConsumer.class));
+        when(mMockTelecomMetricsController.getApiStats()).thenReturn(mApiStats);
+        when(mMockTelecomMetricsController.getAudioRouteStats()).thenReturn(mAudioRouteStats);
+        when(mMockTelecomMetricsController.getCallStats()).thenReturn(mCallStats);
+        when(mMockTelecomMetricsController.getErrorStats()).thenReturn(mErrorStats);
+        when(mMockTelecomMetricsController.getEventStats()).thenReturn(mEventStats);
+        when(mMockTelecomMetricsController.getCallSequencingStats()).thenReturn(
+                mCallSequencingStats);
+        when(mMockTelecomMetricsController.getCallEndpointStats()).thenReturn(
+                mCallEndpointStats);
         TelecomServiceImpl telecomServiceImpl = new TelecomServiceImpl(
                 mContext,
                 mFakeCallsManager,
@@ -270,10 +301,11 @@ public class TelecomServiceImplTest extends TelecomTestCase {
                 .thenReturn(DEFAULT_DIALER_PACKAGE);
         when(mDefaultDialerCache.isDefaultOrSystemDialer(eq(DEFAULT_DIALER_PACKAGE), anyInt()))
                 .thenReturn(true);
+        when(mFakeCallsManager.getCallAudioManager()).thenReturn(mCallAudioManager);
+        when(mFakeCallsManager.getMissedCallNotifier()).thenReturn(mMissedCallNotifier);
 
         mPackageManager = mContext.getPackageManager();
         when(mPackageManager.getPackageUid(anyString(), eq(0))).thenReturn(Binder.getCallingUid());
-        when(mFeatureFlags.earlyBindingToIncallService()).thenReturn(true);
         when(mTelephonyFeatureFlags.workProfileApiSplit()).thenReturn(false);
     }
 
@@ -1237,25 +1269,6 @@ public class TelecomServiceImplTest extends TelecomTestCase {
         addCallTestHelper(TelecomManager.ACTION_INCOMING_CALL,
                 CallIntentProcessor.KEY_IS_INCOMING_CALL, extras,
                 TEL_PA_HANDLE_16, false);
-    }
-
-    @SmallTest
-    @Test
-    public void testAddNewIncomingFlagDisabledNoEarlyBinding() throws Exception {
-        when(mFeatureFlags.earlyBindingToIncallService()).thenReturn(false);
-        PhoneAccount phoneAccount = makeSkipCallFilteringPhoneAccount(TEL_PA_HANDLE_16).build();
-        phoneAccount.setIsEnabled(true);
-        doReturn(phoneAccount).when(mFakePhoneAccountRegistrar).getPhoneAccount(
-                eq(TEL_PA_HANDLE_16), any(UserHandle.class));
-        doReturn(phoneAccount).when(mFakePhoneAccountRegistrar).getPhoneAccountUnchecked(
-                eq(TEL_PA_HANDLE_16));
-        doNothing().when(mAppOpsManager).checkPackage(anyInt(), anyString());
-        when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_WATCH)).thenReturn(true);
-        Bundle extras = createSampleExtras();
-
-        mTSIBinder.addNewIncomingCall(TEL_PA_HANDLE_16, extras, CALLING_PACKAGE);
-
-        verify(mInCallController, never()).bindToServices(eq(null));
     }
 
     @SmallTest
@@ -2386,41 +2399,6 @@ public class TelecomServiceImplTest extends TelecomTestCase {
     }
 
     /**
-     * Ensure self-managed calls cannot be ended using {@link TelecomManager#endCall()} when the
-     * caller of this method is not considered privileged.
-     * @throws Exception
-     */
-    @SmallTest
-    @Test
-    public void testCannotEndSelfManagedCall() throws Exception {
-        Call call = mock(Call.class);
-        when(call.isSelfManaged()).thenReturn(true);
-        when(call.getState()).thenReturn(CallState.ACTIVE);
-        when(mFakeCallsManager.getFirstCallWithState(any()))
-                .thenReturn(call);
-        assertFalse(mTSIBinder.endCall(TEST_PACKAGE));
-        verify(mFakeCallsManager, never()).disconnectCall(eq(call));
-    }
-
-    /**
-     * Ensure self-managed calls cannot be answered using {@link TelecomManager#acceptRingingCall()}
-     * or {@link TelecomManager#acceptRingingCall(int)} when the caller of these methods is not
-     * considered privileged.
-     * @throws Exception
-     */
-    @SmallTest
-    @Test
-    public void testCannotAnswerSelfManagedCall() throws Exception {
-        Call call = mock(Call.class);
-        when(call.isSelfManaged()).thenReturn(true);
-        when(call.getState()).thenReturn(CallState.ACTIVE);
-        when(mFakeCallsManager.getFirstCallWithState(any()))
-                .thenReturn(call);
-        mTSIBinder.acceptRingingCall(TEST_PACKAGE);
-        verify(mFakeCallsManager, never()).answerCall(eq(call), anyInt());
-    }
-
-    /**
      * Ensure self-managed calls can be answered using {@link TelecomManager#acceptRingingCall()}
      * or {@link TelecomManager#acceptRingingCall(int)} if the caller of these methods is
      * privileged.
@@ -2429,7 +2407,6 @@ public class TelecomServiceImplTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testCanAnswerSelfManagedCallIfPrivileged() throws Exception {
-        when(mFeatureFlags.allowSystemAppsResolveVoipCalls()).thenReturn(true);
         // Configure the test so that the caller of acceptRingingCall is considered privileged:
         when(mPackageManager.getPackageUid(SYSTEM_UI_PACKAGE, 0))
                 .thenReturn(Binder.getCallingUid());
@@ -2452,7 +2429,6 @@ public class TelecomServiceImplTest extends TelecomTestCase {
     @SmallTest
     @Test
     public void testCanEndSelfManagedCallIfPrivileged() throws Exception {
-        when(mFeatureFlags.allowSystemAppsResolveVoipCalls()).thenReturn(true);
         // Configure the test so that the caller of endCall is considered privileged:
         when(mPackageManager.getPackageUid(SYSTEM_UI_PACKAGE, 0))
                 .thenReturn(Binder.getCallingUid());
@@ -2544,5 +2520,222 @@ public class TelecomServiceImplTest extends TelecomTestCase {
             }
         }
         return true;
+    }
+
+    @SmallTest
+    @Test
+    public void testIsTtySupported_PermissionGranted() throws RemoteException {
+        doReturn(false).when(mDefaultDialerCache).isDefaultOrSystemDialer(
+                eq(DEFAULT_DIALER_PACKAGE), anyInt());
+        doReturn(PackageManager.PERMISSION_GRANTED)
+                .when(mContext).checkCallingOrSelfPermission(READ_PRIVILEGED_PHONE_STATE);
+        when(mFakeCallsManager.isTtySupported()).thenReturn(true);
+
+        assertTrue(mTSIBinder.isTtySupported(DEFAULT_DIALER_PACKAGE, null));
+    }
+
+    @SmallTest
+    @Test
+    public void testIsTtySupported_PermissionDenied() throws RemoteException {
+        doReturn(false).when(mDefaultDialerCache).isDefaultOrSystemDialer(
+                eq(DEFAULT_DIALER_PACKAGE), anyInt());
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingOrSelfPermission(eq(READ_PRIVILEGED_PHONE_STATE), anyString());
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingOrSelfPermission(eq(READ_PHONE_STATE), anyString());
+
+        assertThrows(SecurityException.class,
+                () -> mTSIBinder.isTtySupported(DEFAULT_DIALER_PACKAGE, null));
+    }
+
+    @SmallTest
+    @Test
+    public void testGetCurrentTtyMode_PermissionGranted() throws RemoteException {
+        doReturn(false).when(mDefaultDialerCache).isDefaultOrSystemDialer(
+                eq(DEFAULT_DIALER_PACKAGE), anyInt());
+        doReturn(PackageManager.PERMISSION_GRANTED)
+                .when(mContext).checkCallingOrSelfPermission(READ_PRIVILEGED_PHONE_STATE);
+        when(mFakeCallsManager.getCurrentTtyMode()).thenReturn(TelephonyManager.TTY_MODE_FULL);
+        assertEquals(TelephonyManager.TTY_MODE_FULL,
+                mTSIBinder.getCurrentTtyMode(DEFAULT_DIALER_PACKAGE, null));
+    }
+
+    @SmallTest
+    @Test
+    public void testGetCurrentTtyMode_PermissionDenied() throws RemoteException {
+        doReturn(false).when(mDefaultDialerCache).isDefaultOrSystemDialer(
+                eq(DEFAULT_DIALER_PACKAGE), anyInt());
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingOrSelfPermission(eq(READ_PRIVILEGED_PHONE_STATE), anyString());
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingOrSelfPermission(eq(READ_PHONE_STATE), anyString());
+        assertThrows(SecurityException.class,
+                () -> mTSIBinder.getCurrentTtyMode(DEFAULT_DIALER_PACKAGE, null));
+    }
+
+    @SmallTest
+    @Test
+    public void testGetCurrentTtyMode_AppOpsDenied() throws RemoteException {
+        doReturn(false).when(mDefaultDialerCache).isDefaultOrSystemDialer(
+                eq(DEFAULT_DIALER_PACKAGE), anyInt());
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingOrSelfPermission(eq(READ_PRIVILEGED_PHONE_STATE), anyString());
+        doNothing().when(mContext)
+                .enforceCallingOrSelfPermission(eq(READ_PHONE_STATE), anyString());
+        when(mAppOpsManager.noteOp(eq(AppOpsManager.OPSTR_READ_PHONE_STATE), anyInt(), anyString(),
+                nullable(String.class), nullable(String.class)))
+                .thenReturn(AppOpsManager.MODE_IGNORED);
+        assertEquals(TelephonyManager.TTY_MODE_OFF,
+                mTSIBinder.getCurrentTtyMode(DEFAULT_DIALER_PACKAGE, null));
+    }
+
+    @SmallTest
+    @Test
+    public void testSilenceRinger() throws RemoteException {
+        doReturn(PackageManager.PERMISSION_GRANTED)
+                .when(mContext).checkCallingOrSelfPermission(MODIFY_PHONE_STATE);
+        mTSIBinder.silenceRinger(DEFAULT_DIALER_PACKAGE);
+        verify(mInCallController).silenceRinger(any());
+    }
+
+    @SmallTest
+    @Test
+    public void testShowInCallScreen() throws RemoteException {
+        doReturn(PackageManager.PERMISSION_GRANTED)
+                .when(mContext).checkCallingOrSelfPermission(READ_PRIVILEGED_PHONE_STATE);
+        mTSIBinder.showInCallScreen(true, DEFAULT_DIALER_PACKAGE, null);
+        verify(mInCallController).bringToForeground(eq(true), any(UserHandle.class));
+    }
+
+    @SmallTest
+    @Test
+    public void testCancelMissedCallsNotification() throws RemoteException {
+        doReturn(PackageManager.PERMISSION_GRANTED)
+                .when(mContext).checkCallingOrSelfPermission(MODIFY_PHONE_STATE);
+        mTSIBinder.cancelMissedCallsNotification(DEFAULT_DIALER_PACKAGE);
+    }
+
+    @SmallTest
+    @Test
+    public void testSetCallConnectedIndicatorPreference() throws RemoteException {
+        doReturn(PackageManager.PERMISSION_GRANTED)
+                .when(mContext).checkCallingOrSelfPermission(MODIFY_PHONE_STATE);
+        mTSIBinder.setCallConnectedIndicatorPreference(DEFAULT_DIALER_PACKAGE, 1);
+        verify(mFakeCallsManager).setCallConnectedIndicatorPreference(1);
+    }
+
+    @SmallTest
+    @Test
+    public void testSetVoipCallLogIntegrationEnabled() throws RemoteException {
+        doReturn(PackageManager.PERMISSION_GRANTED)
+                .when(mContext).checkCallingOrSelfPermission(MODIFY_PHONE_STATE);
+
+        Intent checkIntent = new Intent(TelecomManager.ACTION_CALL_BACK);
+        checkIntent.setPackage(PACKAGE_NAME);
+
+        List<ResolveInfo> resolveInfos = Collections.singletonList(new ResolveInfo());
+        when(mPackageManager.queryIntentActivities(any(Intent.class), anyInt()))
+                .thenReturn(resolveInfos);
+        mTSIBinder.setVoipCallLogIntegrationEnabled(DEFAULT_DIALER_PACKAGE, PACKAGE_NAME, true);
+        verify(mFakeCallsManager).setVoipCallLogIntegrationEnabled(any(UserHandle.class),
+                eq(PACKAGE_NAME), eq(true));
+    }
+
+    @SmallTest
+    @Test
+    public void testHasForegroundServiceDelegation() throws RemoteException {
+        PhoneAccountHandle handle = TEL_PA_HANDLE_CURRENT;
+        when(mFakeCallsManager.getVoipCallMonitor()).thenReturn(mVoipCallMonitor);
+        when(mVoipCallMonitor.hasForegroundServiceDelegation(handle)).thenReturn(true);
+        assertTrue(mTSIBinder.hasForegroundServiceDelegation(handle, CALLING_PACKAGE));
+    }
+
+    @SmallTest
+    @Test
+    public void testHasForegroundServiceDelegation_SecurityException() throws RemoteException,
+            PackageManager.NameNotFoundException {
+        PhoneAccountHandle handle = TEL_PA_HANDLE_CURRENT;
+        // Mocking checkPackage failure via mAppOpsManager doesn't work directly here because
+        // enforceCallingPackage uses Binder.getCallingUid() and compares it with
+        // PackageManager's UID.
+        // We simulate failure by ensuring the calling package doesn't match the UID.
+        // Binder.getCallingUid() returns the test UID.
+        // We use a different package name.
+        String testPkgName = "other.package";
+        when(mPackageManager.getPackageUid(eq(testPkgName), anyInt())).thenReturn(12345);
+        assertThrows(SecurityException.class,
+                () -> mTSIBinder.hasForegroundServiceDelegation(handle, testPkgName));
+    }
+
+    @SmallTest
+    @Test
+    public void testIsInExternalCall() throws RemoteException {
+        doReturn(PackageManager.PERMISSION_GRANTED)
+                .when(mContext).checkCallingOrSelfPermission(READ_PRIVILEGED_PHONE_STATE);
+        when(mFakeCallsManager.hasOngoingExternalCalls(any(), anyBoolean())).thenReturn(true);
+        assertTrue(mTSIBinder.isInExternalCall(DEFAULT_DIALER_PACKAGE, null));
+    }
+
+    @SmallTest
+    @Test
+    public void testIsRinging() throws RemoteException {
+        doReturn(PackageManager.PERMISSION_GRANTED)
+                .when(mContext).checkCallingOrSelfPermission(MODIFY_PHONE_STATE);
+        when(mFakeCallsManager.hasRingingOrSimulatedRingingCall()).thenReturn(true);
+        assertTrue(mTSIBinder.isRinging(DEFAULT_DIALER_PACKAGE));
+    }
+
+    @SmallTest
+    @Test
+    public void testGetCallState() throws RemoteException {
+        when(mFakeCallsManager.getCallState()).thenReturn(TelephonyManager.CALL_STATE_RINGING);
+        try {
+            assertEquals(TelephonyManager.CALL_STATE_RINGING, mTSIBinder.getCallState());
+        } catch (SecurityException e) {
+            // This will throw a SE for API 31+ so just catch it.
+        }
+    }
+
+    @SmallTest
+    @Test
+    public void testGetCallStateUsingPackage() throws RemoteException {
+        when(mFakeCallsManager.getCallState()).thenReturn(TelephonyManager.CALL_STATE_RINGING);
+        assertEquals(TelephonyManager.CALL_STATE_RINGING,
+                mTSIBinder.getCallStateUsingPackage(CALLING_PACKAGE, null));
+    }
+
+    @SmallTest
+    @Test
+    public void testGetRegisteredPhoneAccounts() throws RemoteException {
+        List<PhoneAccount> phoneAccountList = List.of(
+                makePhoneAccount(TEL_PA_HANDLE_16).build(),
+                makePhoneAccount(SIP_PA_HANDLE_17).build());
+
+        when(mFakePhoneAccountRegistrar.getPhoneAccounts(anyInt(), anyInt(), any(),
+                anyString(), anyBoolean(), any(UserHandle.class), anyBoolean(), anyBoolean()))
+                .thenReturn(phoneAccountList);
+        assertEquals(phoneAccountList.size(),
+                mTSIBinder.getRegisteredPhoneAccounts(CALLING_PACKAGE, null).getList().size());
+    }
+
+    @SmallTest
+    @Test
+    public void testHasManageOngoingCallsPermission() throws RemoteException {
+        when(mPermissionManager.checkPermissionForPreflight(
+                eq(Manifest.permission.MANAGE_ONGOING_CALLS), any(AttributionSource.class)))
+                .thenReturn(PermissionManager.PERMISSION_GRANTED);
+        assertTrue(mTSIBinder.hasManageOngoingCallsPermission(CALLING_PACKAGE));
+    }
+
+    @SmallTest
+    @Test
+    public void testIsInSelfManagedCall() throws RemoteException {
+        PhoneAccountHandle handle = TEL_PA_HANDLE_CURRENT;
+        doReturn(PackageManager.PERMISSION_GRANTED)
+                .when(mContext).checkCallingOrSelfPermission(READ_PRIVILEGED_PHONE_STATE);
+        when(mFakeCallsManager.isInSelfManagedCall(anyString(), any(UserHandle.class)))
+                .thenReturn(true);
+        assertTrue(mTSIBinder.isInSelfManagedCall(PACKAGE_NAME,
+                Binder.getCallingUserHandle(), CALLING_PACKAGE));
     }
 }

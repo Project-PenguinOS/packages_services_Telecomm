@@ -20,27 +20,29 @@ import android.annotation.NonNull;
 import android.content.Intent;
 import android.telecom.CallStreamingService;
 import android.telecom.StreamingCall;
-import android.telecom.Log;
+import android.util.Log;
 
 public class StreamingService extends CallStreamingService {
+    private static final String TAG = StreamingService.class.getSimpleName();
+
     @Override
     public void onCallStreamingStarted(@NonNull StreamingCall call) {
-        Log.i(this, "onCallStreamingStarted: call %s", call);
+        Log.i(TAG, String.format("onCallStreamingStarted: call %s", call));
     }
 
     @Override
     public void onCallStreamingStopped() {
-        Log.i(this, "onCallStreamingStopped");
+        Log.i(TAG, "onCallStreamingStopped");
     }
 
     @Override
     public void onCallStreamingStateChanged(int state) {
-        Log.i(this, "onCallStreamingStateChanged; state=%d", state);
+        Log.i(TAG, String.format("onCallStreamingStateChanged; state=%d", state));
     }
 
     @Override
     public boolean onUnbind(Intent intent) {
-        Log.i(this, "onUnbind");
+        Log.i(TAG, "onUnbind");
         return false;
     }
 }

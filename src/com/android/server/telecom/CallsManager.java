@@ -781,8 +781,7 @@ public class CallsManager extends Call.ListenerBase
                             return -1;
                         }
                     }
-                }, clockProxy, mAudioCallbackHandler,
-                featureFlags.telecomMetricsSupport() ? metricsController : null);
+                }, clockProxy, mAudioCallbackHandler, metricsController);
 
         int volume = TelecomResourceId.getInteger(mContext, "config_dtmf_tone_volume");
         mDtmfLocalTonePlayer = new DtmfLocalTonePlayer(
@@ -1072,12 +1071,10 @@ public class CallsManager extends Call.ListenerBase
         } catch (UnsupportedOperationException uoe) {
             isInEmergencySmsMode = false;
         }
-        boolean performDndFilter = mFeatureFlags.skipFilterPhoneAccountPerformDndFilter();
         if (incomingCall.hasProperty(Connection.PROPERTY_EMERGENCY_CALLBACK_MODE) ||
                 incomingCall.hasProperty(Connection.PROPERTY_NETWORK_IDENTIFIED_EMERGENCY_CALL) ||
                 isInEmergencySmsMode ||
-                incomingCall.isSelfManaged() ||
-                (!performDndFilter && extras.getBoolean(PhoneAccount.EXTRA_SKIP_CALL_FILTERING))) {
+                incomingCall.isSelfManaged()) {
             Log.i(this, "Skipping call filtering for %s (ecm=%b, "
                             + "networkIdentifiedEmergencyCall = %b, emergencySmsMode = %b, "
                             + "selfMgd=%b, skipExtra=%b)",
@@ -1095,7 +1092,7 @@ public class CallsManager extends Call.ListenerBase
                     .build(), false);
             incomingCall.setIsUsingCallFiltering(false);
             return;
-        } else if (performDndFilter && extras.getBoolean(PhoneAccount.EXTRA_SKIP_CALL_FILTERING)) {
+        } else if (extras.getBoolean(PhoneAccount.EXTRA_SKIP_CALL_FILTERING)) {
             IncomingCallFilterGraph graph = setupDndFilterOnlyGraph(incomingCall);
             graph.performFiltering();
             return;
@@ -1728,11 +1725,13 @@ public class CallsManager extends Call.ListenerBase
         return mCallAudioManager.getCallAudioState();
     }
 
-    boolean isTtySupported() {
+    @VisibleForTesting
+    public boolean isTtySupported() {
         return mTtyManager.isTtySupported();
     }
 
-    int getCurrentTtyMode() {
+    @VisibleForTesting
+    public int getCurrentTtyMode() {
         return mTtyManager.getCurrentTtyMode();
     }
 
@@ -2352,18 +2351,14 @@ public class CallsManager extends Call.ListenerBase
                     if (exception != null){
                         Log.e(TAG, exception, "Error retrieving list of potential phone accounts.");
                         if (finalCall.isEmergencyCall()) {
-                            if (mFeatureFlags.telecomMetricsSupport()) {
-                                mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_MANAGER,
-                                        ErrorStats.ERROR_RETRIEVING_ACCOUNT_EMERGENCY);
-                            }
+                            mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_MANAGER,
+                                    ErrorStats.ERROR_RETRIEVING_ACCOUNT_EMERGENCY);
                             mAnomalyReporter.reportAnomaly(
                                     EXCEPTION_RETRIEVING_PHONE_ACCOUNTS_EMERGENCY_ERROR_UUID,
                                     EXCEPTION_RETRIEVING_PHONE_ACCOUNTS_EMERGENCY_ERROR_MSG);
                         } else {
-                            if (mFeatureFlags.telecomMetricsSupport()) {
-                                mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_MANAGER,
-                                        ErrorStats.ERROR_RETRIEVING_ACCOUNT);
-                            }
+                            mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_MANAGER,
+                                    ErrorStats.ERROR_RETRIEVING_ACCOUNT);
                             mAnomalyReporter.reportAnomaly(
                                     EXCEPTION_RETRIEVING_PHONE_ACCOUNTS_ERROR_UUID,
                                     EXCEPTION_RETRIEVING_PHONE_ACCOUNTS_ERROR_MSG);
@@ -2559,11 +2554,9 @@ public class CallsManager extends Call.ListenerBase
                                         "cant_call_due_to_no_supported_service"));
                                 mListeners.forEach(l -> l.onCreateConnectionFailed(callToPlace));
                                 if (callToPlace.isEmergencyCall()) {
-                                    if (mFeatureFlags.telecomMetricsSupport()) {
-                                        mMetricsController.getErrorStats().log(
-                                                ErrorStats.SUB_CALL_MANAGER,
-                                                ErrorStats.ERROR_EMERGENCY_CALL_ABORTED_NO_ACCOUNT);
-                                    }
+                                    mMetricsController.getErrorStats().log(
+                                            ErrorStats.SUB_CALL_MANAGER,
+                                            ErrorStats.ERROR_EMERGENCY_CALL_ABORTED_NO_ACCOUNT);
                                     mAnomalyReporter.reportAnomaly(
                                             EMERGENCY_CALL_ABORTED_NO_PHONE_ACCOUNTS_ERROR_UUID,
                                             EMERGENCY_CALL_ABORTED_NO_PHONE_ACCOUNTS_ERROR_MSG);
@@ -2589,11 +2582,9 @@ public class CallsManager extends Call.ListenerBase
                                         PackageManager.FEATURE_TELEPHONY_SUBSCRIPTION)) {
                                     if (SubscriptionManager.getDefaultVoiceSubscriptionId() !=
                                             SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
-                                        if (mFeatureFlags.telecomMetricsSupport()) {
-                                            mMetricsController.getErrorStats().log(
-                                                    ErrorStats.SUB_CALL_MANAGER,
-                                                    ErrorStats.ERROR_DEFAULT_MO_ACCOUNT_MISMATCH);
-                                        }
+                                        mMetricsController.getErrorStats().log(
+                                                ErrorStats.SUB_CALL_MANAGER,
+                                                ErrorStats.ERROR_DEFAULT_MO_ACCOUNT_MISMATCH);
                                         mAnomalyReporter.reportAnomaly(
                                                 TELEPHONY_HAS_DEFAULT_BUT_TELECOM_DOES_NOT_UUID,
                                                 TELEPHONY_HAS_DEFAULT_BUT_TELECOM_DOES_NOT_MSG);
@@ -2868,11 +2859,9 @@ public class CallsManager extends Call.ListenerBase
                                         "cant_call_due_to_no_supported_service"));
                                 mListeners.forEach(l -> l.onCreateConnectionFailed(callToPlace));
                                 if (callToPlace.isEmergencyCall()) {
-                                    if (mFeatureFlags.telecomMetricsSupport()) {
-                                        mMetricsController.getErrorStats().log(
-                                                ErrorStats.SUB_CALL_MANAGER,
-                                                ErrorStats.ERROR_EMERGENCY_CALL_ABORTED_NO_ACCOUNT);
-                                    }
+                                    mMetricsController.getErrorStats().log(
+                                            ErrorStats.SUB_CALL_MANAGER,
+                                            ErrorStats.ERROR_EMERGENCY_CALL_ABORTED_NO_ACCOUNT);
                                     mAnomalyReporter.reportAnomaly(
                                             EMERGENCY_CALL_ABORTED_NO_PHONE_ACCOUNTS_ERROR_UUID,
                                             EMERGENCY_CALL_ABORTED_NO_PHONE_ACCOUNTS_ERROR_MSG);
@@ -2898,11 +2887,9 @@ public class CallsManager extends Call.ListenerBase
                                         PackageManager.FEATURE_TELEPHONY_SUBSCRIPTION)) {
                                     if (SubscriptionManager.getDefaultVoiceSubscriptionId() !=
                                             SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
-                                        if (mFeatureFlags.telecomMetricsSupport()) {
-                                            mMetricsController.getErrorStats().log(
-                                                    ErrorStats.SUB_CALL_MANAGER,
-                                                    ErrorStats.ERROR_DEFAULT_MO_ACCOUNT_MISMATCH);
-                                        }
+                                        mMetricsController.getErrorStats().log(
+                                                ErrorStats.SUB_CALL_MANAGER,
+                                                ErrorStats.ERROR_DEFAULT_MO_ACCOUNT_MISMATCH);
                                         mAnomalyReporter.reportAnomaly(
                                                 TELEPHONY_HAS_DEFAULT_BUT_TELECOM_DOES_NOT_UUID,
                                                 TELEPHONY_HAS_DEFAULT_BUT_TELECOM_DOES_NOT_MSG);
@@ -3936,10 +3923,8 @@ public class CallsManager extends Call.ListenerBase
                     // If an exceptions is thrown while creating the connection, prompt the user to
                     // generate a bugreport and force disconnect.
                     Log.e(TAG, exception, "Exception thrown while establishing connection.");
-                    if (mFeatureFlags.telecomMetricsSupport()) {
-                        mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_MANAGER,
-                                ErrorStats.ERROR_ESTABLISHING_CONNECTION);
-                    }
+                    mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_MANAGER,
+                            ErrorStats.ERROR_ESTABLISHING_CONNECTION);
                     mAnomalyReporter.reportAnomaly(
                             EXCEPTION_WHILE_ESTABLISHING_CONNECTION_ERROR_UUID,
                             EXCEPTION_WHILE_ESTABLISHING_CONNECTION_ERROR_MSG);
@@ -4631,9 +4616,7 @@ public class CallsManager extends Call.ListenerBase
       * speaker phone.
       */
     public void setAudioRoute(int uid, int route, String bluetoothAddress) {
-        if (mFeatureFlags.telecomMetricsSupport()) {
-            mMetricsController.getCallEndpointStats().onRequested(uid, route, bluetoothAddress);
-        }
+        mMetricsController.getCallEndpointStats().onRequested(uid, route, bluetoothAddress);
         mCallAudioManager.setAudioRoute(route, bluetoothAddress);
     }
 
@@ -4642,11 +4625,9 @@ public class CallsManager extends Call.ListenerBase
       */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public void requestCallEndpointChange(int uid, CallEndpoint endpoint, ResultReceiver callback) {
-        if (mFeatureFlags.telecomMetricsSupport()) {
-            mMetricsController.getCallEndpointStats().onRequested(uid,
-                    mCallEndpointController.getRoute(endpoint),
-                    mCallEndpointController.getBluetoothAddress(endpoint));
-        }
+        mMetricsController.getCallEndpointStats().onRequested(uid,
+                mCallEndpointController.getRoute(endpoint),
+                mCallEndpointController.getBluetoothAddress(endpoint));
         mCallEndpointController.requestCallEndpointChange(endpoint, callback);
     }
 
@@ -5163,10 +5144,8 @@ public class CallsManager extends Call.ListenerBase
                     }, new LoggedHandlerExecutor(mHandler, "CM.pR", mLock))
                     .exceptionally((throwable) -> {
                         Log.e(TAG, throwable, "Error while executing call removal");
-                        if (mFeatureFlags.telecomMetricsSupport()) {
-                            mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_MANAGER,
-                                    ErrorStats.ERROR_REMOVING_CALL);
-                        }
+                        mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_MANAGER,
+                                ErrorStats.ERROR_REMOVING_CALL);
                         mAnomalyReporter.reportAnomaly(CALL_REMOVAL_EXECUTION_ERROR_UUID,
                                 CALL_REMOVAL_EXECUTION_ERROR_MSG);
                         return null;
@@ -5594,7 +5573,8 @@ public class CallsManager extends Call.ListenerBase
     /**
      * @return the call state currently tracked by {@link PhoneStateBroadcaster}
      */
-    int getCallState() {
+    @VisibleForTesting
+    public int getCallState() {
         return mPhoneStateBroadcaster.getCallState();
     }
 
@@ -5620,7 +5600,8 @@ public class CallsManager extends Call.ListenerBase
      * Retrieves the {@link MissedCallNotifier}
      * @return The {@link MissedCallNotifier}.
      */
-    MissedCallNotifier getMissedCallNotifier() {
+    @VisibleForTesting
+    public MissedCallNotifier getMissedCallNotifier() {
         return mMissedCallNotifier;
     }
 
@@ -7894,7 +7875,7 @@ public class CallsManager extends Call.ListenerBase
         return mLocalVoicemailController;
     }
 
-    TelecomMetricsController getMetricsController() {
+    public TelecomMetricsController getMetricsController() {
         return mMetricsController;
     }
  }

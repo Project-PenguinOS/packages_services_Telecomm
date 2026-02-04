@@ -400,6 +400,7 @@ public class TelecomSystemTest extends TelecomTestCase{
 
         // Next, create the TelecomSystem, our system under test
         setupTelecomSystem();
+        mTelecomSystem.getMetricsController().setTestMode(true);
         // Need to reset testing tag here
         Log.setTag(TESTING_TAG);
 

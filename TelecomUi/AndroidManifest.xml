@@ -19,9 +19,18 @@
     package="com.android.server.telecomui"
     coreApp="true">
 
-    <permission
-        android:name="com.android.telephonycore.permission.TELECOM_UI_ACCESS"
-        android:protectionLevel="signature" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+    <uses-permission android:name="android.permission.CALL_PRIVILEGED" />
+    <uses-permission android:name="android.permission.INTERACT_ACROSS_USERS" />
+    <uses-permission android:name="android.permission.MODIFY_PHONE_STATE" />
+    <uses-permission android:name="android.permission.STOP_APP_SWITCHES" />
+    <uses-permission android:name="android.permission.SUBSTITUTE_NOTIFICATION_APP_NAME" />
+    <uses-permission android:name="android.permission.READ_BLOCKED_NUMBERS" />
+    <uses-permission android:name="android.permission.WRITE_BLOCKED_NUMBERS"/>
+
+    <permission android:name="com.android.telephonycore.permission.TELECOM_UI_ACCESS"
+        android:protectionLevel="signature|privileged" />
     <uses-permission android:name="com.android.telephonycore.permission.TELECOM_UI_ACCESS" />
 
     <application
@@ -105,6 +114,15 @@
             android:excludeFromRecents="true"
             android:launchMode="singleInstance"
             android:theme="@style/Theme.Telecomm.Transparent">
+        </activity>
+
+        <activity android:name=".components.UserCallActivity"
+            android:theme="@style/Theme.Telecomm.Transparent"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.android.internal.telecom.action.CALL_TRAMPOLINE"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
         </activity>
 
     </application>

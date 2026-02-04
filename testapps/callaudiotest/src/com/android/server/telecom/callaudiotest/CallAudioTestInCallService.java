@@ -26,7 +26,7 @@ import android.net.Uri;
 import android.os.IBinder;
 import android.telecom.Call;
 import android.telecom.InCallService;
-import android.telecom.Log;
+import android.util.Log;
 import android.telecom.VideoProfile;
 
 import java.io.IOException;
@@ -37,6 +37,7 @@ import java.lang.String;
  * Intended for testing call audio between devices.
  */
 public class CallAudioTestInCallService extends InCallService {
+    private static final String TAG = CallAudioTestInCallService.class.getSimpleName();
     private Call mIncomingCall;
     private boolean mIsAutoAnswerEnabled = false;
     private MediaPlayer mMediaPlayer;
@@ -60,7 +61,7 @@ public class CallAudioTestInCallService extends InCallService {
     @Override
     public void onCallAdded(Call call) {
         if (!mIsAutoAnswerEnabled) {
-            Log.i(this, "onCallAdded - autoanswer disabled, skip");
+            Log.i(TAG, "onCallAdded - autoanswer disabled, skip");
             return;
         }
         if (call.getDetails().getState() == Call.STATE_RINGING) {
@@ -68,9 +69,9 @@ public class CallAudioTestInCallService extends InCallService {
             mIncomingCall.registerCallback(mCallback);
             mIncomingCall.answer(VideoProfile.STATE_AUDIO_ONLY);
 
-            Log.i(this, "onCallAdded - ringing call");
+            Log.i(TAG, "onCallAdded - ringing call");
         } else {
-            Log.i(this, "onCallAdded - nonringing call");
+            Log.i(TAG, "onCallAdded - nonringing call");
         }
     }
 
@@ -88,12 +89,12 @@ public class CallAudioTestInCallService extends InCallService {
     private void startPlaying() {
         AudioDeviceInfo telephonyDevice = getTelephonyDevice(getSystemService(AudioManager.class));
         if (telephonyDevice != null) {
-            Log.i(this, "startPlaying: create player for speech");
+            Log.i(TAG, "startPlaying: create player for speech");
             mMediaPlayer = new MediaPlayer();
-            mMediaPlayer.setOnCompletionListener(mediaPlayer -> Log.w(this, "startPlaying: done"));
+            mMediaPlayer.setOnCompletionListener(mediaPlayer -> Log.w(TAG, "startPlaying: done"));
             mMediaPlayer.setOnErrorListener(
                 (mediaPlayer, what, extra) -> {
-                        Log.w(this, "startPlaying: playback failed!");
+                        Log.w(TAG, "startPlaying: playback failed!");
                         return true; // Error handled
                         });
             mMediaPlayer.setLooping(true);
@@ -109,7 +110,7 @@ public class CallAudioTestInCallService extends InCallService {
                 throw new IllegalStateException(e);
             }
             if (!mMediaPlayer.setPreferredDevice(telephonyDevice)) {
-                Log.w(this, "startPlaying: setPreferredDevice failed");
+                Log.w(TAG, "startPlaying: setPreferredDevice failed");
             }
             mMediaPlayer.start();
 

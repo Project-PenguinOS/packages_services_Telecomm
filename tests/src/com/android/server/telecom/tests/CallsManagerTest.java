@@ -150,6 +150,13 @@ import com.android.server.telecom.callfiltering.BlockedNumbersAdapter;
 import com.android.server.telecom.callfiltering.CallFilteringResult;
 import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.callfiltering.IncomingCallFilterGraph;
+import com.android.server.telecom.metrics.ApiStats;
+import com.android.server.telecom.metrics.AudioRouteStats;
+import com.android.server.telecom.metrics.CallEndpointStats;
+import com.android.server.telecom.metrics.CallSequencingStats;
+import com.android.server.telecom.metrics.CallStats;
+import com.android.server.telecom.metrics.ErrorStats;
+import com.android.server.telecom.metrics.EventStats;
 import com.android.server.telecom.metrics.TelecomMetricsController;
 import com.android.server.telecom.ui.AudioProcessingNotification;
 import com.android.server.telecom.ui.CallStreamingNotification;
@@ -345,6 +352,13 @@ public class CallsManagerTest extends TelecomTestCase {
     @Mock private UserManager mMockCurrentUserManager;
     @Mock private IConnectionService mIConnectionService;
     @Mock private TelecomMetricsController mMockTelecomMetricsController;
+    @Mock private ApiStats mApiStats;
+    @Mock private AudioRouteStats mAudioRouteStats;
+    @Mock private CallStats mCallStats;
+    @Mock private ErrorStats mErrorStats;
+    @Mock private EventStats mEventStats;
+    @Mock private CallSequencingStats mCallSequencingStats;
+    @Mock private CallEndpointStats mCallEndpointStats;
     @Mock private Ringer.VibratorAdapter mMockVibratorAdapter;
     @Mock private LowBatteryAlertListener mLowBatteryAlertListener;
     @Mock private Resources mMockResources;
@@ -395,6 +409,15 @@ public class CallsManagerTest extends TelecomTestCase {
                 .thenReturn(STATE_TIMEOUT);
         when(mClockProxy.elapsedRealtime()).thenReturn(0L);
         when(mMockVibratorAdapter.hasVibrator()).thenReturn(true);
+        when(mMockTelecomMetricsController.getApiStats()).thenReturn(mApiStats);
+        when(mMockTelecomMetricsController.getAudioRouteStats()).thenReturn(mAudioRouteStats);
+        when(mMockTelecomMetricsController.getCallStats()).thenReturn(mCallStats);
+        when(mMockTelecomMetricsController.getErrorStats()).thenReturn(mErrorStats);
+        when(mMockTelecomMetricsController.getEventStats()).thenReturn(mEventStats);
+        when(mMockTelecomMetricsController.getCallSequencingStats()).thenReturn(
+                mCallSequencingStats);
+        when(mMockTelecomMetricsController.getCallEndpointStats()).thenReturn(
+                mCallEndpointStats);
         mCallsManager = new CallsManager(
                 mComponentContextFixture.getTestDouble().getApplicationContext(),
                 mLock,
@@ -1672,7 +1695,6 @@ public class CallsManagerTest extends TelecomTestCase {
     @Test
     public void testDndFilterAppliesOfCallsWhenPhoneAccountRequestsSkipped() {
         // GIVEN an incoming call which is from a PhoneAccount that requested to skip filtering.
-        when(mFeatureFlags.skipFilterPhoneAccountPerformDndFilter()).thenReturn(true);
         Call incomingCall = addSpyCall(SIM_1_HANDLE, CallState.NEW);
         Bundle extras = new Bundle();
         extras.putBoolean(PhoneAccount.EXTRA_SKIP_CALL_FILTERING, true);
@@ -1694,34 +1716,6 @@ public class CallsManagerTest extends TelecomTestCase {
 
         // THEN the incoming call is still applying Dnd filter.
         verify(incomingCall).setIsUsingCallFiltering(eq(true));
-    }
-
-    @SmallTest
-    @Test
-    public void testNoFilterAppliesOfCallsWhenFlagNotEnabled() {
-        // Flag is not enabled.
-        when(mFeatureFlags.skipFilterPhoneAccountPerformDndFilter()).thenReturn(false);
-        Call incomingCall = addSpyCall(SIM_1_HANDLE, CallState.NEW);
-        Bundle extras = new Bundle();
-        extras.putBoolean(PhoneAccount.EXTRA_SKIP_CALL_FILTERING, true);
-        PhoneAccount skipRequestedAccount = new PhoneAccount.Builder(SIM_2_HANDLE, "Skipper")
-                .setCapabilities(PhoneAccount.CAPABILITY_SIM_SUBSCRIPTION
-                        | PhoneAccount.CAPABILITY_CALL_PROVIDER)
-                .setExtras(extras)
-                .setIsEnabled(true)
-                .build();
-        when(mPhoneAccountRegistrar.getPhoneAccountUnchecked(SIM_1_HANDLE))
-                .thenReturn(skipRequestedAccount);
-        doReturn(false).when(incomingCall).can(Connection.CAPABILITY_HOLD);
-        doReturn(false).when(incomingCall).can(Connection.CAPABILITY_SUPPORT_HOLD);
-        doReturn(false).when(incomingCall).isSelfManaged();
-        doReturn(true).when(incomingCall).setState(anyInt(), any());
-
-        // WHEN the incoming call is successfully added.
-        mCallsManager.onSuccessfulIncomingCall(incomingCall);
-
-        // THEN the incoming call is not applying filter.
-        verify(incomingCall).setIsUsingCallFiltering(eq(false));
     }
 
     @SmallTest

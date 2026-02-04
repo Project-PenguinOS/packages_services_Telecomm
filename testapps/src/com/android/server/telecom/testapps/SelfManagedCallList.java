@@ -21,11 +21,11 @@ import android.content.Context;
 import android.net.Uri;
 import android.os.Bundle;
 import android.telecom.ConnectionRequest;
-import android.telecom.Log;
 import android.telecom.PhoneAccount;
 import android.telecom.PhoneAccountHandle;
 import android.telecom.TelecomManager;
 import android.util.ArrayMap;
+import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,6 +36,8 @@ import java.util.Optional;
  * Manages the list of {@link SelfManagedConnection} active in the sample third-party calling app.
  */
 public class SelfManagedCallList {
+    private static final String TAG = SelfManagedCallList.class.getSimpleName();
+
     public abstract static class Listener {
         public void onCreateIncomingConnectionFailed(ConnectionRequest request) {};
         public void onCreateOutgoingConnectionFailed(ConnectionRequest request) {};
@@ -177,19 +179,21 @@ public class SelfManagedCallList {
     }
 
     public void addConnection(SelfManagedConnection connection) {
-        Log.i(this, "addConnection %s", connection);
+        Log.i(TAG, String.format("addConnection %s", connection));
         mConnections.add(connection);
         if (mListener != null) {
-            Log.i(this, "addConnection calling onConnectionListChanged %s", connection);
+            Log.i(TAG,
+                    String.format("addConnection calling onConnectionListChanged %s", connection));
             mListener.onConnectionListChanged();
         }
     }
 
     public void removeConnection(SelfManagedConnection connection) {
-        Log.i(this, "removeConnection %s", connection);
+        Log.i(TAG, String.format("removeConnection %s", connection));
         mConnections.remove(connection);
         if (mListener != null) {
-            Log.i(this, "removeConnection calling onConnectionListChanged %s", connection);
+            Log.i(TAG, String.format("removeConnection calling onConnectionListChanged %s",
+                    connection));
             mListener.onConnectionListChanged();
         }
     }

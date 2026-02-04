@@ -97,18 +97,14 @@ public class CallEndpointController extends CallsManagerListenerBase {
 
         if (findMatchingTypeEndpoint(endpoint.getEndpointType()) == null ||
                 (route == CallAudioState.ROUTE_BLUETOOTH && bluetoothAddress == null)) {
-            if (mFeatureFlags.telecomMetricsSupport()) {
-                mCallsManager.getMetricsController().getCallEndpointStats().onException(false);
-            }
+            mCallsManager.getMetricsController().getCallEndpointStats().onException(false);
             callback.send(CallEndpoint.ENDPOINT_OPERATION_FAILED,
                     getErrorResult(RESULT_ENDPOINT_DOES_NOT_EXIST));
             return;
         }
 
         if (isCurrentEndpointRequestedEndpoint(route, bluetoothAddress)) {
-            if (mFeatureFlags.telecomMetricsSupport()) {
-                mCallsManager.getMetricsController().getCallEndpointStats().onException(true);
-            }
+            mCallsManager.getMetricsController().getCallEndpointStats().onException(true);
             callback.send(CallEndpoint.ENDPOINT_OPERATION_SUCCESS, new Bundle());
             return;
         }
@@ -205,10 +201,8 @@ public class CallEndpointController extends CallsManagerListenerBase {
         }
         mCallsManager.updateCallEndpoint(mActiveCallEndpoint);
 
-        if (mFeatureFlags.telecomMetricsSupport()) {
-            mCallsManager.getMetricsController().getCallEndpointStats().onNotified(
-                    getRoute(mActiveCallEndpoint), getBluetoothAddress(mActiveCallEndpoint));
-        }
+        mCallsManager.getMetricsController().getCallEndpointStats().onNotified(
+                getRoute(mActiveCallEndpoint), getBluetoothAddress(mActiveCallEndpoint));
         List<Call> calls = new ArrayList<>(mCallsManager.getTrackedCalls());
         for (Call call : calls) {
             onCallEndpointChangedOrCache(call);

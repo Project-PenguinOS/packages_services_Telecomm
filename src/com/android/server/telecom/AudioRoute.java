@@ -313,12 +313,9 @@ public class AudioRoute {
                 // mInfo accordingly.
                 // Note: we need to check the device type as well since a dual mode (LE and HFP) BT
                 // device can change type during a call if the user toggles LE for the device.
-                boolean isSameDeviceType =
-                        !pendingAudioRoute.getFeatureFlags().checkDeviceTypeOnRouteChange() ||
-                                (pendingAudioRoute.getFeatureFlags().checkDeviceTypeOnRouteChange()
-                                        && mAudioRouteType
+                boolean isSameDeviceType = mAudioRouteType
                                         == DEVICE_INFO_TYPE_TO_AUDIO_ROUTE_TYPE.getOrDefault(
-                                        deviceInfo.getType(), TYPE_INVALID));
+                                        deviceInfo.getType(), TYPE_INVALID);
                 boolean isHearingAidPairConnected = mBluetoothHaPairDevice != null
                         && Objects.equals(deviceInfo.getAddress(),
                         mBluetoothHaPairDevice.getAddress());

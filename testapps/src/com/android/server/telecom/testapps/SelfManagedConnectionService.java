@@ -21,9 +21,9 @@ import android.os.Bundle;
 import android.telecom.Connection;
 import android.telecom.ConnectionRequest;
 import android.telecom.ConnectionService;
-import android.telecom.Log;
 import android.telecom.PhoneAccountHandle;
 import android.telecom.TelecomManager;
+import android.util.Log;
 
 import java.util.Random;
 
@@ -33,6 +33,7 @@ import java.util.Random;
  * See {@link android.telecom} for more information on self-managed {@link ConnectionService}s.
  */
 public class SelfManagedConnectionService extends ConnectionService {
+    private static final String TAG = SelfManagedConnectionService.class.getSimpleName();
     public static final String EXTRA_HOLDABLE = "com.android.server.telecom.testapps.HOLDABLE";
     private static final String[] TEST_NAMES = {"Tom Smith", "Jane Appleseed", "Joseph Engleton",
             "Claudia McPherson", "Chris P. Bacon", "Seymour Butz", "Hugh Mungus", "Anita Bath"};
@@ -104,7 +105,6 @@ public class SelfManagedConnectionService extends ConnectionService {
         connection.setExtras(request.getExtras());
         if (!request.getAddress().getSchemeSpecificPart().equals("123")) {
             if (isIncoming) {
-                connection.setIsIncomingCallUiShowing(request.shouldShowIncomingCallUi());
                 connection.setRinging();
             } else {
                 connection.setDialing();
@@ -113,10 +113,12 @@ public class SelfManagedConnectionService extends ConnectionService {
         Bundle requestExtras = request.getExtras();
         if (requestExtras != null) {
             boolean isHoldable = requestExtras.getBoolean(EXTRA_HOLDABLE, false);
-            Log.i(this, "createConnection: isHandover=%b, handoverFrom=%s, holdable=%b",
-                    isHandover,
-                    requestExtras.getString(TelecomManager.EXTRA_HANDOVER_FROM_PHONE_ACCOUNT),
-                    isHoldable);
+            Log.i(TAG,
+                    String.format("createConnection: isHandover=%b, handoverFrom=%s, holdable=%b",
+                            isHandover,
+                            requestExtras.getString(
+                                    "android.telecom.extra.HANDOVER_FROM_PHONE_ACCOUNT"),
+                            isHoldable));
             connection.setIsHandover(isHandover);
             if (isHoldable) {
                 connection.setConnectionCapabilities(connection.getConnectionCapabilities() |
@@ -129,7 +131,7 @@ public class SelfManagedConnectionService extends ConnectionService {
                 intent.putExtra(HandoverActivity.EXTRA_CALL_ID, connection.getCallId());
                 startActivity(intent);
             } else {
-                Log.i(this, "Handover incoming call created.");
+                Log.i(TAG, "Handover incoming call created.");
             }
         }
 
@@ -140,7 +142,7 @@ public class SelfManagedConnectionService extends ConnectionService {
                 request.getAccountHandle());
         connection.putExtras(moreExtras);
         connection.setVideoState(request.getVideoState());
-        Log.i(this, "createSelfManagedConnection %s", connection);
+        Log.i(TAG, String.format("createSelfManagedConnection %s", connection));
         mCallList.addConnection(connection);
         return connection;
     }
