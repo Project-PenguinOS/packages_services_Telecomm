@@ -235,20 +235,9 @@
             </intent-filter>
         </receiver>
 
-        <service android:name="com.android.server.telecom.shim.TelecomShimService"
+        <service android:name=".components.TelecomService"
              android:singleUser="true"
              android:process="system"
-             android:enabled="@bool/is_telecom_shim_enabled"
-             android:exported="true">
-            <intent-filter>
-                <action android:name="android.telecom.TelecomService"/>
-            </intent-filter>
-        </service>
-
-        <service android:name="com.android.server.telecom.components.TelecomService"
-             android:singleUser="true"
-             android:process="system"
-             android:enabled="@bool/is_telecom_service_enabled"
              android:exported="true">
             <intent-filter>
                 <action android:name="android.telecom.TelecomService"/>

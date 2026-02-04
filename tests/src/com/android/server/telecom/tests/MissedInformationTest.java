@@ -92,6 +92,7 @@ public class MissedInformationTest extends TelecomSystemTest {
     @Mock ContentResolver mContentResolver;
     @Mock IContentProvider mContentProvider;
     @Mock Call mEmergencyCall;
+    @Mock Call.CallingPackageIdentity mCallingPackageIdentity;
     @Mock Analytics.CallInfo mCallInfo;
     @Mock Call mIncomingCall;
     @Mock AudioManager mAudioManager;
@@ -152,6 +153,7 @@ public class MissedInformationTest extends TelecomSystemTest {
     public void testEmergencyCallPlacing() throws Exception {
         Analytics.dumpToParcelableAnalytics();
         setUpEmergencyCall();
+        when(mEmergencyCall.getCallingPackageIdentity()).thenReturn(mCallingPackageIdentity);
         when(mEmergencyCall.getAssociatedUser()).
                 thenReturn(mPhoneAccountA0.getAccountHandle().getUserHandle());
         when(mEmergencyCall.getTargetPhoneAccount())
