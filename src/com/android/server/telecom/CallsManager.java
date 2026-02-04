@@ -5432,7 +5432,8 @@ public class CallsManager extends Call.ListenerBase
      * Retrieves the {@link DisconnectedCallNotifier}
      * @return The {@link DisconnectedCallNotifier}.
      */
-    DisconnectedCallNotifier getDisconnectedCallNotifier() {
+    @VisibleForTesting
+    public DisconnectedCallNotifier getDisconnectedCallNotifier() {
         return mDisconnectedCallNotifier;
     }
 
@@ -5449,7 +5450,8 @@ public class CallsManager extends Call.ListenerBase
      * Retrieves the {@link IncomingCallNotifier}.
      * @return The {@link IncomingCallNotifier}.
      */
-    IncomingCallNotifier getIncomingCallNotifier() {
+    @VisibleForTesting
+    public IncomingCallNotifier getIncomingCallNotifier() {
         return mIncomingCallNotifier;
     }
 
