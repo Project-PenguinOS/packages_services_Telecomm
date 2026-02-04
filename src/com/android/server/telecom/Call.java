@@ -205,6 +205,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     }
 
     private void notifyAnswerRequested(int videoState, OutcomeReceiver<Object, Exception> or) {
+        Log.i(this, "notifyAnswerRequested: id=%s", mId);
         for (InCallServiceToVoipAppListener listener : mInCallServiceToVoipAppListeners) {
             try {
                 listener.onAnswerRequested(this, videoState, or);
@@ -3307,10 +3308,42 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             // that the call is in a non-STATE_RINGING state before changing the UI. See
             // {@link ConnectionServiceAdapter#setActive} and other set* methods.
             if (mConnectionService != null) {
+                // If this is a self managed call, we need to make a secondary binding to it to
+                // grant it the ability to launch background activities.
+                CompletableFuture<Void> bindFuture = null;
+
+                // If we have a self managed connection, we want to trigger another binding to the
+                // app's ConnectionService which grants BIND_ALLOW_BACKGROUND_ACTIVITY_STARTS since
+                // this request originated from an `InCallService`.  In such a case the app's only
+                // signal that the call was answered is from a method callback, so the platform is
+                // not going to allow it to launch an activity to bind up its full screen UX.
+                // Similar to what we do with transactional apps, we bind to the app's CS and grant
+                // it the background activity launch flag so that it can do so in this one case.
+                if (com.android.internal.telecom.flags.Flags.connectionServiceBal()
+                        && com.android.internal.telecom.flags.Flags
+                            .voipBackgroundActivityLaunchFix()
+                        && isSelfManaged()) {
+                    bindFuture = waitForConnectionServiceBind(videoState)
+                            // If binding takes > 5s, we stop waiting and pass 'null' down the chain
+                            .completeOnTimeout(null, CORE_TELECOM_CS_BIND_TIMEOUT,
+                                    TimeUnit.SECONDS);
+                }
                 answerCallFuture = awaitCallStateChangeAndMaybeDisconnectCall(
                         false /* shouldDisconnectUponTimeout */, "answer", CallState.ACTIVE,
                         CallState.LOCAL_VOICEMAIL);
-                mConnectionService.answer(this, videoState);
+                if (bindFuture != null) {
+                    final int finalVideoState = videoState;
+                    // If we are going to wait for the BAL workaround binding, then we need to chain
+                    // the answer future on to that when complete.
+                    answerCallFuture = bindFuture.whenComplete((x,y) -> {
+                        Log.i(Call.this, "answer: BAL binding complete; answering %s.", getId());
+                        mConnectionService.answer(this, finalVideoState);
+                    }).thenCombine(
+                            answerCallFuture,
+                            (v, v2) -> v2);
+                } else {
+                    mConnectionService.answer(this, videoState);
+                }
             } else if (mTransactionalService != null) {
                 if(!com.android.internal.telecom.flags.Flags.voipBackgroundActivityLaunchFix()){
                     return mTransactionalService.onAnswer(this, videoState);
