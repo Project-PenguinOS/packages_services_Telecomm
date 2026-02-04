@@ -331,7 +331,10 @@ android_app {
         "framework-telecom.stubs.module_lib",
         "framework-annotations-lib", // For @Nullable, @VisibleForTesting
     ],
-    certificate: "platform",
+    certificate: select(release_flag("RELEASE_TELECOM_MAINLINE_MODULE"), {
+        true: ":com.android.telephonycore.certificate",
+        default: "platform",
+    }),
     privileged: true,
     privapp_allowlist: ":privapp_allowlist_com.android.server.telecomui",
     sdk_version: "module_current",
