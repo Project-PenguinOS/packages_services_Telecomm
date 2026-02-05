@@ -278,6 +278,7 @@ android_library {
 android_app {
     name: "TelecomShim",
     srcs: [
+        "shim/src/com/android/server/telecom/components/UserCallActivity.java",
         "src/com/android/server/telecom/components/TelecomService.java",
         ":telecom-service-init-sources",
     ],
@@ -337,6 +338,7 @@ android_app {
     ],
     certificate: "platform",
     privileged: true,
+    privapp_allowlist: ":privapp_allowlist_com.android.server.telecomui",
     sdk_version: "module_current",
     optimize: {
         proguard_flags_files: ["proguard.flags"],

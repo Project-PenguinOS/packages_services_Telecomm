@@ -221,6 +221,8 @@ public class MissedCallNotifierImplTest extends TelecomTestCase {
                 eq("userCallActivityLabel"), anyString(), anyString());
 
         mComponentContextFixture.setTelecomManager(mTelecomManager);
+        when(mDefaultDialerCache.getDefaultDialerApplication(any()))
+                .thenReturn(DEFAULT_DIALER_PACKAGE);
     }
 
     @Override

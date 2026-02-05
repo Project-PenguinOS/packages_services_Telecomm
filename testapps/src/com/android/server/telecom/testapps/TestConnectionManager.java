@@ -123,26 +123,6 @@ public class TestConnectionManager extends ConnectionService {
                 }
                 setConferenceableConnections(c);
             }
-
-            @Override
-            public void onRttInitiationSuccess(RemoteConnection connection) {
-                sendRttInitiationSuccess();
-            }
-
-            @Override
-            public void onRttInitiationFailure(RemoteConnection connection, int reason) {
-                sendRttInitiationFailure(reason);
-            }
-
-            @Override
-            public void onRttSessionRemotelyTerminated(RemoteConnection connection) {
-                sendRttSessionRemotelyTerminated();
-            }
-
-            @Override
-            public void onRemoteRttRequest(RemoteConnection connection) {
-                sendRemoteRttRequest();
-            }
         };
 
         private final RemoteConnection mRemote;
@@ -167,7 +147,7 @@ public class TestConnectionManager extends ConnectionService {
          */
         @Override
         public void onAnswer(int videoState) {
-            mRemote.answer(videoState);
+            mRemote.answer();
         }
 
         /**
@@ -210,21 +190,6 @@ public class TestConnectionManager extends ConnectionService {
         @Override
         public void onCallAudioStateChanged(CallAudioState state) {
             mRemote.setCallAudioState(state);
-        }
-
-        @Override
-        public void onStartRtt(RttTextStream rttTextStream) {
-            mRemote.startRtt(rttTextStream);
-        }
-
-        @Override
-        public void onStopRtt() {
-            mRemote.stopRtt();
-        }
-
-        @Override
-        public void handleRttUpgradeResponse(RttTextStream rttTextStream) {
-            mRemote.sendRttUpgradeResponse(rttTextStream);
         }
 
         private void setState(int state) {

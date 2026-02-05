@@ -44,6 +44,14 @@ import com.android.server.telecom.CallsManager;
 import com.android.server.telecom.ConnectionServiceWrapper;
 import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.flags.FeatureFlags;
+import com.android.server.telecom.metrics.ApiStats;
+import com.android.server.telecom.metrics.AudioRouteStats;
+import com.android.server.telecom.metrics.CallEndpointStats;
+import com.android.server.telecom.metrics.CallSequencingStats;
+import com.android.server.telecom.metrics.CallStats;
+import com.android.server.telecom.metrics.ErrorStats;
+import com.android.server.telecom.metrics.EventStats;
+import com.android.server.telecom.metrics.TelecomMetricsController;
 
 import org.junit.Before;
 import org.junit.After;
@@ -94,6 +102,14 @@ public class CallEndpointControllerTest extends TelecomTestCase {
     private CallEndpointController mCallEndpointController;
 
     @Mock private CallsManager mCallsManager;
+    @Mock private TelecomMetricsController mMockTelecomMetricsController;
+    @Mock private ApiStats mApiStats;
+    @Mock private AudioRouteStats mAudioRouteStats;
+    @Mock private CallStats mCallStats;
+    @Mock private ErrorStats mErrorStats;
+    @Mock private EventStats mEventStats;
+    @Mock private CallSequencingStats mCallSequencingStats;
+    @Mock private CallEndpointStats mCallEndpointStats;
     @Mock private Call mCall;
     @Mock private ConnectionServiceWrapper mConnectionService;
     @Mock private CallAudioManager mCallAudioManager;
@@ -107,6 +123,16 @@ public class CallEndpointControllerTest extends TelecomTestCase {
         super.setUp();
         when(mMockContext.getResources()).thenReturn(mResources);
         TelecomResourceId.setTelecomContext(mMockContext);
+        when(mMockTelecomMetricsController.getApiStats()).thenReturn(mApiStats);
+        when(mMockTelecomMetricsController.getAudioRouteStats()).thenReturn(mAudioRouteStats);
+        when(mMockTelecomMetricsController.getCallStats()).thenReturn(mCallStats);
+        when(mMockTelecomMetricsController.getErrorStats()).thenReturn(mErrorStats);
+        when(mMockTelecomMetricsController.getEventStats()).thenReturn(mEventStats);
+        when(mMockTelecomMetricsController.getCallSequencingStats()).thenReturn(
+                mCallSequencingStats);
+        when(mMockTelecomMetricsController.getCallEndpointStats()).thenReturn(
+                mCallEndpointStats);
+        when(mCallsManager.getMetricsController()).thenReturn(mMockTelecomMetricsController);
         mCallEndpointController = new CallEndpointController(
                 mMockContext,
                 mCallsManager,

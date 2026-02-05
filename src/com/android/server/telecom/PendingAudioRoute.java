@@ -134,12 +134,7 @@ public class PendingAudioRoute {
         Log.i(this, "onMessageReceived: message - %s", message);
         if (message.first == PENDING_ROUTE_FAILED) {
             // Fallback to base route
-            if (mFeatureFlags.telecomMetricsSupport()) {
-                mCallAudioRouteController.fallBack(btAddressToExclude);
-            } else {
-                mCallAudioRouteController.sendMessageWithSessionInfo(
-                        SWITCH_BASELINE_ROUTE, INCLUDE_BLUETOOTH_IN_BASELINE, btAddressToExclude);
-            }
+            mCallAudioRouteController.fallBack(btAddressToExclude);
             return;
         }
 

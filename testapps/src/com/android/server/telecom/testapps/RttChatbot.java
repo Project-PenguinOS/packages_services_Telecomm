@@ -23,7 +23,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.ParcelFileDescriptor;
 import android.telecom.Connection;
-import android.telecom.Log;
+import android.util.Log;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -79,8 +79,8 @@ public class RttChatbot {
                     } else {
                         mInputSoFar.append(toAppend);
                     }
-                    Log.d(LOG_TAG, "Got %s to append, total text now %s",
-                            toAppend, mInputSoFar.toString());
+                    Log.d(LOG_TAG, String.format("Got %s to append, total text now %s",
+                            toAppend, mInputSoFar.toString()));
                     break;
             }
         }
@@ -93,7 +93,7 @@ public class RttChatbot {
                 messageToSend = REPLY_PREFIX + mInputSoFar.toString();
             }
             mInputSoFar = null;
-            Log.i(LOG_TAG, "Begin send reply message: %s", messageToSend);
+            Log.i(LOG_TAG, String.format("Begin send reply message: %s", messageToSend));
             int[] charsToSend = messageToSend.codePoints().toArray();
             for (int i = 0; i < charsToSend.length; i++) {
                 Message msg = obtainMessage(SEND_CHARACTER,

@@ -190,9 +190,7 @@ public class CallAnomalyWatchdog extends CallsManagerListenerBase implements Cal
     @Override
     public void onCallAdded(Call call) {
         maybeTrackCall(call);
-        if (mFeatureFlags.telecomMetricsSupport()) {
-            mMetricsController.getCallStats().onCallStart(call);
-        }
+        mMetricsController.getCallStats().onCallStart(call);
     }
 
     /**
@@ -214,9 +212,7 @@ public class CallAnomalyWatchdog extends CallsManagerListenerBase implements Cal
     public void onCallRemoved(Call call) {
         Log.i(this, "onCallRemoved: call=%s", call.toString());
         stopTrackingCall(call);
-        if (mFeatureFlags.telecomMetricsSupport()) {
-            mMetricsController.getCallStats().onCallEnd(call);
-        }
+        mMetricsController.getCallStats().onCallEnd(call);
         if (mFeatureFlags.callSequencingMetrics()) {
             mMetricsController.getCallSequencingStats().onCallEnd(call);
         }

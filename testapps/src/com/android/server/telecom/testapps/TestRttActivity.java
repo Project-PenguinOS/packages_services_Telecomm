@@ -22,7 +22,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.telecom.Call;
-import android.telecom.Log;
+import android.util.Log;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
@@ -74,7 +74,7 @@ public class TestRttActivity extends Activity {
                     mTypingBox.setText("");
                     break;
                 default:
-                    Log.w(LOG_TAG, "Invalid message %d", msg.what);
+                    Log.w(LOG_TAG, String.format("Invalid message %d", msg.what));
             }
         }
     };
@@ -101,7 +101,7 @@ public class TestRttActivity extends Activity {
                             }
                             break;
                         }
-                        Log.d(LOG_TAG, "Received %s", receivedText);
+                        Log.d(LOG_TAG, String.format("Received %s", receivedText));
                         mTextDisplayHandler.removeMessages(RECEIVED_MESSAGE_GAP);
                         mTextDisplayHandler.sendEmptyMessageDelayed(RECEIVED_MESSAGE_GAP,
                                 NEWLINE_DELAY_MILLIS);
@@ -176,7 +176,8 @@ public class TestRttActivity extends Activity {
                         call.setRttMode(Call.RttCall.RTT_MODE_VCO);
                         break;
                     default:
-                        Log.w(LOG_TAG, "Bad name for rtt mode: %s", selection.toString());
+                        Log.w(LOG_TAG,
+                                String.format("Bad name for rtt mode: %s", selection.toString()));
                 }
             }
 
@@ -207,7 +208,7 @@ public class TestRttActivity extends Activity {
                 try {
                     mCallList.getCall(0).getRttCall().write(toAppend);
                 } catch (IOException e) {
-                    Log.w(LOG_TAG, "Exception sending text %s: %s", toAppend, e);
+                    Log.w(LOG_TAG, String.format("Exception sending text %s: %s", toAppend, e));
                 }
                 mTextDisplayHandler.removeMessages(SENT_MESSAGE_GAP);
                 mTextDisplayHandler.sendEmptyMessageDelayed(SENT_MESSAGE_GAP, NEWLINE_DELAY_MILLIS);

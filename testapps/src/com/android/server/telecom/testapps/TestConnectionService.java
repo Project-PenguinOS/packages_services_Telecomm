@@ -41,7 +41,7 @@ import android.telecom.ConnectionService;
 import android.telecom.PhoneAccountHandle;
 import android.telecom.TelecomManager;
 import android.telecom.VideoProfile;
-import android.telecom.Log;
+import android.util.Log;
 import android.widget.Toast;
 
 import java.lang.String;
@@ -87,10 +87,8 @@ public class TestConnectionService extends ConnectionService {
                     Connection.CAPABILITY_MANAGE_CONFERENCE);
             addConnection(a);
             addConnection(b);
-
-            a.setConference(this);
-            b.setConference(this);
-
+            Log.w(LOG_TAG, "TestConference: warning, setConference was removed b/c it is"
+                    + " a hidden API");
             setActive();
         }
 
@@ -105,7 +103,8 @@ public class TestConnectionService extends ConnectionService {
         @Override
         public void onSeparate(Connection connection) {
             if (getConnections().contains(connection)) {
-                connection.setConference(null);
+                Log.w(LOG_TAG, "TestConference: warning, setConference was removed b/c it is"
+                        + " a hidden API");
                 removeConnection(connection);
             }
         }
@@ -291,7 +290,7 @@ public class TestConnectionService extends ConnectionService {
 
         @Override
         public void handleRttUpgradeResponse(RttTextStream rttTextStream) {
-            Log.i(this, "RTT request response was %s", rttTextStream == null);
+            Log.i(LOG_TAG, String.format("RTT request response was %s", rttTextStream == null));
             if (rttTextStream != null) {
                 mRttChatbot = new RttChatbot(getApplicationContext(), rttTextStream);
                 mRttChatbot.start();
@@ -303,7 +302,7 @@ public class TestConnectionService extends ConnectionService {
         public void onStartRtt(RttTextStream textStream) {
             boolean doAccept = Math.random() < 0.5;
             if (doAccept) {
-                Log.i(this, "Accepting RTT request.");
+                Log.i(LOG_TAG, "Accepting RTT request.");
                 mRttChatbot = new RttChatbot(getApplicationContext(), textStream);
                 mRttChatbot.start();
                 sendRttInitiationSuccess();
@@ -500,10 +499,10 @@ public class TestConnectionService extends ConnectionService {
     public void switchPhoneAccount() {
         if (!mCalls.isEmpty()) {
             TestConnection c = mCalls.get(0);
-            c.notifyPhoneAccountChanged(CallServiceNotifier.getInstance()
+            c.setPhoneAccountHandle(CallServiceNotifier.getInstance()
                     .getPhoneAccountHandle(SIM_SUBSCRIPTION_ID2));
         } else {
-            Log.i(this, "Couldn't switch PhoneAccount, call is null!");
+            Log.i(LOG_TAG, "Couldn't switch PhoneAccount, call is null!");
         }
     }
     public void switchPhoneAccountWrong() {
@@ -513,13 +512,13 @@ public class TestConnectionService extends ConnectionService {
         if (!mCalls.isEmpty()) {
             TestConnection c = mCalls.get(0);
             try {
-                c.notifyPhoneAccountChanged(pah);
+                c.setPhoneAccountHandle(pah);
             } catch (SecurityException e) {
                 Toast.makeText(getApplicationContext(), "SwitchPhoneAccount: Pass",
                         Toast.LENGTH_SHORT).show();
             }
         } else {
-            Log.i(this, "Couldn't switch PhoneAccount, call is null!");
+            Log.i(LOG_TAG, "Couldn't switch PhoneAccount, call is null!");
         }
     }
 
