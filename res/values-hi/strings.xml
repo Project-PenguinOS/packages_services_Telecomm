@@ -47,7 +47,7 @@
     <string name="respond_via_sms_edittext_dialog_title" msgid="6579353156073272157">"झटपट उत्तर"</string>
     <string name="respond_via_sms_confirmation_format" msgid="2619774063232350285">"<xliff:g id="PHONE_NUMBER">%s</xliff:g> पर मैसेज भेजा जा रहा है."</string>
     <string name="respond_via_sms_failure_format" msgid="5198680980054596391">"<xliff:g id="PHONE_NUMBER">%s</xliff:g> पर मैसेज नहीं भेजा जा सका."</string>
-    <string name="enable_account_preference_title" msgid="6949224486748457976">"कॉलिंग खाते"</string>
+    <string name="enable_account_preference_title" msgid="6949224486748457976">"कॉल में इस्तेमाल होने वाले खाते"</string>
     <string name="outgoing_call_not_allowed_user_restriction" msgid="3424338207838851646">"केवल आपातकालीन कॉल की अनुमति है."</string>
     <string name="outgoing_call_not_allowed_no_permission" msgid="8590468836581488679">"यह ऐप्‍लिकेशन फ़ोन अनुमति के बिना आउटगोइंग कॉल नहीं कर सकता."</string>
     <string name="outgoing_call_error_no_phone_number_supplied" msgid="7665135102566099778">"कॉल करने के लिए, मान्‍य नंबर डालें."</string>
