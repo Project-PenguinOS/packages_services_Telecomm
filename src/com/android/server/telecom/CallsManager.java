@@ -5428,11 +5428,37 @@ public class CallsManager extends Call.ListenerBase
         return mPhoneAccountRegistrar;
     }
 
+    @VisibleForTesting
+    public void setPendingRedirectedOutgoingCall(Call call) {
+        mPendingRedirectedOutgoingCall = call;
+    }
+
+    @VisibleForTesting
+    public void setPendingCall(Call call) {
+        mPendingCall = call;
+    }
+
+    @VisibleForTesting
+    public Map<String, Runnable> getPendingRedirectedOutgoingCallInfo() {
+        return mPendingRedirectedOutgoingCallInfo;
+    }
+
+    @VisibleForTesting
+    public Map<String, Runnable> getPendingUnredirectedOutgoingCallInfo() {
+        return mPendingUnredirectedOutgoingCallInfo;
+    }
+
+    @VisibleForTesting
+    public void setPendingCallConfirm(CompletableFuture<Call> future) {
+        mPendingCallConfirm = future;
+    }
+
     /**
      * Retrieves the {@link DisconnectedCallNotifier}
      * @return The {@link DisconnectedCallNotifier}.
      */
-    DisconnectedCallNotifier getDisconnectedCallNotifier() {
+    @VisibleForTesting
+    public DisconnectedCallNotifier getDisconnectedCallNotifier() {
         return mDisconnectedCallNotifier;
     }
 
@@ -5449,7 +5475,8 @@ public class CallsManager extends Call.ListenerBase
      * Retrieves the {@link IncomingCallNotifier}.
      * @return The {@link IncomingCallNotifier}.
      */
-    IncomingCallNotifier getIncomingCallNotifier() {
+    @VisibleForTesting
+    public IncomingCallNotifier getIncomingCallNotifier() {
         return mIncomingCallNotifier;
     }
 
