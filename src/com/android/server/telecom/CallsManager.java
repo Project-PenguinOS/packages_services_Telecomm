@@ -163,6 +163,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -3373,18 +3374,25 @@ public class CallsManager extends Call.ListenerBase
             return suggestionFuture.thenCompose((suggestedAccounts) -> {
                 Log.i(this, "findOutgoingCallPhoneAccount: suggested accounts = %s",
                         suggestedAccounts);
+                // Ensure the order of the suggestions is preserved.
                 Map<PhoneAccountHandle, PhoneAccountSuggestion> suggestedAccountsMap =
                         suggestedAccounts.stream().collect(Collectors.toMap(
                                 PhoneAccountSuggestion::getPhoneAccountHandle,
-                                Function.identity()));
+                                Function.identity(),
+                                (oldValue, newValue) -> oldValue,
+                                LinkedHashMap::new));
                 return findOutgoingCallPhoneAccount(suggestedAccountsMap, targetPhoneAccountHandle,
                         handle, initiatingUser);
             });
         } else {
+            // Ensure the order of the suggestions is preserved.
             Map<PhoneAccountHandle, PhoneAccountSuggestion> suggestedAccountsMap =
-                    accounts.stream().collect(Collectors.toMap(Function.identity(),
+                    accounts.stream().collect(Collectors.toMap(
+                            Function.identity(),
                             accountHandle -> new PhoneAccountSuggestion(accountHandle,
-                                    PhoneAccountSuggestion.REASON_NONE, true)));
+                                    PhoneAccountSuggestion.REASON_NONE, true),
+                            (oldValue, newValue) -> oldValue,
+                            LinkedHashMap::new));
             return findOutgoingCallPhoneAccount(suggestedAccountsMap, targetPhoneAccountHandle,
                     handle, initiatingUser);
         }

@@ -331,7 +331,10 @@ android_app {
         "framework-telecom.stubs.module_lib",
         "framework-annotations-lib", // For @Nullable, @VisibleForTesting
     ],
-    certificate: "platform",
+    certificate: select(release_flag("RELEASE_TELECOM_MAINLINE_MODULE"), {
+        true: ":com.android.telecomui.certificate",
+        default: "platform",
+    }),
     privileged: true,
     privapp_allowlist: ":privapp_allowlist_com.android.server.telecomui",
     sdk_version: "module_current",
@@ -342,6 +345,7 @@ android_app {
     },
     apex_available: [
         "com.android.telephonycore",
+        "//apex_available:platform",
     ],
     min_sdk_version: "36",
     updatable: true,
@@ -353,6 +357,7 @@ android_library {
     srcs: [
         "src/com/android/server/telecom/settings/BlockedNumbersUtil.java",
         "src/com/android/server/telecom/ui/UiConstants.java",
+        "src/com/android/server/telecom/QuickResponseUtils.java",
     ],
     static_libs: [
         "telecom-resource-id-lib",
@@ -366,6 +371,7 @@ android_library {
     sdk_version: "module_current",
     apex_available: [
         "com.android.telephonycore",
+        "//apex_available:platform",
     ],
     min_sdk_version: "36",
 }
@@ -380,6 +386,7 @@ android_library {
     sdk_version: "module_current",
     apex_available: [
         "com.android.telephonycore",
+        "//apex_available:platform",
     ],
     min_sdk_version: "36",
 }
