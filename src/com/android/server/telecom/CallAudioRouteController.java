@@ -39,6 +39,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.annotation.SuppressLint;
 import android.media.AudioAttributes;
 import android.media.AudioDeviceAttributes;
 import android.media.AudioDeviceCallback;
@@ -301,6 +302,10 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     private AudioRoutesCallback mAudioRoutesCallback;
     private final TelecomMetricsController mMetricsController;
 
+    /* TODO: b/478043076 - Remove SuppressLint once the API is finalized.
+     * And update the SDK check to the final version number.
+     */
+    @SuppressLint("NewApi")
     public CallAudioRouteController(
             Context context, CallsManager callsManager,
             AudioRoute.Factory audioRouteFactory, WiredHeadsetManager wiredHeadsetManager,
@@ -1022,11 +1027,10 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             // device if the BT stack has indicated that SCO audio has disconnected.
             mPendingAudioRoute.clearPendingMessage(
                     new Pair<>(BT_AUDIO_CONNECTED, bluetoothDevice.getAddress()));
-            if (Objects.equals(mPendingAudioRoute.getOrigRoute().getBluetoothAddress(),
-                    bluetoothDevice.getAddress())) {
-                mPendingAudioRoute.onMessageReceived(new Pair<>(BT_AUDIO_DISCONNECTED,
-                        bluetoothDevice.getAddress()), null);
-            }
+            // Always ensure that we process the BT_AUDIO_DISCONNECTED message if the device is
+            // no longer the communication device.
+            mPendingAudioRoute.onMessageReceived(new Pair<>(BT_AUDIO_DISCONNECTED,
+                    bluetoothDevice.getAddress()), null);
         }
     }
 

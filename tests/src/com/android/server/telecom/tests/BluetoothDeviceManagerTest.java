@@ -134,8 +134,7 @@ public class BluetoothDeviceManagerTest extends TelecomTestCase {
                 serviceCaptor.capture(), eq(BluetoothProfile.HEADSET));
         serviceListenerUnderTest = serviceCaptor.getValue();
 
-        receiverUnderTest = new BluetoothStateReceiver(mContext, mBluetoothDeviceManager,
-                mFeatureFlags);
+        receiverUnderTest = new BluetoothStateReceiver(mContext, mBluetoothDeviceManager);
         receiverUnderTest.setCallAudioRouteAdapter(mCallAudioRouteController);
 
         mBluetoothDeviceManager.setHeadsetServiceForTesting(mBluetoothHeadset);
@@ -147,7 +146,6 @@ public class BluetoothDeviceManagerTest extends TelecomTestCase {
         verify(mBluetoothLeAudio).registerCallback(any(), leAudioCallbacksTest.capture());
 
         when(mSpeakerInfo.getType()).thenReturn(TYPE_BUILTIN_SPEAKER);
-        when(mFeatureFlags.keepBluetoothDevicesCacheUpdated()).thenReturn(true);
     }
 
     @Override
@@ -737,24 +735,8 @@ public class BluetoothDeviceManagerTest extends TelecomTestCase {
 
     @SmallTest
     @Test
-    public void testRegisterLeAudioCallbackNoPostpone() {
-        reset(mBluetoothLeAudio);
-        when(mFeatureFlags.postponeRegisterToLeaudio()).thenReturn(false);
-        serviceListenerUnderTest.onServiceConnected(BluetoothProfile.LE_AUDIO,
-                        (BluetoothProfile) mBluetoothLeAudio);
-        // Second time on purpose
-        serviceListenerUnderTest.onServiceConnected(BluetoothProfile.LE_AUDIO,
-                        (BluetoothProfile) mBluetoothLeAudio);
-        verify(mExecutor, times(0)).execute(any());
-        verify(mBluetoothLeAudio, times(1)).registerCallback(any(Executor.class),
-                        any(BluetoothLeAudio.Callback.class));
-    }
-
-    @SmallTest
-    @Test
     public void testRegisterLeAudioCallbackWithPostpone() {
         reset(mBluetoothLeAudio);
-        when(mFeatureFlags.postponeRegisterToLeaudio()).thenReturn(true);
         serviceListenerUnderTest.onServiceConnected(BluetoothProfile.LE_AUDIO,
                         (BluetoothProfile) mBluetoothLeAudio);
         verify(mExecutor, times(1)).execute(any());

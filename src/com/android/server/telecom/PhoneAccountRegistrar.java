@@ -19,6 +19,7 @@ package com.android.server.telecom;
 import android.Manifest;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -1650,6 +1651,10 @@ public class PhoneAccountRegistrar {
         }
     }
 
+    /* TODO: b/478043076 - Remove SuppressLint once the API is finalized.
+     * And update the SDK check to the final version number.
+     */
+    @SuppressLint("NewApi")
     private void maybeNotifyTelephonyForVoiceServiceState(
             @NonNull PhoneAccount account, boolean registered) {
         // TODO(b/215419665) what about SIM_SUBSCRIPTION accounts? They could theoretically also use

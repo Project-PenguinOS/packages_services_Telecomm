@@ -36,6 +36,8 @@ import android.text.SpannableString;
 import android.text.TextUtils;
 import android.widget.Toast;
 
+import com.android.server.telecom.ui.UiConstants;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -82,6 +84,55 @@ public class RespondViaSmsManager extends CallsManagerListenerBase {
         mCallsManager = callsManager;
         mLock = lock;
         mAsyncExecutor = asyncExecutor;
+
+        BroadcastReceiver receiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (QuickResponseUtils.ACTION_UPDATE_CANNED_TEXT_MESSAGES.equals(
+                            intent.getAction())) {
+                    Log.i(RespondViaSmsManager.this, "Received canned text messages update");
+                    updateCannedTextMessages(intent, context);
+                }
+            }
+        };
+        IntentFilter intentFilter =
+                new IntentFilter(QuickResponseUtils.ACTION_UPDATE_CANNED_TEXT_MESSAGES);
+        mCallsManager.getContext().registerReceiver(receiver, intentFilter,
+                UiConstants.TELECOM_UI_ACCESS_PERMISSION, null,
+                Context.RECEIVER_EXPORTED);
+    }
+
+    private void updateCannedTextMessages(Intent intent, Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(
+                QuickResponseUtils.SHARED_PREFERENCES_NAME,
+                Context.MODE_PRIVATE | Context.MODE_MULTI_PROCESS);
+        SharedPreferences.Editor editor = prefs.edit();
+
+        if (intent.hasExtra(QuickResponseUtils.EXTRA_CANNED_RESPONSE_1)) {
+            editor.putString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_1,
+                    intent.getStringExtra(QuickResponseUtils.EXTRA_CANNED_RESPONSE_1));
+        } else {
+            editor.remove(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_1);
+        }
+        if (intent.hasExtra(QuickResponseUtils.EXTRA_CANNED_RESPONSE_2)) {
+            editor.putString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_2,
+                    intent.getStringExtra(QuickResponseUtils.EXTRA_CANNED_RESPONSE_2));
+        } else {
+            editor.remove(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_2);
+        }
+        if (intent.hasExtra(QuickResponseUtils.EXTRA_CANNED_RESPONSE_3)) {
+            editor.putString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_3,
+                    intent.getStringExtra(QuickResponseUtils.EXTRA_CANNED_RESPONSE_3));
+        } else {
+            editor.remove(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_3);
+        }
+        if (intent.hasExtra(QuickResponseUtils.EXTRA_CANNED_RESPONSE_4)) {
+            editor.putString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_4,
+                    intent.getStringExtra(QuickResponseUtils.EXTRA_CANNED_RESPONSE_4));
+        } else {
+            editor.remove(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_4);
+        }
+        editor.commit();
     }
 
     /**

@@ -19,7 +19,7 @@ package com.android.server.telecom;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.telecom.Log;
+import android.util.Log;
 
 /**
  * Utils class that exposes some helper routines to used to manage the QuickResponses
@@ -30,6 +30,7 @@ public class QuickResponseUtils {
     // SharedPreferences file name for our persistent settings.
     public static final String SHARED_PREFERENCES_NAME = "respond_via_sms_prefs";
     private static final String PACKAGE_NAME_TELEPHONY = "com.android.phone";
+    private static final String PACKAGE_NAME_TELECOM = "com.android.server.telecom";
 
     // Preference keys for the 4 "canned responses"; see RespondViaSmsManager$Settings.
     // Since (for now at least) the number of messages is fixed at 4, and since
@@ -40,6 +41,13 @@ public class QuickResponseUtils {
     public static final String KEY_CANNED_RESPONSE_PREF_2 = "canned_response_pref_2";
     public static final String KEY_CANNED_RESPONSE_PREF_3 = "canned_response_pref_3";
     public static final String KEY_CANNED_RESPONSE_PREF_4 = "canned_response_pref_4";
+
+    public static final String ACTION_UPDATE_CANNED_TEXT_MESSAGES =
+            "com.android.server.telecom.ACTION_UPDATE_CANNED_TEXT_MESSAGES";
+    public static final String EXTRA_CANNED_RESPONSE_1 = "canned_response_1";
+    public static final String EXTRA_CANNED_RESPONSE_2 = "canned_response_2";
+    public static final String EXTRA_CANNED_RESPONSE_3 = "canned_response_3";
+    public static final String EXTRA_CANNED_RESPONSE_4 = "canned_response_4";
 
     /**
      * As of L, QuickResponses were moved from Telephony to Telecom. Because of
@@ -70,8 +78,44 @@ public class QuickResponseUtils {
             Log.d(LOG_TAG, "maybeMigrateLegacyQuickResponses() - Telecom QuickResponses exist");
             return;
         }
-
         Log.d(LOG_TAG, "maybeMigrateLegacyQuickResponses() - No local QuickResponses");
+
+        // Due to splitting Telecom and TelecomUi into separate processes, the Telecom
+        // process cannot directly access private SharedPreferences belonging to TelecomUi.
+        // This is intended to be run from the TelecomUi context to migrate any existing
+        // user-defined QuickResponses from Telecom to TelecomUi, attempting to preserve
+        // the user's saved responses.
+        Context telecomContext = null;
+        try {
+            telecomContext = context.createPackageContext(PACKAGE_NAME_TELECOM, 0);
+        } catch (PackageManager.NameNotFoundException e) {
+            Log.e(LOG_TAG, "maybeMigrateLegacyQuickResponses() - Can't find Telecom package.", e);
+        }
+
+        if (telecomContext != null) {
+            Log.d(LOG_TAG, "maybeMigrateLegacyQuickResponses() - Using Telecom QuickResponses.");
+            final SharedPreferences oldPrefs = telecomContext.getSharedPreferences(
+                    SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
+            if (oldPrefs.contains(KEY_CANNED_RESPONSE_PREF_1)) {
+                String cannedResponse1 = oldPrefs.getString(KEY_CANNED_RESPONSE_PREF_1,
+                        TelecomResourceId.getString(context, "respond_via_sms_canned_response_1"));
+                String cannedResponse2 = oldPrefs.getString(KEY_CANNED_RESPONSE_PREF_2,
+                        TelecomResourceId.getString(context, "respond_via_sms_canned_response_2"));
+                String cannedResponse3 = oldPrefs.getString(KEY_CANNED_RESPONSE_PREF_3,
+                        TelecomResourceId.getString(context, "respond_via_sms_canned_response_3"));
+                String cannedResponse4 = oldPrefs.getString(KEY_CANNED_RESPONSE_PREF_4,
+                        TelecomResourceId.getString(context, "respond_via_sms_canned_response_4"));
+
+                // Write them into Telecom SharedPreferences.
+                final SharedPreferences.Editor editor = prefs.edit();
+                editor.putString(KEY_CANNED_RESPONSE_PREF_1, cannedResponse1);
+                editor.putString(KEY_CANNED_RESPONSE_PREF_2, cannedResponse2);
+                editor.putString(KEY_CANNED_RESPONSE_PREF_3, cannedResponse3);
+                editor.putString(KEY_CANNED_RESPONSE_PREF_4, cannedResponse4);
+                editor.commit();
+                return;
+            }
+        }
 
         // We don't have local QuickResponses, let's see if they live in
         // the Telephony package and we'll fall back on using our default values.
@@ -79,7 +123,7 @@ public class QuickResponseUtils {
         try {
             telephonyContext = context.createPackageContext(PACKAGE_NAME_TELEPHONY, 0);
         } catch (PackageManager.NameNotFoundException e) {
-            Log.e(LOG_TAG, e, "maybeMigrateLegacyQuickResponses() - Can't find Telephony package.");
+            Log.e(LOG_TAG, "maybeMigrateLegacyQuickResponses() - Can't find Telephony package.", e);
         }
 
         // Read the old canned responses from the Telephony SharedPreference if possible.
@@ -128,8 +172,8 @@ public class QuickResponseUtils {
         String currentValue1 = prefs.getString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_1, "");
         if (currentValue1.equals(defaultResponse1)) {
             prefs.edit().remove(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_1).apply();
-            Log.i(QuickResponseUtils.class,
-                    "maybeResetQuickResponses: response 1 is identical to default; clear pref.");
+            Log.i(LOG_TAG,
+                     "maybeResetQuickResponses: response 1 is identical to default; clear pref.");
         }
 
         String defaultResponse2 = TelecomResourceId.getString(context,
@@ -137,8 +181,8 @@ public class QuickResponseUtils {
         String currentValue2 = prefs.getString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_2, "");
         if (currentValue2.equals(defaultResponse2)) {
             prefs.edit().remove(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_2).apply();
-            Log.i(QuickResponseUtils.class,
-                    "maybeResetQuickResponses: response 2 is identical to default; clear pref.");
+            Log.i(LOG_TAG,
+                     "maybeResetQuickResponses: response 2 is identical to default; clear pref.");
         }
 
         String defaultResponse3 = TelecomResourceId.getString(context,
@@ -146,8 +190,8 @@ public class QuickResponseUtils {
         String currentValue3 = prefs.getString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_3, "");
         if (currentValue3.equals(defaultResponse3)) {
             prefs.edit().remove(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_3).apply();
-            Log.i(QuickResponseUtils.class,
-                    "maybeResetQuickResponses: response 3 is identical to default; clear pref.");
+            Log.i(LOG_TAG,
+                     "maybeResetQuickResponses: response 3 is identical to default; clear pref.");
         }
 
         String defaultResponse4 = TelecomResourceId.getString(context,
@@ -155,8 +199,8 @@ public class QuickResponseUtils {
         String currentValue4 = prefs.getString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_4, "");
         if (currentValue4.equals(defaultResponse4)) {
             prefs.edit().remove(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_4).apply();
-            Log.i(QuickResponseUtils.class,
-                    "maybeResetQuickResponses: response 4 is identical to default; clear pref.");
+            Log.i(LOG_TAG,
+                     "maybeResetQuickResponses: response 4 is identical to default; clear pref.");
         }
     }
 }

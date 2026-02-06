@@ -1358,7 +1358,6 @@ public class CallLogManagerTest extends TelecomTestCase {
     @MediumTest
     @Test
     public void testLogCall_multipleDisconnects_logsOnlyOnce() {
-        when(mFeatureFlags.avoidLoggingMoreThanOnce()).thenReturn(true);
         when(mMockPhoneAccountRegistrar.getPhoneAccountUnchecked(any(PhoneAccountHandle.class)))
                 .thenReturn(makeFakePhoneAccount(mDefaultAccountHandle, 0 /* capabilities */));
 
