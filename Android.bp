@@ -107,7 +107,10 @@ telecom_ut_availability_jarjar_config {
     soong_config_variables: {
         release_telecom_mainline_module: {
             jarjar_rules: ":framework-telecom-jarjar-rules",
-            static_libs: ["modules-utils-binary-xml"],
+            static_libs: [
+                "modules-utils-binary-xml",
+                "modules-utils-shell-command-handler",
+            ],
         },
     },
 }
