@@ -60,11 +60,17 @@ public class CallScreeningServiceHelper {
         @Override
         public void onScreeningResponse(String callId, ComponentName componentName,
                 ParcelableCallResponse callResponse) {
+            mFuture.complete(callResponse);
             unbindCallScreeningService();
         }
 
         private void unbindCallScreeningService() {
-            mContext.unbindService(mServiceConnection);
+            try {
+                mContext.unbindService(mServiceConnection);
+            } catch (IllegalArgumentException e) {
+                Log.i(this, "Exception when unbinding service %s : %s", mServiceConnection,
+                        e.getMessage());
+            }
         }
     }
 
@@ -181,9 +187,10 @@ public class CallScreeningServiceHelper {
                     // No locking needed -- CompletableFuture only lets one thread call complete.
                     Log.continueSession(mLoggingSession, "CSSH.timeout");
                     try {
-                        if (!mFuture.isDone()) {
-                            Log.w(TAG, "Cancelling call id process due to timeout");
+                        if (mFuture.isDone()) {
+                            return;
                         }
+                        Log.w(TAG, "Cancelling call id process due to timeout");
                         mFuture.complete(null);
                         mContext.unbindService(serviceConnection);
                     } catch (IllegalArgumentException e) {

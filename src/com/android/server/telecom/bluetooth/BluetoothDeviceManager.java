@@ -136,11 +136,7 @@ public class BluetoothDeviceManager {
                                         + (", mLeAudioCallbackRegistered: "
                                         + mLeAudioCallbackRegistered);
                                 if (!mLeAudioCallbackRegistered) {
-                                    if (mFeatureFlags.postponeRegisterToLeaudio()) {
-                                        mExecutor.execute(this::registerToLeAudio);
-                                    } else {
-                                        registerToLeAudio();
-                                    }
+                                    mExecutor.execute(this::registerToLeAudio);
                                 }
                             } else {
                                 logString = "Connected to non-requested bluetooth service." +

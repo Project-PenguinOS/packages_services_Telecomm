@@ -189,6 +189,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import com.android.server.telecom.LogUtils;
+import com.android.server.telecom.TelecomBroadcastIntentProcessor;
 import android.content.res.Resources;
 
 @RunWith(JUnit4.class)
@@ -4410,6 +4412,78 @@ public class CallsManagerTest extends TelecomTestCase {
             sleep(50);
         }
         assertEquals(description, condition.expected(), condition.actual());
+    }
+
+    @SmallTest
+    @Test
+    public void testProcessRedirectedOutgoingCallAfterUserInteraction_PlaceRedirected() {
+        Call call = createSpyCall(SIM_1_HANDLE, CallState.NEW);
+        mCallsManager.setPendingRedirectedOutgoingCall(call);
+        android.telecom.Logging.Runnable runnable =
+                mock(android.telecom.Logging.Runnable.class);
+        java.lang.Runnable javaRunnable = mock(java.lang.Runnable.class);
+        when(runnable.prepare()).thenReturn(javaRunnable);
+        mCallsManager.getPendingRedirectedOutgoingCallInfo().put(call.getId(), runnable);
+
+        mCallsManager.processRedirectedOutgoingCallAfterUserInteraction(call.getId(),
+                TelecomBroadcastIntentProcessor.ACTION_PLACE_REDIRECTED_CALL);
+
+        verify(runnable).prepare();
+        assertNull(mCallsManager.getPendingRedirectedOutgoingCallInfo().get(call.getId()));
+    }
+
+    @SmallTest
+    @Test
+    public void testProcessRedirectedOutgoingCallAfterUserInteraction_Cancel() {
+        Call call = createSpyCall(SIM_1_HANDLE, CallState.NEW);
+        mCallsManager.setPendingRedirectedOutgoingCall(call);
+
+        mCallsManager.processRedirectedOutgoingCallAfterUserInteraction(call.getId(),
+                TelecomBroadcastIntentProcessor.ACTION_CANCEL_REDIRECTED_CALL);
+
+        verify(call).disconnect(anyString());
+    }
+
+    @SmallTest
+    @Test
+    public void testStopCallStreaming() {
+        Call call = createSpyCall(SIM_1_HANDLE, CallState.ACTIVE);
+        when(call.isStreaming()).thenReturn(true);
+        TransactionalServiceWrapper wrapper = mock(TransactionalServiceWrapper.class);
+        when(call.getTransactionServiceWrapper()).thenReturn(wrapper);
+
+        mCallsManager.stopCallStreaming(call);
+
+        verify(wrapper).stopCallStreaming(call);
+    }
+
+    @SmallTest
+    @Test
+    public void testConfirmPendingCall() {
+        Call call = createSpyCall(SIM_1_HANDLE, CallState.NEW);
+        mCallsManager.setPendingCall(call);
+        CompletableFuture<Call> future = new CompletableFuture<>();
+        mCallsManager.setPendingCallConfirm(future);
+
+        mCallsManager.confirmPendingCall(call.getId());
+
+        assertTrue(future.isDone());
+        assertEquals(call, future.join());
+    }
+
+    @SmallTest
+    @Test
+    public void testCancelPendingCall() {
+        Call call = createSpyCall(SIM_1_HANDLE, CallState.NEW);
+        mCallsManager.setPendingCall(call);
+        CompletableFuture<Call> future = new CompletableFuture<>();
+        mCallsManager.setPendingCallConfirm(future);
+
+        mCallsManager.cancelPendingCall(call.getId());
+
+        assertTrue(future.isDone());
+        assertNull(future.join());
+        verify(call).setState(eq(CallState.DISCONNECTED), anyString());
     }
 
     private boolean waitForFutureResult(CompletableFuture<Boolean> future, boolean defaultValue) {

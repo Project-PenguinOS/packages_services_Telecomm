@@ -247,12 +247,10 @@ public class CallSequencingController {
                         callback.onError(
                                 new CallException("activeCall could not be held or disconnected",
                                 CallException.CODE_CANNOT_HOLD_CURRENT_ACTIVE_CALL));
-                        if (mFeatureFlags.enableCallExceptionAnomReports()) {
-                            mAnomalyReporter.reportAnomaly(
-                                    SEQUENCING_CANNOT_HOLD_ACTIVE_CALL_UUID,
-                                    SEQUENCING_CANNOT_HOLD_ACTIVE_CALL_MSG
-                            );
-                        }
+                        mAnomalyReporter.reportAnomaly(
+                                SEQUENCING_CANNOT_HOLD_ACTIVE_CALL_UUID,
+                                SEQUENCING_CANNOT_HOLD_ACTIVE_CALL_MSG
+                        );
                     }
                     return CompletableFuture.completedFuture(result);
                 }, new LoggedHandlerExecutor(mHandler, "CM.mCAA", mCallsManager.getLock()));
@@ -944,8 +942,13 @@ public class CallSequencingController {
             return liveCall.hold("calling " + call.getId());
         }
 
-        // The live call cannot be held so we're out of luck here.  There's no room.
-        showErrorDialogForCannotHoldCall(call, true);
+        // The live call cannot be held so we're out of luck here.  There's no room. Only show the
+        // dialog if the active call is not a self managed call. We already handle showing a call
+        // confirmation dialog for the user to disconnect the ongoing SM call after this future
+        // completes.
+        if (!liveCall.isSelfManaged()) {
+            showErrorDialogForCannotHoldCall(call, true);
+        }
         return CompletableFuture.completedFuture(false);
     }
 

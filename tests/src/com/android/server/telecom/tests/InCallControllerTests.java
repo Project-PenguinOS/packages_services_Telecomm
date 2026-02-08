@@ -2662,6 +2662,42 @@ public class InCallControllerTests extends TelecomTestCase {
                 eq("com.android.server.telecom"), nullable(String.class));
     }
 
+    @Test
+    public void testCameraTracking() throws Exception {
+        ApplicationInfo applicationInfo = new ApplicationInfo();
+        applicationInfo.uid = 1000;
+        when(mMockContext.getApplicationInfo()).thenReturn(applicationInfo);
+        when(mMockContext.getOpPackageName()).thenReturn("com.android.server.telecom");
+        when(mMockCall.isExternalCall()).thenReturn(false);
+        when(mMockCall.isSelfManaged()).thenReturn(false);
+        when(mMockCall.visibleToInCallService()).thenReturn(true);
+        when(mMockCallsManager.getCurrentUserHandle()).thenReturn(mUserHandle);
+        when(mDefaultDialerCache.getDefaultDialerApplication(any(UserHandle.class)))
+                .thenReturn(DEF_PKG);
+        when(mMockContext.bindServiceAsUser(any(Intent.class), any(ServiceConnection.class),
+                anyInt(), any(UserHandle.class))).thenReturn(true);
+
+        setupMockPackageManager(true /* default */, true /* system */, false /* external calls */);
+
+        // Add call so it's tracked by mCallIdMapper
+        mInCallController.onCallAdded(mMockCall);
+
+        // Start camera
+        mInCallController.onSetCamera(mMockCall, "camera1");
+
+        // Verify camera op started
+        verify(mMockAppOpsManager).startOp(
+                eq(AppOpsManager.OPSTR_PHONE_CALL_CAMERA), anyInt(),
+                eq("com.android.server.telecom"), nullable(String.class), nullable(String.class));
+
+        // Stop camera
+        mInCallController.onSetCamera(mMockCall, null);
+
+        // Verify camera op finished
+        verify(mMockAppOpsManager).finishOp(eq(AppOpsManager.OPSTR_PHONE_CALL_CAMERA), anyInt(),
+                eq("com.android.server.telecom"), nullable(String.class));
+    }
+
     private void setupMockPackageManagerLocationPermission(final String pkg,
             final boolean granted) {
         when(mMockPackageManager.checkPermission(Manifest.permission.ACCESS_FINE_LOCATION, pkg))

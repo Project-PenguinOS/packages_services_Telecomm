@@ -67,17 +67,6 @@ flag {
     }
 }
 
-# OWNER=tjstuart TARGET=26Q1
-flag {
-  name: "avoid_logging_more_than_once"
-  namespace: "telecom"
-  description: "Fixes a bug where a call is logged multiple times due to multiple disconnects"
-  bug: "381210657"
-  metadata {
-      purpose: PURPOSE_BUGFIX
-    }
-}
-
 # OWNER=stevestatia TARGET=26Q2
 flag {
   name: "conference_modify_merge_fail"

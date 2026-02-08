@@ -28,6 +28,8 @@ import android.view.MenuItem;
 import androidx.test.rule.ActivityTestRule;
 import androidx.test.runner.AndroidJUnit4;
 
+import com.android.server.telecom.QuickResponseUtils;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
