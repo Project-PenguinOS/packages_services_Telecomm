@@ -89,9 +89,6 @@
 
     <application android:label="@string/telecommAppLabel"
          android:icon="@mipmap/ic_launcher_phone"
-         android:allowBackup="true"
-         android:backupAgent=".TelecomBackupAgent"
-         android:restoreAnyVersion="true"
          android:supportsRtl="true"
          android:process="system"
          android:usesCleartextTraffic="false"
