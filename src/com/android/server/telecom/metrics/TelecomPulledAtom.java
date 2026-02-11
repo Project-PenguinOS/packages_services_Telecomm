@@ -93,9 +93,9 @@ public abstract class TelecomPulledAtom extends Handler {
                 return PulledAtoms.parseFrom(
                         Files.readAllBytes(mContext.getFileStreamPath(getFileName()).toPath()));
             } catch (NoSuchFileException e) {
-                Log.e(TAG, e, "the atom file not found");
+                Log.w(TAG, "the atom file not found " + e);
             } catch (IOException | NullPointerException e) {
-                Log.e(TAG, e, "cannot load/parse the atom file");
+                Log.w(TAG, "cannot load/parse the atom file " + e);
             }
         }
         return makeNewPulledAtoms();
@@ -112,9 +112,9 @@ public abstract class TelecomPulledAtom extends Handler {
                 Log.d(TAG, "save " + getTag());
                 stream.write(PulledAtoms.toByteArray(mPulledAtoms));
             } catch (IOException e) {
-                Log.e(TAG, e, "cannot save the atom to file");
+                Log.w(TAG, "cannot save the atom to file " + e);
             } catch (UnsupportedOperationException e) {
-                Log.e(TAG, e, "cannot open the file");
+                Log.w(TAG, "cannot open the file" + e);
             }
         }
     }
