@@ -2172,6 +2172,46 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
                 any(CallAudioState.class), eq(expectedState));
     }
 
+    @Test
+    @SmallTest
+    public void testMaybeClearPendingMessage_handlesNullInSet() {
+        // This test ensures that maybeClearPendingMessage does not throw a NullPointerException
+        // if the pending messages set unexpectedly contains a null value.
+
+        // 1. Setup: Initialize, set active, and add a BT device.
+        mController.initialize();
+        mController.setActive(true);
+        mController.sendMessageWithSessionInfo(BT_DEVICE_ADDED, AudioRoute.TYPE_BLUETOOTH_SCO,
+                BLUETOOTH_DEVICE_1);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+
+        // 2. Action: Switch to a non-BT route to trigger the correct path in
+        // maybeClearPendingMessage. This sets the pending route to Speaker.
+        mController.sendMessageWithSessionInfo(USER_SWITCH_SPEAKER);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+        assertTrue(mController.isPending());
+
+        // 3. Manually add a null to the pending messages set to simulate the error condition.
+        // Also add a valid message that the method will attempt to clear.
+        PendingAudioRoute pendingRoute = mController.getPendingAudioRoute();
+        // The cast is a hack to modify the internal set for this test.
+        ((Set<Pair<Integer, String>>) pendingRoute.getPendingMessages()).add(null);
+        pendingRoute.addMessage(BT_AUDIO_CONNECTED, BLUETOOTH_DEVICE_1.getAddress());
+
+
+        // 4. Trigger another route change, which will call maybeClearPendingMessage again
+        // with the modified pending message set.
+        mController.sendMessageWithSessionInfo(USER_SWITCH_EARPIECE);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+
+        // 5. Verification: The test passes if no NullPointerException is thrown.
+        // We can also verify that the valid message was cleared and the null was handled.
+        Set<Pair<Integer, String>> remainingMessages = pendingRoute.getPendingMessages();
+        assertFalse(remainingMessages.contains(
+                new Pair<>(BT_AUDIO_CONNECTED, BLUETOOTH_DEVICE_1.getAddress())));
+        // The null should have been ignored and might still be there, which is fine.
+    }
+
     @SmallTest
     @Test
     public void testBluetoothDeviceRemoveNoRerouteWithPendingRouteChange() {
