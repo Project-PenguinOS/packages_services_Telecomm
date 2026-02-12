@@ -46,6 +46,7 @@ import com.android.server.telecom.bluetooth.BluetoothRouteManager;
 import com.android.server.telecom.bluetooth.BluetoothStateReceiver;
 import com.android.server.telecom.callfiltering.BlockedNumbersAdapter;
 import com.android.server.telecom.callfiltering.IncomingCallFilterGraph;
+import com.android.server.telecom.components.TelecomBroadcastReceiver;
 import com.android.server.telecom.components.UserCallIntentProcessor;
 import com.android.server.telecom.components.UserCallIntentProcessorFactory;
 import com.android.server.telecom.flags.FeatureFlags;
@@ -480,6 +481,28 @@ public class TelecomSystem {
                     defaultDialerCache, featureFlags);
             mTelecomBroadcastIntentProcessor = new TelecomBroadcastIntentProcessor(
                     mContext, mCallsManager, mFeatureFlags);
+
+            IntentFilter telecomBroadcastFilter = new IntentFilter();
+            telecomBroadcastFilter.addAction(TelecomBroadcastIntentProcessor
+                    .ACTION_CLEAR_MISSED_CALLS);
+            telecomBroadcastFilter.addAction(TelecomBroadcastIntentProcessor
+                    .ACTION_CALL_BACK_FROM_NOTIFICATION);
+            telecomBroadcastFilter.addAction(TelecomBroadcastIntentProcessor
+                    .ACTION_SEND_SMS_FROM_NOTIFICATION);
+            telecomBroadcastFilter.addAction(TelecomBroadcastIntentProcessor
+                    .ACTION_ANSWER_FROM_NOTIFICATION);
+            telecomBroadcastFilter.addAction(TelecomBroadcastIntentProcessor
+                    .ACTION_REJECT_FROM_NOTIFICATION);
+            telecomBroadcastFilter.addAction(TelecomBroadcastIntentProcessor
+                    .ACTION_PROCEED_WITH_CALL);
+            telecomBroadcastFilter.addAction(TelecomBroadcastIntentProcessor
+                    .ACTION_CANCEL_CALL);
+            telecomBroadcastFilter.addAction(TelecomBroadcastIntentProcessor
+                    .ACTION_PLACE_REDIRECTED_CALL);
+            telecomBroadcastFilter.addAction(TelecomBroadcastIntentProcessor
+                    .ACTION_CANCEL_REDIRECTED_CALL);
+            mAllUsersContext.registerReceiver(new TelecomBroadcastReceiver(),
+                    telecomBroadcastFilter, Context.RECEIVER_NOT_EXPORTED);
 
             // Register the receiver for the dialer secret codes, used to enable extended logging.
             mDialerCodeReceiver = new DialerCodeReceiver(mCallsManager);
