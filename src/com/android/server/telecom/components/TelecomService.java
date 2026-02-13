@@ -17,16 +17,32 @@
 package com.android.server.telecom.components;
 
 import android.app.Service;
+import android.content.ComponentName;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.IBinder;
 import android.telecom.TelecomServiceInitializerRepository;
 import android.util.Log;
 
 public class TelecomService extends Service {
 
+    private static final String TELECOM_UI_PACKAGE = "com.android.server.telecomui";
+
     @Override
     public IBinder onBind(Intent intent) {
         Log.i("TelecomService", "onBind");
+
+        // Enable TelecomUi since the mainline module is active
+        try {
+            getPackageManager().setApplicationEnabledSetting(
+                    TELECOM_UI_PACKAGE,
+                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                    PackageManager.DONT_KILL_APP);
+            Log.i("TelecomService", "Successfully enabled TelecomUi");
+        } catch (IllegalArgumentException e) {
+            Log.e("TelecomService", "Failed to enable TelecomUi", e);
+        }
+
         if (TelecomServiceInitializerRepository.getInitializer() != null) {
             return TelecomServiceInitializerRepository.getInitializer().initialize(this);
         } else {
