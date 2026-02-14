@@ -1234,14 +1234,35 @@ public class CallTest extends TelecomTestCase {
                 mFeatureFlags);
 
         call.setIsTransactionalCall(true);
+        call.setAssociatedUser(UserHandle.CURRENT);
         PackageManager pm = mock(PackageManager.class);
         ResolveInfo resolveInfo = mock(ResolveInfo.class);
         when(mContext.getPackageManager()).thenReturn(pm);
         when(pm.queryIntentActivities(any(Intent.class), eq(PackageManager.MATCH_ALL)))
                 .thenReturn(List.of(resolveInfo));
+        // Ensure call log pref setting is enabled if the integrated call logs stage 2 flag
+        // is enabled.
+        if (android.telecom.flags.Flags.integratedCallLogsStage2()) {
+            when(mMockCallsManager.isCallLogPrefEnabledForPackage(any(UserHandle.class),
+                    anyString())).thenReturn(true);
+        }
         // Verify that we will log the transactional call when the integrated call logs flags is
         // enabled.
         assertTrue(call.isLoggedTransactional());
+
+        // Assert logs are excluded if there's no pkg that supports the intent
+        when(pm.queryIntentActivities(any(Intent.class), eq(PackageManager.MATCH_ALL)))
+                .thenReturn(List.of());
+        assertFalse(call.isLoggedTransactional());
+
+        // Assert logs are excluded if the user pref setting is disabled
+        if (android.telecom.flags.Flags.integratedCallLogsStage2()) {
+            when(pm.queryIntentActivities(any(Intent.class), eq(PackageManager.MATCH_ALL)))
+                    .thenReturn(List.of(resolveInfo));
+            when(mMockCallsManager.isCallLogPrefEnabledForPackage(any(UserHandle.class),
+                    anyString())).thenReturn(false);
+            assertFalse(call.isLoggedTransactional());
+        }
     }
 
     @Test

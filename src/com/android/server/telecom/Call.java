@@ -2260,7 +2260,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                     isTransactionalCall(), packageName, pkgSupportsIntent,
                     isTransactionalLogExcluded(), userPrefEnabled);
         }
-        return isTransactionalCall() && pkgSupportsIntent && !isTransactionalLogExcluded();
+        return shouldLogTransactionalCall;
     }
 
     /**
