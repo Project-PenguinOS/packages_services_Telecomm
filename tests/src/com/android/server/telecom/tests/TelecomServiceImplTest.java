@@ -57,6 +57,7 @@ import static org.mockito.Mockito.when;
 import android.Manifest;
 import android.app.ActivityManager;
 import android.app.AppOpsManager;
+import android.app.UiModeManager;
 import android.content.AttributionSource;
 import android.content.ComponentName;
 import android.content.ContentResolver;
@@ -71,6 +72,7 @@ import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.OutcomeReceiver;
+import android.os.Process;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.UserManager;
@@ -85,6 +87,8 @@ import android.util.Log;
 
 import androidx.test.filters.SmallTest;
 
+import java.util.Arrays;
+import com.android.server.telecom.LocalVoicemailController;
 import com.android.internal.telecom.ICallEventCallback;
 import com.android.internal.telecom.ITelecomService;
 import com.android.server.telecom.AnomalyReporterAdapter;
@@ -2737,5 +2741,256 @@ public class TelecomServiceImplTest extends TelecomTestCase {
                 .thenReturn(true);
         assertTrue(mTSIBinder.isInSelfManagedCall(PACKAGE_NAME,
                 Binder.getCallingUserHandle(), CALLING_PACKAGE));
+    }
+
+    @SmallTest
+    @Test
+    public void testStartConference() throws RemoteException {
+        // GIVEN
+        List<Uri> participants = Arrays.asList(TEST_URI);
+        Bundle extras = new Bundle();
+        doReturn(PackageManager.PERMISSION_GRANTED).when(mContext)
+                .checkCallingOrSelfPermission(Manifest.permission.CALL_PHONE);
+
+        // WHEN
+        mTSIBinder.startConference(participants, extras, DEFAULT_DIALER_PACKAGE);
+
+        // THEN
+        verify(mFakeCallsManager).startConference(eq(participants), eq(extras),
+                eq(DEFAULT_DIALER_PACKAGE), any(UserHandle.class));
+    }
+
+    @SmallTest
+    @Test
+    public void testGetSimCallManagerForUser_Exception() throws RemoteException {
+        // GIVEN
+        when(mFakePhoneAccountRegistrar.getSimCallManager(any())).thenThrow(new RuntimeException());
+
+        // WHEN / THEN
+        assertThrows(RuntimeException.class,
+                () -> mTSIBinder.getSimCallManagerForUser(13, CALLING_PACKAGE));
+        verify(mAnomalyReporterAdapter).reportAnomaly(
+                eq(TelecomServiceImpl.GET_SIM_MANAGER_FOR_USER_ERROR_UUID),
+                eq(TelecomServiceImpl.GET_SIM_MANAGER_FOR_USER_ERROR_MSG));
+    }
+
+    @SmallTest
+    @Test
+    public void testGetSimCallManager_CrossUserSecurityException() throws RemoteException {
+        // GIVEN
+        doThrow(new SecurityException()).when(mContext).enforceCallingOrSelfPermission(
+                eq(Manifest.permission.INTERACT_ACROSS_USERS_FULL), any());
+
+        // WHEN / THEN
+        assertThrows(SecurityException.class,
+                () -> mTSIBinder.getSimCallManagerForUser(13, CALLING_PACKAGE));
+    }
+
+    @SmallTest
+    @Test
+    public void testAcceptHandover_SelfManagedNoPermission() throws RemoteException {
+        // GIVEN
+        PhoneAccount phoneAccount = makePhoneAccount(TEL_PA_HANDLE_CURRENT)
+                .setCapabilities(PhoneAccount.CAPABILITY_SELF_MANAGED)
+                .build();
+        phoneAccount.setIsEnabled(true);
+        // If we want it to fail in TelecomServiceImpl#acceptHandover, we need to ensure
+        // it either fails canCallPhone or the account is not found/enabled.
+        doReturn(null).when(mFakePhoneAccountRegistrar).getPhoneAccount(
+                eq(TEL_PA_HANDLE_CURRENT), any());
+        doThrow(new SecurityException()).when(mContext).enforceCallingOrSelfPermission(
+                eq(Manifest.permission.MANAGE_OWN_CALLS), any());
+        doReturn(false).when(mDefaultDialerCache).isDefaultOrSystemDialer(anyString(), anyInt());
+
+        // WHEN / THEN
+        assertThrows(SecurityException.class,
+                () -> mTSIBinder.acceptHandover(TEST_URI, VideoProfile.STATE_AUDIO_ONLY,
+                        TEL_PA_HANDLE_CURRENT, CALLING_PACKAGE));
+    }
+
+    @SmallTest
+    @Test
+    public void testHandlePinMmi() throws RemoteException {
+        // GIVEN
+        String dialString = "1234";
+        TelephonyManager mockTelephonyManager = mComponentContextFixture.getTelephonyManager();
+        when(mockTelephonyManager.handlePinMmi(eq(dialString))).thenReturn(true);
+
+        // WHEN
+        boolean result = mTSIBinder.handlePinMmi(dialString, CALLING_PACKAGE);
+
+        // THEN
+        assertTrue(result);
+        verify(mockTelephonyManager).handlePinMmi(dialString);
+    }
+
+    @SmallTest
+    @Test
+    public void testStopBlockSuppression_SecurityException() throws RemoteException {
+        // GIVEN
+        doNothing().when(mContext).enforceCallingOrSelfPermission(eq(MODIFY_PHONE_STATE), any());
+
+        // WHEN / THEN
+        assertThrows(SecurityException.class, () -> mTSIBinder.stopBlockSuppression());
+    }
+
+    @SmallTest
+    @Test
+    public void testEnablePhoneAccount() throws RemoteException {
+        // GIVEN
+        doNothing().when(mContext).enforceCallingOrSelfPermission(eq(MODIFY_PHONE_STATE), any());
+        when(mFakePhoneAccountRegistrar.enablePhoneAccount(eq(TEL_PA_HANDLE_CURRENT), eq(true)))
+                .thenReturn(true);
+
+        // WHEN
+        boolean result = mTSIBinder.enablePhoneAccount(TEL_PA_HANDLE_CURRENT, true);
+
+        // THEN
+        assertTrue(result);
+        verify(mFakePhoneAccountRegistrar).enablePhoneAccount(TEL_PA_HANDLE_CURRENT, true);
+    }
+
+    @SmallTest
+    @Test
+    public void testRegisterPhoneAccount_SelfManagedAndCallProvider() throws RemoteException {
+        // GIVEN
+        PhoneAccount account = makePhoneAccount(TEL_PA_HANDLE_CURRENT)
+                .setCapabilities(PhoneAccount.CAPABILITY_SELF_MANAGED |
+                        PhoneAccount.CAPABILITY_CALL_PROVIDER)
+                .build();
+        doThrow(new SecurityException()).when(mContext).enforceCallingPermission(
+                eq(Manifest.permission.MANAGE_OWN_CALLS), nullable(String.class));
+
+        // WHEN / THEN
+        assertThrows(SecurityException.class,
+                () -> mTSIBinder.registerPhoneAccount(account, CALLING_PACKAGE));
+    }
+
+    @SmallTest
+    @Test
+    public void testRegisterPhoneAccount_SimSubscriptionNoPermission() throws RemoteException {
+        // GIVEN
+        PhoneAccount account = makePhoneAccount(TEL_PA_HANDLE_CURRENT)
+                .setCapabilities(PhoneAccount.CAPABILITY_SIM_SUBSCRIPTION)
+                .build();
+        doThrow(new SecurityException()).when(mContext).enforceCallingOrSelfPermission(
+                eq(Manifest.permission.REGISTER_SIM_SUBSCRIPTION), nullable(String.class));
+
+        // WHEN / THEN
+        assertThrows(SecurityException.class,
+                () -> mTSIBinder.registerPhoneAccount(account, CALLING_PACKAGE));
+    }
+
+    @SmallTest
+    @Test
+    public void testCleanupOrphanPhoneAccounts_SecurityException() throws RemoteException {
+        // WHEN / THEN
+        assertThrows(SecurityException.class, () -> mTSIBinder.cleanupOrphanPhoneAccounts());
+    }
+
+    @SmallTest
+    @Test
+    public void testGetCallStateUsingPackage_PackageMismatch() throws RemoteException {
+        // GIVEN
+        String fakePackage = "com.fake.package";
+        try {
+            doReturn(9999).when(mPackageManager).getPackageUid(eq(fakePackage), anyInt());
+        } catch (PackageManager.NameNotFoundException e) {
+            fail("Failed to mock getPackageUid");
+        }
+
+        // WHEN / THEN
+        assertThrows(SecurityException.class,
+                () -> mTSIBinder.getCallStateUsingPackage(fakePackage, null));
+    }
+
+    @SmallTest
+    @Test
+    public void testIsLocalVoicemailSupported() throws RemoteException {
+        // GIVEN
+        LocalVoicemailController mockLocalVoicemailController =
+                mock(LocalVoicemailController.class);
+        when(mFakeCallsManager.getLocalVoicemailController())
+                .thenReturn(mockLocalVoicemailController);
+        when(mockLocalVoicemailController.getActiveLocalVoicemailService())
+                .thenReturn("pkg/cls");
+        doReturn(PackageManager.PERMISSION_GRANTED).when(mContext).checkCallingOrSelfPermission(
+                eq(Manifest.permission.READ_PRIVILEGED_PHONE_STATE));
+
+        // WHEN
+        boolean result = mTSIBinder.isLocalVoicemailSupported(CALLING_PACKAGE);
+
+        // THEN
+        assertTrue(result);
+    }
+
+    @SmallTest
+    @Test
+    public void testAddNewUnknownCall_SelfManagedNoPermission() throws RemoteException {
+        // GIVEN
+        PhoneAccount phoneAccount = makePhoneAccount(TEL_PA_HANDLE_CURRENT)
+                .setCapabilities(PhoneAccount.CAPABILITY_SELF_MANAGED)
+                .build();
+        when(mFakePhoneAccountRegistrar.getPhoneAccountUnchecked(TEL_PA_HANDLE_CURRENT))
+                .thenReturn(phoneAccount);
+        doThrow(new SecurityException()).when(mContext).enforceCallingOrSelfPermission(
+                eq(Manifest.permission.MANAGE_OWN_CALLS), nullable(String.class));
+
+        // WHEN / THEN
+        assertThrows(SecurityException.class,
+                () -> mTSIBinder.addNewUnknownCall(TEL_PA_HANDLE_CURRENT, null));
+    }
+
+    @SmallTest
+    @Test
+    public void testGetRegisteredPhoneAccounts_NoCrossUser() throws RemoteException {
+        // GIVEN
+        doThrow(new SecurityException()).when(mContext).enforceCallingOrSelfPermission(
+                eq(Manifest.permission.INTERACT_ACROSS_USERS), nullable(String.class));
+
+        // WHEN
+        mTSIBinder.getRegisteredPhoneAccounts(CALLING_PACKAGE, null);
+
+        // THEN
+        verify(mFakePhoneAccountRegistrar).getPhoneAccounts(anyInt(), anyInt(), isNull(),
+                eq(CALLING_PACKAGE), anyBoolean(), any(UserHandle.class), eq(false), anyBoolean());
+    }
+
+    @SmallTest
+    @Test
+    public void testPlaceCall_NoCallPhonePermission() throws RemoteException {
+        // GIVEN
+        doReturn(PackageManager.PERMISSION_DENIED).when(mContext)
+                .checkCallingOrSelfPermission(Manifest.permission.CALL_PRIVILEGED);
+        doReturn(false).when(mDefaultDialerCache).isDefaultOrSystemDialer(anyString(), anyInt());
+        doThrow(new SecurityException()).when(mContext).enforceCallingOrSelfPermission(
+                eq(Manifest.permission.CALL_PHONE), nullable(String.class));
+
+        // WHEN / THEN
+        assertThrows(SecurityException.class,
+                () -> mTSIBinder.placeCall(TEST_URI, null, CALLING_PACKAGE, null));
+    }
+
+    @SmallTest
+    @Test
+    public void testGetOwnSelfManagedPhoneAccounts_CorrectSignature() throws RemoteException {
+        // GIVEN
+        when(mFakePhoneAccountRegistrar.getSelfManagedPhoneAccountsForPackage(
+                eq(CALLING_PACKAGE), any(UserHandle.class))).thenReturn(Collections.emptyList());
+
+        // WHEN
+        mTSIBinder.getOwnSelfManagedPhoneAccounts(CALLING_PACKAGE, null);
+
+        // THEN
+        verify(mFakePhoneAccountRegistrar).getSelfManagedPhoneAccountsForPackage(
+                eq(CALLING_PACKAGE), any(UserHandle.class));
+    }
+
+    @SmallTest
+    @Test
+    public void testSetTestPhoneAcctSuggestionComponent_CorrectSignature() throws RemoteException {
+        // WHEN / THEN
+        assertThrows(SecurityException.class,
+                () -> mTSIBinder.setTestPhoneAcctSuggestionComponent("pkg/cls", UserHandle.of(0)));
     }
 }

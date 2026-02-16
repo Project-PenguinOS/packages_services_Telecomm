@@ -797,7 +797,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                 // Don't wait for BT_AUDIO_CONNECTED msgs if pending route is not BT_SCO.
                 for (Pair<Integer, String> pendingMessage : mPendingAudioRoute
                         .getPendingMessages()) {
-                    if (pendingMessage.first == BT_AUDIO_CONNECTED) {
+                    if (pendingMessage != null && pendingMessage.first == BT_AUDIO_CONNECTED) {
                         mPendingAudioRoute.clearPendingMessage(pendingMessage);
                     }
                 }
