@@ -36,10 +36,6 @@ import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
 
-import com.android.i18n.phonenumbers.NumberParseException;
-import com.android.i18n.phonenumbers.PhoneNumberUtil;
-import com.android.i18n.phonenumbers.Phonenumber.PhoneNumber;
-import com.android.i18n.phonenumbers.geocoding.PhoneNumberOfflineGeocoder;
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.Locale;
@@ -54,7 +50,6 @@ public class CallerInfo {
     private static final String TAG = "CallerInfo";
     private static final boolean VDBG = android.util.Log.isLoggable(TAG, Log.VERBOSE);
     public String normalizedNumber;
-    public String geoDescription;
     public String cnapName;
     public int numberPresentation;
     public int namePresentation;
@@ -201,8 +196,7 @@ public class CallerInfo {
                         info.numberType = cursor.getInt(typeColumnIndex);
                         info.numberLabel = cursor.getString(columnIndex);
                         info.phoneLabel = Phone.getTypeLabel(context.getResources(),
-                                info.numberType, info.numberLabel)
-                            .toString();
+                                info.numberType, info.numberLabel).toString();
                     }
                 }
 
@@ -348,11 +342,19 @@ public class CallerInfo {
         // Change the callerInfo number ONLY if it is an emergency number
         // or if it is the voicemail number.  If it is either, take a
         // shortcut and skip the query.
-        TelephonyManager tm = context.getSystemService(TelephonyManager.class);
-        if (tm.isEmergencyNumber(number)) {
-            return new CallerInfo().markAsEmergency(context);
-        } else if (PhoneNumberUtils.isVoiceMailNumber(null, subId, number)) {
-            return new CallerInfo().markAsVoiceMail(context, subId);
+        try {
+            TelephonyManager tm = context.getSystemService(TelephonyManager.class);
+            if (tm.isEmergencyNumber(number)) {
+                return new CallerInfo().markAsEmergency(context);
+            } else if (PhoneNumberUtils.isVoiceMailNumber(null, subId, number)) {
+                return new CallerInfo().markAsVoiceMail(context, subId);
+            }
+        } catch (UnsupportedOperationException | IllegalStateException ex) {
+            // Ignore; Telephony is not available or failed, so we cannot perform an emergency
+            // number check.
+        } catch (RuntimeException ex) {
+            // Some other runtime exception occurred; don't crash but log.
+            Log.e(TAG, "Error getting caller info.", ex);
         }
 
         Uri contactUri = Uri.withAppendedPath(PhoneLookup.ENTERPRISE_CONTENT_FILTER_URI,
@@ -484,49 +486,6 @@ public class CallerInfo {
                 + "' (columnIndex = " + columnIndex + ") for person_id lookup...");
         }
         return columnIndex;
-    }
-
-    /**
-     * @return a geographical description string for the specified number.
-     * @see com.android.i18n.phonenumbers.PhoneNumberOfflineGeocoder
-     */
-    public static String getGeoDescription(Context context, String number) {
-        if (VDBG) {
-            Log.v(TAG, "getGeoDescription('" + number + "')...");
-        }
-
-        if (TextUtils.isEmpty(number)) {
-            return null;
-        }
-
-        PhoneNumberUtil util = PhoneNumberUtil.getInstance();
-        PhoneNumberOfflineGeocoder geocoder = PhoneNumberOfflineGeocoder.getInstance();
-
-        Locale locale = context.getResources().getConfiguration().locale;
-        String countryIso = getCurrentCountryIso(context, locale);
-        PhoneNumber pn = null;
-        try {
-            if (VDBG) {
-                Log.v(TAG, "parsing '" + number
-                    + "' for countryIso '" + countryIso + "'...");
-            }
-            pn = util.parse(number, countryIso);
-            if (VDBG) {
-                Log.v(TAG, "- parsed number: " + pn);
-            }
-        } catch (NumberParseException e) {
-            Log.w(TAG, "getGeoDescription: NumberParseException for incoming number");
-        }
-
-        if (pn != null) {
-            String description = geocoder.getDescriptionForNumber(pn, locale);
-            if (VDBG) {
-                Log.v(TAG, "- got description: '" + description + "'");
-            }
-            return description;
-        } else {
-            return null;
-        }
     }
 
     /**
@@ -663,22 +622,6 @@ public class CallerInfo {
     }
 
     /**
-     * Updates this CallerInfo's geoDescription field, based on the raw phone number in the
-     * phoneNumber field.
-     *
-     * (Note that the various getCallerInfo() methods do *not* set the geoDescription automatically;
-     * you need to call this method explicitly to get it.)
-     *
-     * @param context the context used to look up the current locale / country
-     * @param fallbackNumber if this CallerInfo's phoneNumber field is empty, this specifies a
-     *     fallback number to use instead.
-     */
-    public void updateGeoDescription(Context context, String fallbackNumber) {
-        String number = TextUtils.isEmpty(phoneNumber) ? fallbackNumber : phoneNumber;
-        geoDescription = getGeoDescription(context, number);
-    }
-
-    /**
      * @return a string debug representation of this instance.
      */
     @Override
@@ -692,7 +635,6 @@ public class CallerInfo {
                 + "\nname: " + name
                 + "\nphoneNumber: " + phoneNumber
                 + "\nnormalizedNumber: " + normalizedNumber
-                + "\ngeoDescription: " + geoDescription
                 + "\ncnapName: " + cnapName
                 + "\nnumberPresentation: " + numberPresentation
                 + "\nnamePresentation: " + namePresentation

@@ -26,7 +26,7 @@ import android.media.AudioAttributes;
 import android.net.Uri;
 import android.telecom.Log;
 
-import com.android.server.telecom.R;
+import com.android.server.telecom.TelecomResourceId;
 
 /**
  * Manages the {@link android.app.NotificationChannel}s for Telecom.
@@ -82,9 +82,10 @@ public class NotificationChannelManager {
         boolean lights = false;
         boolean vibration = false;
         Uri sound = silentRingtone;
+
         switch (channelId) {
             case CHANNEL_ID_INCOMING_CALLS -> {
-                name = context.getText(R.string.notification_channel_incoming_call);
+                name = TelecomResourceId.getText(context, "notification_channel_incoming_call");
                 importance = NotificationManager.IMPORTANCE_MAX;
                 canShowBadge = false;
                 lights = true;
@@ -92,7 +93,7 @@ public class NotificationChannelManager {
                 sound = silentRingtone;
             }
             case CHANNEL_ID_MISSED_CALLS -> {
-                name = context.getText(R.string.notification_channel_missed_call);
+                name = TelecomResourceId.getText(context, "notification_channel_missed_call");
                 importance = NotificationManager.IMPORTANCE_DEFAULT;
                 canShowBadge = true;
                 lights = true;
@@ -100,7 +101,7 @@ public class NotificationChannelManager {
                 sound = silentRingtone;
             }
             case CHANNEL_ID_CALL_BLOCKING -> {
-                name = context.getText(R.string.notification_channel_call_blocking);
+                name = TelecomResourceId.getText(context, "notification_channel_call_blocking");
                 importance = NotificationManager.IMPORTANCE_LOW;
                 canShowBadge = false;
                 lights = false;
@@ -108,7 +109,8 @@ public class NotificationChannelManager {
                 sound = null;
             }
             case CHANNEL_ID_AUDIO_PROCESSING -> {
-                name = context.getText(R.string.notification_channel_background_calls);
+                name = TelecomResourceId.getText(context,
+                        "notification_channel_background_calls");
                 importance = NotificationManager.IMPORTANCE_LOW;
                 canShowBadge = false;
                 lights = false;
@@ -116,7 +118,8 @@ public class NotificationChannelManager {
                 sound = null;
             }
             case CHANNEL_ID_DISCONNECTED_CALLS -> {
-                name = context.getText(R.string.notification_channel_disconnected_calls);
+                name = TelecomResourceId.getText(context,
+                        "notification_channel_disconnected_calls");
                 importance = NotificationManager.IMPORTANCE_DEFAULT;
                 canShowBadge = true;
                 lights = true;
@@ -124,7 +127,8 @@ public class NotificationChannelManager {
                 sound = silentRingtone;
             }
             case CHANNEL_ID_IN_CALL_SERVICE_CRASH -> {
-                name = context.getText(R.string.notification_channel_in_call_service_crash);
+                name = TelecomResourceId.getText(context,
+                        "notification_channel_in_call_service_crash");
                 importance = NotificationManager.IMPORTANCE_DEFAULT;
                 canShowBadge = true;
                 lights = true;
@@ -132,7 +136,7 @@ public class NotificationChannelManager {
                 sound = null;
             }
             case CHANNEL_ID_CALL_STREAMING -> {
-                name = context.getText(R.string.notification_channel_call_streaming);
+                name = TelecomResourceId.getText(context, "notification_channel_call_streaming");
                 importance = NotificationManager.IMPORTANCE_DEFAULT;
                 canShowBadge = false;
                 lights = false;

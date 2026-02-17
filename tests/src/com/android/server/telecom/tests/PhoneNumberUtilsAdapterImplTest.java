@@ -27,15 +27,19 @@ import static org.mockito.Mockito.when;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.telephony.TelephonyManager;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
-import com.android.internal.telecom.flags.FeatureFlags;
+import com.android.internal.telecom.flags.Flags;
 import com.android.server.telecom.PhoneNumberUtilsAdapterImpl;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -43,9 +47,9 @@ import org.mockito.MockitoAnnotations;
 
 @RunWith(AndroidJUnit4.class)
 public class PhoneNumberUtilsAdapterImplTest {
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Mock private Context mContext;
-    @Mock private FeatureFlags mFeatureFlags;
     @Mock private TelephonyManager mTelephonyManager;
 
     private PhoneNumberUtilsAdapterImpl mAdapter;
@@ -58,14 +62,13 @@ public class PhoneNumberUtilsAdapterImplTest {
         when(mContext.getSystemService(TelephonyManager.class)).thenReturn(mTelephonyManager);
 
         // Initialize the adapter
-        mAdapter = new PhoneNumberUtilsAdapterImpl(mContext, mFeatureFlags);
+        mAdapter = new PhoneNumberUtilsAdapterImpl(mContext);
     }
 
     @Test
     @SmallTest
+    @DisableFlags(Flags.FLAG_USE_ARE_SAME_PHONE_NUMBER)
     public void testIsSamePhoneNumber_FlagDisabled_UsesCompare() {
-        when(mFeatureFlags.useAreSamePhoneNumber()).thenReturn(false);
-
         String number1 = "6505551234";
         String number2 = "650-555-1234";
 
@@ -79,8 +82,8 @@ public class PhoneNumberUtilsAdapterImplTest {
 
     @Test
     @SmallTest
+    @EnableFlags(Flags.FLAG_USE_ARE_SAME_PHONE_NUMBER)
     public void testIsSamePhoneNumber_FlagEnabled_UsesAreSamePhoneNumberWithIso() {
-        when(mFeatureFlags.useAreSamePhoneNumber()).thenReturn(true);
         when(mTelephonyManager.getNetworkCountryIso()).thenReturn("US");
 
         String number1 = "6505551234";
@@ -97,8 +100,8 @@ public class PhoneNumberUtilsAdapterImplTest {
 
     @Test
     @SmallTest
+    @EnableFlags(Flags.FLAG_USE_ARE_SAME_PHONE_NUMBER)
     public void testIsSamePhoneNumber_FlagEnabled_ServiceNull() {
-        when(mFeatureFlags.useAreSamePhoneNumber()).thenReturn(true);
         // Simulate TelephonyManager not being available
         when(mContext.getSystemService(TelephonyManager.class)).thenReturn(null);
 
@@ -110,21 +113,25 @@ public class PhoneNumberUtilsAdapterImplTest {
 
         // Verify: Should handle null service gracefully and not crash
         verify(mContext).getSystemService(TelephonyManager.class);
-        assertFalse("Should fall back to legacy compare if TM is null", result);
+        assertTrue("Numbers should match using legacy compare when service is null", result);
     }
 
     @Test
     @SmallTest
-    public void testIsSamePhoneNumber_NumbersNotMatch() {
-        // Case 1: Flag Disabled
-        when(mFeatureFlags.useAreSamePhoneNumber()).thenReturn(false);
+    @DisableFlags(Flags.FLAG_USE_ARE_SAME_PHONE_NUMBER)
+    public void testIsSamePhoneNumber_FlagDisabled_NumbersNotMatch() {
         String number1 = "6505551234";
         String number2 = "6505551235"; // Different number
         assertFalse("Numbers should NOT match", mAdapter.isSamePhoneNumber(number1, number2));
+    }
 
-        // Case 2: Flag Enabled
-        when(mFeatureFlags.useAreSamePhoneNumber()).thenReturn(true);
+    @Test
+    @SmallTest
+    @EnableFlags(Flags.FLAG_USE_ARE_SAME_PHONE_NUMBER)
+    public void testIsSamePhoneNumber_FlagEnabled_NumbersNotMatch() {
         when(mTelephonyManager.getNetworkCountryIso()).thenReturn("US");
+        String number1 = "6505551234";
+        String number2 = "6505551235"; // Different number
         assertFalse("Numbers should NOT match", mAdapter.isSamePhoneNumber(number1, number2));
     }
 

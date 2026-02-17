@@ -19,6 +19,7 @@ package com.android.server.telecomui;
 import android.app.ActionBar;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.preference.EditTextPreference;
@@ -32,7 +33,8 @@ import android.text.TextWatcher;
 import android.view.MenuItem;
 import android.widget.Button;
 
-import com.android.server.telecomui.QuickResponseUtils;
+import com.android.server.telecom.QuickResponseUtils;
+import com.android.server.telecom.ui.UiConstants;
 import com.android.server.telecomui.R;
 
 // TODO: This class is newly copied into Telecom (com.android.server.telecom) from it previous
@@ -63,6 +65,7 @@ public class RespondViaSmsSettings extends PreferenceActivity
         getPreferenceManager().setSharedPreferencesName(QuickResponseUtils.SHARED_PREFERENCES_NAME);
         mPrefs = getPreferenceManager().getSharedPreferences();
         QuickResponseUtils.maybeResetQuickResponses(this, mPrefs);
+        broadcastCannedResponses();
     }
 
     @Override
@@ -126,6 +129,7 @@ public class RespondViaSmsSettings extends PreferenceActivity
         // If the user just reset the quick response to its original text, clear the pref.
         QuickResponseUtils.maybeResetQuickResponses(this, mPrefs);
 
+        broadcastCannedResponses();
         return true;  // means it's OK to update the state of the Preference with the new value
     }
 
@@ -183,5 +187,29 @@ public class RespondViaSmsSettings extends PreferenceActivity
             }
         });
         pref.setOnPreferenceChangeListener(this);
+    }
+
+    /**
+     * Broadcast the canned responses to the Telecom service.
+     */
+    private void broadcastCannedResponses() {
+        Intent intent = new Intent(QuickResponseUtils.ACTION_UPDATE_CANNED_TEXT_MESSAGES);
+        if (mPrefs.contains(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_1)) {
+            intent.putExtra(QuickResponseUtils.EXTRA_CANNED_RESPONSE_1,
+                    mPrefs.getString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_1, ""));
+        }
+        if (mPrefs.contains(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_2)) {
+            intent.putExtra(QuickResponseUtils.EXTRA_CANNED_RESPONSE_2,
+                    mPrefs.getString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_2, ""));
+        }
+        if (mPrefs.contains(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_3)) {
+            intent.putExtra(QuickResponseUtils.EXTRA_CANNED_RESPONSE_3,
+                    mPrefs.getString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_3, ""));
+        }
+        if (mPrefs.contains(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_4)) {
+            intent.putExtra(QuickResponseUtils.EXTRA_CANNED_RESPONSE_4,
+                    mPrefs.getString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_4, ""));
+        }
+        sendBroadcast(intent, UiConstants.TELECOM_UI_ACCESS_PERMISSION);
     }
 }

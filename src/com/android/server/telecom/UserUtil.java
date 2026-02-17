@@ -80,11 +80,11 @@ public final class UserUtil {
     }
 
     public static void showErrorDialogForRestrictedOutgoingCall(Context context,
-            int stringId, String tag, String reason) {
+            CharSequence message, String tag, String reason) {
         final Intent intent = new Intent();
         intent.setClassName(UiConstants.TELECOM_UI_PACKAGE, UiConstants.COMPONENT_ERROR_DIALOG);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        intent.putExtra(UiConstants.ERROR_MESSAGE_ID_EXTRA, stringId);
+        intent.putExtra(UiConstants.ERROR_MESSAGE_STRING_EXTRA, message);
         context.startActivityAsUser(intent, UserHandle.CURRENT);
         Log.w(tag, "Rejecting non-emergency phone call because "
                 + reason);
@@ -111,7 +111,8 @@ public final class UserUtil {
                     if (hasDisallowOutgoingCalls(context, userManager, userHandle)) {
                         String reason = "of DISALLOW_OUTGOING_CALLS restriction";
                         showErrorDialogForRestrictedOutgoingCall(context,
-                                R.string.outgoing_call_not_allowed_user_restriction, tag, reason);
+                                TelecomResourceId.getString(context,
+                                        "outgoing_call_not_allowed_user_restriction"), tag, reason);
                         return true;
                     } else if (hasUserRestriction) {
                         final DevicePolicyManager dpm =

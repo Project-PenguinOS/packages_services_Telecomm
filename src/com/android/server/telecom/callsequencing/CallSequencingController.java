@@ -55,7 +55,6 @@ import com.android.server.telecom.ClockProxy;
 import com.android.server.telecom.LogUtils;
 import com.android.server.telecom.LoggedHandlerExecutor;
 import com.android.server.telecom.MmiUtils;
-import com.android.server.telecom.R;
 import com.android.server.telecom.Timeouts;
 import com.android.server.telecom.callsequencing.voip.OutgoingCallTransaction;
 import com.android.server.telecom.callsequencing.voip.OutgoingCallTransactionSequencing;
@@ -63,6 +62,7 @@ import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.metrics.ErrorStats;
 import com.android.server.telecom.metrics.TelecomMetricsController;
 import com.android.server.telecom.stats.CallFailureCause;
+import com.android.server.telecom.TelecomResourceId;
 
 import java.util.HashSet;
 import java.util.List;
@@ -247,12 +247,10 @@ public class CallSequencingController {
                         callback.onError(
                                 new CallException("activeCall could not be held or disconnected",
                                 CallException.CODE_CANNOT_HOLD_CURRENT_ACTIVE_CALL));
-                        if (mFeatureFlags.enableCallExceptionAnomReports()) {
-                            mAnomalyReporter.reportAnomaly(
-                                    SEQUENCING_CANNOT_HOLD_ACTIVE_CALL_UUID,
-                                    SEQUENCING_CANNOT_HOLD_ACTIVE_CALL_MSG
-                            );
-                        }
+                        mAnomalyReporter.reportAnomaly(
+                                SEQUENCING_CANNOT_HOLD_ACTIVE_CALL_UUID,
+                                SEQUENCING_CANNOT_HOLD_ACTIVE_CALL_MSG
+                        );
                     }
                     return CompletableFuture.completedFuture(result);
                 }, new LoggedHandlerExecutor(mHandler, "CM.mCAA", mCallsManager.getLock()));
@@ -850,10 +848,8 @@ public class CallSequencingController {
         if (liveCall.getState() == CallState.CONNECTING
                 && ((mClockProxy.elapsedRealtime() - liveCall.getCreationElapsedRealtimeMillis())
                 > mTimeoutsAdapter.getNonVoipCallTransitoryStateTimeoutMillis())) {
-            if (mFeatureFlags.telecomMetricsSupport()) {
-                mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_MANAGER,
-                        ErrorStats.ERROR_STUCK_CONNECTING);
-            }
+            mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_MANAGER,
+                    ErrorStats.ERROR_STUCK_CONNECTING);
             mAnomalyReporter.reportAnomaly(LIVE_CALL_STUCK_CONNECTING_ERROR_UUID,
                     LIVE_CALL_STUCK_CONNECTING_ERROR_MSG);
             // Skip auto-unhold for when the live call is disconnected. Consider a scenario where
@@ -946,8 +942,13 @@ public class CallSequencingController {
             return liveCall.hold("calling " + call.getId());
         }
 
-        // The live call cannot be held so we're out of luck here.  There's no room.
-        showErrorDialogForCannotHoldCall(call, true);
+        // The live call cannot be held so we're out of luck here.  There's no room. Only show the
+        // dialog if the active call is not a self managed call. We already handle showing a call
+        // confirmation dialog for the user to disconnect the ongoing SM call after this future
+        // completes.
+        if (!liveCall.isSelfManaged()) {
+            showErrorDialogForCannotHoldCall(call, true);
+        }
         return CompletableFuture.completedFuture(false);
     }
 
@@ -1228,7 +1229,7 @@ public class CallSequencingController {
         if (mCallsManager.getNumCallsWithStateWithoutHandle(
                 CALL_FILTER_ALL, call, call.getTargetPhoneAccount(), ONGOING_CALL_STATES) > 0) {
             // Set disconnect cause so that error will be printed out when call is disconnected.
-            CharSequence msg = mContext.getText(R.string.callFailed_reject_mmi);
+            CharSequence msg = TelecomResourceId.getText(mContext, "callFailed_reject_mmi");
             call.setOverrideDisconnectCauseCode(new DisconnectCause(DisconnectCause.ERROR, msg, msg,
                     "Rejected MMI code due to an ongoing call on another phone account."));
             return true;
@@ -1263,7 +1264,8 @@ public class CallSequencingController {
     }
 
     private void showErrorDialogForMaxOutgoingCallOutgoingPresent(Call call) {
-        int resourceId = R.string.callFailed_outgoing_already_present;
+        int resourceId = TelecomResourceId.getIdentifier(mContext,
+                "callFailed_outgoing_already_present", "string");
         String reason = " there is already another call connecting. Wait for the "
                 + "call to be answered or disconnect before placing another call.";
         showErrorDialogForFailedCall(call, CallFailureCause.MAX_OUTGOING_CALLS, resourceId, reason);
@@ -1272,21 +1274,25 @@ public class CallSequencingController {
     private void showErrorDialogForMaxOutgoingCallTooManyCalls(
             Call call, boolean arePhoneAccountsSame) {
         int resourceId = arePhoneAccountsSame
-                ? R.string.callFailed_too_many_calls_include_merge
-                : R.string.callFailed_too_many_calls_exclude_merge;
+                ? TelecomResourceId.getIdentifier(mContext,
+                        "callFailed_too_many_calls_include_merge", "string")
+                : TelecomResourceId.getIdentifier(mContext,
+                        "callFailed_too_many_calls_exclude_merge", "string");
         String reason = " there are two calls already in progress. Disconnect one "
                 + "of the calls or merge the calls (if possible).";
         showErrorDialogForFailedCall(call, CallFailureCause.MAX_OUTGOING_CALLS, resourceId, reason);
     }
 
     private void showErrorDialogForOutgoingDuringRingingCall(Call call) {
-        int resourceId = R.string.callFailed_already_ringing;
+        int resourceId = TelecomResourceId.getIdentifier(mContext,
+                "callFailed_already_ringing", "string");
         String reason = " can't place outgoing call with an unanswered incoming call.";
         showErrorDialogForFailedCall(call, null, resourceId, reason);
     }
 
     private void showErrorDialogForCannotSwapCall(Call call) {
-        int resourceId = R.string.callSwapFailed_unholdable_call;
+        int resourceId = TelecomResourceId.getIdentifier(mContext,
+                "callSwapFailed_unholdable_call", "string");
         String reason = " unable to swap the live call. Disconnect the call to switch to "
                 + "the held call.";
         showErrorDialogForFailedCall(call, null, resourceId, reason);
@@ -1297,7 +1303,8 @@ public class CallSequencingController {
         if (setCallFailure) {
             cause = CallFailureCause.CANNOT_HOLD_CALL;
         }
-        int resourceId = R.string.callFailed_unholdable_call;
+        int resourceId = TelecomResourceId.getIdentifier(mContext,
+                "callFailed_unholdable_call", "string");
         String reason = " unable to hold live call. Disconnect the unholdable call.";
         showErrorDialogForFailedCall(call, cause, resourceId, reason);
     }
@@ -1307,7 +1314,8 @@ public class CallSequencingController {
         if (cause != null) {
             call.setStartFailCause(cause);
         }
-        showErrorDialogForRestrictedOutgoingCall(mContext, resourceId, TAG, reason);
+        CharSequence message = TelecomResourceId.getResources(mContext).getText(resourceId);
+        showErrorDialogForRestrictedOutgoingCall(mContext, message, TAG, reason);
     }
 
     public Handler getHandler() {

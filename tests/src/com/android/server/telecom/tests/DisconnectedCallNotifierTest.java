@@ -24,12 +24,15 @@ import android.telecom.DisconnectCause;
 import android.telecom.PhoneAccountHandle;
 import android.telephony.TelephonyManager;
 
+import android.util.DisplayMetrics;
+
 import androidx.test.filters.SmallTest;
 
 import com.android.server.telecom.Call;
 import com.android.server.telecom.CallState;
 import com.android.server.telecom.CallerInfoLookupHelper;
 import com.android.server.telecom.CallsManager;
+import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.ui.DisconnectedCallNotifier;
 
 import org.junit.After;
@@ -50,6 +53,9 @@ public class DisconnectedCallNotifierTest extends TelecomTestCase {
     @Mock private CallsManager mCallsManager;
     @Mock private CallerInfoLookupHelper mCallerInfoLookupHelper;
     @Mock private Context mUserContext;
+    @Mock private Resources mResources;
+    @Mock private Resources.Theme mTheme;
+    @Mock private DisplayMetrics mDisplayMetrics;
 
     private NotificationManager mNotificationManager;
 
@@ -59,6 +65,13 @@ public class DisconnectedCallNotifierTest extends TelecomTestCase {
         super.setUp();
 
         mContext = mComponentContextFixture.getTestDouble().getApplicationContext();
+        TelecomResourceId.setTelecomContext(mContext);
+        when(mContext.getResources()).thenReturn(mResources);
+        when(mResources.getIdentifier(anyString(), anyString(), anyString())).thenReturn(1);
+        when(mContext.getTheme()).thenReturn(mTheme);
+        when(mResources.newTheme()).thenReturn(mTheme);
+        when(mResources.getDisplayMetrics()).thenReturn(mDisplayMetrics);
+        mDisplayMetrics.density = 1.0f;
 
         mNotificationManager = (NotificationManager) mContext.getSystemService(
                 Context.NOTIFICATION_SERVICE);
@@ -76,6 +89,7 @@ public class DisconnectedCallNotifierTest extends TelecomTestCase {
     @After
     @Override
     public void tearDown() throws Exception {
+        TelecomResourceId.setTelecomContext(null);
         super.tearDown();
     }
 

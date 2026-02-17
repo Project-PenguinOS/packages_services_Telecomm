@@ -77,6 +77,7 @@ import com.android.server.telecom.CallState;
 import com.android.server.telecom.HandoverState;
 import com.android.server.telecom.MissedCallNotifier;
 import com.android.server.telecom.PhoneAccountRegistrar;
+import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.TelephonyUtil;
 import com.android.server.telecom.flags.FeatureFlags;
 
@@ -137,6 +138,8 @@ public class CallLogManagerTest extends TelecomTestCase {
     MissedCallNotifier mMissedCallNotifier;
     @Mock
     AnomalyReporterAdapter mAnomalyReporterAdapter;
+    @Mock
+    Resources mResources;
 
     @Mock
     FeatureFlags mFeatureFlags;
@@ -146,6 +149,8 @@ public class CallLogManagerTest extends TelecomTestCase {
     public void setUp() throws Exception {
         super.setUp();
         mContext = mComponentContextFixture.getTestDouble().getApplicationContext();
+        TelecomResourceId.setTelecomContext(mContext);
+        when(mContext.getResources()).thenReturn(mResources);
         mCallLogManager = new CallLogManager(mContext, mMockPhoneAccountRegistrar,
                 mMissedCallNotifier, mAnomalyReporterAdapter, mFeatureFlags);
         mDefaultAccountHandle = new PhoneAccountHandle(
@@ -249,6 +254,7 @@ public class CallLogManagerTest extends TelecomTestCase {
     @Override
     @After
     public void tearDown() throws Exception {
+        TelecomResourceId.setTelecomContext(null);
         super.tearDown();
     }
 
@@ -1352,7 +1358,6 @@ public class CallLogManagerTest extends TelecomTestCase {
     @MediumTest
     @Test
     public void testLogCall_multipleDisconnects_logsOnlyOnce() {
-        when(mFeatureFlags.avoidLoggingMoreThanOnce()).thenReturn(true);
         when(mMockPhoneAccountRegistrar.getPhoneAccountUnchecked(any(PhoneAccountHandle.class)))
                 .thenReturn(makeFakePhoneAccount(mDefaultAccountHandle, 0 /* capabilities */));
 

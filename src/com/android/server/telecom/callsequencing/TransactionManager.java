@@ -127,8 +127,7 @@ public class TransactionManager {
                     receiver.onError(new CallException(transactionName + " timeout",
                             CODE_OPERATION_TIMED_OUT));
                     transactionCompleteFuture.complete(false);
-                    if (mFeatureFlags != null && mAnomalyReporter != null &&
-                            mFeatureFlags.enableCallExceptionAnomReports()) {
+                    if (mAnomalyReporter != null) {
                         mAnomalyReporter.reportAnomaly(
                                 TRANSACTION_MANAGER_TIMEOUT_UUID,
                                 TRANSACTION_MANAGER_TIMEOUT_MSG);

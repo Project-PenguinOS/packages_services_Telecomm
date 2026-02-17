@@ -39,6 +39,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.annotation.SuppressLint;
 import android.media.AudioAttributes;
 import android.media.AudioDeviceAttributes;
 import android.media.AudioDeviceCallback;
@@ -111,7 +112,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             "android.media.EXTRA_STREAM_VOLUME_MUTED";
 
 
-    private static final AudioRoute DUMMY_ROUTE = new AudioRoute(TYPE_INVALID, null, null);
+    private static final AudioRoute DUMMY_ROUTE = new AudioRoute(TYPE_INVALID, null, null, false);
     private static final UUID AUDIO_ROUTING_EXTERNAL_CHANGE_UUID =
             UUID.fromString("d9b38771-ff36-417b-8723-2363a870c702");
     private static final String AUDIO_ROUTING_EXTERNAL_CHANGE_MSG =
@@ -301,6 +302,10 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     private AudioRoutesCallback mAudioRoutesCallback;
     private final TelecomMetricsController mMetricsController;
 
+    /* TODO: b/478043076 - Remove SuppressLint once the API is finalized.
+     * And update the SDK check to the final version number.
+     */
+    @SuppressLint("NewApi")
     public CallAudioRouteController(
             Context context, CallsManager callsManager,
             AudioRoute.Factory audioRouteFactory, WiredHeadsetManager wiredHeadsetManager,
@@ -364,8 +369,9 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             }
         };
 
-        mIsScoManagedByAudio = android.media.audio.Flags.scoManagedByAudio()
-                && BluetoothProperties.isScoManagedByAudioEnabled().orElse(false);
+        if (android.media.audio.Flags.amscoAvailableApi() && mAudioManager != null) {
+            mIsScoManagedByAudio = mAudioManager.isScoManagedByAudio();
+        }
 
         // Register the  AudioManager. OnPreferredDevicesForStrategyChangedListener listener to
         // receive updates for the communication device. This is a replacement to directly querying
@@ -531,7 +537,9 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         mStreamingRoutes = new HashSet<>();
         mPendingAudioRoute = new PendingAudioRoute(this, mAudioManager, mBluetoothRouteManager,
                 mFeatureFlags);
-        mStreamingRoute = new AudioRoute(AudioRoute.TYPE_STREAMING, null, null);
+        mStreamingRoute = new AudioRoute(AudioRoute.TYPE_STREAMING, null, null,
+                mIsScoManagedByAudio);
+        DUMMY_ROUTE.setScoManagedByAudio(mIsScoManagedByAudio);
         mStreamingRoutes.add(mStreamingRoute);
 
         int supportMask = calculateSupportedRouteMaskInit();
@@ -543,7 +551,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         if ((supportMask & CallAudioState.ROUTE_WIRED_HEADSET) != 0) {
             // Create wired headset routes
             mEarpieceWiredRoute = mAudioRouteFactory.create(AudioRoute.TYPE_WIRED, null,
-                    mAudioManager);
+                    mAudioManager, mIsScoManagedByAudio);
             if (mEarpieceWiredRoute == null) {
                 Log.w(this, "Can't find available audio device info for route TYPE_WIRED_HEADSET");
             } else {
@@ -687,10 +695,8 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         if (destRoute == null || (!destRoute.equals(mStreamingRoute)
                 && !getCallSupportedRoutes().contains(destRoute))) {
             Log.i(this, "Ignore routing to unavailable route: %s", destRoute);
-            if (mFeatureFlags.telecomMetricsSupport()) {
-                mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_AUDIO,
-                        ErrorStats.ERROR_AUDIO_ROUTE_UNAVAILABLE);
-            }
+            mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_AUDIO,
+                    ErrorStats.ERROR_AUDIO_ROUTE_UNAVAILABLE);
             return;
         }
         // If another BT device connects during RINGING_FOCUS, in-band ringing will be disabled by
@@ -770,9 +776,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         mIsActive = isDestRouteActive;
         maybeClearPendingMessage();
         mPendingAudioRoute.evaluatePendingState();
-        if (mFeatureFlags.telecomMetricsSupport()) {
-            mMetricsController.getAudioRouteStats().onRouteEnter(mPendingAudioRoute);
-        }
+        mMetricsController.getAudioRouteStats().onRouteEnter(mPendingAudioRoute);
     }
 
     /**
@@ -831,12 +835,10 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         AudioRoute wiredHeadsetRoute = null;
         try {
             wiredHeadsetRoute = mAudioRouteFactory.create(AudioRoute.TYPE_WIRED, null,
-                    mAudioManager);
+                    mAudioManager, mIsScoManagedByAudio);
         } catch (IllegalArgumentException e) {
-            if (mFeatureFlags.telecomMetricsSupport()) {
-                mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_AUDIO,
-                        ErrorStats.ERROR_EXTERNAL_EXCEPTION);
-            }
+            mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_AUDIO,
+                    ErrorStats.ERROR_EXTERNAL_EXCEPTION);
             Log.e(this, e, "Can't find available audio device info for route type:"
                     + AudioRoute.DEVICE_TYPE_STRINGS.get(AudioRoute.TYPE_WIRED));
         }
@@ -864,13 +866,11 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         try {
             earpieceRoute = mTypeRoutes.get(AudioRoute.TYPE_EARPIECE) == null
                 ? mAudioRouteFactory.create(AudioRoute.TYPE_EARPIECE, null,
-                    mAudioManager)
+                    mAudioManager, mIsScoManagedByAudio)
                 : mTypeRoutes.get(AudioRoute.TYPE_EARPIECE);
         } catch (IllegalArgumentException e) {
-            if (mFeatureFlags.telecomMetricsSupport()) {
-                mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_AUDIO,
-                        ErrorStats.ERROR_EXTERNAL_EXCEPTION);
-            }
+            mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_AUDIO,
+                    ErrorStats.ERROR_EXTERNAL_EXCEPTION);
             Log.e(this, e, "Can't find available audio device info for route type:"
                     + AudioRoute.DEVICE_TYPE_STRINGS.get(AudioRoute.TYPE_EARPIECE));
         }
@@ -897,12 +897,11 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     private void handleDockConnected() {
         AudioRoute dockRoute = null;
         try {
-            dockRoute = mAudioRouteFactory.create(AudioRoute.TYPE_DOCK, null, mAudioManager);
+            dockRoute = mAudioRouteFactory.create(AudioRoute.TYPE_DOCK, null,
+                    mAudioManager, mIsScoManagedByAudio);
         } catch (IllegalArgumentException e) {
-            if (mFeatureFlags.telecomMetricsSupport()) {
-                mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_AUDIO,
-                        ErrorStats.ERROR_EXTERNAL_EXCEPTION);
-            }
+            mMetricsController.getErrorStats().log(ErrorStats.SUB_CALL_AUDIO,
+                    ErrorStats.ERROR_EXTERNAL_EXCEPTION);
             Log.e(this, e, "Can't find available audio device info for route type:"
                     + AudioRoute.DEVICE_TYPE_STRINGS.get(AudioRoute.TYPE_WIRED));
         }
@@ -1028,11 +1027,10 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             // device if the BT stack has indicated that SCO audio has disconnected.
             mPendingAudioRoute.clearPendingMessage(
                     new Pair<>(BT_AUDIO_CONNECTED, bluetoothDevice.getAddress()));
-            if (Objects.equals(mPendingAudioRoute.getOrigRoute().getBluetoothAddress(),
-                    bluetoothDevice.getAddress())) {
-                mPendingAudioRoute.onMessageReceived(new Pair<>(BT_AUDIO_DISCONNECTED,
-                        bluetoothDevice.getAddress()), null);
-            }
+            // Always ensure that we process the BT_AUDIO_DISCONNECTED message if the device is
+            // no longer the communication device.
+            mPendingAudioRoute.onMessageReceived(new Pair<>(BT_AUDIO_DISCONNECTED,
+                    bluetoothDevice.getAddress()), null);
         }
     }
 
@@ -1052,7 +1050,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         }
 
         AudioRoute bluetoothRoute = mAudioRouteFactory.create(type, bluetoothDevice.getAddress(),
-                mAudioManager);
+                mAudioManager, mIsScoManagedByAudio);
         if (bluetoothRoute == null) {
             Log.w(this, "Can't find available audio device info for route type:"
                     + AudioRoute.DEVICE_TYPE_STRINGS.get(type));
@@ -1060,10 +1058,8 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             Log.i(this, "bluetooth route added: " + bluetoothRoute);
             updateAvailableRoutes(bluetoothRoute, true);
             mBluetoothRoutes.put(bluetoothRoute, bluetoothDevice);
-            if (mFeatureFlags.telecomMetricsSupport()) {
-                mMetricsController.getCallEndpointStats().updateBluetoothDevices(
-                        new HashMap<>(mBluetoothRoutes));
-            }
+            mMetricsController.getCallEndpointStats().updateBluetoothDevices(
+                    new HashMap<>(mBluetoothRoutes));
             onAvailableRoutesChanged();
         }
     }
@@ -1096,10 +1092,8 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                 // new state in the available routes.
                 updateAvailableRoutes(adjustedHaRoute, true);
             }
-            if (mFeatureFlags.telecomMetricsSupport()) {
-                mMetricsController.getCallEndpointStats().updateBluetoothDevices(
-                        new HashMap<>(mBluetoothRoutes));
-            }
+            mMetricsController.getCallEndpointStats().updateBluetoothDevices(
+                    new HashMap<>(mBluetoothRoutes));
             onAvailableRoutesChanged();
         }
 
@@ -1483,9 +1477,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                 }
                 mAudioOperationsCompleteLatch.countDown();
             }
-            if (mFeatureFlags.telecomMetricsSupport()) {
-                mMetricsController.getAudioRouteStats().onRouteExit(mPendingAudioRoute, true);
-            }
+            mMetricsController.getAudioRouteStats().onRouteExit(mPendingAudioRoute, true);
         }
     }
 
@@ -2237,13 +2229,13 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         if (mSpeakerDockRoute == null) {
             //create type speaker
             mSpeakerDockRoute = mAudioRouteFactory.create(audioRouteType, null,
-                    mAudioManager);
+                    mAudioManager, mIsScoManagedByAudio);
             // If speaker route couldn't be instantiated, try for TYPE_BUS
             if (mSpeakerDockRoute == null) {
                 Log.i(this, "createSpeakerRoute: Can't find available audio device info for "
                         + "route TYPE_SPEAKER, trying for TYPE_BUS");
                 mSpeakerDockRoute = mAudioRouteFactory.create(AudioRoute.TYPE_BUS, null,
-                        mAudioManager);
+                        mAudioManager, mIsScoManagedByAudio);
                 audioRouteType = AudioRoute.TYPE_BUS;
             }
             if (mSpeakerDockRoute == null) {
@@ -2266,7 +2258,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             return;
         }
         mEarpieceWiredRoute = mAudioRouteFactory.create(AudioRoute.TYPE_EARPIECE, null,
-                mAudioManager);
+                mAudioManager, mIsScoManagedByAudio);
         if (mEarpieceWiredRoute == null) {
             Log.w(this, "createEarpieceRoute: Can't find available audio device info for "
                     + "route TYPE_EARPIECE");
@@ -2452,5 +2444,10 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
 
     private boolean isValidRoute(AudioRoute route) {
         return route != DUMMY_ROUTE && route != null;
+    }
+
+    @VisibleForTesting
+    public void setIsScoManagedByAudio(boolean isScoManagedByAudio) {
+        mIsScoManagedByAudio = isScoManagedByAudio;
     }
 }

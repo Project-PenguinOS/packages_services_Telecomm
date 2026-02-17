@@ -97,18 +97,14 @@ public class CallEndpointController extends CallsManagerListenerBase {
 
         if (findMatchingTypeEndpoint(endpoint.getEndpointType()) == null ||
                 (route == CallAudioState.ROUTE_BLUETOOTH && bluetoothAddress == null)) {
-            if (mFeatureFlags.telecomMetricsSupport()) {
-                mCallsManager.getMetricsController().getCallEndpointStats().onException(false);
-            }
+            mCallsManager.getMetricsController().getCallEndpointStats().onException(false);
             callback.send(CallEndpoint.ENDPOINT_OPERATION_FAILED,
                     getErrorResult(RESULT_ENDPOINT_DOES_NOT_EXIST));
             return;
         }
 
         if (isCurrentEndpointRequestedEndpoint(route, bluetoothAddress)) {
-            if (mFeatureFlags.telecomMetricsSupport()) {
-                mCallsManager.getMetricsController().getCallEndpointStats().onException(true);
-            }
+            mCallsManager.getMetricsController().getCallEndpointStats().onException(true);
             callback.send(CallEndpoint.ENDPOINT_OPERATION_SUCCESS, new Bundle());
             return;
         }
@@ -205,10 +201,8 @@ public class CallEndpointController extends CallsManagerListenerBase {
         }
         mCallsManager.updateCallEndpoint(mActiveCallEndpoint);
 
-        if (mFeatureFlags.telecomMetricsSupport()) {
-            mCallsManager.getMetricsController().getCallEndpointStats().onNotified(
-                    getRoute(mActiveCallEndpoint), getBluetoothAddress(mActiveCallEndpoint));
-        }
+        mCallsManager.getMetricsController().getCallEndpointStats().onNotified(
+                getRoute(mActiveCallEndpoint), getBluetoothAddress(mActiveCallEndpoint));
         List<Call> calls = new ArrayList<>(mCallsManager.getTrackedCalls());
         for (Call call : calls) {
             onCallEndpointChangedOrCache(call);
@@ -398,17 +392,23 @@ public class CallEndpointController extends CallsManagerListenerBase {
     private CharSequence getEndpointName(int endpointType) {
         switch (endpointType) {
             case CallEndpoint.TYPE_EARPIECE:
-                return mContext.getText(R.string.callendpoint_name_earpiece);
+                return com.android.server.telecom.TelecomResourceId.getText(mContext,
+                        "callendpoint_name_earpiece");
             case CallEndpoint.TYPE_BLUETOOTH:
-                return mContext.getText(R.string.callendpoint_name_bluetooth);
+                return com.android.server.telecom.TelecomResourceId.getText(mContext,
+                        "callendpoint_name_bluetooth");
             case CallEndpoint.TYPE_WIRED_HEADSET:
-                return mContext.getText(R.string.callendpoint_name_wiredheadset);
+                return com.android.server.telecom.TelecomResourceId.getText(mContext,
+                        "callendpoint_name_wiredheadset");
             case CallEndpoint.TYPE_SPEAKER:
-                return mContext.getText(R.string.callendpoint_name_speaker);
+                return com.android.server.telecom.TelecomResourceId.getText(mContext,
+                        "callendpoint_name_speaker");
             case CallEndpoint.TYPE_STREAMING:
-                return mContext.getText(R.string.callendpoint_name_streaming);
+                return com.android.server.telecom.TelecomResourceId.getText(mContext,
+                        "callendpoint_name_streaming");
             default:
-                return mContext.getText(R.string.callendpoint_name_unknown);
+                return com.android.server.telecom.TelecomResourceId.getText(mContext,
+                        "callendpoint_name_unknown");
         }
     }
 

@@ -266,8 +266,8 @@ public class CrsAudioController {
      * Sets the volume level for CRS when in ringtone mode.
      */
     public void setVolumeLevelForCrsInRingtoneMode(int volume) {
-        String crsVolumeKeyPrefix = mContext.getResources().getString(
-                R.string.config_audio_parameter_key_crs_volume);
+        String crsVolumeKeyPrefix = TelecomResourceId.getString(mContext,
+                "config_audio_parameter_key_crs_volume");
         Log.d(TAG, "CRS volume parameter key: " + crsVolumeKeyPrefix);
         if (!TextUtils.isEmpty(crsVolumeKeyPrefix)) {
             Log.i(TAG, "Applying CRS volume: " + crsVolumeKeyPrefix + volume);
@@ -381,10 +381,10 @@ public class CrsAudioController {
     public void setCrsModeParams(boolean enable) {
         String modeToken = "";
         if (enable) {
-            modeToken = mContext.getResources().getString(R.string.config_crs_mode_on_param);
+            modeToken = TelecomResourceId.getString(mContext, "config_crs_mode_on_param");
             mIsCrsModeSet = true;
         } else if (mIsCrsModeSet) {
-            modeToken = mContext.getResources().getString(R.string.config_crs_mode_off_param);
+            modeToken = TelecomResourceId.getString(mContext, "config_crs_mode_off_param");
             mIsCrsModeSet = false;
         }
         if (TextUtils.isEmpty(modeToken)) {
@@ -396,9 +396,9 @@ public class CrsAudioController {
     public void setCrsSpeechMuted(boolean mute) {
         String token;
         if (mute) {
-            token = mContext.getResources().getString(R.string.config_crs_speech_mute_param);
+            token = TelecomResourceId.getString(mContext, "config_crs_speech_mute_param");
         } else {
-            token = mContext.getResources().getString(R.string.config_crs_speech_unmute_param);
+            token = TelecomResourceId.getString(mContext, "config_crs_speech_unmute_param");
         }
         if (TextUtils.isEmpty(token)) {
             return;
@@ -411,9 +411,9 @@ public class CrsAudioController {
      * @return {@code true} if Audio HAL handling the audio routing else {@code false}.
      */
     public boolean shouldControlCrsWithParameters() {
-        return TextUtils.isEmpty(mContext.getResources().getString(
-                R.string.config_audio_parameter_key_crs_volume))
-                && !TextUtils.isEmpty(mContext.getResources().getString(
-                R.string.config_crs_speech_mute_param));
+        return TextUtils.isEmpty(TelecomResourceId.getString(mContext,
+                "config_audio_parameter_key_crs_volume"))
+                && !TextUtils.isEmpty(TelecomResourceId.getString(mContext,
+                "config_crs_speech_mute_param"));
     }
 }

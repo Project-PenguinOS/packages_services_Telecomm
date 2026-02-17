@@ -161,12 +161,6 @@ public class TestCallList extends Call.Callback {
         for (Call call : new LinkedList<Call>(mCalls)) {
             removeCall(call);
         }
-
-        for (Call call : mVideoCallListeners.keySet()) {
-            if (call.getVideoCall() != null) {
-                call.getVideoCall().destroy();
-            }
-        }
         mVideoCallListeners.clear();
     }
 

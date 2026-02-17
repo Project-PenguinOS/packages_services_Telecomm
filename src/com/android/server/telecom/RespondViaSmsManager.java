@@ -23,7 +23,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.content.res.Resources;
 import android.os.Handler;
 import android.telecom.Connection;
 import android.telecom.Log;
@@ -36,6 +35,8 @@ import android.text.Spannable;
 import android.text.SpannableString;
 import android.text.TextUtils;
 import android.widget.Toast;
+
+import com.android.server.telecom.ui.UiConstants;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -83,6 +84,55 @@ public class RespondViaSmsManager extends CallsManagerListenerBase {
         mCallsManager = callsManager;
         mLock = lock;
         mAsyncExecutor = asyncExecutor;
+
+        BroadcastReceiver receiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (QuickResponseUtils.ACTION_UPDATE_CANNED_TEXT_MESSAGES.equals(
+                            intent.getAction())) {
+                    Log.i(RespondViaSmsManager.this, "Received canned text messages update");
+                    updateCannedTextMessages(intent, context);
+                }
+            }
+        };
+        IntentFilter intentFilter =
+                new IntentFilter(QuickResponseUtils.ACTION_UPDATE_CANNED_TEXT_MESSAGES);
+        mCallsManager.getContext().registerReceiver(receiver, intentFilter,
+                UiConstants.TELECOM_UI_ACCESS_PERMISSION, null,
+                Context.RECEIVER_EXPORTED);
+    }
+
+    private void updateCannedTextMessages(Intent intent, Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(
+                QuickResponseUtils.SHARED_PREFERENCES_NAME,
+                Context.MODE_PRIVATE | Context.MODE_MULTI_PROCESS);
+        SharedPreferences.Editor editor = prefs.edit();
+
+        if (intent.hasExtra(QuickResponseUtils.EXTRA_CANNED_RESPONSE_1)) {
+            editor.putString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_1,
+                    intent.getStringExtra(QuickResponseUtils.EXTRA_CANNED_RESPONSE_1));
+        } else {
+            editor.remove(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_1);
+        }
+        if (intent.hasExtra(QuickResponseUtils.EXTRA_CANNED_RESPONSE_2)) {
+            editor.putString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_2,
+                    intent.getStringExtra(QuickResponseUtils.EXTRA_CANNED_RESPONSE_2));
+        } else {
+            editor.remove(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_2);
+        }
+        if (intent.hasExtra(QuickResponseUtils.EXTRA_CANNED_RESPONSE_3)) {
+            editor.putString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_3,
+                    intent.getStringExtra(QuickResponseUtils.EXTRA_CANNED_RESPONSE_3));
+        } else {
+            editor.remove(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_3);
+        }
+        if (intent.hasExtra(QuickResponseUtils.EXTRA_CANNED_RESPONSE_4)) {
+            editor.putString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_4,
+                    intent.getStringExtra(QuickResponseUtils.EXTRA_CANNED_RESPONSE_4));
+        } else {
+            editor.remove(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_4);
+        }
+        editor.commit();
     }
 
     /**
@@ -129,7 +179,6 @@ public class RespondViaSmsManager extends CallsManagerListenerBase {
         final SharedPreferences prefs = context.getSharedPreferences(
                 QuickResponseUtils.SHARED_PREFERENCES_NAME,
                 Context.MODE_PRIVATE | Context.MODE_MULTI_PROCESS);
-        final Resources res = context.getResources();
 
         final ArrayList<String> textMessages = new ArrayList<>(
                 QuickResponseUtils.NUM_CANNED_RESPONSES);
@@ -142,13 +191,13 @@ public class RespondViaSmsManager extends CallsManagerListenerBase {
         // Note the default values here must agree with the corresponding
         // android:defaultValue attributes in respond_via_sms_settings.xml.
         textMessages.add(0, prefs.getString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_1,
-                res.getString(R.string.respond_via_sms_canned_response_1)));
+                TelecomResourceId.getString(context, "respond_via_sms_canned_response_1")));
         textMessages.add(1, prefs.getString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_2,
-                res.getString(R.string.respond_via_sms_canned_response_2)));
+                TelecomResourceId.getString(context, "respond_via_sms_canned_response_2")));
         textMessages.add(2, prefs.getString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_3,
-                res.getString(R.string.respond_via_sms_canned_response_3)));
+                TelecomResourceId.getString(context, "respond_via_sms_canned_response_3")));
         textMessages.add(3, prefs.getString(QuickResponseUtils.KEY_CANNED_RESPONSE_PREF_4,
-                res.getString(R.string.respond_via_sms_canned_response_4)));
+                TelecomResourceId.getString(context, "respond_via_sms_canned_response_4")));
 
         Log.d(RespondViaSmsManager.this,
                 "loadCannedResponses() completed, found responses: %s",
@@ -173,10 +222,9 @@ public class RespondViaSmsManager extends CallsManagerListenerBase {
         // ...and show a brief confirmation to the user (since
         // otherwise it's hard to be sure that anything actually
         // happened.)
-        final Resources res = context.getResources();
-        final String formatString = res.getString(success
-                ? R.string.respond_via_sms_confirmation_format
-                : R.string.respond_via_sms_failure_format);
+        final String formatString = TelecomResourceId.getString(context, success
+                ? "respond_via_sms_confirmation_format"
+                : "respond_via_sms_failure_format");
         final BidiFormatter phoneNumberFormatter = BidiFormatter.getInstance();
         final String confirmationMsg = String.format(formatString,
                 phoneNumberFormatter.unicodeWrap(phoneNumber));

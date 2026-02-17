@@ -68,6 +68,9 @@ message CallStats {
 
     // True if it is a video call
     optional bool video_call = 11;
+
+    // Radio network type on call ended
+    optional int32 rat_on_end = 12;
 }
 
 /**

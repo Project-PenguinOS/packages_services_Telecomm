@@ -43,7 +43,7 @@ public class DialerCodeReceiver extends BroadcastReceiver {
 
     private final CallsManager mCallsManager;
 
-    DialerCodeReceiver(CallsManager callsManager) {
+    public DialerCodeReceiver(CallsManager callsManager) {
         mCallsManager = callsManager;
     }
 

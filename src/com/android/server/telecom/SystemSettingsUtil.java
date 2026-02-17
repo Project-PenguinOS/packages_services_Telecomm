@@ -24,15 +24,26 @@ import android.os.VibrationAttributes;
 import android.os.Vibrator;
 import android.provider.DeviceConfig;
 import android.provider.Settings;
+import android.telecom.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.telecom.flags.FeatureFlags;
+import com.android.internal.telecom.flags.Flags;
 
 /**
  * Accesses the Global System settings for more control during testing.
  */
 @VisibleForTesting
 public class SystemSettingsUtil {
+    /**
+     * TODO(b/441480678): Cleanup to link to the proper API in system settings.
+     */
+    public static final String RING_VIBRATION_INTENSITY = "ring_vibration_intensity";
+
+    /**
+     * The lowest vibration intensity, which is 0 meaning that the vibration is disabled.
+     */
+    public static final int VIBRATION_INTENSITY_OFF = 0;
+
     /**
      * Abstracts away the static {@link Settings.System} calls so they can be mocked in tests.
      */
@@ -78,8 +89,8 @@ public class SystemSettingsUtil {
      * @param context the context to use for checking the settings.
      * @return {@code true} if the primary haptic toggle is on, {@code false} otherwise.
      */
-    private boolean isVibrationEnabled(Context context, FeatureFlags flags) {
-        if (!flags.vibrationAccountsForMainSetting()) {
+    private boolean isVibrationEnabled(Context context) {
+        if (!Flags.vibrationAccountsForMainSetting()) {
             return true;
         }
         // Note, there is no constant for the on/off.  0 is used elsewhere in the platform when this
@@ -88,7 +99,7 @@ public class SystemSettingsUtil {
                 Settings.System.VIBRATE_ON, 1) != 0;
     }
 
-    public boolean isRingVibrationEnabled(Context context, FeatureFlags flags) {
+    public boolean isRingVibrationEnabled(Context context) {
         // Ramping ringer should only be applied when ring vibration is ON, otherwise the
         // ringtone sound should not be delayed as there will be no ring vibration.
         // Note: VIBRATE_WHEN_RINGING is deprecated but is currently the only system API that
@@ -98,15 +109,33 @@ public class SystemSettingsUtil {
 
         int defaultIntensity = 2; // VIBRATION_INTENSITY_MEDIUM
 
-        // Replacing context.getSystemService().getDefaultVibrationIntensity with
-        // VIBRATION_INTENSITY_MEDIUM as this is fallback.
-        // As getDefaultVibrationIntensity is hidden API.
-        return mSystemSettingsReader.getInt
-                        (context.getContentResolver(),
-                         Settings.System.VIBRATE_WHEN_RINGING,
+        // There have been reported issues where the user has enabled vibrations but when we query
+        // the deprecated Settings.System.VIBRATE_WHEN_RINGING it looks like vibration is disabled.
+        // Settings is responsible for keeping the two in sync, so it looks like there are cases
+        // where they get out of sync and vibration fails to play.
+        int currentVibrationIntensity = mSystemSettingsReader.getInt
+                (context.getContentResolver(), RING_VIBRATION_INTENSITY, defaultIntensity);
+        boolean isVibrationEnabledDueToIntensity =
+                currentVibrationIntensity != VIBRATION_INTENSITY_OFF;
+
+        // We'll also check to see if the old setting said we should vibrate or not.
+        boolean isVibrationEnabledDueToDeprecatedSetting = mSystemSettingsReader.getInt
+                (context.getContentResolver(),
+                        Settings.System.VIBRATE_WHEN_RINGING,
                          /*context.getSystemService(Vibrator.class)
                             .getDefaultVibrationIntensity(VibrationAttributes.USAGE_RINGTONE)*/
-                         defaultIntensity) != 0 && isVibrationEnabled(context, flags);
+                        defaultIntensity) != 0;
+
+        // If they're out of sync, log a warning so we can diagnose in a bug report easier.
+        if (isVibrationEnabledDueToDeprecatedSetting != isVibrationEnabledDueToIntensity) {
+            Log.w(this,
+                    "c: currentVibrationIntensity=%d, "
+                            + "isVibrationEnabledDueToIntensity=%$b, "
+                            + "isVibrationEnabledDueToDeprecatedSetting=%b",
+                    currentVibrationIntensity, isVibrationEnabledDueToIntensity,
+                    isVibrationEnabledDueToDeprecatedSetting);
+        }
+        return isVibrationEnabledDueToIntensity && isVibrationEnabled(context);
     }
 
     public boolean isRampingRingerEnabled(Context context) {
@@ -122,4 +151,3 @@ public class SystemSettingsUtil {
         return context.getSystemService(AudioManager.class).isHapticPlaybackSupported();
     }
 }
-

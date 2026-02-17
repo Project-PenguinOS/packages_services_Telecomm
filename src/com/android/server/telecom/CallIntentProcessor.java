@@ -2,6 +2,7 @@ package com.android.server.telecom;
 
 import static android.content.pm.PackageManager.MATCH_DEFAULT_ONLY;
 
+import android.Manifest;
 import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.ui.UiConstants;
 
@@ -203,8 +204,8 @@ public class CallIntentProcessor {
             // profile.
             if (fixedInitiatingUser) {
                 context.getMainExecutor().execute(() ->
-                        Toast.makeText(context, context.getString(
-                                R.string.toast_personal_call_msg), Toast.LENGTH_LONG).show());
+                        Toast.makeText(context, TelecomResourceId.getString(context,
+                                "toast_personal_call_msg"), Toast.LENGTH_LONG).show());
             }
         } else {
             Log.i(CallIntentProcessor.class,
@@ -214,7 +215,12 @@ public class CallIntentProcessor {
         UserHandle initiatingUser = intent.getParcelableExtra(KEY_INITIATING_USER);
 
         boolean isPrivilegedDialer = defaultDialerCache.isDefaultOrSystemDialer(callingPackage,
-                initiatingUser.getIdentifier());
+                initiatingUser.getIdentifier())
+                || (callingPackage != null
+                        && UserUtil.getPackageManagerFromUserHandler(context, initiatingUser)
+                                .checkPermission(Manifest.permission.CALL_PRIVILEGED,
+                                                 callingPackage)
+                                == PackageManager.PERMISSION_GRANTED);
 
         if (!callsManager.isSelfManaged(phoneAccountHandle, initiatingUser)
                 && !TelephonyUtil.shouldProcessAsEmergency(context, handle)
@@ -337,15 +343,16 @@ public class CallIntentProcessor {
         errorIntent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
               UiConstants.COMPONENT_ERROR_DIALOG);
 
-        int errorMessageId = -1;
+        CharSequence errorMessage = null;
         switch (errorCode) {
             case DisconnectCause.INVALID_NUMBER:
             case DisconnectCause.NO_PHONE_NUMBER_SUPPLIED:
-                errorMessageId = R.string.outgoing_call_error_no_phone_number_supplied;
+                errorMessage = TelecomResourceId.getString(context,
+                        "outgoing_call_error_no_phone_number_supplied");
                 break;
         }
-        if (errorMessageId != -1) {
-            errorIntent.putExtra(UiConstants.ERROR_MESSAGE_ID_EXTRA, errorMessageId);
+        if (errorMessage != null) {
+            errorIntent.putExtra(UiConstants.ERROR_MESSAGE_STRING_EXTRA, errorMessage);
             errorIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             context.startActivityAsUser(errorIntent, UserHandle.CURRENT);
         }

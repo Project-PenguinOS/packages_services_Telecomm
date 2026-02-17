@@ -98,6 +98,7 @@ import com.android.server.telecom.Ringer;
 import com.android.server.telecom.RoleManagerAdapter;
 import com.android.server.telecom.StatusBarNotifier;
 import com.android.server.telecom.SystemStateHelper;
+import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.TelecomSystem;
 import com.android.server.telecom.Timeouts;
 import com.android.server.telecom.WiredHeadsetManager;
@@ -223,7 +224,6 @@ public class TelecomSystemTest extends TelecomTestCase{
     @Mock BlockedNumbersAdapter mBlockedNumbersAdapter;
     @Mock FeatureFlags mFeatureFlags;
     @Mock android.telecom.flags.FeatureFlags mModuleFeatureFlags;
-    @Mock com.android.internal.telecom.flags.FeatureFlags mModuleBugFixFeatureFlags;
     @Mock com.android.internal.telephony.flags.FeatureFlags mTelephonyFlags;
     @Mock Ringer.VibratorAdapter mVibratorAdapter;
 
@@ -377,6 +377,7 @@ public class TelecomSystemTest extends TelecomTestCase{
     public void setUp() throws Exception {
         super.setUp();
         mSpyContext = mComponentContextFixture.getTestDouble().getApplicationContext();
+        TelecomResourceId.setTelecomContext(mSpyContext);
         doReturn(mSpyContext).when(mSpyContext).getApplicationContext();
         doNothing().when(mSpyContext).sendBroadcastAsUser(any(), any(), any());
 
@@ -399,6 +400,7 @@ public class TelecomSystemTest extends TelecomTestCase{
 
         // Next, create the TelecomSystem, our system under test
         setupTelecomSystem();
+        mTelecomSystem.getMetricsController().setTestMode(true);
         // Need to reset testing tag here
         Log.setTag(TESTING_TAG);
 
@@ -411,6 +413,7 @@ public class TelecomSystemTest extends TelecomTestCase{
 
     @Override
     public void tearDown() throws Exception {
+        TelecomResourceId.setTelecomContext(null);
         if (mTelecomSystem != null && mTelecomSystem.getCallsManager() != null) {
             mTelecomSystem.getCallsManager().waitOnHandlers();
             LinkedList<HandlerThread> handlerThreads = mTelecomSystem.getCallsManager()
@@ -545,15 +548,16 @@ public class TelecomSystemTest extends TelecomTestCase{
                 mConnServFMFactory,
                 mTimeoutsAdapter,
                 mAsyncRingtonePlayer,
-                new PhoneNumberUtilsAdapterImpl(mContext, mModuleBugFixFeatureFlags),
+                new PhoneNumberUtilsAdapterImpl(mContext),
                 mIncomingCallNotifier,
                 (streamType, volume) -> mToneGenerator,
                 new CallAudioRouteController.Factory() {
                     public CallAudioRouteController create(
                             Context context,
                             CallsManager callsManager,
-                            BluetoothRouteManager bluetoothManager,
+                            AudioRoute.Factory audioRouteFactory,
                             WiredHeadsetManager wiredHeadsetManager,
+                            BluetoothRouteManager bluetoothManager,
                             StatusBarNotifier statusBarNotifier,
                             FeatureFlags featureFlags,
                             TelecomMetricsController metricsController,
@@ -561,7 +565,7 @@ public class TelecomSystemTest extends TelecomTestCase{
                             AnomalyReporterAdapter anomalyReporter) {
                         return new CallAudioRouteController(context,
                                 callsManager,
-                                new AudioRoute.Factory(),
+                                audioRouteFactory,
                                 wiredHeadsetManager,
                                 bluetoothManager,
                                 statusBarNotifier,
@@ -594,7 +598,6 @@ public class TelecomSystemTest extends TelecomTestCase{
                 mBlockedNumbersAdapter,
                 mFeatureFlags,
                 mModuleFeatureFlags,
-                mModuleBugFixFeatureFlags,
                 mTelephonyFlags,
                 mHandlerThread.getLooper(),
                 mVibratorAdapter);
@@ -651,6 +654,10 @@ public class TelecomSystemTest extends TelecomTestCase{
         mComponentContextFixture.putResource(
                 com.android.server.telecom.R.string.incall_default_class,
                 mInCallServiceComponentNameX.getClassName());
+
+        when(mSpyContext.getResources().getIdentifier(eq("incall_default_class"),
+                eq("string"), anyString()))
+                .thenReturn(com.android.server.telecom.R.string.incall_default_class);
 
         mInCallServiceFixtureX = new InCallServiceFixture();
         mInCallServiceFixtureY = new InCallServiceFixture();

@@ -330,7 +330,7 @@ public final class CallLogManager extends CallsManagerListenerBase {
             @Nullable LogCallCompletedListener logCallCompletedListener, CallFilteringResult result) {
         // If the call has already been logged, do not log it again. This is an atomic check-and-set
         // to prevent race conditions from multiple disconnect events.
-        if (mFeatureFlags.avoidLoggingMoreThanOnce() && call.getAndSetHasBeenLogged()) {
+        if (call.getAndSetHasBeenLogged()) {
             Log.i(TAG, "LogCall: skipping already-logged call: %s", call.getId());
             return;
         }
@@ -533,8 +533,8 @@ public final class CallLogManager extends CallsManagerListenerBase {
                 : carrierConfig.getStringArray(
                         CarrierConfigManager.KEY_UNLOGGABLE_NUMBERS_STRING_ARRAY);
         String[] unloggableNumbersFromMccConfig;
-        unloggableNumbersFromMccConfig = mContext.getResources()
-                .getStringArray(com.android.server.telecom.R.array.unloggable_phone_numbers);
+        unloggableNumbersFromMccConfig = TelecomResourceId.getStringArray(mContext,
+                "unloggable_phone_numbers");
         return Stream.concat(
                 unloggableNumbersFromCarrierConfig == null ?
                         Stream.empty() : Arrays.stream(unloggableNumbersFromCarrierConfig),

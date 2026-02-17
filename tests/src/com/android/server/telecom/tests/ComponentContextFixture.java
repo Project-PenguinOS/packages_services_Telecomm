@@ -111,6 +111,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
@@ -218,7 +219,7 @@ public class ComponentContextFixture implements TestFixture<Context> {
                 ServiceConnection connection) {
             IInterface service = mServiceByServiceConnection.remove(connection);
             if (service == null) {
-                throw new RuntimeException("ServiceConnection not found: " + connection);
+                throw new IllegalArgumentException("ServiceConnection not found: " + connection);
             }
             connection.onServiceDisconnected(mComponentNameByService.get(service));
         }
@@ -315,6 +316,8 @@ public class ComponentContextFixture implements TestFixture<Context> {
                 return Context.TELECOM_SERVICE;
             } else if (svcClass == BlockedNumbersManager.class) {
                 return Context.BLOCKED_NUMBERS_SERVICE;
+            } else if (svcClass == LocationManager.class) {
+                return Context.LOCATION_SERVICE;
             } else if (svcClass == AppOpsManager.class) {
                 return Context.APP_OPS_SERVICE;
             } else if (svcClass == StatsManager.class) {
@@ -489,6 +492,12 @@ public class ComponentContextFixture implements TestFixture<Context> {
                 String receiverPermission, int appOp, Bundle options,
                 BroadcastReceiver resultReceiver, Handler scheduler, int initialCode,
                 String initialData, Bundle initialExtras) {
+        }
+
+        @Override
+        public Context createPackageContext(String packageName, int flags)
+                throws PackageManager.NameNotFoundException {
+            return this;
         }
 
         @Override
@@ -692,6 +701,7 @@ public class ComponentContextFixture implements TestFixture<Context> {
         when(mResources.getConfiguration()).thenReturn(mResourceConfiguration);
         when(mResources.getString(anyInt())).thenReturn("");
         when(mResources.getStringArray(anyInt())).thenReturn(new String[0]);
+        doReturn(0).when(mResources).getIdentifier(anyString(), anyString(), anyString());
         when(mResources.newTheme()).thenReturn(mResourcesTheme);
         when(mResources.getDisplayMetrics()).thenReturn(mDisplayMetrics);
         mDisplayMetrics.density = 3.125f;
@@ -699,6 +709,8 @@ public class ComponentContextFixture implements TestFixture<Context> {
 
         // TODO: Move into actual tests
         doReturn(false).when(mAudioManager).isWiredHeadsetOn();
+        doReturn(AudioManager.AUDIOFOCUS_REQUEST_GRANTED).when(mAudioManager).requestAudioFocus(any(), any());
+        doReturn(AudioManager.AUDIOFOCUS_REQUEST_GRANTED).when(mAudioManager).abandonAudioFocusRequest(any());
 
         doAnswer(new Answer<List<ResolveInfo>>() {
             @Override

@@ -68,8 +68,8 @@ import com.android.server.telecom.UserUtil;
 import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.MissedCallNotifier;
 import com.android.server.telecom.PhoneAccountRegistrar;
-import com.android.server.telecom.R;
 import com.android.server.telecom.TelecomBroadcastIntentProcessor;
+import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.TelecomSystem;
 import com.android.server.telecom.Timeouts;
 import com.android.server.telecom.components.TelecomBroadcastReceiver;
@@ -308,7 +308,7 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
             String handle = handleUri == null ? null : handleUri.getSchemeSpecificPart();
 
             if (!TextUtils.isEmpty(handle) && !TextUtils.equals(handle,
-                    mContext.getString(R.string.handle_restricted))) {
+                    TelecomResourceId.getString(mContext, "handle_restricted"))) {
                 intent.putExtra(TelecomManager.EXTRA_CALL_BACK_INTENT,
                         createCallBackPendingIntent(handleUri, userHandle));
             }
@@ -375,14 +375,15 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
             if (ci != null && ci.userType == CallerInfo.USER_TYPE_WORK) {
                 titleText = mContext.getSystemService(DevicePolicyManager.class).getResources()
                         .getString(UiConstants.NOTIFICATION_MISSED_WORK_CALL_TITLE, () ->
-                                mContext.getString(R.string.notification_missedWorkCallTitle));
+                                TelecomResourceId.getString(mContext,
+                                       "notification_missedWorkCallTitle"));
             } else {
-                titleText = mContext.getString(R.string.notification_missedCallTitle);
+                titleText = TelecomResourceId.getString(mContext, "notification_missedCallTitle");
             }
         } else {
-            titleText = mContext.getString(R.string.notification_missedCallsTitle);
-            expandedText =
-                    mContext.getString(R.string.notification_missedCallsMsg, missedCallCounts);
+            titleText = TelecomResourceId.getString(mContext, "notification_missedCallsTitle");
+            expandedText = TelecomResourceId.getString(mContext, "notification_missedCallsMsg",
+                    missedCallCounts);
         }
 
         // Create a public viewable version of the notification, suitable for display when sensitive
@@ -391,11 +392,12 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
         Context contextForUser = getContextForUser(userHandle);
         Notification.Builder publicBuilder = mNotificationBuilderFactory.getBuilder(contextForUser);
         publicBuilder.setSmallIcon(android.R.drawable.stat_notify_missed_call)
-                .setColor(mContext.getResources().getColor(R.color.theme_color))
+                .setColor(TelecomResourceId.getResources(mContext).getColor(
+                        TelecomResourceId.getIdentifier(mContext, "theme_color", "color")))
                 .setWhen(callInfo.getCreationTimeMillis())
                 .setShowWhen(true)
                 // Show "Phone" for notification title.
-                .setContentTitle(mContext.getText(R.string.userCallActivityLabel))
+                .setContentTitle(TelecomResourceId.getText(mContext, "userCallActivityLabel"))
                 // Notification details shows that there are missed call(s), but does not reveal
                 // the missed caller information.
                 .setContentText(titleText)
@@ -406,7 +408,7 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
         // Create the notification suitable for display when sensitive information is showing.
         Notification.Builder builder = mNotificationBuilderFactory.getBuilder(contextForUser);
         builder.setSmallIcon(android.R.drawable.stat_notify_missed_call)
-                .setColor(mContext.getResources().getColor(R.color.theme_color))
+                .setColor(TelecomResourceId.getIdentifier(mContext, "theme_color", "color"))
                 .setWhen(callInfo.getCreationTimeMillis())
                 .setShowWhen(true)
                 .setContentTitle(titleText)
@@ -428,15 +430,18 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
             Log.d(this, "Add actions with number %s.", Log.piiHandle(handle));
 
             if (!TextUtils.isEmpty(handle)
-                    && !TextUtils.equals(handle, mContext.getString(R.string.handle_restricted))) {
-                builder.addAction(R.drawable.ic_phone_24dp,
-                        mContext.getString(R.string.notification_missedCall_call_back),
+                    && !TextUtils.equals(handle,
+                            TelecomResourceId.getString(mContext, "handle_restricted"))) {
+                builder.addAction(
+                        TelecomResourceId.getIdentifier(mContext, "ic_phone_24dp", "drawable"),
+                        TelecomResourceId.getString(mContext, "notification_missedCall_call_back"),
                         createCallBackPendingIntent(handleUri, userHandle));
 
                 if (canRespondViaSms(callInfo)) {
-                    builder.addAction(R.drawable.ic_message_24dp,
-                            mContext.getString(R.string.notification_missedCall_message),
-                            createSendSmsFromNotificationPendingIntent(handleUri, userHandle));
+                    builder.addAction(
+                        TelecomResourceId.getIdentifier(mContext, "ic_message_24dp", "drawable"),
+                        TelecomResourceId.getString(mContext, "notification_missedCall_message"),
+                        createSendSmsFromNotificationPendingIntent(handleUri, userHandle));
                 }
             }
 
@@ -665,7 +670,7 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
         }
 
         String dialerPackage = getDefaultDialerPackage(userHandle);
-        if (dialerPackage == null && mFeatureFlags.dontNotifyMissedCallsWhenNoDialer()) {
+        if (dialerPackage == null) {
             // There is no default dialer, so it would be impossible for the user to go to the
             // call log to see the missed calls.
             Log.i(this, "reloadFromDatabase: no dialer; not notifying missed calls for "
@@ -798,11 +803,11 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
      * @return A String containing the presentation name based on the given type.
      */
     private String getPresentationString(int presentation) {
-        String name = mContext.getString(R.string.unknown);
+        String name = TelecomResourceId.getString(mContext, "unknown");
         if (presentation == TelecomManager.PRESENTATION_RESTRICTED) {
-            name = mContext.getString(R.string.private_num);
+            name = TelecomResourceId.getString(mContext, "private_num");
         } else if (presentation == TelecomManager.PRESENTATION_PAYPHONE) {
-            name = mContext.getString(R.string.payphone);
+            name = TelecomResourceId.getString(mContext, "payphone");
         }
         return name;
     }

@@ -19,7 +19,7 @@ package com.android.server.telecom.testapps;
 import android.os.SystemProperties;
 import android.telecom.Call;
 import android.telecom.CallScreeningService;
-import android.telecom.Log;
+import android.util.Log;
 
 /**
  * To use this while testing, use:
@@ -27,6 +27,7 @@ import android.telecom.Log;
  * where n is one of the codes defined below.
  */
 public class TestCallScreeningService extends CallScreeningService {
+    private static final String TAG = TestCallScreeningService.class.getSimpleName();
     private Call.Details mDetails;
     private static TestCallScreeningService sTestCallScreeningService;
 
@@ -47,14 +48,14 @@ public class TestCallScreeningService extends CallScreeningService {
      */
     @Override
     public void onScreenCall(Call.Details callDetails) {
-        Log.i(this, "onScreenCall: received call %s", callDetails);
+        Log.i(TAG, String.format("onScreenCall: received call %s", callDetails));
         sTestCallScreeningService = this;
 
         mDetails = callDetails;
 
         if (callDetails.getCallDirection() == Call.Details.DIRECTION_INCOMING) {
-            Log.i(this, "%s = %d", SCREENING_RESULT_KEY,
-                    SystemProperties.getInt(SCREENING_RESULT_KEY, 0));
+            Log.i(TAG, String.format("%s = %d", SCREENING_RESULT_KEY,
+                    SystemProperties.getInt(SCREENING_RESULT_KEY, 0)));
             switch (SystemProperties.getInt(SCREENING_RESULT_KEY, 0)) {
                 case ALLOW_CALL:
                     allowCall();

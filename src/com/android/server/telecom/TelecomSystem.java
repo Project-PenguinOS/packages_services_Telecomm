@@ -230,7 +230,6 @@ public class TelecomSystem {
             BlockedNumbersAdapter blockedNumbersAdapter,
             FeatureFlags featureFlags,
             android.telecom.flags.FeatureFlags moduleFeatureFlags,
-            com.android.internal.telecom.flags.FeatureFlags moduleBugFixFeatureFlags,
             com.android.internal.telephony.flags.FeatureFlags telephonyFlags,
             Looper looper,
             Ringer.VibratorAdapter vibratorAdapter) {
@@ -266,8 +265,8 @@ public class TelecomSystem {
                     featureFlags);
             BluetoothRouteManager bluetoothRouteManager = new BluetoothRouteManager(
                     bluetoothDeviceManager);
-            BluetoothStateReceiver bluetoothStateReceiver = new BluetoothStateReceiver(
-                    bluetoothDeviceManager, featureFlags);
+            BluetoothStateReceiver bluetoothStateReceiver = new BluetoothStateReceiver(mContext,
+                    bluetoothDeviceManager);
             mContext.registerReceiver(bluetoothStateReceiver, BluetoothStateReceiver.INTENT_FILTER);
 
             WiredHeadsetManager wiredHeadsetManager = new WiredHeadsetManager(mContext);
@@ -284,9 +283,6 @@ public class TelecomSystem {
                     new CallerInfoLookupHelper(context, callerInfoAsyncQueryFactory,
                             mContactsAsyncHelper, mLock);
 
-            EmergencyCallHelper emergencyCallHelper = new EmergencyCallHelper(mContext,
-                    defaultDialerCache, timeoutsAdapter, mFeatureFlags);
-
             InCallControllerFactory inCallControllerFactory = new InCallControllerFactory() {
                 @Override
                 public InCallController create(Context context, SyncRoot lock,
@@ -298,6 +294,9 @@ public class TelecomSystem {
                             new CarModeTracker(), clockProxy, featureFlags);
                 }
             };
+
+            EmergencyCallHelper emergencyCallHelper = new EmergencyCallHelper(mContext,
+                    defaultDialerCache, timeoutsAdapter, mFeatureFlags);
 
             CallEndpointControllerFactory callEndpointControllerFactory =
                     new CallEndpointControllerFactory() {
@@ -336,9 +335,8 @@ public class TelecomSystem {
                                     return mCallsManager.getCurrentUserHandle();
                                 }
                             },
-                            mContext.getResources().getString(
-                                    com.android.server.telecom.R.string
-                                            .call_diagnostic_service_package_name),
+                            TelecomResourceId.getString(mContext,
+                                    "call_diagnostic_service_package_name"),
                             mLock
                     );
 
@@ -365,8 +363,7 @@ public class TelecomSystem {
                             BugreportManager.class), timeoutsAdapter, mContext.getSystemService(
                             DropBoxManager.class), asyncTaskExecutor, clockProxy);
 
-            mMetricsController = featureFlags.telecomMetricsSupport()
-                    ? TelecomMetricsController.make(mContext) : null;
+            mMetricsController = TelecomMetricsController.make(mContext);
 
             ScheduledExecutorService scheduledExecutorService =
                     Executors.newSingleThreadScheduledExecutor();
@@ -504,7 +501,6 @@ public class TelecomSystem {
                     new TelecomServiceImpl.SubscriptionManagerAdapterImpl(),
                     featureFlags,
                     moduleFeatureFlags,
-                    moduleBugFixFeatureFlags,
                     null,
                     mLock,
                     mMetricsController,

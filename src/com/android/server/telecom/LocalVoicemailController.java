@@ -319,7 +319,7 @@ public class LocalVoicemailController extends CallsManagerListenerBase implement
      * calls.
      */
     private void performLocalVoicemailCorrectnessCheck() {
-        if (mCall != null) {
+        if (mCall == null) {
             return;
         }
         boolean hasOtherActiveCall = mCalls.contains(mCall)

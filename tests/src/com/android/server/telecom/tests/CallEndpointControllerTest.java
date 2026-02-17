@@ -31,6 +31,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.bluetooth.BluetoothDevice;
+import android.content.res.Resources;
 import android.os.ResultReceiver;
 import android.telecom.CallAudioState;
 import android.telecom.CallEndpoint;
@@ -41,7 +42,16 @@ import com.android.server.telecom.CallAudioManager;
 import com.android.server.telecom.CallEndpointController;
 import com.android.server.telecom.CallsManager;
 import com.android.server.telecom.ConnectionServiceWrapper;
+import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.flags.FeatureFlags;
+import com.android.server.telecom.metrics.ApiStats;
+import com.android.server.telecom.metrics.AudioRouteStats;
+import com.android.server.telecom.metrics.CallEndpointStats;
+import com.android.server.telecom.metrics.CallSequencingStats;
+import com.android.server.telecom.metrics.CallStats;
+import com.android.server.telecom.metrics.ErrorStats;
+import com.android.server.telecom.metrics.EventStats;
+import com.android.server.telecom.metrics.TelecomMetricsController;
 
 import org.junit.Before;
 import org.junit.After;
@@ -92,16 +102,37 @@ public class CallEndpointControllerTest extends TelecomTestCase {
     private CallEndpointController mCallEndpointController;
 
     @Mock private CallsManager mCallsManager;
+    @Mock private TelecomMetricsController mMockTelecomMetricsController;
+    @Mock private ApiStats mApiStats;
+    @Mock private AudioRouteStats mAudioRouteStats;
+    @Mock private CallStats mCallStats;
+    @Mock private ErrorStats mErrorStats;
+    @Mock private EventStats mEventStats;
+    @Mock private CallSequencingStats mCallSequencingStats;
+    @Mock private CallEndpointStats mCallEndpointStats;
     @Mock private Call mCall;
     @Mock private ConnectionServiceWrapper mConnectionService;
     @Mock private CallAudioManager mCallAudioManager;
     @Mock private MockContext mMockContext;
+    @Mock private Resources mResources;
     @Mock private ResultReceiver mResultReceiver;
 
     @Override
     @Before
     public void setUp() throws Exception {
         super.setUp();
+        when(mMockContext.getResources()).thenReturn(mResources);
+        TelecomResourceId.setTelecomContext(mMockContext);
+        when(mMockTelecomMetricsController.getApiStats()).thenReturn(mApiStats);
+        when(mMockTelecomMetricsController.getAudioRouteStats()).thenReturn(mAudioRouteStats);
+        when(mMockTelecomMetricsController.getCallStats()).thenReturn(mCallStats);
+        when(mMockTelecomMetricsController.getErrorStats()).thenReturn(mErrorStats);
+        when(mMockTelecomMetricsController.getEventStats()).thenReturn(mEventStats);
+        when(mMockTelecomMetricsController.getCallSequencingStats()).thenReturn(
+                mCallSequencingStats);
+        when(mMockTelecomMetricsController.getCallEndpointStats()).thenReturn(
+                mCallEndpointStats);
+        when(mCallsManager.getMetricsController()).thenReturn(mMockTelecomMetricsController);
         mCallEndpointController = new CallEndpointController(
                 mMockContext,
                 mCallsManager,
@@ -122,6 +153,7 @@ public class CallEndpointControllerTest extends TelecomTestCase {
     @Override
     @After
     public void tearDown() throws Exception {
+        TelecomResourceId.setTelecomContext(null);
         super.tearDown();
     }
 

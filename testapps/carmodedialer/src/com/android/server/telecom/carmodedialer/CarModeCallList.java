@@ -162,11 +162,6 @@ public class CarModeCallList extends Call.Callback {
             removeCall(call);
         }
 
-        for (Call call : mVideoCallListeners.keySet()) {
-            if (call.getVideoCall() != null) {
-                call.getVideoCall().destroy();
-            }
-        }
         mVideoCallListeners.clear();
     }
 

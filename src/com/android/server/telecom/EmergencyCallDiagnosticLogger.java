@@ -18,6 +18,7 @@ package com.android.server.telecom;
 
 import static android.telephony.TelephonyManager.EmergencyCallDiagnosticData;
 
+import android.annotation.SuppressLint;
 import android.os.BugreportManager;
 import android.os.DropBoxManager;
 import android.provider.DeviceConfig;
@@ -151,6 +152,10 @@ public class EmergencyCallDiagnosticLogger extends CallsManagerListenerBase
         return mEmergencyCallsMap;
     }
 
+    /* TODO: b/478043076 - Remove SuppressLint once the API is finalized.
+     * And update the SDK check to the final version number.
+     */
+    @SuppressLint("NewApi")
     private void triggerDiagnosticsCollection(Call call, int reason) {
         Log.i(this, "Triggering diagnostics for call %s reason: %d", call.getId(), reason);
         List<Integer> dataCollectionTypes = getDataCollectionTypes(reason);

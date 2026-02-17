@@ -31,6 +31,8 @@ import static android.telecom.CallException.CODE_ERROR_UNKNOWN;
 import static android.telecom.TelecomManager.TELECOM_TRANSACTION_SUCCESS;
 
 import android.Manifest;
+
+import android.annotation.SuppressLint;
 import android.app.ActivityManager;
 import android.app.AppOpsManager;
 import android.app.UiModeManager;
@@ -116,6 +118,10 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Implementation of the ITelecom interface.
  */
+/* TODO: b/478043076 - Remove SuppressLint once the API is finalized.
+ * And update the SDK check to the final version number.
+ */
+@SuppressLint("NewApi")
 public class TelecomServiceImpl {
 
     /**
@@ -182,7 +188,6 @@ public class TelecomServiceImpl {
     private final FeatureFlags mFeatureFlags;
     private final android.telecom.flags.FeatureFlags mModuleFeatureFlags;
     private final com.android.internal.telephony.flags.FeatureFlags mTelephonyFeatureFlags;
-    private final com.android.internal.telecom.flags.FeatureFlags mModuleBugFixFeatureFlags;
     private final TelecomMetricsController mMetricsController;
     private final String mSystemUiPackageName;
     private AnomalyReporterAdapter mAnomalyReporter = new AnomalyReporterAdapterImpl();
@@ -256,11 +261,9 @@ public class TelecomServiceImpl {
                             public void onResult(CallTransactionResult result) {
                                 Log.d(TAG, "addCall: onResult");
                                 Call call = result.getCall();
-                                if (mFeatureFlags.telecomMetricsSupport()) {
-                                    mMetricsController.getEventStats().log(new CriticalEvent(
-                                            EventStats.ID_ADD_CALL, uid,
-                                            EventStats.CAUSE_CALL_TRANSACTION_SUCCESS));
-                                }
+                                mMetricsController.getEventStats().log(new CriticalEvent(
+                                        EventStats.ID_ADD_CALL, uid,
+                                        EventStats.CAUSE_CALL_TRANSACTION_SUCCESS));
 
                                 if (call == null || !call.getId().equals(callId)) {
                                     Log.i(TAG, "addCall: onResult: call is null or id mismatch");
@@ -269,11 +272,9 @@ public class TelecomServiceImpl {
                                     onAddCallControl(callId, callEventCallback, null,
                                             new CallException(ADD_CALL_ERR_MSG,
                                                     CODE_ERROR_UNKNOWN));
-                                    if (mFeatureFlags.enableCallExceptionAnomReports()) {
-                                        mAnomalyReporter.reportAnomaly(
-                                                CALL_IS_NULL_OR_ID_MISMATCH_UUID,
-                                                CALL_IS_NULL_OR_ID_MISMATCH_MSG);
-                                    }
+                                    mAnomalyReporter.reportAnomaly(
+                                            CALL_IS_NULL_OR_ID_MISMATCH_UUID,
+                                            CALL_IS_NULL_OR_ID_MISMATCH_MSG);
                                     return;
                                 }
 
@@ -311,17 +312,13 @@ public class TelecomServiceImpl {
                             public void onError(@NonNull CallException exception) {
                                 Log.d(TAG, "addCall: onError: e=[%s]", exception.toString());
                                 onAddCallControl(callId, callEventCallback, null, exception);
-                                if (mFeatureFlags.enableCallExceptionAnomReports()) {
-                                    mAnomalyReporter.reportAnomaly(
-                                            ADD_CALL_ON_ERROR_UUID,
-                                            exception.getMessage());
-                                }
-                                if (mFeatureFlags.telecomMetricsSupport()) {
-                                    mMetricsController.getEventStats().log(new CriticalEvent(
-                                            EventStats.ID_ADD_CALL, uid,
-                                            EventStats.CAUSE_CALL_TRANSACTION_BASE
-                                                    + exception.getCode()));
-                                }
+                                mAnomalyReporter.reportAnomaly(
+                                        ADD_CALL_ON_ERROR_UUID,
+                                        exception.getMessage());
+                                mMetricsController.getEventStats().log(new CriticalEvent(
+                                        EventStats.ID_ADD_CALL, uid,
+                                        EventStats.CAUSE_CALL_TRANSACTION_BASE
+                                                + exception.getCode()));
                             }
                         });
                     }
@@ -1597,13 +1594,9 @@ public class TelecomServiceImpl {
 
         private boolean isPrivilegedUid() {
             int callingUid = Binder.getCallingUid();
-            return mFeatureFlags.allowSystemAppsResolveVoipCalls()
-                    ? (isSameApp(callingUid, Process.ROOT_UID)
-                            || isSameApp(callingUid, Process.SYSTEM_UID)
-                            || isSameApp(callingUid, Process.SHELL_UID))
-                    : (callingUid == Process.ROOT_UID
-                            || callingUid == Process.SYSTEM_UID
-                            || callingUid == Process.SHELL_UID);
+            return isSameApp(callingUid, Process.ROOT_UID)
+                    || isSameApp(callingUid, Process.SYSTEM_UID)
+                    || isSameApp(callingUid, Process.SHELL_UID);
         }
 
         private boolean isSameApp(int uid1, int uid2) {
@@ -1651,13 +1644,10 @@ public class TelecomServiceImpl {
                         throw new SecurityException("requires ANSWER_PHONE_CALLS permission");
                     }
                     // Legacy behavior is to ignore whether the invocation is from a system app:
-                    boolean isCallerPrivileged = false;
-                    if (mFeatureFlags.allowSystemAppsResolveVoipCalls()) {
-                        isCallerPrivileged = isPrivilegedUid() || isSysUiUid();
-                        Log.i(TAG, "endCall: Binder.getCallingUid = [" +
-                                Binder.getCallingUid() + "] isCallerPrivileged = " +
-                                isCallerPrivileged);
-                    }
+                    boolean isCallerPrivileged = isPrivilegedUid() || isSysUiUid();
+                    Log.i(TAG, "endCall: Binder.getCallingUid = [" +
+                            Binder.getCallingUid() + "] isCallerPrivileged = " +
+                            isCallerPrivileged);
                     long token = Binder.clearCallingIdentity();
                     event.setResult(ApiStats.RESULT_NORMAL);
                     try {
@@ -1684,13 +1674,10 @@ public class TelecomServiceImpl {
                 synchronized (mLock) {
                     if (!enforceAnswerCallPermission(packageName, Binder.getCallingUid())) return;
                     // Legacy behavior is to ignore whether the invocation is from a system app:
-                    boolean isCallerPrivileged = false;
-                    if (mFeatureFlags.allowSystemAppsResolveVoipCalls()) {
-                        isCallerPrivileged = isPrivilegedUid() || isSysUiUid();
-                        Log.i(TAG, "acceptRingingCall: Binder.getCallingUid = [" +
-                                Binder.getCallingUid() + "] isCallerPrivileged = " +
-                                isCallerPrivileged);
-                    }
+                    boolean isCallerPrivileged = isPrivilegedUid() || isSysUiUid();
+                    Log.i(TAG, "acceptRingingCall: Binder.getCallingUid = [" +
+                            Binder.getCallingUid() + "] isCallerPrivileged = " +
+                            isCallerPrivileged);
                     long token = Binder.clearCallingIdentity();
                     event.setResult(ApiStats.RESULT_NORMAL);
                     try {
@@ -1719,13 +1706,10 @@ public class TelecomServiceImpl {
                 synchronized (mLock) {
                     if (!enforceAnswerCallPermission(packageName, Binder.getCallingUid())) return;
                     // Legacy behavior is to ignore whether the invocation is from a system app:
-                    boolean isCallerPrivileged = false;
-                    if (mFeatureFlags.allowSystemAppsResolveVoipCalls()) {
-                        isCallerPrivileged = isPrivilegedUid() || isSysUiUid();
-                        Log.i(TAG, "acceptRingingCallWithVideoState: Binder.getCallingUid = "
-                                + "[" + Binder.getCallingUid() + "] isCallerPrivileged = " +
-                                isCallerPrivileged);
-                    }
+                    boolean isCallerPrivileged = isPrivilegedUid() || isSysUiUid();
+                    Log.i(TAG, "acceptRingingCallWithVideoState: Binder.getCallingUid = "
+                            + "[" + Binder.getCallingUid() + "] isCallerPrivileged = " +
+                            isCallerPrivileged);
                     long token = Binder.clearCallingIdentity();
                     event.setResult(ApiStats.RESULT_NORMAL);
                     try {
@@ -2019,26 +2003,24 @@ public class TelecomServiceImpl {
                             }
                             mCallIntentProcessorAdapter.processIncomingCallIntent(
                                     mCallsManager, intent);
-                            if (mFeatureFlags.earlyBindingToIncallService()) {
-                                PhoneAccount account =
-                                        mPhoneAccountRegistrar.getPhoneAccountUnchecked(
-                                                phoneAccountHandle);
-                                Bundle accountExtra =
-                                        account == null ? new Bundle() : account.getExtras();
-                                PackageManager packageManager = mContext.getPackageManager();
-                                // Start binding to InCallServices for wearable calls that do not
-                                // require call filtering. This is to wake up default dialer earlier
-                                // to mitigate InCallService binding latency.
-                                if (packageManager.hasSystemFeature(PackageManager.FEATURE_WATCH)
-                                        && accountExtra != null && accountExtra.getBoolean(
-                                        PhoneAccount.EXTRA_SKIP_CALL_FILTERING,
-                                        false)) {
-                                    mCallsManager.getInCallController().bindToBTService(
-                                            null, null);
-                                    // Should be able to run this as is even if above flag is
-                                    // enabled (BT binding should be skipped automatically).
-                                    mCallsManager.getInCallController().bindToServices(null);
-                                }
+                            PhoneAccount account =
+                                    mPhoneAccountRegistrar.getPhoneAccountUnchecked(
+                                            phoneAccountHandle);
+                            Bundle accountExtra =
+                                    account == null ? new Bundle() : account.getExtras();
+                            PackageManager packageManager = mContext.getPackageManager();
+                            // Start binding to InCallServices for wearable calls that do not
+                            // require call filtering. This is to wake up default dialer earlier
+                            // to mitigate InCallService binding latency.
+                            if (packageManager.hasSystemFeature(PackageManager.FEATURE_WATCH)
+                                    && accountExtra != null && accountExtra.getBoolean(
+                                    PhoneAccount.EXTRA_SKIP_CALL_FILTERING,
+                                    false)) {
+                                mCallsManager.getInCallController().bindToBTService(
+                                        null, null);
+                                // Should be able to run this as is even if above flag is
+                                // enabled (BT binding should be skipped automatically).
+                                mCallsManager.getInCallController().bindToServices(null);
                             }
                         } finally {
                             Binder.restoreCallingIdentity(token);
@@ -2527,13 +2509,6 @@ public class TelecomServiceImpl {
                 pw.increaseIndent();
                 reflectAndPrintFlagConfigs(android.telecom.flags.FeatureFlags.class.getMethods(),
                         mModuleFeatureFlags, pw);
-                pw.decreaseIndent();
-
-                pw.println("Flag Configurations (module bugfix - com.android.internal.telecom): ");
-                pw.increaseIndent();
-                reflectAndPrintFlagConfigs(
-                        com.android.internal.telecom.flags.FeatureFlags.class.getMethods(),
-                        mModuleBugFixFeatureFlags, pw);
                 pw.decreaseIndent();
 
                 pw.println("TransactionManager: ");
@@ -3226,9 +3201,7 @@ public class TelecomServiceImpl {
 
         @Override
         public void setMetricsTestMode(boolean enabled) {
-            if (mFeatureFlags.telecomMetricsSupport()) {
-                mMetricsController.setTestMode(enabled);
-            }
+            mMetricsController.setTestMode(enabled);
         }
 
         @Override
@@ -3398,7 +3371,6 @@ public class TelecomServiceImpl {
             SubscriptionManagerAdapter subscriptionManagerAdapter,
             FeatureFlags featureFlags,
             android.telecom.flags.FeatureFlags moduleFeatureFlags,
-            com.android.internal.telecom.flags.FeatureFlags moduleBugFixFeatureFlags,
             com.android.internal.telephony.flags.FeatureFlags telephonyFeatureFlags,
             TelecomSystem.SyncRoot lock, TelecomMetricsController metricsController,
             String sysUiPackageName) {
@@ -3411,7 +3383,6 @@ public class TelecomServiceImpl {
         mCallsManager = callsManager;
         mFeatureFlags = featureFlags;
         mModuleFeatureFlags = moduleFeatureFlags;
-        mModuleBugFixFeatureFlags = moduleBugFixFeatureFlags;
         if (telephonyFeatureFlags != null) {
             mTelephonyFeatureFlags = telephonyFeatureFlags;
         } else {
@@ -4229,9 +4200,7 @@ public class TelecomServiceImpl {
     }
 
     private void logEvent(ApiStats.ApiEvent event) {
-        if (mFeatureFlags.telecomMetricsSupport()) {
-            mMetricsController.getApiStats().log(event);
-        }
+        mMetricsController.getApiStats().log(event);
     }
 
     /**

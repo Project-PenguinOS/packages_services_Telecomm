@@ -26,9 +26,12 @@ import android.telecom.Log;
 
 import androidx.test.InstrumentationRegistry;
 
+import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.flags.FeatureFlagsImpl;
 
+import org.junit.After;
+import org.junit.Before;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -48,6 +51,7 @@ public abstract class TelecomTestCase {
     MockitoHelper mMockitoHelper = new MockitoHelper();
     ComponentContextFixture mComponentContextFixture;
 
+    @Before
     public void setUp() throws Exception {
         Log.setTag(TESTING_TAG);
         Log.setIsExtendedLoggingEnabled(true);
@@ -60,9 +64,12 @@ public abstract class TelecomTestCase {
         mContext = mComponentContextFixture.getTestDouble().getApplicationContext();
         Log.setSessionManager(mComponentContextFixture.getTestDouble().getApplicationContext(),
                 null);
+        TelecomResourceId.setTelecomContext(mContext);
     }
 
+    @After
     public void tearDown() throws Exception {
+        TelecomResourceId.setTelecomContext(null);
         if (mHandlerThread != null) {
             mHandlerThread.quit();
             mHandlerThread.join();
