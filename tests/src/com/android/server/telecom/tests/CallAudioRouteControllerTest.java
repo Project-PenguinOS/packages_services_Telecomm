@@ -2090,6 +2090,46 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
 
     @Test
     @SmallTest
+    public void testSwitchToBtOnCommunicationDeviceUpdate() {
+        // This test verifies that when the audio framework reports a communication device change
+        // to a Bluetooth device, the controller correctly queues a SWITCH_BLUETOOTH message
+        // and updates the audio state. This covers the change from a direct call to a message.
+
+        // 1. Setup: Initialize, set to active call state, and add a BT device.
+        mController.initialize();
+        mController.setActive(true);
+        mController.sendMessageWithSessionInfo(BT_DEVICE_ADDED, AudioRoute.TYPE_BLUETOOTH_SCO,
+                BLUETOOTH_DEVICE_1);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+
+        // 2. Setup Mocks: Create mock AudioDeviceInfo for the initial (earpiece) and new (BT)
+        // communication devices.
+        AudioDeviceInfo mockEarpieceDevice = mock(AudioDeviceInfo.class);
+        when(mockEarpieceDevice.getType()).thenReturn(AudioDeviceInfo.TYPE_BUILTIN_EARPIECE);
+
+        AudioDeviceInfo mockBtDevice = mock(AudioDeviceInfo.class);
+        when(mockBtDevice.getType()).thenReturn(AudioDeviceInfo.TYPE_BLUETOOTH_SCO);
+        when(mockBtDevice.getAddress()).thenReturn(BT_ADDRESS_1);
+
+        // 3. Initial State: The current route is earpiece.
+        mController.setCurrentCommunicationDevice(mockEarpieceDevice);
+        assertEquals(AudioRoute.TYPE_EARPIECE, mController.getCurrentRoute().getType());
+
+        // 4. Action: Trigger the communication device change to the BT device.
+        mController.handleCommunicationDeviceChanged(AudioRoute.TYPE_BLUETOOTH_SCO,
+                mockBtDevice, mockEarpieceDevice);
+
+        // 5. Verification: The controller should process the SWITCH_BLUETOOTH and
+        // BT_AUDIO_CONNECTED messages, resulting in a route change to the BT device.
+        CallAudioState expectedState = new CallAudioState(false, CallAudioState.ROUTE_BLUETOOTH,
+                CallAudioState.ROUTE_EARPIECE | CallAudioState.ROUTE_BLUETOOTH
+                        | CallAudioState.ROUTE_SPEAKER, BLUETOOTH_DEVICE_1, BLUETOOTH_DEVICES);
+        verify(mCallsManager, timeout(TEST_TIMEOUT)).onCallAudioStateChanged(
+                any(CallAudioState.class), eq(expectedState));
+    }
+
+    @Test
+    @SmallTest
     public void testSetCommunicationDeviceOnActiveFocus_SpeakerWhenDeviceAlreadySet() {
         // This test verifies that when moving to active routing (i.e. at the start of a call),
         // AudioManager#setCommunicationDevice is always called, even if the audio framework
