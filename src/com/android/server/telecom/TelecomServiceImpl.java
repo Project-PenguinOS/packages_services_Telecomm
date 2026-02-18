@@ -190,6 +190,7 @@ public class TelecomServiceImpl {
     private final com.android.internal.telephony.flags.FeatureFlags mTelephonyFeatureFlags;
     private final TelecomMetricsController mMetricsController;
     private final String mSystemUiPackageName;
+    private String mInitPath = "unknown";
     private AnomalyReporterAdapter mAnomalyReporter = new AnomalyReporterAdapterImpl();
     private final Context mContext;
     private Context mAllUsersContext;
@@ -2480,6 +2481,7 @@ public class TelecomServiceImpl {
                     (args != null && args.length > 0 && TIME_LINE_ARG.equalsIgnoreCase(args[0]));
 
             final IndentingPrintWriter pw = new IndentingPrintWriter(writer, "  ");
+            pw.println("Init Path: On " + mInitPath);
             if (mCallsManager != null) {
                 pw.println("CallsManager: ");
                 pw.increaseIndent();
@@ -3520,6 +3522,10 @@ public class TelecomServiceImpl {
     @VisibleForTesting
     public void setTransactionManager(TransactionManager transactionManager) {
         mTransactionManager = transactionManager;
+    }
+
+    public void setInitPath(String initPath) {
+        mInitPath = initPath;
     }
 
     public ITelecomService.Stub getBinder() {
