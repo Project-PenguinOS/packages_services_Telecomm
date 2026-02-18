@@ -2477,47 +2477,53 @@ public class TelecomServiceImpl {
                 return;
             }
 
-            boolean isTimeLineView =
-                    (args != null && args.length > 0 && TIME_LINE_ARG.equalsIgnoreCase(args[0]));
+            long token = Binder.clearCallingIdentity();
+            try {
+                boolean isTimeLineView = (args != null && args.length > 0
+                        && TIME_LINE_ARG.equalsIgnoreCase(args[0]));
 
-            final IndentingPrintWriter pw = new IndentingPrintWriter(writer, "  ");
-            pw.println("Init Path: On " + mInitPath);
-            if (mCallsManager != null) {
-                pw.println("CallsManager: ");
-                pw.increaseIndent();
-                mCallsManager.dump(pw, args);
-                pw.decreaseIndent();
+                final IndentingPrintWriter pw = new IndentingPrintWriter(writer, "  ");
+                pw.println("Init Path: On " + mInitPath);
+                if (mCallsManager != null) {
+                    pw.println("CallsManager: ");
+                    pw.increaseIndent();
+                    mCallsManager.dump(pw, args);
+                    pw.decreaseIndent();
 
-                pw.println("PhoneAccountRegistrar: ");
-                pw.increaseIndent();
-                mPhoneAccountRegistrar.dump(pw);
-                pw.decreaseIndent();
+                    pw.println("PhoneAccountRegistrar: ");
+                    pw.increaseIndent();
+                    mPhoneAccountRegistrar.dump(pw);
+                    pw.decreaseIndent();
 
-                pw.println("Analytics:");
-                pw.increaseIndent();
-                Analytics.dump(pw);
-                pw.decreaseIndent();
+                    pw.println("Analytics:");
+                    pw.increaseIndent();
+                    Analytics.dump(pw);
+                    pw.decreaseIndent();
 
-                pw.println("Flag Configurations (framework - com.android.server.telecom): ");
-                pw.increaseIndent();
-                reflectAndPrintFlagConfigs(FeatureFlags.class.getMethods(), mFeatureFlags, pw);
-                pw.decreaseIndent();
+                    pw.println("Flag Configurations (framework - com.android.server.telecom): ");
+                    pw.increaseIndent();
+                    reflectAndPrintFlagConfigs(FeatureFlags.class.getMethods(), mFeatureFlags, pw);
+                    pw.decreaseIndent();
 
-                pw.println("Flag Configurations (module API - android.telecom): ");
-                pw.increaseIndent();
-                reflectAndPrintFlagConfigs(android.telecom.flags.FeatureFlags.class.getMethods(),
-                        mModuleFeatureFlags, pw);
-                pw.decreaseIndent();
+                    pw.println("Flag Configurations (module API - android.telecom): ");
+                    pw.increaseIndent();
+                    reflectAndPrintFlagConfigs(
+                            android.telecom.flags.FeatureFlags.class.getMethods(),
+                            mModuleFeatureFlags, pw);
+                    pw.decreaseIndent();
 
-                pw.println("TransactionManager: ");
-                pw.increaseIndent();
-                TransactionManager.getInstance().dump(pw);
-                pw.decreaseIndent();
-            }
-            if (isTimeLineView) {
-                Log.dumpEventsTimeline(pw);
-            } else {
-                Log.dumpEvents(pw);
+                    pw.println("TransactionManager: ");
+                    pw.increaseIndent();
+                    TransactionManager.getInstance().dump(pw);
+                    pw.decreaseIndent();
+                }
+                if (isTimeLineView) {
+                    Log.dumpEventsTimeline(pw);
+                } else {
+                    Log.dumpEvents(pw);
+                }
+            } finally {
+                Binder.restoreCallingIdentity(token);
             }
         }
 
