@@ -269,7 +269,6 @@ public class TelecomSystem {
                     bluetoothDeviceManager);
             BluetoothStateReceiver bluetoothStateReceiver = new BluetoothStateReceiver(mContext,
                     bluetoothDeviceManager);
-            mContext.registerReceiver(bluetoothStateReceiver, BluetoothStateReceiver.INTENT_FILTER);
 
             WiredHeadsetManager wiredHeadsetManager = new WiredHeadsetManager(mContext);
             SystemStateHelper systemStateHelper = new SystemStateHelper(mContext, mLock);
@@ -470,6 +469,14 @@ public class TelecomSystem {
                     Context.RECEIVER_NOT_EXPORTED);
             mAllUsersContext.registerReceiver(mBootCompletedReceiver, BOOT_COMPLETE_FILTER,
                     Context.RECEIVER_NOT_EXPORTED);
+            if (com.android.internal.telecom.flags.Flags.registerBluetoothReceiverForAllUsers()) {
+                mAllUsersContext.registerReceiver(bluetoothStateReceiver,
+                        BluetoothStateReceiver.INTENT_FILTER,
+                        Context.RECEIVER_EXPORTED);
+            } else {
+                mContext.registerReceiver(bluetoothStateReceiver,
+                        BluetoothStateReceiver.INTENT_FILTER);
+            }
 
             // Set current user explicitly since USER_SWITCHED_FILTER intent can be missed at
             // startup
