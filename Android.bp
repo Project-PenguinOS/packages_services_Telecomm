@@ -110,6 +110,7 @@ telecom_ut_availability_jarjar_config {
             static_libs: [
                 "modules-utils-binary-xml",
                 "modules-utils-shell-command-handler",
+                "android.app.privatecompute.flags-aconfig-java-export",
                 "modules-utils-build",
                 "modules-utils-infra",
             ],
@@ -263,6 +264,7 @@ android_library {
     libs: [
         "framework-telecom.impl",
         "services.core",
+        "android.app.privatecompute.flags-aconfig-java-export",
     ],
     min_sdk_version: "36",
     resource_dirs: ["res"],
@@ -307,7 +309,9 @@ android_app {
     ],
     static_libs: [
         "TelecomLib",
+        "android.app.privatecompute.flags-aconfig-java-export",
     ],
+    jarjar_rules: "jarjar-rules.txt",
     libs: [
         "services",
     ],
@@ -429,6 +433,7 @@ java_library_static {
     libs: [
         "framework-annotations-lib",
         "framework-telecom.stubs.module_lib",
+        "android.app.privatecompute.flags-aconfig-java-export",
     ],
     static_libs: [
         "telecom_flags_core_java_lib",
@@ -476,6 +481,7 @@ android_test {
         "androidx.test.ext.junit",
         "platform-compat-test-rules",
         "services.core",
+        "android.app.privatecompute.flags-aconfig-java-export",
     ],
     srcs: [
         "tests/src/**/*.java",
