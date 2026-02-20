@@ -21,9 +21,13 @@ package com.android.server.telecom.ui;
  */
 public class UiConstants {
     /**
-     * The package name for the Telecom UI module.
+     * The default package name for the Telecom UI module.
+     * WARNING: This is different based on the device. Use
+     *     TelecomServiceImpl#getTelecomUiPackageName.
+     *
+     * Keep in sync with TelecomManager#DEFAULT_TELECOM_UI_PACKAGE
      */
-    public static final String TELECOM_UI_PACKAGE = "com.android.server.telecomui";
+    public static final String DEFAULT_TELECOM_UI_PACKAGE = "com.android.server.telecomui";
 
     /**
      * Component names for explicit intents.

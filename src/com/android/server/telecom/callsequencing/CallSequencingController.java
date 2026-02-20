@@ -70,7 +70,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -89,6 +88,7 @@ public class CallSequencingController {
     private final Handler mHandler;
     private final Context mContext;
     private final MmiUtils mMmiUtils;
+    private final String mTelecomPackageName;
     private final FeatureFlags mFeatureFlags;
     private static String TAG = CallSequencingController.class.getSimpleName();
     public static final UUID SEQUENCING_CANNOT_HOLD_ACTIVE_CALL_UUID =
@@ -99,7 +99,7 @@ public class CallSequencingController {
     public CallSequencingController(CallsManager callsManager, Context context,
             ClockProxy clockProxy, AnomalyReporterAdapter anomalyReporter,
             Timeouts.Adapter timeoutsAdapter, TelecomMetricsController metricsController,
-            MmiUtils mmiUtils, FeatureFlags featureFlags) {
+            MmiUtils mmiUtils, String telecomUiPackageName, FeatureFlags featureFlags) {
         mCallsManager = callsManager;
         mClockProxy = clockProxy;
         mAnomalyReporter = anomalyReporter;
@@ -109,6 +109,7 @@ public class CallSequencingController {
         handlerThread.start();
         mHandler = new Handler(handlerThread.getLooper());
         mMmiUtils = mmiUtils;
+        mTelecomPackageName = telecomUiPackageName;
         mFeatureFlags = featureFlags;
         mContext = context;
     }
@@ -1271,7 +1272,8 @@ public class CallSequencingController {
             call.setStartFailCause(cause);
         }
         CharSequence message = TelecomResourceId.getResources(mContext).getText(resourceId);
-        showErrorDialogForRestrictedOutgoingCall(mContext, message, TAG, reason);
+        showErrorDialogForRestrictedOutgoingCall(mContext, mTelecomPackageName, message, TAG,
+                reason);
     }
 
     public Handler getHandler() {

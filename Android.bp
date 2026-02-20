@@ -285,6 +285,7 @@ android_app {
     resource_dirs: ["res"],
     libs: [
         "framework-annotations-lib",
+        "framework-telecom.stubs.module_lib",
         "telecom_module_flags-java",
     ],
     min_sdk_version: "36",

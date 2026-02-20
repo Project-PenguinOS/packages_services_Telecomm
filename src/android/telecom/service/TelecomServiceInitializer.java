@@ -21,13 +21,14 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
-import android.app.Service;
 import android.app.role.RoleManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.media.ToneGenerator;
 import android.os.CombinedVibration;
 import android.os.HandlerThread;
@@ -40,15 +41,12 @@ import android.os.Vibrator;
 import android.os.VibratorManager;
 import android.os.UserHandle;
 import android.os.UserManager;
-import android.provider.BlockedNumberContract;
 import android.provider.BlockedNumbersManager;
 import android.telecom.Log;
 import android.telecom.TelecomServiceInitializerRepository.Initializer;
 import android.telecom.flags.Flags;
 import android.view.accessibility.AccessibilityManager;
 
-import com.android.internal.telecom.ITelecomLoader;
-import com.android.internal.telecom.ITelecomService;
 import com.android.server.telecom.AsyncRingtonePlayer;
 import com.android.server.telecom.CallAudioModeStateMachine;
 import com.android.server.telecom.CallAudioRouteController;
@@ -63,7 +61,6 @@ import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.HeadsetMediaButton;
 import com.android.server.telecom.HeadsetMediaButtonFactory;
 import com.android.server.telecom.InCallWakeLockControllerFactory;
-import com.android.server.telecom.CallAudioManager;
 import com.android.server.telecom.PhoneAccountRegistrar;
 import com.android.server.telecom.PhoneNumberUtilsAdapterImpl;
 import com.android.server.telecom.ProximitySensorManagerFactory;
@@ -80,9 +77,13 @@ import com.android.server.telecom.settings.BlockedNumbersUtil;
 import com.android.server.telecom.ui.IncomingCallNotifier;
 import com.android.server.telecom.ui.MissedCallNotifierImpl;
 import com.android.server.telecom.ui.NotificationChannelManager;
+import com.android.server.telecom.ui.UiConstants;
 import com.android.server.telecom.util.CallerInfoAsyncQuery;
 
+import java.io.File;
+import java.util.List;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 /**
  * Initialize the Telecom library.
@@ -97,7 +98,12 @@ import java.util.concurrent.Executors;
 @SystemApi(client=SystemApi.Client.SYSTEM_SERVER)
 @FlaggedApi(Flags.FLAG_TELECOM_MAINLINE_API)
 public final class TelecomServiceInitializer implements Initializer {
-
+    private static final String TAG = "TelecomSInitializer";
+    private static final String TELEPHONYCORE_PACKAGE_NAME = "com.android.telephonycore";
+    private static final String CALL_TRAMPOLINE_ACTIVITY =
+            "com.android.internal.telecom.action.CALL_TRAMPOLINE";
+    private static final String TELEPHONYCORE_APEX_PATH =
+            new File("/apex", TELEPHONYCORE_PACKAGE_NAME).getAbsolutePath();
     private final String mSysUiPackage;
 
     public TelecomServiceInitializer(@NonNull String sysUiPackage) {
@@ -106,14 +112,15 @@ public final class TelecomServiceInitializer implements Initializer {
 
     @Override
     public @Nullable IBinder initialize(@NonNull Context context) {
-        final String telecomUiPackage = getTelecomUiPackageName();
+        final String telecomUiPackage = getTelecomUiPackageName(context);
+        Log.i(TAG, "initialize, telecomUi: " + telecomUiPackage);
         UserManager userManager = context.getSystemService(UserManager.class);
         if (userManager != null) {
             for (UserHandle userHandle : userManager.getUserHandles(true)) {
                 enableTelecomUiForUser(context, userHandle, telecomUiPackage);
             }
         } else {
-            Log.w(this, "UserManager is null, can't enable TelecomUi.");
+            Log.w(TAG, "UserManager is null, can't enable TelecomUi.");
         }
 
         BroadcastReceiver userAddedReceiver = new BroadcastReceiver() {
@@ -131,7 +138,7 @@ public final class TelecomServiceInitializer implements Initializer {
         context.getApplicationContext().registerReceiver(userAddedReceiver, filter,
                 Context.RECEIVER_NOT_EXPORTED);
 
-        initializeTelecomSystem(context, mSysUiPackage);
+        initializeTelecomSystem(context, mSysUiPackage, telecomUiPackage);
         synchronized (getTelecomSystem().getLock()) {
             getTelecomSystem().getTelecomServiceImpl().setInitPath("mainline");
             return getTelecomSystem().getTelecomServiceImpl().getBinder();
@@ -148,7 +155,8 @@ public final class TelecomServiceInitializer implements Initializer {
      *
      * @param context
      */
-    private static void initializeTelecomSystem(Context context, String sysUiPackageName) {
+    private static void initializeTelecomSystem(Context context, String sysUiPackageName,
+            String telecomUiPackageName) {
         if (TelecomSystem.getInstance() == null) {
             FeatureFlags featureFlags = new FeatureFlagsImpl();
             NotificationChannelManager notificationChannelManager =
@@ -271,6 +279,7 @@ public final class TelecomServiceInitializer implements Initializer {
                                     (RoleManager) context.getSystemService(Context.ROLE_SERVICE)),
                             new ContactsAsyncHelper.Factory(),
                             sysUiPackageName,
+                            telecomUiPackageName,
                             new Ringer.AccessibilityManagerAdapter() {
                                 @Override
                                 public boolean startFlashNotificationSequence(
@@ -310,7 +319,7 @@ public final class TelecomServiceInitializer implements Initializer {
                                 public void updateEmergencyCallNotification(Context context,
                                         boolean showNotification) {
                                     BlockedNumbersUtil.updateEmergencyCallNotification(context,
-                                            showNotification);
+                                            showNotification, telecomUiPackageName);
                                 }
                             },
                             featureFlags,
@@ -345,8 +354,37 @@ public final class TelecomServiceInitializer implements Initializer {
         }
     }
 
-    private String getTelecomUiPackageName() {
-        return "com.android.server.telecomui";
+    private static boolean isAppInApex(ApplicationInfo appInfo) {
+        return appInfo.sourceDir.startsWith(TELEPHONYCORE_APEX_PATH);
+    }
+
+    private String getTelecomUiPackageName(Context context) {
+        String defaultPackageName = UiConstants.DEFAULT_TELECOM_UI_PACKAGE;
+        List<ResolveInfo> infos = context.getPackageManager().queryIntentActivities(
+                new Intent(CALL_TRAMPOLINE_ACTIVITY),
+                // This is very close to startup, so ensure that the activity is detected,
+                // even if it is still considered disabled.
+                PackageManager.MATCH_SYSTEM_ONLY | PackageManager.MATCH_DISABLED_COMPONENTS);
+
+        if (infos.size() > 1) {
+            Log.w(TAG, "getTelecomUiPackageName: Unexpected activity handlers: " +
+                    infos.stream()
+                            .map(ri -> ri.activityInfo.applicationInfo.packageName)
+                            .collect(Collectors.joining(", ")));
+        }
+        ResolveInfo info = infos.isEmpty() ? null : infos.stream()
+                // Ensure the activity handler is mounted as APEX and not another app spoofing
+                .filter(ri -> isAppInApex(ri.activityInfo.applicationInfo))
+                .findFirst().orElse(null);
+        if (info == null) {
+            Log.w(TAG, "getTelecomUiPackageName: null info");
+            return defaultPackageName;
+        }
+        if (info.activityInfo == null) {
+            Log.w(TAG, "getTelecomUiPackageName: null activityInfo");
+            return defaultPackageName;
+        }
+        return info.activityInfo.packageName;
     }
 
     private TelecomSystem getTelecomSystem() {
