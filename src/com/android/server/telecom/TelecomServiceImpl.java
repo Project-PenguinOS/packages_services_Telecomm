@@ -695,19 +695,39 @@ public class TelecomServiceImpl {
                         throw se;
                     }
                 }
+                boolean isPhoneAccountPermitted = false;
+
+                if (com.android.internal.telecom.flags.Flags.moveGetPhoneAccountOutsideLock()
+                           && !hasUiAccess
+                           && CompatChanges.isChangeEnabled(
+                               TelecomManager.ENABLE_GET_PHONE_ACCOUNT_PERMISSION_PROTECTION,
+                               callingPackage, Binder.getCallingUserHandle())
+                           && (Binder.getCallingUid() != Process.SHELL_UID)) {
+                    isPhoneAccountPermitted = canGetPhoneAccount(callingPackage, accountHandle);
+                }
+
                 synchronized (mLock) {
                     final UserHandle callingUserHandle = Binder.getCallingUserHandle();
                     if (!hasUiAccess) {
                         if (CompatChanges.isChangeEnabled(
                                 TelecomManager.ENABLE_GET_PHONE_ACCOUNT_PERMISSION_PROTECTION,
                                 callingPackage, Binder.getCallingUserHandle())) {
-                            if (Binder.getCallingUid() != Process.SHELL_UID &&
-                                    !canGetPhoneAccount(callingPackage, accountHandle)) {
-                                SecurityException e = new SecurityException(
+
+                            if (Binder.getCallingUid() != Process.SHELL_UID) {
+
+                                if (!com.android.internal.telecom.flags.Flags
+                                        .moveGetPhoneAccountOutsideLock()) {
+                                    isPhoneAccountPermitted = canGetPhoneAccount(callingPackage,
+                                            accountHandle);
+                                }
+
+                                if(!isPhoneAccountPermitted) {
+                                    SecurityException e = new SecurityException(
                                         "getPhoneAccount API requires" +
                                                 "READ_PHONE_NUMBERS");
-                                Log.e(this, e, "getPhoneAccount %s", accountHandle);
-                                throw e;
+                                    Log.e(this, e, "getPhoneAccount %s", accountHandle);
+                                    throw e;
+                                }
                             }
                         }
                     }
