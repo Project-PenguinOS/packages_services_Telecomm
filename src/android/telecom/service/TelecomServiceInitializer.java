@@ -23,8 +23,11 @@ import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
 import android.app.Service;
 import android.app.role.RoleManager;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.media.ToneGenerator;
 import android.os.CombinedVibration;
 import android.os.HandlerThread;
@@ -35,6 +38,8 @@ import android.os.VibrationAttributes;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorManager;
+import android.os.UserHandle;
+import android.os.UserManager;
 import android.provider.BlockedNumberContract;
 import android.provider.BlockedNumbersManager;
 import android.telecom.Log;
@@ -81,7 +86,7 @@ import java.util.concurrent.Executors;
 
 /**
  * Initialize the Telecom library.
- * 
+ *
  * Telecom can't load directly as a SystemService due to the requirement of separate package
  * attribution in permissions and other system services. Therefore, there must be a Telecom
  * shim app signed with the platform certificate that initializes the updatable Telecom code
@@ -101,6 +106,31 @@ public final class TelecomServiceInitializer implements Initializer {
 
     @Override
     public @Nullable IBinder initialize(@NonNull Context context) {
+        final String telecomUiPackage = getTelecomUiPackageName();
+        UserManager userManager = context.getSystemService(UserManager.class);
+        if (userManager != null) {
+            for (UserHandle userHandle : userManager.getUserHandles(true)) {
+                enableTelecomUiForUser(context, userHandle, telecomUiPackage);
+            }
+        } else {
+            Log.w(this, "UserManager is null, can't enable TelecomUi.");
+        }
+
+        BroadcastReceiver userAddedReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context receiverContext, Intent intent) {
+                if (Intent.ACTION_USER_ADDED.equals(intent.getAction())) {
+                    UserHandle userHandle = intent.getParcelableExtra(Intent.EXTRA_USER,
+                        UserHandle.class);
+                    enableTelecomUiForUser(receiverContext, userHandle, telecomUiPackage);
+                }
+            }
+        };
+
+        IntentFilter filter = new IntentFilter(Intent.ACTION_USER_ADDED);
+        context.getApplicationContext().registerReceiver(userAddedReceiver, filter,
+                Context.RECEIVER_NOT_EXPORTED);
+
         initializeTelecomSystem(context, mSysUiPackage);
         synchronized (getTelecomSystem().getLock()) {
             getTelecomSystem().getTelecomServiceImpl().setInitPath("mainline");
@@ -109,7 +139,7 @@ public final class TelecomServiceInitializer implements Initializer {
     }
 
     /**
-     * This method is to be called by components (Activitys, Services, ...) to initialize the
+     * This method is to be called by components (Activities, Services, ...) to initialize the
      * Telecom singleton. It should only be called on the main thread. As such, it is atomic
      * and needs no synchronization -- it will either perform its initialization, after which
      * the {@link TelecomSystem#getInstance()} will be initialized, or some other invocation of
@@ -289,6 +319,34 @@ public final class TelecomServiceInitializer implements Initializer {
                             handlerThread.getLooper(),
                             vibratorAdapter));
         }
+    }
+
+    private void enableTelecomUiForUser(Context context, UserHandle userHandle,
+            String telecomUiPackage) {
+        if (userHandle == null) return;
+        // Enable TelecomUi since the mainline module is active. Ensure that we create the
+        // context for the calling user since we'll always be running under user 0 in Telecom.
+        // This will account for other profiles and auto (where we run as user 10).
+        Context userContext = context;
+        try {
+            userContext = context.createContextAsUser(userHandle, 0 /* flags */);
+        } catch (Exception e) {
+            Log.e(this, e, "Exception while creating context for user " + userHandle);
+            return;
+        }
+        try {
+            userContext.getPackageManager().setApplicationEnabledSetting(
+                    telecomUiPackage,
+                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                    PackageManager.DONT_KILL_APP);
+            Log.i(this, "Successfully enabled TelecomUi for user " + userHandle);
+        } catch (IllegalArgumentException e) {
+            Log.e(this, e, "Failed to enable TelecomUi for user " + userHandle);
+        }
+    }
+
+    private String getTelecomUiPackageName() {
+        return "com.android.server.telecomui";
     }
 
     private TelecomSystem getTelecomSystem() {
