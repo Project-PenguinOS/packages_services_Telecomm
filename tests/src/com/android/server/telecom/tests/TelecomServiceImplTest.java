@@ -60,7 +60,6 @@ import android.app.AppOpsManager;
 import android.app.UiModeManager;
 import android.content.AttributionSource;
 import android.content.ComponentName;
-import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
@@ -72,6 +71,7 @@ import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.OutcomeReceiver;
+import android.os.ParcelFileDescriptor;
 import android.os.Process;
 import android.os.RemoteException;
 import android.os.UserHandle;
@@ -83,9 +83,9 @@ import android.telecom.PhoneAccountHandle;
 import android.telecom.TelecomManager;
 import android.telecom.VideoProfile;
 import android.telephony.TelephonyManager;
-import android.util.Log;
 
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 
 import java.util.Arrays;
 import com.android.server.telecom.LocalVoicemailController;
@@ -103,7 +103,6 @@ import com.android.server.telecom.MissedCallNotifier;
 import com.android.server.telecom.PhoneAccountRegistrar;
 import com.android.server.telecom.TelecomServiceImpl;
 import com.android.server.telecom.TelecomSystem;
-import com.android.server.telecom.callsequencing.CallTransaction;
 import com.android.server.telecom.callsequencing.voip.VoipCallMonitor;
 import com.android.server.telecom.components.UserCallIntentProcessor;
 import com.android.server.telecom.components.UserCallIntentProcessorFactory;
@@ -129,12 +128,13 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -2741,6 +2741,25 @@ public class TelecomServiceImplTest extends TelecomTestCase {
                 .thenReturn(true);
         assertTrue(mTSIBinder.isInSelfManagedCall(PACKAGE_NAME,
                 Binder.getCallingUserHandle(), CALLING_PACKAGE));
+    }
+
+    @SmallTest
+    @Test
+    public void testTelecomDumpsys() throws Exception {
+        StringBuilder output = new StringBuilder();
+        try (ParcelFileDescriptor pfd = InstrumentationRegistry.getInstrumentation()
+                .getUiAutomation().executeShellCommand("dumpsys telecom");
+             BufferedReader reader = new BufferedReader(
+                     new InputStreamReader(new ParcelFileDescriptor.AutoCloseInputStream(pfd)))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                output.append(line).append("\n");
+            }
+        }
+
+        String result = output.toString();
+        assertFalse("Dumpsys output should not be empty", result.isEmpty());
+        assertFalse("Dumpsys should not contain exceptions", result.contains("Exception"));
     }
 
     @SmallTest

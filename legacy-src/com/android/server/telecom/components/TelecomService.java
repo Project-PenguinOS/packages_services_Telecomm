@@ -85,6 +85,7 @@ public class TelecomService extends Service {
             public ITelecomService createTelecomService(String sysUiPackageName) {
                 initializeTelecomSystem(TelecomService.this, sysUiPackageName);
                 synchronized (getTelecomSystem().getLock()) {
+                    getTelecomSystem().getTelecomServiceImpl().setInitPath("legacy");
                     return getTelecomSystem().getTelecomServiceImpl().getBinder();
                 }
             }

@@ -103,6 +103,7 @@ public final class TelecomServiceInitializer implements Initializer {
     public @Nullable IBinder initialize(@NonNull Context context) {
         initializeTelecomSystem(context, mSysUiPackage);
         synchronized (getTelecomSystem().getLock()) {
+            getTelecomSystem().getTelecomServiceImpl().setInitPath("mainline");
             return getTelecomSystem().getTelecomServiceImpl().getBinder();
         }
     }
