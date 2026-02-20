@@ -59,7 +59,6 @@ public abstract class TelecomTestCase {
         mMockitoHelper.setUp(InstrumentationRegistry.getContext(), getClass());
         MockitoAnnotations.initMocks(this);
 
-        when(mFeatureFlags.voipDndFocus()).thenReturn(new FeatureFlagsImpl().voipDndFocus());
         mComponentContextFixture = new ComponentContextFixture(mFeatureFlags);
         mContext = mComponentContextFixture.getTestDouble().getApplicationContext();
         Log.setSessionManager(mComponentContextFixture.getTestDouble().getApplicationContext(),

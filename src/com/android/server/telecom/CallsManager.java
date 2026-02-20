@@ -868,6 +868,7 @@ public class CallsManager extends Call.ListenerBase
                         mAnomalyReporter, mTimeoutsAdapter, mMetricsController, mMmiUtils,
                         mFeatureFlags), mCallAudioManager, mMetricsController, mFeatureFlags);
 
+        // This is first to ensure we bind to BT and other ICS first for onCallAdded
         mListeners.add(mInCallController);
         mListeners.add(mInCallWakeLockController);
         mListeners.add(statusBarNotifier);
@@ -1055,7 +1056,8 @@ public class CallsManager extends Call.ListenerBase
         if (incomingCall.hasProperty(Connection.PROPERTY_EMERGENCY_CALLBACK_MODE) ||
                 incomingCall.hasProperty(Connection.PROPERTY_NETWORK_IDENTIFIED_EMERGENCY_CALL) ||
                 isInEmergencySmsMode ||
-                incomingCall.isSelfManaged()) {
+                (!com.android.internal.telecom.flags.Flags.voipDndFocus()
+                        && incomingCall.isSelfManaged())) {
             Log.i(this, "Skipping call filtering for %s (ecm=%b, "
                             + "networkIdentifiedEmergencyCall = %b, emergencySmsMode = %b, "
                             + "selfMgd=%b, skipExtra=%b)",
@@ -1073,7 +1075,13 @@ public class CallsManager extends Call.ListenerBase
                     .build(), false);
             incomingCall.setIsUsingCallFiltering(false);
             return;
-        } else if (extras.getBoolean(PhoneAccount.EXTRA_SKIP_CALL_FILTERING)) {
+        } else if (extras.getBoolean(PhoneAccount.EXTRA_SKIP_CALL_FILTERING)
+                || (com.android.internal.telecom.flags.Flags.voipDndFocus()
+                    && incomingCall.isSelfManaged())) {
+            // Perform just the DND filter for:
+            // 1. calls on watches that are skipping the call filtering for performance reasons.
+            // 2. VoIP calls; we need to ensure we do calculate the DND suppression so that it can
+            // be passed on to Bluetooth.
             IncomingCallFilterGraph graph = setupDndFilterOnlyGraph(incomingCall);
             graph.performFiltering();
             return;
@@ -1162,7 +1170,7 @@ public class CallsManager extends Call.ListenerBase
         // Only set the incoming call as ringing if it isn't already disconnected. It is possible
         // that the connection service disconnected the call before it was even added to Telecom, in
         // which case it makes no sense to set it back to a ringing state.
-        Log.i(this, "onCallFilteringComplete");
+        Log.i(this, "onCallFilteringComplete: result=%s", result);
         mGraphHandlerThreads.clear();
 
         if (timeout) {
@@ -1177,7 +1185,7 @@ public class CallsManager extends Call.ListenerBase
         }
 
         // Store the shouldSuppress value in the call object which will be passed to InCallServices
-        if (mFeatureFlags.voipDndFocus()) {
+        if (com.android.internal.telecom.flags.Flags.voipDndFocus()) {
             // The DND call filter may not have run (e.g. for VoIP calls); in this case we should
             // not set the DND suppression on the call to ensure Ringer.java will recalculate this
             // and not try to use an invalid cached value.
