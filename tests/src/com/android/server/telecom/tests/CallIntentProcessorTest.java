@@ -99,7 +99,7 @@ public class CallIntentProcessorTest extends TelecomTestCase {
                 mMockCurrentUserManager);
         when(mMockCreateContextAsUser.getPackageManager()).thenReturn(mPackageManager);
         mCallIntentProcessor = new CallIntentProcessor(mContext, mCallsManager, mDefaultDialerCache,
-                mFeatureFlags);
+                TELECOM_UI_PACKAGE_NAME, mFeatureFlags);
         when(mFeatureFlags.telecomResolveHiddenDependencies()).thenReturn(false);
         when(mCallsManager.getPhoneNumberUtilsAdapter()).thenReturn(mPhoneNumberUtilsAdapter);
         when(mPhoneNumberUtilsAdapter.isUriNumber(anyString())).thenReturn(true);

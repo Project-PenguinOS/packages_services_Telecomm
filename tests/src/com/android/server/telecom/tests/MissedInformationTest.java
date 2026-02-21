@@ -108,7 +108,8 @@ public class MissedInformationTest extends TelecomSystemTest {
     public void setUp() throws Exception {
         super.setUp();
         mCallsManager = mTelecomSystem.getCallsManager();
-        mAdapter = new CallIntentProcessor.AdapterImpl(mCallsManager.getDefaultDialerCache());
+        mAdapter = new CallIntentProcessor.AdapterImpl(mCallsManager.getDefaultDialerCache(),
+                TELECOM_UI_PACKAGE_NAME);
         mNotificationManager = spy((NotificationManager) mContext.getSystemService(
                 Context.NOTIFICATION_SERVICE));
         when(mFeatureFlags.telecomResolveHiddenDependencies()).thenReturn(true);

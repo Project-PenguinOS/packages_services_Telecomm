@@ -89,12 +89,13 @@ public final class BlockedNumbersUtil {
      * @param context context to start CallBlockDisabledActivity.
      * @param showNotification if {@code true} show notification, {@code false} cancel notification.
      */
-    public static void updateEmergencyCallNotification(Context context, boolean showNotification) {
+    public static void updateEmergencyCallNotification(Context context, boolean showNotification,
+            String telecomUiPackageName) {
         NotificationManager notificationManager =
                     context.getSystemService(NotificationManager.class);
         if (showNotification) {
             Intent intent = new Intent();
-            intent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
+            intent.setClassName(telecomUiPackageName,
                     UiConstants.COMPONENT_CALL_BLOCK_DISABLED_DIALOG);
             PendingIntent pendingIntent = PendingIntent.getActivity(
                     context, 0, intent, PendingIntent.FLAG_CANCEL_CURRENT

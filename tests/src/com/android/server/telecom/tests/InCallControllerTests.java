@@ -278,7 +278,8 @@ public class InCallControllerTests extends TelecomTestCase {
         when(mMockCreateContextAsUser.getPackageManager()).thenReturn(mMockPackageManager);
         mInCallController = new InCallController(mMockContext, mLock, mMockCallsManager,
                 mMockSystemStateHelper, mDefaultDialerCache, mTimeoutsAdapter,
-                mEmergencyCallHelper, mCarModeTracker, mClockProxy, mFeatureFlags);
+                mEmergencyCallHelper, mCarModeTracker, mClockProxy, TELECOM_UI_PACKAGE_NAME,
+                mFeatureFlags);
         // Capture the broadcast receiver registered.
         doAnswer(invocation -> {
             mRegisteredReceiver = invocation.getArgument(0);

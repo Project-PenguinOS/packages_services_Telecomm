@@ -51,7 +51,8 @@ public class BlockedNumbersUtilTests extends TelecomTestCase {
     @SmallTest
     @Test
     public void testPostNotification() {
-        BlockedNumbersUtil.updateEmergencyCallNotification(mContext, true);
+        BlockedNumbersUtil.updateEmergencyCallNotification(mContext, true,
+                TELECOM_UI_PACKAGE_NAME);
         NotificationManager mgr = mComponentContextFixture.getNotificationManager();
         Context userContext = mock(Context.class);
         when(mContext.createContextAsUser(any(UserHandle.class), eq(0)))
@@ -64,7 +65,8 @@ public class BlockedNumbersUtilTests extends TelecomTestCase {
     @SmallTest
     @Test
     public void testDismissNotification() {
-        BlockedNumbersUtil.updateEmergencyCallNotification(mContext, false);
+        BlockedNumbersUtil.updateEmergencyCallNotification(mContext, false,
+                TELECOM_UI_PACKAGE_NAME);
         NotificationManager mgr = mComponentContextFixture.getNotificationManager();
         Context userContext = mock(Context.class);
         when(mContext.createContextAsUser(any(UserHandle.class), eq(0)))
