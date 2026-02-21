@@ -64,6 +64,10 @@ public class DndCallFilter extends CallFilter {
                 .setShouldAddToCallLog(true)
                 .setShouldShowNotification(true)
                 .setDndSuppressed(shouldSuppress)
+                // Although this is flagged it is benign to set it here since if the flag is off the
+                // value will be ignored.
+                .setDndSuppressionStatus(shouldSuppress ? CallFilteringResult.DND_SUPPRESSED
+                        : CallFilteringResult.DND_NOT_SUPPRESSED)
                 .build());
 
         return resultFuture;

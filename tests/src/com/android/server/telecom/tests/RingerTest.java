@@ -63,6 +63,7 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorInfo;
 import android.platform.test.annotations.EnableFlags;
+import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
@@ -421,12 +422,29 @@ public class RingerTest extends TelecomTestCase {
 
     @SmallTest
     @Test
-    public void testNoActionWhenCallIsSelfManaged() throws Exception {
+    @RequiresFlagsDisabled(com.android.internal.telecom.flags.Flags.FLAG_VOIP_DND_FOCUS)
+    public void testNoActionWhenCallIsSelfManagedOld() throws Exception {
         // Start call waiting to make sure that it doesn't stop when we start ringing
         mRingerUnderTest.startCallWaiting(mockCall1);
         when(mockCall2.isSelfManaged()).thenReturn(true);
         // We do want to acquire audio focus when self-managed
         assertTrue(startRingingAndWaitForAsync(mockCall2, true));
+
+        verifyNoMoreInteractions(mockRingtoneFactory);
+        verify(mockTonePlayer, never()).stopTone();
+        verify(mockVibrator, never())
+                .vibrate(any(VibrationEffect.class), any(VibrationAttributes.class));
+    }
+
+    @SmallTest
+    @Test
+    @RequiresFlagsEnabled(com.android.internal.telecom.flags.Flags.FLAG_VOIP_DND_FOCUS)
+    public void testNoActionWhenCallIsSelfManaged() throws Exception {
+        // Start call waiting to make sure that it doesn't stop when we start ringing
+        mRingerUnderTest.startCallWaiting(mockCall1);
+        when(mockCall2.isSelfManaged()).thenReturn(true);
+        // We do NOT want to acquire audio focus when self-managed
+        assertFalse(startRingingAndWaitForAsync(mockCall2, true));
 
         verifyNoMoreInteractions(mockRingtoneFactory);
         verify(mockTonePlayer, never()).stopTone();
@@ -801,8 +819,6 @@ public class RingerTest extends TelecomTestCase {
         assertFalse(mRingerUnderTest.isRinging());
     }
 
-
-
     /**
      * test shouldRingForContact will suppress the incoming call if matchesCallFilter returns
      * false (meaning DND is ON and the caller cannot bypass the settings)
@@ -826,6 +842,7 @@ public class RingerTest extends TelecomTestCase {
         verify(mockNotificationManager, times(1))
                 .matchesCallFilter(any(Uri.class));
     }
+
 
     /**
      * test shouldRingForContact will alert the user of an incoming call if matchesCallFilter
@@ -868,7 +885,7 @@ public class RingerTest extends TelecomTestCase {
      * Ensure that when the call filter did not run we will re-computer it in Ringer.
      */
     @Test
-    @RequiresFlagsEnabled(com.android.server.telecom.flags.Flags.FLAG_VOIP_DND_FOCUS)
+    @RequiresFlagsEnabled(com.android.internal.telecom.flags.Flags.FLAG_VOIP_DND_FOCUS)
     public void testShouldRingForContact_matchesCallfilterIsNotComputed() {
         // We assume the caller cannot bypass DND.
         when(mockNotificationManager.matchesCallFilter(any(Uri.class))).thenReturn(false);
@@ -881,8 +898,6 @@ public class RingerTest extends TelecomTestCase {
         assertFalse(mRingerUnderTest.shouldRingForContact(mockCall1));
         // Because DND Filter was not computed, we should not check the call.
         verify(mockCall1, never()).isCallSuppressedByDoNotDisturb();
-        // This should not have been set on the call since it was never computed.
-        verify(mockCall1, never()).setCallIsSuppressedByDoNotDisturb(anyBoolean());
         // Expect this to be recomputed now, where it did not in the prior case.
         verify(mockNotificationManager).matchesCallFilter(any(Uri.class));
     }

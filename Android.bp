@@ -340,6 +340,7 @@ android_app {
         true: ":com.android.telecomui.certificate",
         default: "platform",
     }),
+    preinstall_allowlist: ":preinstalled-packages-com.android.server.telecomui.xml",
     privileged: true,
     privapp_allowlist: ":privapp_allowlist_com.android.server.telecomui",
     sdk_version: "module_current",
