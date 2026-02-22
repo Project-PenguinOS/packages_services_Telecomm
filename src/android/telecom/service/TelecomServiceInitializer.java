@@ -21,10 +21,14 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
-import android.app.Service;
 import android.app.role.RoleManager;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.media.ToneGenerator;
 import android.os.CombinedVibration;
 import android.os.HandlerThread;
@@ -35,15 +39,14 @@ import android.os.VibrationAttributes;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorManager;
-import android.provider.BlockedNumberContract;
+import android.os.UserHandle;
+import android.os.UserManager;
 import android.provider.BlockedNumbersManager;
 import android.telecom.Log;
 import android.telecom.TelecomServiceInitializerRepository.Initializer;
 import android.telecom.flags.Flags;
 import android.view.accessibility.AccessibilityManager;
 
-import com.android.internal.telecom.ITelecomLoader;
-import com.android.internal.telecom.ITelecomService;
 import com.android.server.telecom.AsyncRingtonePlayer;
 import com.android.server.telecom.CallAudioModeStateMachine;
 import com.android.server.telecom.CallAudioRouteController;
@@ -58,7 +61,6 @@ import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.HeadsetMediaButton;
 import com.android.server.telecom.HeadsetMediaButtonFactory;
 import com.android.server.telecom.InCallWakeLockControllerFactory;
-import com.android.server.telecom.CallAudioManager;
 import com.android.server.telecom.PhoneAccountRegistrar;
 import com.android.server.telecom.PhoneNumberUtilsAdapterImpl;
 import com.android.server.telecom.ProximitySensorManagerFactory;
@@ -75,13 +77,17 @@ import com.android.server.telecom.settings.BlockedNumbersUtil;
 import com.android.server.telecom.ui.IncomingCallNotifier;
 import com.android.server.telecom.ui.MissedCallNotifierImpl;
 import com.android.server.telecom.ui.NotificationChannelManager;
+import com.android.server.telecom.ui.UiConstants;
 import com.android.server.telecom.util.CallerInfoAsyncQuery;
 
+import java.io.File;
+import java.util.List;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 /**
  * Initialize the Telecom library.
- * 
+ *
  * Telecom can't load directly as a SystemService due to the requirement of separate package
  * attribution in permissions and other system services. Therefore, there must be a Telecom
  * shim app signed with the platform certificate that initializes the updatable Telecom code
@@ -92,7 +98,12 @@ import java.util.concurrent.Executors;
 @SystemApi(client=SystemApi.Client.SYSTEM_SERVER)
 @FlaggedApi(Flags.FLAG_TELECOM_MAINLINE_API)
 public final class TelecomServiceInitializer implements Initializer {
-
+    private static final String TAG = "TelecomSInitializer";
+    private static final String TELEPHONYCORE_PACKAGE_NAME = "com.android.telephonycore";
+    private static final String CALL_TRAMPOLINE_ACTIVITY =
+            "com.android.internal.telecom.action.CALL_TRAMPOLINE";
+    private static final String TELEPHONYCORE_APEX_PATH =
+            new File("/apex", TELEPHONYCORE_PACKAGE_NAME).getAbsolutePath();
     private final String mSysUiPackage;
 
     public TelecomServiceInitializer(@NonNull String sysUiPackage) {
@@ -101,7 +112,33 @@ public final class TelecomServiceInitializer implements Initializer {
 
     @Override
     public @Nullable IBinder initialize(@NonNull Context context) {
-        initializeTelecomSystem(context, mSysUiPackage);
+        final String telecomUiPackage = getTelecomUiPackageName(context);
+        Log.i(TAG, "initialize, telecomUi: " + telecomUiPackage);
+        UserManager userManager = context.getSystemService(UserManager.class);
+        if (userManager != null) {
+            for (UserHandle userHandle : userManager.getUserHandles(true)) {
+                enableTelecomUiForUser(context, userHandle, telecomUiPackage);
+            }
+        } else {
+            Log.w(TAG, "UserManager is null, can't enable TelecomUi.");
+        }
+
+        BroadcastReceiver userAddedReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context receiverContext, Intent intent) {
+                if (Intent.ACTION_USER_ADDED.equals(intent.getAction())) {
+                    UserHandle userHandle = intent.getParcelableExtra(Intent.EXTRA_USER,
+                        UserHandle.class);
+                    enableTelecomUiForUser(receiverContext, userHandle, telecomUiPackage);
+                }
+            }
+        };
+
+        IntentFilter filter = new IntentFilter(Intent.ACTION_USER_ADDED);
+        context.getApplicationContext().registerReceiver(userAddedReceiver, filter,
+                Context.RECEIVER_NOT_EXPORTED);
+
+        initializeTelecomSystem(context, mSysUiPackage, telecomUiPackage);
         synchronized (getTelecomSystem().getLock()) {
             getTelecomSystem().getTelecomServiceImpl().setInitPath("mainline");
             return getTelecomSystem().getTelecomServiceImpl().getBinder();
@@ -109,7 +146,7 @@ public final class TelecomServiceInitializer implements Initializer {
     }
 
     /**
-     * This method is to be called by components (Activitys, Services, ...) to initialize the
+     * This method is to be called by components (Activities, Services, ...) to initialize the
      * Telecom singleton. It should only be called on the main thread. As such, it is atomic
      * and needs no synchronization -- it will either perform its initialization, after which
      * the {@link TelecomSystem#getInstance()} will be initialized, or some other invocation of
@@ -118,7 +155,8 @@ public final class TelecomServiceInitializer implements Initializer {
      *
      * @param context
      */
-    private static void initializeTelecomSystem(Context context, String sysUiPackageName) {
+    private static void initializeTelecomSystem(Context context, String sysUiPackageName,
+            String telecomUiPackageName) {
         if (TelecomSystem.getInstance() == null) {
             FeatureFlags featureFlags = new FeatureFlagsImpl();
             NotificationChannelManager notificationChannelManager =
@@ -241,6 +279,7 @@ public final class TelecomServiceInitializer implements Initializer {
                                     (RoleManager) context.getSystemService(Context.ROLE_SERVICE)),
                             new ContactsAsyncHelper.Factory(),
                             sysUiPackageName,
+                            telecomUiPackageName,
                             new Ringer.AccessibilityManagerAdapter() {
                                 @Override
                                 public boolean startFlashNotificationSequence(
@@ -280,7 +319,7 @@ public final class TelecomServiceInitializer implements Initializer {
                                 public void updateEmergencyCallNotification(Context context,
                                         boolean showNotification) {
                                     BlockedNumbersUtil.updateEmergencyCallNotification(context,
-                                            showNotification);
+                                            showNotification, telecomUiPackageName);
                                 }
                             },
                             featureFlags,
@@ -289,6 +328,63 @@ public final class TelecomServiceInitializer implements Initializer {
                             handlerThread.getLooper(),
                             vibratorAdapter));
         }
+    }
+
+    private void enableTelecomUiForUser(Context context, UserHandle userHandle,
+            String telecomUiPackage) {
+        if (userHandle == null) return;
+        // Enable TelecomUi since the mainline module is active. Ensure that we create the
+        // context for the calling user since we'll always be running under user 0 in Telecom.
+        // This will account for other profiles and auto (where we run as user 10).
+        Context userContext = context;
+        try {
+            userContext = context.createContextAsUser(userHandle, 0 /* flags */);
+        } catch (Exception e) {
+            Log.e(this, e, "Exception while creating context for user " + userHandle);
+            return;
+        }
+        try {
+            userContext.getPackageManager().setApplicationEnabledSetting(
+                    telecomUiPackage,
+                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                    PackageManager.DONT_KILL_APP);
+            Log.i(this, "Successfully enabled TelecomUi for user " + userHandle);
+        } catch (IllegalArgumentException e) {
+            Log.e(this, e, "Failed to enable TelecomUi for user " + userHandle);
+        }
+    }
+
+    private static boolean isAppInApex(ApplicationInfo appInfo) {
+        return appInfo.sourceDir.startsWith(TELEPHONYCORE_APEX_PATH);
+    }
+
+    private String getTelecomUiPackageName(Context context) {
+        String defaultPackageName = UiConstants.DEFAULT_TELECOM_UI_PACKAGE;
+        List<ResolveInfo> infos = context.getPackageManager().queryIntentActivities(
+                new Intent(CALL_TRAMPOLINE_ACTIVITY),
+                // This is very close to startup, so ensure that the activity is detected,
+                // even if it is still considered disabled.
+                PackageManager.MATCH_SYSTEM_ONLY | PackageManager.MATCH_DISABLED_COMPONENTS);
+
+        if (infos.size() > 1) {
+            Log.w(TAG, "getTelecomUiPackageName: Unexpected activity handlers: " +
+                    infos.stream()
+                            .map(ri -> ri.activityInfo.applicationInfo.packageName)
+                            .collect(Collectors.joining(", ")));
+        }
+        ResolveInfo info = infos.isEmpty() ? null : infos.stream()
+                // Ensure the activity handler is mounted as APEX and not another app spoofing
+                .filter(ri -> isAppInApex(ri.activityInfo.applicationInfo))
+                .findFirst().orElse(null);
+        if (info == null) {
+            Log.w(TAG, "getTelecomUiPackageName: null info");
+            return defaultPackageName;
+        }
+        if (info.activityInfo == null) {
+            Log.w(TAG, "getTelecomUiPackageName: null activityInfo");
+            return defaultPackageName;
+        }
+        return info.activityInfo.packageName;
     }
 
     private TelecomSystem getTelecomSystem() {

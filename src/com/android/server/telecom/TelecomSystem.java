@@ -225,6 +225,7 @@ public class TelecomSystem {
             RoleManagerAdapter roleManagerAdapter,
             ContactsAsyncHelper.Factory contactsAsyncHelperFactory,
             String sysUiPackageName,
+            String telecomUiPackageName,
             Ringer.AccessibilityManagerAdapter accessibilityManagerAdapter,
             Executor asyncTaskExecutor,
             Executor asyncCallAudioTaskExecutor,
@@ -292,7 +293,7 @@ public class TelecomSystem {
                         EmergencyCallHelper emergencyCallHelper) {
                     return new InCallController(context, lock, callsManager, systemStateProvider,
                             defaultDialerCache, timeoutsAdapter, emergencyCallHelper,
-                            new CarModeTracker(), clockProxy, featureFlags);
+                            new CarModeTracker(), clockProxy, telecomUiPackageName, featureFlags);
                 }
             };
 
@@ -430,7 +431,8 @@ public class TelecomSystem {
                     mMetricsController,
                     vibratorAdapter,
                     scheduledExecutorService,
-                    lowBatteryAlertListener);
+                    lowBatteryAlertListener,
+                    telecomUiPackageName);
             bluetoothDeviceManager.setCallsManager(mCallsManager);
             mIncomingCallNotifier = incomingCallNotifier;
             incomingCallNotifier.setCallsManagerProxy(new IncomingCallNotifier.CallsManagerProxy() {
@@ -478,7 +480,7 @@ public class TelecomSystem {
             }
 
             mCallIntentProcessor = new CallIntentProcessor(mContext, mCallsManager,
-                    defaultDialerCache, featureFlags);
+                    defaultDialerCache, telecomUiPackageName, featureFlags);
             mTelecomBroadcastIntentProcessor = new TelecomBroadcastIntentProcessor(
                     mContext, mCallsManager, mFeatureFlags);
 
@@ -512,12 +514,13 @@ public class TelecomSystem {
             // There is no USER_SWITCHED broadcast for user 0, handle it here explicitly.
             mTelecomServiceImpl = new TelecomServiceImpl(
                     mContext, mCallsManager, mPhoneAccountRegistrar,
-                    new CallIntentProcessor.AdapterImpl(defaultDialerCache),
+                    new CallIntentProcessor.AdapterImpl(defaultDialerCache, telecomUiPackageName),
                     new UserCallIntentProcessorFactory() {
                         @Override
                         public UserCallIntentProcessor create(Context context,
                                 UserHandle userHandle) {
-                            return new UserCallIntentProcessor(context, userHandle);
+                            return new UserCallIntentProcessor(context, userHandle,
+                                    telecomUiPackageName);
                         }
                     },
                     defaultDialerCache,
@@ -527,7 +530,8 @@ public class TelecomSystem {
                     null,
                     mLock,
                     mMetricsController,
-                    sysUiPackageName);
+                    sysUiPackageName,
+                    telecomUiPackageName);
         } finally {
             Log.endSession();
         }

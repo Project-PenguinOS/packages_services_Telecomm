@@ -43,6 +43,7 @@ import java.util.function.Predicate;
 
 public abstract class TelecomTestCase {
     protected static final String TESTING_TAG = "Telecom-TEST";
+    protected static final String TELECOM_UI_PACKAGE_NAME = "com.android.server.telecomui";
     protected Context mContext;
     @Mock
     FeatureFlags mFeatureFlags;

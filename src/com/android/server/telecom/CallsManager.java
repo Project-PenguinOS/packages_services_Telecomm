@@ -577,6 +577,7 @@ public class CallsManager extends Call.ListenerBase
     private CallsManagerCallSequencingAdapter mCallSequencingAdapter;
     private final FeatureFlags mFeatureFlags;
     private final com.android.internal.telephony.flags.FeatureFlags mTelephonyFeatureFlags;
+    private final String mTelecomUiPackageName;
 
     private final IncomingCallFilterGraphProvider mIncomingCallFilterGraphProvider;
     private CallAudioWatchdog mCallAudioWatchDog;
@@ -722,7 +723,8 @@ public class CallsManager extends Call.ListenerBase
             TelecomMetricsController metricsController,
             Ringer.VibratorAdapter vibratorAdapter,
             ScheduledExecutorService scheduledExecutorService,
-            LowBatteryAlertListener lowBatteryAlertListener) {
+            LowBatteryAlertListener lowBatteryAlertListener,
+            String telecomUiPackageName) {
 
         mContext = context;
         mLock = lock;
@@ -743,6 +745,7 @@ public class CallsManager extends Call.ListenerBase
         mCallerInfoLookupHelper = callerInfoLookupHelper;
         mEmergencyCallDiagnosticLogger = emergencyCallDiagnosticLogger;
         mIncomingCallFilterGraphProvider = incomingCallFilterGraphProvider;
+        mTelecomUiPackageName = telecomUiPackageName;
 
         mHandlerThread.start();
         mAudioCallbackHandler = new Handler(mHandlerThread.getLooper());
@@ -866,7 +869,8 @@ public class CallsManager extends Call.ListenerBase
         mCallSequencingAdapter = new CallsManagerCallSequencingAdapter(this, mContext,
                 new CallSequencingController(this, mContext, mClockProxy,
                         mAnomalyReporter, mTimeoutsAdapter, mMetricsController, mMmiUtils,
-                        mFeatureFlags), mCallAudioManager, mMetricsController, mFeatureFlags);
+                        telecomUiPackageName, mFeatureFlags), mCallAudioManager, mMetricsController,
+                mFeatureFlags);
 
         // This is first to ensure we bind to BT and other ICS first for onCallAdded
         mListeners.add(mInCallController);
@@ -3252,7 +3256,7 @@ public class CallsManager extends Call.ListenerBase
          // Enforce outgoing call restriction for conference calls. This is handled via
          // UserCallIntentProcessor for normal MO calls.
          if (UserUtil.hasOutgoingCallsUserRestriction(mContext, initiatingUser, null,
-                 isSelfManaged, CallsManager.class.getCanonicalName())) {
+                 isSelfManaged, mTelecomUiPackageName, CallsManager.class.getCanonicalName())) {
              return;
          }
          CompletableFuture<Call> callFuture = startOutgoingCall(participants, phoneAccountHandle,
@@ -3546,7 +3550,7 @@ public class CallsManager extends Call.ListenerBase
             if (uiAction.equals(CallRedirectionProcessor.UI_TYPE_USER_DEFINED_TIMEOUT)
                     && !call.isDisconnected()) {
                 Intent timeoutIntent = new Intent();
-                timeoutIntent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
+                timeoutIntent.setClassName(mTelecomUiPackageName,
                         UiConstants.COMPONENT_CALL_REDIRECTION_TIMEOUT_DIALOG);
                 timeoutIntent.putExtra(
                         UiConstants.EXTRA_REDIRECTION_APP_NAME,
@@ -6558,7 +6562,7 @@ public class CallsManager extends Call.ListenerBase
                     ongoingAppName);
 
             Intent confirmIntent = new Intent();
-            confirmIntent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
+            confirmIntent.setClassName(mTelecomUiPackageName,
                 UiConstants.COMPONENT_CONFIRM_CALL_DIALOG);
             confirmIntent.putExtra(UiConstants.EXTRA_OUTGOING_CALL_ID, call.getId());
             confirmIntent.putExtra(UiConstants.EXTRA_ONGOING_APP_NAME, ongoingAppName);
@@ -6724,7 +6728,7 @@ public class CallsManager extends Call.ListenerBase
                     == DisconnectCause.ERROR) || (disconnectCause.getCode()
                     == DisconnectCause.RESTRICTED))) {
                 final Intent errorIntent = new Intent();
-                errorIntent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
+                errorIntent.setClassName(mTelecomUiPackageName,
                         UiConstants.COMPONENT_ERROR_DIALOG);
                 errorIntent.putExtra(UiConstants.ERROR_MESSAGE_STRING_EXTRA,
                         disconnectCause.getDescription());
@@ -7428,7 +7432,7 @@ public class CallsManager extends Call.ListenerBase
      */
     private void showErrorMessage(CharSequence message) {
         final Intent errorIntent = new Intent();
-        errorIntent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
+        errorIntent.setClassName(mTelecomUiPackageName,
               UiConstants.COMPONENT_ERROR_DIALOG);
         errorIntent.putExtra(UiConstants.ERROR_MESSAGE_STRING_EXTRA, message);
         errorIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);

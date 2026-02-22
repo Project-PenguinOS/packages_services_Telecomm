@@ -57,7 +57,6 @@ import static org.mockito.Mockito.when;
 import android.Manifest;
 import android.app.ActivityManager;
 import android.app.AppOpsManager;
-import android.app.UiModeManager;
 import android.content.AttributionSource;
 import android.content.ComponentName;
 import android.content.Context;
@@ -72,7 +71,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.OutcomeReceiver;
 import android.os.ParcelFileDescriptor;
-import android.os.Process;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.UserManager;
@@ -290,7 +288,8 @@ public class TelecomServiceImplTest extends TelecomTestCase {
                 mTelephonyFeatureFlags,
                 mLock,
                 mMockTelecomMetricsController,
-                SYSTEM_UI_PACKAGE);
+                SYSTEM_UI_PACKAGE,
+                TELECOM_UI_PACKAGE_NAME);
         telecomServiceImpl.setTransactionManager(mTransactionManager);
         telecomServiceImpl.setAnomalyReporterAdapter(mAnomalyReporterAdapter);
         mTSIBinder = telecomServiceImpl.getBinder();

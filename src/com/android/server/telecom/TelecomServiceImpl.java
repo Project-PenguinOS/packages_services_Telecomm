@@ -38,9 +38,7 @@ import android.app.AppOpsManager;
 import android.app.UiModeManager;
 import android.app.compat.CompatChanges;
 import android.content.AttributionSource;
-import android.content.BroadcastReceiver;
 import android.content.ComponentName;
-import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -50,7 +48,6 @@ import android.content.pm.ResolveInfo;
 import android.content.res.Resources;
 import android.graphics.drawable.Icon;
 import android.net.Uri;
-import android.os.BadParcelableException;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
@@ -63,7 +60,6 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.permission.PermissionManager;
 import android.provider.BlockedNumbersManager;
-import android.provider.Settings;
 import android.telecom.CallAttributes;
 import android.telecom.CallException;
 import android.telecom.DisconnectCause;
@@ -98,7 +94,6 @@ import com.android.server.telecom.metrics.TelecomMetricsController;
 import com.android.server.telecom.callsequencing.TransactionManager;
 import com.android.server.telecom.callsequencing.CallTransaction;
 import com.android.server.telecom.callsequencing.CallTransactionResult;
-import com.android.server.telecom.PackageRemovedReceiver;
 import com.android.server.telecom.util.TelecomBundleUtils;
 
 import java.io.FileDescriptor;
@@ -191,6 +186,7 @@ public class TelecomServiceImpl {
     private final TelecomMetricsController mMetricsController;
     private final String mSystemUiPackageName;
     private String mInitPath = "unknown";
+    private final String mTelecomUiPackageName;
     private AnomalyReporterAdapter mAnomalyReporter = new AnomalyReporterAdapterImpl();
     private final Context mContext;
     private Context mAllUsersContext;
@@ -2484,6 +2480,7 @@ public class TelecomServiceImpl {
 
                 final IndentingPrintWriter pw = new IndentingPrintWriter(writer, "  ");
                 pw.println("Init Path: On " + mInitPath);
+                pw.println("TelecomUI package: " + mTelecomUiPackageName);
                 if (mCallsManager != null) {
                     pw.println("CallsManager: ");
                     pw.increaseIndent();
@@ -2873,6 +2870,14 @@ public class TelecomServiceImpl {
             } finally {
                 Log.endSession();
             }
+        }
+
+        /**
+         * @return the package name associated with telecomui app.
+         */
+        @Override
+        public String getTelecomUiPackageName() {
+            return mTelecomUiPackageName;
         }
 
         /**
@@ -3377,7 +3382,8 @@ public class TelecomServiceImpl {
             android.telecom.flags.FeatureFlags moduleFeatureFlags,
             com.android.internal.telephony.flags.FeatureFlags telephonyFeatureFlags,
             TelecomSystem.SyncRoot lock, TelecomMetricsController metricsController,
-            String sysUiPackageName) {
+            String sysUiPackageName,
+            String telecomUiPackageName) {
         mContext = context;
         mAppOpsManager = mContext.getSystemService(AppOpsManager.class);
 
@@ -3401,6 +3407,7 @@ public class TelecomServiceImpl {
         mSubscriptionManagerAdapter = subscriptionManagerAdapter;
         mMetricsController = metricsController;
         mSystemUiPackageName = sysUiPackageName;
+        mTelecomUiPackageName = telecomUiPackageName;
 
         setupPackageRemovedReceiver(phoneAccountRegistrar);
 
@@ -3474,6 +3481,10 @@ public class TelecomServiceImpl {
             }
             mPackageRemovedReceiver = null;
         }
+    }
+
+    public String getTelecomUiPackageName() {
+        return mTelecomUiPackageName;
     }
 
     @VisibleForTesting
