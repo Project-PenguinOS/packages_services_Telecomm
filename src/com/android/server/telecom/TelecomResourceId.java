@@ -38,7 +38,7 @@ public class TelecomResourceId {
     private static Context sTelecomContext;
 
     @com.android.internal.annotations.VisibleForTesting
-    public static void setTelecomContext(Context context) {
+    public static synchronized void setTelecomContext(Context context) {
         sTelecomContext = context;
         if (context != null) {
             sTelecomPackageName = context.getPackageName();
@@ -47,7 +47,7 @@ public class TelecomResourceId {
         }
     }
 
-    public static Context getTelecomContext(Context context) {
+    public static synchronized Context getTelecomContext(Context context) {
         if (sTelecomContext == null) {
             PackageManager pm = context.getPackageManager();
             if (pm != null) {
@@ -79,7 +79,7 @@ public class TelecomResourceId {
                 sTelecomPackageName = context.getPackageName();
             }
         }
-        return sTelecomContext;
+        return sTelecomContext != null ? sTelecomContext : context;
     }
 
     public static Resources getResources(Context context) {
