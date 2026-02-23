@@ -40,7 +40,6 @@ import com.android.server.telecom.HandoverState;
 import com.android.server.telecom.TelecomBroadcastIntentProcessor;
 import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.UserUtil;
-import com.android.server.telecom.components.TelecomBroadcastReceiver;
 import com.android.server.telecom.flags.FeatureFlags;
 
 import java.util.Objects;
@@ -213,11 +212,11 @@ public class IncomingCallNotifier extends CallsManagerListenerBase {
                 TelecomResourceId.getString(mContext, "android_system_label"));
 
         Intent answerIntent = new Intent(
-                TelecomBroadcastIntentProcessor.ACTION_ANSWER_FROM_NOTIFICATION, null, mContext,
-                TelecomBroadcastReceiver.class);
+                TelecomBroadcastIntentProcessor.ACTION_ANSWER_FROM_NOTIFICATION);
+        answerIntent.setPackage(mContext.getPackageName());
         Intent rejectIntent = new Intent(
-                TelecomBroadcastIntentProcessor.ACTION_REJECT_FROM_NOTIFICATION, null, mContext,
-                TelecomBroadcastReceiver.class);
+                TelecomBroadcastIntentProcessor.ACTION_REJECT_FROM_NOTIFICATION);
+        rejectIntent.setPackage(mContext.getPackageName());
 
         String nameOrNumber = getNotificationName(incomingCall);
         CharSequence viaApp = incomingCall.getTargetPhoneAccountLabel();
