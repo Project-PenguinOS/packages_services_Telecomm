@@ -33,6 +33,7 @@ import android.os.UserHandle;
 import android.telecom.Log;
 import android.telecom.PhoneAccountHandle;
 
+import android.telecom.TelecomManager;
 import android.telephony.TelephonyManager;
 import android.widget.Toast;
 
@@ -509,9 +510,21 @@ public class TelecomSystem {
             telecomBroadcastFilter.addAction(TelecomBroadcastIntentProcessor
                     .ACTION_PLACE_REDIRECTED_CALL);
             telecomBroadcastFilter.addAction(TelecomBroadcastIntentProcessor
+                    .ACTION_PLACE_UNREDIRECTED_CALL);
+            telecomBroadcastFilter.addAction(TelecomBroadcastIntentProcessor
                     .ACTION_CANCEL_REDIRECTED_CALL);
+            telecomBroadcastFilter.addAction(TelecomBroadcastIntentProcessor
+                    .ACTION_HANGUP_CALL);
+            telecomBroadcastFilter.addAction(TelecomBroadcastIntentProcessor
+                    .ACTION_STOP_STREAMING);
+            telecomBroadcastFilter.addAction(TelecomBroadcastIntentProcessor
+                    .ACTION_DISCONNECTED_SEND_SMS_FROM_NOTIFICATION);
+            telecomBroadcastFilter.addAction(TelecomBroadcastIntentProcessor
+                    .ACTION_DISCONNECTED_CALL_BACK_FROM_NOTIFICATION);
+
             mAllUsersContext.registerReceiver(new TelecomBroadcastReceiver(),
-                    telecomBroadcastFilter, Context.RECEIVER_NOT_EXPORTED);
+                    telecomBroadcastFilter, TelecomManager.PERMISSION_TELECOM_UI_ACCESS, null,
+                    Context.RECEIVER_EXPORTED);
 
             // Register the receiver for the dialer secret codes, used to enable extended logging.
             mDialerCodeReceiver = new DialerCodeReceiver(mCallsManager);

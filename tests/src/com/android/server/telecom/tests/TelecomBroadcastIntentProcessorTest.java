@@ -84,7 +84,7 @@ public class TelecomBroadcastIntentProcessorTest extends TelecomTestCase {
         Intent intent = new Intent(
                 TelecomBroadcastIntentProcessor.ACTION_SEND_SMS_FROM_NOTIFICATION);
         intent.putExtra(TelecomBroadcastIntentProcessor.EXTRA_USERHANDLE, mUserHandle);
-        intent.setData(Uri.parse("tel:12345"));
+        intent.putExtra(TelecomBroadcastIntentProcessor.EXTRA_DATA_URI, Uri.parse("tel:12345"));
 
         Context userContext = mock(Context.class);
         PackageManager packageManager = mock(PackageManager.class);
@@ -110,7 +110,7 @@ public class TelecomBroadcastIntentProcessorTest extends TelecomTestCase {
         Intent intent = new Intent(
                 TelecomBroadcastIntentProcessor.ACTION_CALL_BACK_FROM_NOTIFICATION);
         intent.putExtra(TelecomBroadcastIntentProcessor.EXTRA_USERHANDLE, mUserHandle);
-        intent.setData(Uri.parse("tel:12345"));
+        intent.putExtra(TelecomBroadcastIntentProcessor.EXTRA_DATA_URI, Uri.parse("tel:12345"));
 
         mProcessor.processIntent(intent);
 
@@ -137,7 +137,7 @@ public class TelecomBroadcastIntentProcessorTest extends TelecomTestCase {
         Intent intent = new Intent(
                 TelecomBroadcastIntentProcessor.ACTION_DISCONNECTED_SEND_SMS_FROM_NOTIFICATION);
         intent.putExtra(TelecomBroadcastIntentProcessor.EXTRA_USERHANDLE, mUserHandle);
-        intent.setData(Uri.parse("tel:12345"));
+        intent.putExtra(TelecomBroadcastIntentProcessor.EXTRA_DATA_URI, Uri.parse("tel:12345"));
 
         Context userContext = mock(Context.class);
         PackageManager packageManager = mock(PackageManager.class);
@@ -163,7 +163,7 @@ public class TelecomBroadcastIntentProcessorTest extends TelecomTestCase {
         Intent intent = new Intent(
                 TelecomBroadcastIntentProcessor.ACTION_DISCONNECTED_CALL_BACK_FROM_NOTIFICATION);
         intent.putExtra(TelecomBroadcastIntentProcessor.EXTRA_USERHANDLE, mUserHandle);
-        intent.setData(Uri.parse("tel:12345"));
+        intent.putExtra(TelecomBroadcastIntentProcessor.EXTRA_DATA_URI, Uri.parse("tel:12345"));
 
         mProcessor.processIntent(intent);
 
@@ -232,7 +232,8 @@ public class TelecomBroadcastIntentProcessorTest extends TelecomTestCase {
         when(mCallsManager.getCall(callId)).thenReturn(call);
 
         Intent intent = new Intent(TelecomBroadcastIntentProcessor.ACTION_HANGUP_CALL);
-        intent.setData(Uri.fromParts("callid", callId, null));
+        intent.putExtra(TelecomBroadcastIntentProcessor.EXTRA_DATA_URI,
+                Uri.fromParts("callid", callId, null));
 
         mProcessor.processIntent(intent);
 
@@ -247,7 +248,8 @@ public class TelecomBroadcastIntentProcessorTest extends TelecomTestCase {
         when(mCallsManager.getCall(callId)).thenReturn(call);
 
         Intent intent = new Intent(TelecomBroadcastIntentProcessor.ACTION_STOP_STREAMING);
-        intent.setData(Uri.fromParts("callid", callId, null));
+        intent.putExtra(TelecomBroadcastIntentProcessor.EXTRA_DATA_URI,
+                Uri.fromParts("callid", callId, null));
 
         mProcessor.processIntent(intent);
 
