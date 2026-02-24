@@ -16,6 +16,8 @@
 
 package com.android.server.telecom;
 
+import static com.android.server.telecom.CallsManager.REQUEST_ORIGIN_TELECOM_LOCAL_VOICEMAIL_NOTIFICATION;
+
 import android.app.BroadcastOptions;
 import android.content.Context;
 import android.content.Intent;
@@ -23,7 +25,9 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.os.Bundle;
 import android.os.UserHandle;
+import android.telecom.DisconnectCause;
 import android.telecom.Log;
+import android.telecom.VideoProfile;
 import android.widget.Toast;
 
 import com.android.server.telecom.flags.FeatureFlags;
@@ -104,6 +108,11 @@ public final class TelecomBroadcastIntentProcessor {
             "com.android.server.telecom.CANCEL_REDIRECTED_CALL";
 
     public static final String ACTION_HANGUP_CALL = "com.android.server.telecom.HANGUP_CALL";
+    public static final String ACTION_PICKUP_LOCAL_VOICEMAIL =
+            "com.android.server.telecom.ACTION_PICKUP_LOCAL_VOICEMAIL";
+    public static final String ACTION_SEND_CALL_TO_LOCAL_VOICEMAIL =
+            "com.android.server.telecom.ACTION_SEND_CALL_TO_LOCAL_VOICEMAIL";
+
     public static final String ACTION_STOP_STREAMING =
             "com.android.server.telecom.ACTION_STOP_STREAMING";
 
@@ -259,7 +268,36 @@ public final class TelecomBroadcastIntentProcessor {
             try {
                 Call call = mCallsManager.getCall(intent.getData().getSchemeSpecificPart());
                 if (call != null) {
+                    // User initiated disconnections are always treated as local; this is needed to
+                    // ensure that a local voicemail call doesn't get treated as missed.
+                    if (call.getState() == CallState.LOCAL_VOICEMAIL) {
+                        call.setOverrideDisconnectCauseCode(
+                                new DisconnectCause(DisconnectCause.LOCAL));
+                    }
                     mCallsManager.disconnectCall(call);
+                }
+            } finally {
+                Log.endSession();
+            }
+        } else if (ACTION_PICKUP_LOCAL_VOICEMAIL.equals(action)) {
+            Log.startSession("TBIP.aPLV", "localvmdialog");
+            try {
+                Call call = mCallsManager.getCall(intent.getData().getSchemeSpecificPart());
+                if (call != null) {
+                    mCallsManager.answerCall(call, VideoProfile.STATE_AUDIO_ONLY,
+                            REQUEST_ORIGIN_TELECOM_LOCAL_VOICEMAIL_NOTIFICATION);
+                    mCallsManager.getInCallController().bringToForeground(
+                            false, call.getAssociatedUser());
+                }
+            } finally {
+                Log.endSession();
+            }
+        } else if (ACTION_SEND_CALL_TO_LOCAL_VOICEMAIL.equals(action)) {
+            Log.startSession("TBIP.aSCTLV", "localvmdialog");
+            try {
+                Call call = mCallsManager.getCall(intent.getData().getSchemeSpecificPart());
+                if (call != null) {
+                    mCallsManager.getLocalVoicemailController().sendCallToLocalVoicemail(call);
                 }
             } finally {
                 Log.endSession();

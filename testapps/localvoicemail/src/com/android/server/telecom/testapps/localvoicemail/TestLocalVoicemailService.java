@@ -43,6 +43,7 @@ public class TestLocalVoicemailService extends LocalVoicemailService {
     private final String TAG = "TestLocalVoicemailService";
 
     private WavAudioRecorder mWavAudioRecorder;
+    private boolean mIsLocalVoicemailStopped = false;
 
     @Override
     public void onVoicemailRequested(@NonNull Call.Details call) {
@@ -152,7 +153,11 @@ public class TestLocalVoicemailService extends LocalVoicemailService {
                         if (mWavAudioRecorder != null) {
                             mWavAudioRecorder.stopRecording();
                         }
-                        disconnectCall();
+                        Log.i(TAG, "Local voicemail record time reached.");
+                        if (!mIsLocalVoicemailStopped) {
+                            Log.i(TAG, "Stopping recording and disconnecting call.");
+                            disconnectCall();
+                        }
                     }
                 }
             });
@@ -166,6 +171,7 @@ public class TestLocalVoicemailService extends LocalVoicemailService {
     @Override
     public void onVoicemailStopped(@NonNull Call.Details call) {
         Log.i(TAG, "onVoicemailStopped: callid=" + call.getId());
+        mIsLocalVoicemailStopped = true;
     }
 
     /**
