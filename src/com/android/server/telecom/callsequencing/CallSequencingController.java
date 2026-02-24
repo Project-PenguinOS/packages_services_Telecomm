@@ -509,8 +509,6 @@ public class CallSequencingController {
             // Always disconnect any ringing/incoming calls when an emergency call is placed to
             // minimize distraction. This does not affect live call count.
             ringingCall = mCallsManager.getRingingOrSimulatedRingingCall();
-            ringingCall.getAnalytics().setCallIsAdditional(true);
-            ringingCall.getAnalytics().setCallIsInterrupted(true);
             if (ringingCall.getState() == CallState.SIMULATED_RINGING) {
                 if (!ringingCall.hasGoneActiveBefore()) {
                     // If this is an incoming call that is currently in SIMULATED_RINGING only
@@ -574,8 +572,6 @@ public class CallSequencingController {
             // or a held call after this point).
             String disconnectReason = "disconnecting non-holdable call to make room "
                     + "for emergency call";
-            emergencyCall.getAnalytics().setCallIsAdditional(true);
-            liveCall.getAnalytics().setCallIsInterrupted(true);
             return disconnectOngoingCallForEmergencyCall(transactionFuture, liveCall,
                     disconnectReason);
         }
@@ -587,8 +583,6 @@ public class CallSequencingController {
             Call outgoingCall = mCallsManager.getFirstCallWithState(OUTGOING_CALL_STATES);
             String disconnectReason = null;
             if (!outgoingCall.isEmergencyCall()) {
-                emergencyCall.getAnalytics().setCallIsAdditional(true);
-                outgoingCall.getAnalytics().setCallIsInterrupted(true);
                 disconnectReason = "Disconnecting dialing call in favor of new dialing"
                         + " emergency call.";
             }
@@ -596,8 +590,6 @@ public class CallSequencingController {
                 // Correctness check: if there is an orphaned emergency call in the
                 // {@link CallState#SELECT_PHONE_ACCOUNT} state, just disconnect it since the user
                 // has explicitly started a new call.
-                emergencyCall.getAnalytics().setCallIsAdditional(true);
-                outgoingCall.getAnalytics().setCallIsInterrupted(true);
                 disconnectReason = "Disconnecting call in SELECT_PHONE_ACCOUNT in favor"
                         + " of new outgoing call.";
             }
@@ -620,8 +612,6 @@ public class CallSequencingController {
         }
 
         if (liveCall.getState() == CallState.AUDIO_PROCESSING) {
-            emergencyCall.getAnalytics().setCallIsAdditional(true);
-            liveCall.getAnalytics().setCallIsInterrupted(true);
             // Skip auto-unhold for when the live call is disconnected. Consider a scenario where
             // we have a held non-holdable call (VZW) and the live call (also VZW) is stuck in
             // audio processing. If we auto unhold the VZW while placing the emergency call, then we
@@ -653,10 +643,8 @@ public class CallSequencingController {
                 && !disconnectedCalls.contains(heldCall)) {
             final String disconnectReason = "disconnecting to make room for emergency call "
                     + emergencyCall.getId();
-            emergencyCall.getAnalytics().setCallIsAdditional(true);
             // Single sim case
             if (!areMultiplePhoneAccountsActive) {
-                liveCall.getAnalytics().setCallIsInterrupted(true);
                 // Skip auto-unhold for when the live call is disconnected. Consider a scenario
                 // where we have a held non-holdable call (VZW) and an active call (also VZW). If
                 // we auto unhold the VZW while placing the emergency call, then we may end up with
@@ -687,7 +675,6 @@ public class CallSequencingController {
                 // Note at this point, we should always have a held call then that should
                 // be disconnected (over the active call) but still enforce with a null check and
                 // ensure we haven't disconnected it already.
-                heldCall.getAnalytics().setCallIsInterrupted(true);
                 // Disconnect the held call.
                 transactionFuture = disconnectOngoingCallForEmergencyCall(transactionFuture,
                         heldCall, disconnectReason);
@@ -737,8 +724,6 @@ public class CallSequencingController {
         if (PhoneAccountHandle.areFromSamePackage(
                 liveCallPhoneAccount, emergencyCall.getTargetPhoneAccount())) {
             Log.i(this, "makeRoomForOutgoingEmergencyCall: phoneAccount matches.");
-            emergencyCall.getAnalytics().setCallIsAdditional(true);
-            liveCall.getAnalytics().setCallIsInterrupted(true);
             return transactionFuture;
         }
 
@@ -836,8 +821,6 @@ public class CallSequencingController {
                 }
                 // If there is an orphaned call in the {@link CallState#SELECT_PHONE_ACCOUNT}
                 // state, just disconnect it since the user has explicitly started a new call.
-                call.getAnalytics().setCallIsAdditional(true);
-                outgoingCall.getAnalytics().setCallIsInterrupted(true);
                 // Skip auto-unhold for when the outgoing call is disconnected. Consider a scenario
                 // where we have a held non-holdable call (VZW) and a dialing call (also VZW). If we
                 // auto unhold the VZW while placing the emergency call, then we may end up with
@@ -877,8 +860,6 @@ public class CallSequencingController {
         if (arePhoneAccountsSame(call, liveCall) && isManagedCall(call)) {
             Log.i(this, "makeRoomForOutgoingCall: allowing managed CS to handle "
                     + "calls from the same self-managed account");
-            call.getAnalytics().setCallIsAdditional(true);
-            liveCall.getAnalytics().setCallIsInterrupted(true);
             return CompletableFuture.completedFuture(true);
         } else if (call.getTargetPhoneAccount() == null) {
             Log.i(this, "makeRoomForOutgoingCall: no PA specified, allowing");
@@ -894,8 +875,6 @@ public class CallSequencingController {
         // Try to hold the live call before attempting the new outgoing call.
         if (mCallsManager.canHold(liveCall)) {
             Log.i(this, "makeRoomForOutgoingCall: holding live call.");
-            call.getAnalytics().setCallIsAdditional(true);
-            liveCall.getAnalytics().setCallIsInterrupted(true);
             return liveCall.hold("calling " + call.getId());
         }
 
@@ -955,8 +934,6 @@ public class CallSequencingController {
     private CompletableFuture<Boolean> maybeHoldLiveCallForEmergency(
             CompletableFuture<Boolean> transactionFuture,
             Call liveCall, Call emergencyCall, boolean isLiveUsingConnectionManager) {
-        emergencyCall.getAnalytics().setCallIsAdditional(true);
-        liveCall.getAnalytics().setCallIsInterrupted(true);
         final String holdReason = "calling " + emergencyCall.getId();
         CompletableFuture<Boolean> holdResultFuture;
         holdResultFuture = transactionFuture.thenComposeAsync((result) -> {
@@ -1012,8 +989,6 @@ public class CallSequencingController {
             if (skipDisconnectForEmergencyCall(call, ringingCall)) {
                 continue;
             }
-            emergencyCall.getAnalytics().setCallIsAdditional(true);
-            call.getAnalytics().setCallIsInterrupted(true);
             call.setOverrideDisconnectCauseCode(new DisconnectCause(
                     DisconnectCause.LOCAL, DisconnectCause.REASON_EMERGENCY_CALL_PLACED));
 

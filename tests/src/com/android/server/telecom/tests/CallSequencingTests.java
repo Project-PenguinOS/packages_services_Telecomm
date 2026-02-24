@@ -56,7 +56,6 @@ import android.telephony.CarrierConfigManager;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.server.telecom.Analytics;
 import com.android.server.telecom.AnomalyReporterAdapter;
 import com.android.server.telecom.Call;
 import com.android.server.telecom.CallState;
@@ -613,16 +612,10 @@ public class CallSequencingTests extends TelecomTestCase {
     public void testMakeRoomForOutgoingCall() {
         setupMakeRoomForOutgoingCallMocks();
         when(mActiveCall.hold(anyString())).thenReturn(CompletableFuture.completedFuture(true));
-        Analytics.CallInfo newCallAnalytics = mock(Analytics.CallInfo.class);
-        Analytics.CallInfo activeCallAnalytics = mock(Analytics.CallInfo.class);
-        when(mNewCall.getAnalytics()).thenReturn(newCallAnalytics);
-        when(mActiveCall.getAnalytics()).thenReturn(activeCallAnalytics);
         when(mCallsManager.canHold(mActiveCall)).thenReturn(true);
 
         CompletableFuture<Boolean> future = mController.makeRoomForOutgoingCall(false, mNewCall);
         verify(mActiveCall, timeout(SEQUENCING_TIMEOUT_MS)).hold(anyString());
-        verify(newCallAnalytics).setCallIsAdditional(eq(true));
-        verify(activeCallAnalytics).setCallIsInterrupted(eq(true));
         assertTrue(waitForFutureResult(future, false));
     }
 
@@ -732,7 +725,6 @@ public class CallSequencingTests extends TelecomTestCase {
         when(mCallsManager.canHold(mActiveCall)).thenReturn(true);
 
         // Setup analytics mocks
-        setupCallAnalytics(Arrays.asList(mNewCall, mActiveCall, mRingingCall));
 
         // Setup ecall related checks
         setupEmergencyCallPaCapabilities();
@@ -797,13 +789,6 @@ public class CallSequencingTests extends TelecomTestCase {
                 .setCallType(CallAttributes.AUDIO_CALL)
                 .setCallCapabilities(CallAttributes.SUPPORTS_SET_INACTIVE)
                 .build();
-    }
-
-    private void setupCallAnalytics(List<Call> calls) {
-        for (Call call: calls) {
-            Analytics.CallInfo analyticsInfo = mock(Analytics.CallInfo.class);
-            when(call.getAnalytics()).thenReturn(analyticsInfo);
-        }
     }
 
     private boolean waitForFutureResult(CompletableFuture<Boolean> future, boolean defaultValue) {

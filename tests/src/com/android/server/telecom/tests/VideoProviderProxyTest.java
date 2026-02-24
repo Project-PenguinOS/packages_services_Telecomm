@@ -32,7 +32,6 @@ import android.telecom.VideoProfile;
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.telecom.IVideoProvider;
-import com.android.server.telecom.Analytics;
 import com.android.server.telecom.Call;
 import com.android.server.telecom.CurrentUserProxy;
 import com.android.server.telecom.TelecomSystem;
@@ -56,7 +55,6 @@ public class VideoProviderProxyTest extends TelecomTestCase {
     @Mock private IVideoProvider mVideoProvider;
     @Mock private IBinder mIBinder;
     @Mock private Call mCall;
-    @Mock private Analytics.CallInfo mCallInfo;
     @Mock private CurrentUserProxy mCurrentUserProxy;
     @Mock private VideoProviderProxy.Listener mListener;
 
@@ -68,8 +66,6 @@ public class VideoProviderProxyTest extends TelecomTestCase {
         mLock = new TelecomSystem.SyncRoot() { };
         when(mVideoProvider.asBinder()).thenReturn(mIBinder);
         doNothing().when(mIBinder).linkToDeath(any(), anyInt());
-        when(mCall.getAnalytics()).thenReturn(mCallInfo);
-        doNothing().when(mCallInfo).addVideoEvent(anyInt(), anyInt());
         doNothing().when(mCall).maybeEnableSpeakerForVideoUpgrade(anyInt());
         mVideoProviderProxy = new VideoProviderProxy(mLock, mVideoProvider, mCall,
                 mCurrentUserProxy, new FeatureFlagsImpl());

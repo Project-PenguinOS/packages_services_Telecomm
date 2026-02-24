@@ -435,11 +435,6 @@ public class InCallController extends CallsManagerListenerBase implements
                     sendCrashedInCallServiceNotification(packageName, userFromCall);
                 }
                 if (mCall != null) {
-                    mCall.getAnalytics().addInCallService(
-                            mInCallServiceInfo.getComponentName().flattenToShortString(),
-                            mInCallServiceInfo.getType(),
-                            mInCallServiceInfo.getDisconnectTime()
-                                    - mInCallServiceInfo.getBindingStartTime(), mIsNullBinding);
                     updateCallTracking(mCall, mInCallServiceInfo, false /* isAdd */);
                 }
 

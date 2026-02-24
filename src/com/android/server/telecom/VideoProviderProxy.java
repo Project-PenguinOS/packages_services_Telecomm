@@ -163,10 +163,6 @@ public class VideoProviderProxy extends Connection.VideoProvider {
                     Log.addEvent(mCall, LogUtils.Events.RECEIVE_VIDEO_REQUEST,
                             VideoProfile.videoStateToString(videoProfile.getVideoState()));
 
-                    mCall.getAnalytics().addVideoEvent(
-                            Analytics.RECEIVE_REMOTE_SESSION_MODIFY_REQUEST,
-                            videoProfile.getVideoState());
-
                     if ((!mCall.isVideoCallingSupportedByPhoneAccount()
                             || !mCall.isLocallyVideoCapable())
                             && VideoProfile.isVideo(videoProfile.getVideoState())) {
@@ -216,13 +212,6 @@ public class VideoProviderProxy extends Connection.VideoProvider {
                     (responseProfile != null ? responseProfile.getVideoState() : "null");
             Log.addEvent(mCall, LogUtils.Events.RECEIVE_VIDEO_RESPONSE, eventMessage);
             synchronized (mLock) {
-                if (status == Connection.VideoProvider.SESSION_MODIFY_REQUEST_SUCCESS) {
-                    mCall.getAnalytics().addVideoEvent(
-                            Analytics.RECEIVE_REMOTE_SESSION_MODIFY_RESPONSE,
-                            responseProfile == null ?
-                                    VideoProfile.STATE_AUDIO_ONLY :
-                                    responseProfile.getVideoState());
-                }
                 VideoProviderProxy.this.receiveSessionModifyResponse(status, requestProfile,
                         responseProfile);
             }
@@ -453,9 +442,6 @@ public class VideoProviderProxy extends Connection.VideoProvider {
                 // Upgrading to video; change to speaker potentially.
                 mCall.maybeEnableSpeakerForVideoUpgrade(toProfile.getVideoState());
             }
-            mCall.getAnalytics().addVideoEvent(
-                    Analytics.SEND_LOCAL_SESSION_MODIFY_REQUEST,
-                    toProfile.getVideoState());
             try {
                 mConectionServiceVideoProvider.sendSessionModifyRequest(fromProfile, toProfile);
             } catch (RemoteException e) {
@@ -475,9 +461,7 @@ public class VideoProviderProxy extends Connection.VideoProvider {
             logFromInCall("sendSessionModifyResponse: " + responseProfile);
             Log.addEvent(mCall, LogUtils.Events.SEND_VIDEO_RESPONSE,
                     VideoProfile.videoStateToString(responseProfile.getVideoState()));
-            mCall.getAnalytics().addVideoEvent(
-                    Analytics.SEND_LOCAL_SESSION_MODIFY_RESPONSE,
-                    responseProfile.getVideoState());
+
             try {
                 mConectionServiceVideoProvider.sendSessionModifyResponse(responseProfile);
             } catch (RemoteException e) {
