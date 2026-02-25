@@ -189,10 +189,7 @@ import java.util.stream.Stream;
 // QTI_BEGIN: 2018-03-13: Telephony: IMS-VT: Add support for Low battery
 import org.codeaurora.ims.QtiCallConstants;
 // QTI_END: 2018-03-13: Telephony: IMS-VT: Add support for Low battery
-// QTI_BEGIN: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
-import org.codeaurora.ims.utils.QtiCarrierConfigHelper;
-import org.codeaurora.ims.utils.QtiImsExtUtils;
-// QTI_END: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
+
 /**
  * Singleton.
  *
@@ -985,11 +982,6 @@ public class CallsManager extends Call.ListenerBase
         }
 
         mCallLogIntegrationAdapter = new CallLogIntegrationAdapterImpl(mContext, mFeatureFlags);
-
-// QTI_BEGIN: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
-        QtiCarrierConfigHelper.getInstance().setup(mContext);
-// QTI_END: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
-
     }
 
     public CrsAudioController getCrsAudioController() {
