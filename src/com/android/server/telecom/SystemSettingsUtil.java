@@ -129,8 +129,8 @@ public class SystemSettingsUtil {
         // If they're out of sync, log a warning so we can diagnose in a bug report easier.
         if (isVibrationEnabledDueToDeprecatedSetting != isVibrationEnabledDueToIntensity) {
             Log.w(this,
-                    "c: currentVibrationIntensity=%d, "
-                            + "isVibrationEnabledDueToIntensity=%$b, "
+                    "isRingVibrationEnabled: currentVibrationIntensity=%d, "
+                            + "isVibrationEnabledDueToIntensity=%b, "
                             + "isVibrationEnabledDueToDeprecatedSetting=%b",
                     currentVibrationIntensity, isVibrationEnabledDueToIntensity,
                     isVibrationEnabledDueToDeprecatedSetting);

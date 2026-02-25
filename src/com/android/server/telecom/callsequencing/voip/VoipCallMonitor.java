@@ -30,6 +30,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.OutcomeReceiver;
@@ -609,6 +610,10 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
         PhoneAccountHandle phoneAccountHandle = call.getTargetPhoneAccount();
         Intent intent = new Intent(ConnectionService.SERVICE_INTERFACE);
         intent.setPackage(phoneAccountHandle.getComponentName().getPackageName());
+        // Needed so that when we do the unbind, we know not to disconnect all the connections
+        // related to this ConnectionService; important for self-managed where we are binding twice
+        // to grant the BAL.
+        intent.putExtra(ConnectionService.EXTRA_IS_BAL_BINDING, true);
         return intent;
     }
 

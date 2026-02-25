@@ -1799,6 +1799,8 @@ public class InCallController extends CallsManagerListenerBase implements
                 return;
             } else if (oldState == CallState.LOCAL_VOICEMAIL
                     && newState == CallState.ACTIVE) {
+                Log.i(this, "onCallStateChanged: %s moved from local VM to active, adding",
+                        call.getId());
                 UserHandle userFromCall = getUserFromCall(call);
                 // The call went active once more, so add it to the ICS.
                 maybeAddCallToInCallServices(call, userFromCall);
