@@ -98,6 +98,7 @@ import com.android.server.telecom.util.TelecomBundleUtils;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
+import java.util.Collections;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.Arrays;
@@ -2451,7 +2452,10 @@ public class TelecomServiceImpl {
                 Log.startSession("TSI.dCA");
                 enforcePermission(DUMP);
                 event.setResult(ApiStats.RESULT_NORMAL);
-                return Analytics.dumpToParcelableAnalytics();
+                // Don't return null since the API contract doesn't specifically say it is
+                // possible.
+                // Note: TelecomManager#dumpAnalytics is an unused system API.
+                return new TelecomAnalytics(Collections.emptyList(), Collections.emptyList());
             } finally {
                 logEvent(event);
                 Log.endSession();
@@ -2482,17 +2486,6 @@ public class TelecomServiceImpl {
             event.setResult(ApiStats.RESULT_NORMAL);
             logEvent(event);
 
-            if (args != null && args.length > 0 && Analytics.ANALYTICS_DUMPSYS_ARG.equals(
-                    args[0])) {
-                long token = Binder.clearCallingIdentity();
-                try {
-                    Analytics.dumpToEncodedProto(mContext, writer, args);
-                } finally {
-                    Binder.restoreCallingIdentity(token);
-                }
-                return;
-            }
-
             long token = Binder.clearCallingIdentity();
             try {
                 boolean isTimeLineView = (args != null && args.length > 0
@@ -2510,11 +2503,6 @@ public class TelecomServiceImpl {
                     pw.println("PhoneAccountRegistrar: ");
                     pw.increaseIndent();
                     mPhoneAccountRegistrar.dump(pw);
-                    pw.decreaseIndent();
-
-                    pw.println("Analytics:");
-                    pw.increaseIndent();
-                    Analytics.dump(pw);
                     pw.decreaseIndent();
 
                     pw.println("Flag Configurations (framework - com.android.server.telecom): ");
