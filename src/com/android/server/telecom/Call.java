@@ -3424,7 +3424,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      */
     @VisibleForTesting
     public void reject(boolean rejectWithMessage, String textMessage) {
-        reject(rejectWithMessage, textMessage, "internal" /** reason */);
+        reject(rejectWithMessage, textMessage, "internal" /* reason */);
     }
 
     /**
@@ -5517,7 +5517,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
             mIsStreaming = true;
             for (Listener listener : mListeners) {
-                listener.onCallStreamingStateChanged(this, true /** isStreaming */);
+                listener.onCallStreamingStateChanged(this, true /* isStreaming */);
             }
         }
     }
@@ -5531,7 +5531,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             Log.addEvent(this, LogUtils.Events.STOP_STREAMING);
             mIsStreaming = false;
             for (Listener listener : mListeners) {
-                listener.onCallStreamingStateChanged(this, false /** isStreaming */);
+                listener.onCallStreamingStateChanged(this, false /* isStreaming */);
             }
         }
     }

@@ -282,7 +282,7 @@ public class NewOutgoingCallIntentBroadcaster {
                             false),
                     mIntent.getIntExtra(TelecomManager.EXTRA_START_CALL_WITH_VIDEO_STATE,
                             VideoProfile.STATE_AUDIO_ONLY), mFeatureFlags);
-            /**
+            /*
              * If there is an available {@link android.telecom.CallRedirectionService}, use the
              * {@link CallRedirectionProcessor} to perform call redirection instead of using
              * broadcasting.

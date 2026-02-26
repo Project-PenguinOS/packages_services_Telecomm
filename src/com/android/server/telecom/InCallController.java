@@ -1494,8 +1494,8 @@ public class InCallController extends CallsManagerListenerBase implements
                 .filter((c) -> getUserFromCall(c).equals(userFromCall));
         boolean isCallCountZero = callsAssociatedWithUserFromCall.count() == 0;
         if (isCallCountZero) {
-            /** Let's add a 2 second delay before we send unbind to the services to hopefully
-             *  give them enough time to process all the pending messages.
+            /* Let's add a 2 second delay before we send unbind to the services to hopefully
+             * give them enough time to process all the pending messages.
              */
             if (mCallRemovedRunnable != null) {
                 mHandler.removeCallbacks(mCallRemovedRunnable);
