@@ -2704,18 +2704,8 @@ public class CallsManager extends Call.ListenerBase
 
                     boolean isVoicemail = isVoicemail(callToUse.getHandle(), accountToUse);
 
-// QTI_BEGIN: 2019-05-23: Telephony: IMS-VT: Handle RTT support for Video Calls.
-                    int phoneId = SubscriptionManager.getSlotIndex(
-                            mPhoneAccountRegistrar.getSubscriptionIdForPhoneAccount(
-                            callToUse.getTargetPhoneAccount()));
-// QTI_END: 2019-05-23: Telephony: IMS-VT: Handle RTT support for Video Calls.
                     boolean isRttSettingOn = isRttSettingOn(phoneAccountHandle);
-// QTI_BEGIN: 2019-05-23: Telephony: IMS-VT: Handle RTT support for Video Calls.
-                    if (!isVoicemail && (!VideoProfile.isVideo(callToUse.getVideoState())
-                            || QtiImsExtUtils.isRttSupportedOnVtCalls(
-                            phoneId, mContext))
-// QTI_END: 2019-05-23: Telephony: IMS-VT: Handle RTT support for Video Calls.
-                            && (isRttSettingOn || (extras != null
+                    if (!isVoicemail && (isRttSettingOn || (extras != null
                             && extras.getBoolean(TelecomManager.EXTRA_START_CALL_WITH_RTT,
                             false)))) {
                         Log.d(this, "Outgoing call requesting RTT, rtt setting is %b",
