@@ -45,7 +45,6 @@ import com.android.server.telecom.LocalVoicemailController;
 import com.android.server.telecom.TelecomBroadcastIntentProcessor;
 import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.UserUtil;
-import com.android.server.telecom.components.TelecomBroadcastReceiver;
 import com.android.server.telecom.flags.FeatureFlags;
 
 import java.util.concurrent.Executor;
@@ -185,9 +184,10 @@ public class LocalVoicemailNotification extends CallsManagerListenerBase
         }
 
         Intent sendToVoicemailIntent = new Intent(
-                TelecomBroadcastIntentProcessor.ACTION_SEND_CALL_TO_LOCAL_VOICEMAIL,
-                Uri.fromParts(CALL_ID_SCHEME, callId, null),
-                mContext, TelecomBroadcastReceiver.class);
+                TelecomBroadcastIntentProcessor.ACTION_SEND_CALL_TO_LOCAL_VOICEMAIL);
+        sendToVoicemailIntent.setPackage(mContext.getPackageName());
+        sendToVoicemailIntent.putExtra(TelecomBroadcastIntentProcessor.EXTRA_DATA_URI,
+                Uri.fromParts(CALL_ID_SCHEME, callId, null));
         PendingIntent sendToVoicemailPendingIntent = PendingIntent.getBroadcast(mContext, 0,
                 sendToVoicemailIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
@@ -253,18 +253,20 @@ public class LocalVoicemailNotification extends CallsManagerListenerBase
             appName = mAppLabelProxy.getAppLabel(appPackageName, userHandle).toString();
         }
         // Action to hangup
-        Intent hangupIntent = new Intent(TelecomBroadcastIntentProcessor.ACTION_HANGUP_CALL,
-                Uri.fromParts(CALL_ID_SCHEME, callId, null),
-                mContext, TelecomBroadcastReceiver.class);
+        Intent hangupIntent = new Intent(TelecomBroadcastIntentProcessor.ACTION_HANGUP_CALL);
+        hangupIntent.setPackage(mContext.getPackageName());
+        hangupIntent.putExtra(TelecomBroadcastIntentProcessor.EXTRA_DATA_URI,
+                Uri.fromParts(CALL_ID_SCHEME, callId, null));
         PendingIntent hangupPendingIntent = PendingIntent.getBroadcast(mContext, 0, hangupIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
         // Action to pick up the call
         // Apply a span to the string to colorize it using the "answer" color.
         Intent pickupIntent = new Intent(
-                TelecomBroadcastIntentProcessor.ACTION_PICKUP_LOCAL_VOICEMAIL,
-                Uri.fromParts(CALL_ID_SCHEME, callId, null),
-                mContext, TelecomBroadcastReceiver.class);
+                TelecomBroadcastIntentProcessor.ACTION_PICKUP_LOCAL_VOICEMAIL);
+        pickupIntent.setPackage(mContext.getPackageName());
+        pickupIntent.putExtra(TelecomBroadcastIntentProcessor.EXTRA_DATA_URI,
+                Uri.fromParts(CALL_ID_SCHEME, callId, null));
         PendingIntent pickupPendingIntent = PendingIntent.getBroadcast(mContext, 0, pickupIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 

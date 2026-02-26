@@ -3655,9 +3655,8 @@ public class CallsManager extends Call.ListenerBase
             @Override
             public void onClick(View v) {
                 Intent proceedWithoutRedirectedCall = new Intent(
-                        TelecomBroadcastIntentProcessor.ACTION_PLACE_UNREDIRECTED_CALL,
-                        null, mContext,
-                        TelecomBroadcastReceiver.class);
+                        TelecomBroadcastIntentProcessor.ACTION_PLACE_UNREDIRECTED_CALL);
+                proceedWithoutRedirectedCall.setPackage(mContext.getPackageName());
                 proceedWithoutRedirectedCall.putExtra(
                         TelecomBroadcastIntentProcessor.EXTRA_REDIRECTION_OUTGOING_CALL_ID,
                         callId);
@@ -3676,9 +3675,8 @@ public class CallsManager extends Call.ListenerBase
             @Override
             public void onClick(View v) {
                 Intent proceedWithRedirectedCall = new Intent(
-                        TelecomBroadcastIntentProcessor.ACTION_PLACE_REDIRECTED_CALL, null,
-                        mContext,
-                        TelecomBroadcastReceiver.class);
+                        TelecomBroadcastIntentProcessor.ACTION_PLACE_REDIRECTED_CALL);
+                proceedWithRedirectedCall.setPackage(mContext.getPackageName());
                 proceedWithRedirectedCall.putExtra(
                         TelecomBroadcastIntentProcessor.EXTRA_REDIRECTION_OUTGOING_CALL_ID,
                         callId);
@@ -3720,9 +3718,8 @@ public class CallsManager extends Call.ListenerBase
      */
     private void cancelRedirection(String callId) {
         Intent cancelRedirectedCall = new Intent(
-                TelecomBroadcastIntentProcessor.ACTION_CANCEL_REDIRECTED_CALL,
-                null, mContext,
-                TelecomBroadcastReceiver.class);
+                TelecomBroadcastIntentProcessor.ACTION_CANCEL_REDIRECTED_CALL);
+        cancelRedirectedCall.setPackage(mContext.getPackageName());
         cancelRedirectedCall.putExtra(
                 TelecomBroadcastIntentProcessor.EXTRA_REDIRECTION_OUTGOING_CALL_ID, callId);
         mContext.sendBroadcastAsUser(cancelRedirectedCall, UserHandle.CURRENT);
