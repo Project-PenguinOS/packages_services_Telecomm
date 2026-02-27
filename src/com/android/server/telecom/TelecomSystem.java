@@ -548,6 +548,7 @@ public class TelecomSystem {
                     featureFlags,
                     moduleFeatureFlags,
                     null,
+                    new com.android.internal.telecom.flags.Flags(),
                     mLock,
                     mMetricsController,
                     sysUiPackageName,
