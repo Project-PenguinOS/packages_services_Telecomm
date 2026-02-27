@@ -785,7 +785,8 @@ public class Ringer {
         if (contactUri == null) {
             contactUri = Uri.EMPTY;
         }
-        return mNotificationManager.matchesCallFilter(contactUri);
+        boolean matchesCallFilter = mNotificationManager.matchesCallFilter(contactUri);
+        return matchesCallFilter;
     }
 
     private boolean hasExternalRinger(Call foregroundCall) {
@@ -918,7 +919,7 @@ public class Ringer {
         // 2. Volume is over zero, we should ring for the contact, and there's a audible ringtone
         //    present. (This check is deferred until ringer knows the ringtone)
         boolean shouldAcquireAudioFocus;
-        if (mFlags.voipDndFocus()) {
+        if (com.android.internal.telecom.flags.Flags.voipDndFocus()) {
             shouldAcquireAudioFocus = !isWorkProfileInQuietMode &&
                     // The previous logic for determining if audio focus should be acquired
                     // assumed we should ALWAYS acquire audio focus for a voip call.  For non-voip

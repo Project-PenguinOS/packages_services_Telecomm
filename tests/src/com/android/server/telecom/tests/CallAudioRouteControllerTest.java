@@ -2228,6 +2228,60 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         assertEquals(AudioRoute.TYPE_SPEAKER, mController.getCurrentOrPendingRoute().getType());
     }
 
+    @Test
+    @SmallTest
+    public void testClearPendingBtConnectedMessageOnSwitchToNonBt() {
+        // This test verifies that if a route change to a BT device is pending (i.e., waiting for
+        // BT_AUDIO_CONNECTED), and a new route change to a non-BT device (like speaker) is
+        // requested, the original pending BT_AUDIO_CONNECTED message is correctly cleared.
+
+        // 1. Setup: Initialize, set active, and add a BT device.
+        mController.initialize();
+        mController.setActive(true);
+        mController.sendMessageWithSessionInfo(BT_DEVICE_ADDED, AudioRoute.TYPE_BLUETOOTH_SCO,
+                BLUETOOTH_DEVICE_1);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+
+        // 2. Action: Initiate a switch to the BT device. This will create a pending route
+        // waiting for BT_AUDIO_CONNECTED.
+        mController.sendMessageWithSessionInfo(USER_SWITCH_BLUETOOTH, 0, BT_ADDRESS_1);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+
+        // 3. Verification: Check that the controller is in a pending state, waiting for the BT
+        // connection.
+        assertTrue(mController.isPending());
+        PendingAudioRoute pendingRoute = mController.getPendingAudioRoute();
+        assertTrue("Controller should be pending BT_AUDIO_CONNECTED",
+                pendingRoute.getPendingMessages().contains(
+                        new Pair<>(BT_AUDIO_CONNECTED, BT_ADDRESS_1)));
+        assertEquals(AudioRoute.TYPE_BLUETOOTH_SCO, pendingRoute.getDestRoute().getType());
+
+        // Add another pending message to verify iteration works correctly.
+        String anotherAddress = "00:00:00:00:00:02";
+        pendingRoute.addMessage(BT_AUDIO_CONNECTED, anotherAddress);
+        assertTrue("Controller should also be pending BT_AUDIO_CONNECTED for second device",
+                pendingRoute.getPendingMessages().contains(
+                        new Pair<>(BT_AUDIO_CONNECTED, anotherAddress)));
+
+        // 4. Action: Before the BT connection completes, initiate a switch to the speaker.
+        // This triggers the maybeClearPendingMessage() logic that was fixed.
+        mController.sendMessageWithSessionInfo(USER_SWITCH_SPEAKER);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+
+        // 5. Verification: The destination route should now be speaker, and the old pending
+        // BT_AUDIO_CONNECTED message should be gone. The new pending message should be SPEAKER_ON.
+        assertEquals("Destination route should be updated to SPEAKER",
+                AudioRoute.TYPE_SPEAKER, pendingRoute.getDestRoute().getType());
+        assertFalse("Pending BT_AUDIO_CONNECTED message should be cleared",
+                pendingRoute.getPendingMessages().contains(
+                        new Pair<>(BT_AUDIO_CONNECTED, BT_ADDRESS_1)));
+        assertFalse("Pending BT_AUDIO_CONNECTED message for second device should be cleared",
+                pendingRoute.getPendingMessages().contains(
+                        new Pair<>(BT_AUDIO_CONNECTED, anotherAddress)));
+        assertTrue("Controller should now be pending SPEAKER_ON",
+                pendingRoute.getPendingMessages().contains(new Pair<>(SPEAKER_ON, null)));
+    }
+
     private void verifyRouteUnchangedAfterFocusSwitch(int focusType, boolean setPreferredDevice) {
         mController.initialize();
         // Switch to speaker before switching to ringing focus

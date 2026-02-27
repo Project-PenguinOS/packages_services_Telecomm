@@ -110,6 +110,8 @@ telecom_ut_availability_jarjar_config {
             static_libs: [
                 "modules-utils-binary-xml",
                 "modules-utils-shell-command-handler",
+                "modules-utils-build",
+                "modules-utils-infra",
             ],
         },
     },
@@ -288,6 +290,7 @@ android_app {
     resource_dirs: ["res"],
     libs: [
         "framework-annotations-lib",
+        "framework-telecom.stubs.module_lib",
         "telecom_module_flags-java",
     ],
     min_sdk_version: "36",
@@ -343,6 +346,7 @@ android_app {
         true: ":com.android.telecomui.certificate",
         default: "platform",
     }),
+    preinstall_allowlist: ":preinstalled-packages-com.android.server.telecomui.xml",
     privileged: true,
     privapp_allowlist: ":privapp_allowlist_com.android.server.telecomui",
     sdk_version: "module_current",
