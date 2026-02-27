@@ -204,7 +204,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         }
     }
 
-    private void notifyAnswerRequested(int videoState, OutcomeReceiver<Object, Exception> or) {
+    @VisibleForTesting
+    public void notifyAnswerRequested(int videoState, OutcomeReceiver<Object, Exception> or) {
         Log.i(this, "notifyAnswerRequested: id=%s", mId);
         for (InCallServiceToVoipAppListener listener : mInCallServiceToVoipAppListeners) {
             try {
@@ -1885,7 +1886,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         }
     }
 
-    private boolean isTestEmergencyCall(String number) {
+    @VisibleForTesting
+    public boolean isTestEmergencyCall(String number) {
         try {
             Map<Integer, List<EmergencyNumber>> eMap =
                     getTelephonyManager().getEmergencyNumberList();
@@ -1915,7 +1917,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         return mCallerDisplayNamePresentation;
     }
 
-    void setCallerDisplayName(String callerDisplayName, int presentation) {
+    @VisibleForTesting
+    public void setCallerDisplayName(String callerDisplayName, int presentation) {
         if (!TextUtils.equals(callerDisplayName, mCallerDisplayName) ||
                 presentation != mCallerDisplayNamePresentation) {
             mCallerDisplayName = callerDisplayName;
@@ -1926,7 +1929,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         }
     }
 
-    void setContactPhotoUri(Uri contactPhotoUri) {
+    @VisibleForTesting
+    public void setContactPhotoUri(Uri contactPhotoUri) {
         if (mCallerInfo != null) {
             mCallerInfo.SetContactDisplayPhotoUri(contactPhotoUri);
         }
@@ -3113,7 +3117,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     /**
      * Silences the ringer.
      */
-    void silence() {
+    @VisibleForTesting
+    public void silence() {
         if (mConnectionService == null) {
             Log.w(this, "silence() request on a call without a connection service.");
         } else {
@@ -3920,19 +3925,22 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         return mCallerInfo == null ? null : mCallerInfo.contactRingtoneUri;
     }
 
-    void onPostDialWait(String remaining) {
+    @VisibleForTesting
+    public void onPostDialWait(String remaining) {
         for (Listener l : mListeners) {
             l.onPostDialWait(this, remaining);
         }
     }
 
-    void onPostDialChar(char nextChar) {
+    @VisibleForTesting
+    public void onPostDialChar(char nextChar) {
         for (Listener l : mListeners) {
             l.onPostDialChar(this, nextChar);
         }
     }
 
-    void postDialContinue(boolean proceed) {
+    @VisibleForTesting
+    public void postDialContinue(boolean proceed) {
         if (mTransactionalService != null) {
             Log.i(this, "postDialContinue: called on TransactionalService. doing nothing");
         } else if (mConnectionService != null) {
@@ -3943,7 +3951,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         }
     }
 
-    void conferenceWith(Call otherCall) {
+    @VisibleForTesting
+    public void conferenceWith(Call otherCall) {
         if (mTransactionalService != null) {
             Log.i(this, "conferenceWith: called on TransactionalService. doing nothing");
         } else if (mConnectionService == null) {
@@ -4160,7 +4169,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      * can avoid sending the "onParentChanged" callback until later.
      * @param parentCall The new parent call.
      */
-    void setParentCall(Call parentCall) {
+    @VisibleForTesting
+    public void setParentCall(Call parentCall) {
         if (parentCall == this) {
             Log.e(this, new Exception(), "setting the parent to self");
             return;
@@ -4189,7 +4199,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         }
     }
 
-    void setConferenceableCalls(List<Call> conferenceableCalls) {
+    @VisibleForTesting
+    public void setConferenceableCalls(List<Call> conferenceableCalls) {
         mConferenceableCalls.clear();
         mConferenceableCalls.addAll(conferenceableCalls);
         String confCallIds = "";
@@ -4265,7 +4276,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         }
     }
 
-    private void removeChildCall(Call call) {
+    @VisibleForTesting
+    public void removeChildCall(Call call) {
         if (mChildCalls.remove(call)) {
             Log.addEvent(this, LogUtils.Events.REMOVE_CHILD, call);
             for (Listener l : mListeners) {
@@ -4368,7 +4380,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     /**
      * @return True if the call is answered, else logs the action name.
      */
-    private boolean isAnswered(String actionName) {
+    @VisibleForTesting
+    public boolean isAnswered(String actionName) {
         if (mState == CallState.ANSWERED) {
             return true;
         }
@@ -4428,7 +4441,13 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         return mCallerInfo;
     }
 
-    private void maybeLoadCannedSmsResponses() {
+    @VisibleForTesting
+    public void setCallerInfoForTesting(CallerInfo callerInfo) {
+        mCallerInfo = callerInfo;
+    }
+
+    @VisibleForTesting
+    public void maybeLoadCannedSmsResponses() {
         if (mCallDirection == CALL_DIRECTION_INCOMING
                 && isRespondViaSmsCapable()
                 && !mCannedSmsResponsesLoadingStarted) {
@@ -4593,6 +4612,11 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     public ParcelFileDescriptor getInCallToCsRttPipeForInCall() {
         return mInCallToConnectionServiceStreams == null ? null
                 : mInCallToConnectionServiceStreams[RTT_PIPE_WRITE_SIDE_INDEX];
+    }
+
+    @VisibleForTesting
+    public void setInCallToCsRttPipeForTesting(ParcelFileDescriptor[] parcelFileDescriptor) {
+        mInCallToConnectionServiceStreams = parcelFileDescriptor;
     }
 
     public int getRttMode() {
@@ -4809,7 +4833,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         mAssociatedUser = associatedUser;
     }
 
-    static int getStateFromConnectionState(int state) {
+    @VisibleForTesting
+    public static int getStateFromConnectionState(int state) {
         switch (state) {
             case Connection.STATE_INITIALIZING:
                 return CallState.CONNECTING;
@@ -5572,5 +5597,35 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
     public boolean isBulkStateUpdateInProgress() {
       return mIsBulkStateUpdateInProgress;
+    }
+
+    @VisibleForTesting
+    public void setBulkStateUpdateInProgress(boolean result) {
+        mIsBulkStateUpdateInProgress = result;
+    }
+
+    @VisibleForTesting
+    public void setExtrasForTest(Bundle extras) {
+        mExtras = extras;
+    }
+
+    @VisibleForTesting
+    public void setPendingRttRequestId(int requestId) {
+        mPendingRttRequestId = requestId;
+    }
+
+    @VisibleForTesting
+    public void addChildCallForTesting(Call childCall) {
+        mChildCalls.add(childCall);
+    }
+
+    @VisibleForTesting
+    public void setCreateConnectionProcessorForTesting(CreateConnectionProcessor processor) {
+        mCreateConnectionProcessor = processor;
+    }
+
+    @VisibleForTesting
+    public void setParticipants(List<Uri> participants) {
+        mParticipants = participants;
     }
 }
