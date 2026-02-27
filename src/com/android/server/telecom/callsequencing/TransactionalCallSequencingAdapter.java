@@ -20,6 +20,7 @@ import android.os.OutcomeReceiver;
 import android.telecom.CallException;
 import android.telecom.DisconnectCause;
 
+import com.android.internal.telecom.flags.Flags;
 import com.android.server.telecom.Call;
 import com.android.server.telecom.CallsManager;
 import com.android.server.telecom.callsequencing.voip.EndCallTransaction;
@@ -196,36 +197,70 @@ public class TransactionalCallSequencingAdapter {
             Call call, boolean isCallControlRequest, CallTransaction clientCbT,
             OutcomeReceiver<CallTransactionResult, CallException> receiver,
             OutcomeReceiver<CallTransactionResult, CallException> receiverForTransaction) {
-        final CompletableFuture<Boolean>[] createSetActiveFuture =
-                new CompletableFuture[]{new CompletableFuture<>()};
-        OutcomeReceiver<Boolean, CallException> maybePerformHoldCallback = new OutcomeReceiver<>() {
-            @Override
-            public void onResult(Boolean result) {
-                // Transaction not yet completed. Still need to request focus for active call and
-                // process client callback transaction if applicable.
-                // create list for multiple transactions
-                List<CallTransaction> transactions = new ArrayList<>();
-                // And request a new focus call update
-                transactions.add(new RequestNewActiveCallTransaction(mCallsManager, call));
-                if (clientCbT != null){
-                    transactions.add(clientCbT);
+        if (Flags.fixTransactionalCallSequencingFuture()) {
+            CompletableFuture<Boolean> createSetActiveFuture = new CompletableFuture<>();
+            OutcomeReceiver<Boolean, CallException> maybePerformHoldCallback =
+                    new OutcomeReceiver<>() {
+                @Override
+                public void onResult(Boolean result) {
+                    // Transaction not yet completed. Still need to request focus for active call
+                    // and process client callback transaction if applicable.
+                    // create list for multiple transactions
+                    List<CallTransaction> transactions = new ArrayList<>();
+                    // And request a new focus call update
+                    transactions.add(new RequestNewActiveCallTransaction(mCallsManager, call));
+                    if (clientCbT != null) {
+                        transactions.add(clientCbT);
+                    }
+                    SerialTransaction serialTransactions = new SerialTransaction(
+                            transactions, mCallsManager.getLock());
+                    mTransactionManager.addTransaction(serialTransactions,
+                            receiverForTransaction).thenAccept(createSetActiveFuture::complete);
                 }
-                SerialTransaction serialTransactions = new SerialTransaction(
-                        transactions, mCallsManager.getLock());
-                createSetActiveFuture[0] = mTransactionManager.addTransaction(serialTransactions,
-                        receiverForTransaction);
-            }
 
-            @Override
-            public void onError(CallException exception) {
-                createSetActiveFuture[0] = CompletableFuture.completedFuture(false);
-                receiver.onError(exception);
-            }
-        };
+                @Override
+                public void onError(CallException exception) {
+                    createSetActiveFuture.complete(false);
+                    receiver.onError(exception);
+                }
+            };
 
-        mCallsManager.getCallSequencingAdapter().transactionHoldPotentialActiveCallForNewCall(call,
-                isCallControlRequest, maybePerformHoldCallback);
-        return createSetActiveFuture[0];
+            mCallsManager.getCallSequencingAdapter().transactionHoldPotentialActiveCallForNewCall(
+                call,isCallControlRequest, maybePerformHoldCallback);
+            return createSetActiveFuture;
+        } else {
+            final CompletableFuture<Boolean>[] createSetActiveFuture =
+                    new CompletableFuture[]{new CompletableFuture<>()};
+            OutcomeReceiver<Boolean, CallException> maybePerformHoldCallback =
+                    new OutcomeReceiver<>() {
+                @Override
+                public void onResult(Boolean result) {
+                    // Transaction not yet completed. Still need to request focus for active call
+                    // and process client callback transaction if applicable.
+                    // create list for multiple transactions
+                    List<CallTransaction> transactions = new ArrayList<>();
+                    // And request a new focus call update
+                    transactions.add(new RequestNewActiveCallTransaction(mCallsManager, call));
+                    if (clientCbT != null) {
+                        transactions.add(clientCbT);
+                    }
+                    SerialTransaction serialTransactions = new SerialTransaction(
+                            transactions, mCallsManager.getLock());
+                    createSetActiveFuture[0] = mTransactionManager.addTransaction(
+                        serialTransactions, receiverForTransaction);
+                }
+
+                @Override
+                public void onError(CallException exception) {
+                    createSetActiveFuture[0] = CompletableFuture.completedFuture(false);
+                    receiver.onError(exception);
+                }
+            };
+
+            mCallsManager.getCallSequencingAdapter().transactionHoldPotentialActiveCallForNewCall(
+                call,isCallControlRequest, maybePerformHoldCallback);
+            return createSetActiveFuture[0];
+        }
     }
 
     private void removeCallFromCallsManager(Call call, DisconnectCause cause) {
