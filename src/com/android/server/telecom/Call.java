@@ -713,7 +713,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     private final TelecomSystem.SyncRoot mLock;
     private final String mId;
     private String mConnectionId;
-    private Analytics.CallInfo mAnalytics = new Analytics.CallInfo();
     private CallStateChangedAtomWriter mCallStateChangedAtomWriter =
             new CallStateChangedAtomWriter();
     private char mPlayingDtmfTone;
@@ -1206,7 +1205,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
         mConnectTimeMillis = connectTimeMillis;
         mConnectElapsedTimeMillis = connectElapsedTimeMillis;
-        mAnalytics.setCallStartTime(connectTimeMillis);
     }
 
     public void addListener(Listener listener) {
@@ -1217,33 +1215,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         if (listener != null) {
             mListeners.remove(listener);
         }
-    }
-
-    public void initAnalytics() {
-        initAnalytics(null, null);
-    }
-
-    public void initAnalytics(String callingPackage, String extraCreationLogs) {
-        int analyticsDirection;
-        switch (mCallDirection) {
-            case CALL_DIRECTION_OUTGOING:
-                analyticsDirection = Analytics.OUTGOING_DIRECTION;
-                break;
-            case CALL_DIRECTION_INCOMING:
-                analyticsDirection = Analytics.INCOMING_DIRECTION;
-                break;
-            case CALL_DIRECTION_UNKNOWN:
-            case CALL_DIRECTION_UNDEFINED:
-            default:
-                analyticsDirection = Analytics.UNKNOWN_DIRECTION;
-        }
-        mAnalytics = Analytics.initiateCallAnalytics(mId, analyticsDirection);
-        mAnalytics.setCallIsEmergency(mIsEmergencyCall);
-        Log.addEvent(this, LogUtils.Events.CREATED, callingPackage + ";" + extraCreationLogs);
-    }
-
-    public Analytics.CallInfo getAnalytics() {
-        return mAnalytics;
     }
 
     public void destroy() {
@@ -1604,7 +1575,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                     // ACTIVE/ON_HOLD
                     mConnectTimeMillis = mClockProxy.currentTimeMillis();
                     mConnectElapsedTimeMillis = mClockProxy.elapsedRealtime();
-                    mAnalytics.setCallStartTime(mConnectTimeMillis);
                 }
 
                 // We're clearly not disconnected, so reset the disconnected time.
@@ -1614,7 +1584,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             } else if (mState == CallState.DISCONNECTED) {
                 mDisconnectTimeMillis = mClockProxy.currentTimeMillis();
                 mDisconnectElapsedTimeMillis = mClockProxy.elapsedRealtime();
-                mAnalytics.setCallEndTime(mDisconnectTimeMillis);
                 setLocallyDisconnecting(false);
                 fixParentAfterDisconnect();
             }
@@ -1898,7 +1867,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                     Log.e(this, r, "setHandle: can't determine if number is emergency");
                     mIsEmergencyCall = false;
                 }
-                mAnalytics.setCallIsEmergency(mIsEmergencyCall);
             }
             if (!mIsTestEmergencyCall) {
                 mIsTestEmergencyCall = mHandle != null &&
@@ -1999,7 +1967,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                     (mOverrideDisconnectCause.getTone() == 0) ?
                             cause.getTone() : mOverrideDisconnectCause.getTone());
         }
-        mAnalytics.setCallDisconnectCause(cause);
         mDisconnectCause = cause;
     }
 
@@ -2790,8 +2757,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 setConferenceState(false);
             }
 
-            mAnalytics.addCallProperties(mConnectionProperties);
-
             int xorProps = previousProperties ^ mConnectionProperties;
             Log.addEvent(this, LogUtils.Events.PROPERTY_CHANGE,
                     "Current: [%s], Removed [%s], Added [%s]",
@@ -2878,9 +2843,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             remoteService.incrementAssociatedCallCount();
             mRemoteConnectionService = remoteService;
         }
-
         mConnectionService = service;
-        mAnalytics.setCallConnectionService(service.getComponentName().flattenToShortString());
         mConnectionService.addCall(this);
         processCachedCallbacks(service);
     }
@@ -2915,7 +2878,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
         service.incrementAssociatedCallCount();
         mConnectionService = service;
-        mAnalytics.setCallConnectionService(service.getComponentName().flattenToShortString());
     }
 
     /**
@@ -4764,7 +4726,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
         if (VideoProfile.isVideo(videoState)) {
             mHasVideoCall = true;
-            mAnalytics.setCallIsVideo(true);
         }
     }
 
