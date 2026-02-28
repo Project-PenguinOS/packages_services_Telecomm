@@ -106,6 +106,12 @@
     <string name="notification_local_voicemail_title" msgid="7886943892975348066">"ভইচমেইল"</string>
     <string name="notification_local_voicemail_details" msgid="8462904524686541516">"<xliff:g id="CALLER_NAME">%2$s</xliff:g>ৰ পৰা অহা কলৰ বাবে <xliff:g id="APP_NAME">%1$s</xliff:g>এ ভইচমেইল ৰেকৰ্ড কৰি আছে।"</string>
     <string name="notification_local_voicemail_unknown_details" msgid="7688396653463660224">"এগৰাকী অজ্ঞাত কল কৰোঁতাৰ পৰা অহা কলৰ বাবে <xliff:g id="APP_NAME">%1$s</xliff:g>এ ভইচমেইল ৰেকৰ্ড কৰি আছে।"</string>
+    <!-- no translation found for notification_send_to_voicemail_details (5864892579891906399) -->
+    <skip />
+    <!-- no translation found for send_to_voicemail (7535268790380893835) -->
+    <skip />
+    <!-- no translation found for notification_send_to_voicemail_unknown_details (2376840328981503932) -->
+    <skip />
     <string name="alert_outgoing_call" msgid="5319895109298927431">"এই কলটো কৰিলে আপোনাৰ <xliff:g id="OTHER_APP">%1$s</xliff:g> কলটোৰ অন্ত পৰিব।"</string>
     <string name="alert_redirect_outgoing_call_or_not" msgid="665409645789521636">"এই কলটো কেনেকৈ কৰা হ’ব সেয়া বাছনি কৰক"</string>
     <string name="alert_place_outgoing_call_with_redirection" msgid="5221065030959024121">"<xliff:g id="OTHER_APP">%1$s</xliff:g> ব্যৱহাৰ কৰি কল ৰিডাইৰেক্ট কৰক"</string>

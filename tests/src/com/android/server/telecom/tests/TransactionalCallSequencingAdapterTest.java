@@ -16,7 +16,10 @@
 
 package com.android.server.telecom.tests;
 
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -25,19 +28,29 @@ import static org.mockito.Mockito.when;
 import android.content.Context;
 import android.content.res.Resources;
 import android.os.OutcomeReceiver;
+import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.telecom.CallException;
 import android.telecom.DisconnectCause;
 
+import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.server.telecom.Call;
 import com.android.server.telecom.CallsManager;
 import com.android.server.telecom.callsequencing.CallTransaction;
 import com.android.server.telecom.callsequencing.CallTransactionResult;
+import com.android.server.telecom.callsequencing.CallsManagerCallSequencingAdapter;
 import com.android.server.telecom.callsequencing.TransactionManager;
 import com.android.server.telecom.callsequencing.TransactionalCallSequencingAdapter;
+import com.android.server.telecom.flags.FeatureFlags;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -45,6 +58,8 @@ import org.mockito.MockitoAnnotations;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 
 /**
@@ -55,15 +70,23 @@ import java.util.concurrent.ExecutionException;
  * context of asynchronous operations and feature flag configurations (e.g., setting
  * rejected calls to a disconnected state).
  */
+@RunWith(JUnit4.class)
 public class TransactionalCallSequencingAdapterTest extends TelecomTestCase {
 
     private static final String CALL_ID_1 = "1";
     private static final DisconnectCause REJECTED_DISCONNECT_CAUSE =
             new DisconnectCause(DisconnectCause.REJECTED);
 
+    @Rule
+    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
+
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+
     @Mock private Call mMockCall1;
     @Mock private Context mMockContext;
     @Mock private CallsManager mCallsManager;
+    @Mock private CallsManagerCallSequencingAdapter mCallsManagerCallSequencingAdapter;
     @Mock private TransactionManager mTransactionManager;
 
     private TransactionalCallSequencingAdapter mAdapter;
@@ -75,6 +98,8 @@ public class TransactionalCallSequencingAdapterTest extends TelecomTestCase {
         MockitoAnnotations.initMocks(this);
         when(mMockCall1.getId()).thenReturn(CALL_ID_1);
         when(mMockContext.getResources()).thenReturn(Mockito.mock(Resources.class));
+        when(mCallsManager.getCallSequencingAdapter())
+            .thenReturn(mCallsManagerCallSequencingAdapter);
         mAdapter = new TransactionalCallSequencingAdapter(mTransactionManager, mCallsManager);
     }
 
@@ -116,6 +141,47 @@ public class TransactionalCallSequencingAdapterTest extends TelecomTestCase {
 
         // THEN - Verify that markCallAsDisconnected and the receiver's onResult were called.
         verifyMarkCallAsDisconnectedAndReceiverResult(resultReceiver);
+    }
+
+    /**
+     * Tests that createSetActiveTransactionSequencing correctly completes the returned
+     * CompletableFuture when the transaction finishes.
+     */
+    @Test
+    @RequiresFlagsEnabled(com.android.internal.telecom.flags.Flags.FLAG_FIX_TRANSACTIONAL_CALL_SEQUENCING_FUTURE)
+    public void testOnSetActiveCompletesFuture() throws Exception {
+        // GIVEN
+        CompletableFuture<Boolean> transactionFuture = new CompletableFuture<>();
+        when(mTransactionManager.addTransaction(any(CallTransaction.class), any())).thenReturn(
+                transactionFuture);
+
+        // Mock transactionHoldPotentialActiveCallForNewCall to trigger the onResult callback
+        doAnswer(invocation -> {
+            OutcomeReceiver<Boolean, CallException> callback = invocation.getArgument(2);
+            callback.onResult(true);
+            return null;
+        }).when(mCallsManagerCallSequencingAdapter).transactionHoldPotentialActiveCallForNewCall(
+                any(Call.class), anyBoolean(), any());
+
+        OutcomeReceiver<CallTransactionResult, CallException> resultReceiver =
+                mock(OutcomeReceiver.class);
+
+        // WHEN
+        CompletableFuture<Boolean> resultFuture = mAdapter.onSetActive(
+                mMockCall1,
+                mock(CallTransaction.class),
+                resultReceiver);
+
+        // THEN - The future should not be completed yet
+        assertTrue("Future should not be completed until transaction finishes",
+                !resultFuture.isDone());
+
+        // AND WHEN - Transaction completes
+        transactionFuture.complete(true);
+
+        // THEN - The returned future should now be completed
+        assertTrue("Future should be completed after transaction finishes",
+                resultFuture.get(1, TimeUnit.SECONDS));
     }
     /**
      * Sets up the mock behavior for {@link TransactionManager#addTransaction}.
