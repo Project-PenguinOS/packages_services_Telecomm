@@ -2017,6 +2017,10 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         mOverrideDisconnectCause = overrideDisconnectCause;
     }
 
+    public DisconnectCause getOverrideDisconnectCauseCode() {
+        return mOverrideDisconnectCause;
+    }
+
 
     public DisconnectCause getDisconnectCause() {
         return mDisconnectCause;

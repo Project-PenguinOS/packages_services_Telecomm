@@ -235,11 +235,18 @@ public class CallsManager extends Call.ListenerBase
     public static final int REQUEST_ORIGIN_TELECOM_LOCAL_VOICEMAIL = 2;
 
     /**
+     * The request originated from the persistent local voicemail notification because the user
+     * wants to pickup the call.
+     */
+    public static final int REQUEST_ORIGIN_TELECOM_LOCAL_VOICEMAIL_NOTIFICATION = 3;
+
+    /**
      * @hide
      */
     @IntDef(prefix = { "REQUEST_ORIGIN_" },
             value = {REQUEST_ORIGIN_UNKNOWN, REQUEST_ORIGIN_TELECOM_DISAMBIGUATION,
-                    REQUEST_ORIGIN_TELECOM_LOCAL_VOICEMAIL})
+                    REQUEST_ORIGIN_TELECOM_LOCAL_VOICEMAIL,
+                    REQUEST_ORIGIN_TELECOM_LOCAL_VOICEMAIL_NOTIFICATION})
     @Retention(RetentionPolicy.SOURCE)
     public @interface RequestOrigin {}
 
@@ -5023,8 +5030,10 @@ public class CallsManager extends Call.ListenerBase
             // If the remote end hangs up while in SIMULATED_RINGING, the call should
             // be marked as missed.
             call.setOverrideDisconnectCauseCode(new DisconnectCause(DisconnectCause.MISSED));
-        } else if (oldState == CallState.LOCAL_VOICEMAIL) {
-            // Local VM calls should be considered missed.
+        } else if (oldState == CallState.LOCAL_VOICEMAIL
+                && call.getOverrideDisconnectCauseCode().getCode() == DisconnectCause.UNKNOWN) {
+            // Local VM calls should be considered missed unless overwise indicated (ie by being
+            // disconnected through the persistent notification).
             Log.i(this, "markCallAsDisconnected: callid=%s; was local voicemail; marking missed.",
                     call.getId());
             call.setOverrideDisconnectCauseCode(new DisconnectCause(DisconnectCause.MISSED));
@@ -7484,6 +7493,14 @@ public class CallsManager extends Call.ListenerBase
                     // we can just declare it active.
                     setCallState(mCall, CallState.ACTIVE, "answering simulated ringing");
                     Log.addEvent(mCall, LogUtils.Events.REQUEST_SIMULATED_ACCEPT);
+                } else if (mCall.getState() == CallState.LOCAL_VOICEMAIL) {
+                    if (mRequestOrigin == REQUEST_ORIGIN_TELECOM_LOCAL_VOICEMAIL_NOTIFICATION) {
+                        if (mLocalVoicemailController != null) {
+                            mLocalVoicemailController.notifyLocalPickup(mCall);
+                        }
+                    }
+                    setCallState(mCall, CallState.ACTIVE, "pickup local voicemail");
+                    Log.addEvent(mCall, LogUtils.Events.REQUEST_ACCEPT);
                 } else if (mCall.getState() == CallState.ANSWERED) {
                     // In certain circumstances, the connection service can lose track of a request
                     // to answer a call. Therefore, if the user presses answer again, still send it
