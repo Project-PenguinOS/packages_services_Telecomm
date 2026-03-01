@@ -64,7 +64,8 @@ public class CallBlockDisabledActivity extends Activity {
                             BlockedNumbersManager
                                 .ENHANCED_SETTING_KEY_SHOW_EMERGENCY_CALL_NOTIFICATION, false);
                         BlockedNumbersUtil.updateEmergencyCallNotification(
-                                CallBlockDisabledActivity.this, false);
+                                CallBlockDisabledActivity.this, false,
+                                getComponentName().getPackageName());
                         finish();
                     }
                 })

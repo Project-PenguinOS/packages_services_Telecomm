@@ -122,7 +122,8 @@ public class CallSequencingTests extends TelecomTestCase {
         when(mContext.getResources()).thenReturn(mResources);
         TelecomResourceId.setTelecomContext(mContext);
         mController = new CallSequencingController(mCallsManager, mContext, mClockProxy,
-                mAnomalyReporter, mTimeoutsAdapter, mMetricsController, mMmiUtils, mFeatureFlags);
+                mAnomalyReporter, mTimeoutsAdapter, mMetricsController, mMmiUtils,
+                TELECOM_UI_PACKAGE_NAME, mFeatureFlags);
 
         when(mActiveCall.getState()).thenReturn(CallState.ACTIVE);
         when(mRingingCall.getState()).thenReturn(CallState.RINGING);

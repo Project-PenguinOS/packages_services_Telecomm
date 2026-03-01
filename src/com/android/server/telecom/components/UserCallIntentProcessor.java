@@ -63,10 +63,13 @@ public class UserCallIntentProcessor {
     private static final int INVALID_CALL_TYPE = -1;
     private final Context mContext;
     private final UserHandle mUserHandle;
+    private final String mTelecomUiPackageName;
 
-    public UserCallIntentProcessor(Context context, UserHandle userHandle) {
+    public UserCallIntentProcessor(Context context, UserHandle userHandle,
+            String telecomUiPackageName) {
         mContext = context;
         mUserHandle = userHandle;
+        mTelecomUiPackageName = telecomUiPackageName;
     }
 
     /**
@@ -111,17 +114,17 @@ public class UserCallIntentProcessor {
         }
 
        if (UserUtil.hasOutgoingCallsUserRestriction(mContext, mUserHandle, handle, isSelfManaged,
-               UserCallIntentProcessor.class.getCanonicalName())) {
+               mTelecomUiPackageName, UserCallIntentProcessor.class.getCanonicalName())) {
            return;
        }
 
         if (!isSelfManaged && !canCallNonEmergency &&
                 !TelephonyUtil.shouldProcessAsEmergency(mContext, handle)) {
             String reason = android.Manifest.permission.CALL_PHONE + " permission is not granted.";
-            UserUtil.showErrorDialogForRestrictedOutgoingCall(mContext,
+            UserUtil.showErrorDialogForRestrictedOutgoingCall(mContext, mTelecomUiPackageName,
                     TelecomResourceId.getString(mContext,
                             "outgoing_call_not_allowed_no_permission"),
-                            this.getClass().getCanonicalName(), reason);
+                    this.getClass().getCanonicalName(), reason);
             return;
         }
 

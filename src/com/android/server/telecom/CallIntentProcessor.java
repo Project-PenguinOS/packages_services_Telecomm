@@ -52,15 +52,17 @@ public class CallIntentProcessor {
 
     public static class AdapterImpl implements Adapter {
         private final DefaultDialerCache mDefaultDialerCache;
-        public AdapterImpl(DefaultDialerCache cache) {
+        private final String mTelecomUiPackageName;
+        public AdapterImpl(DefaultDialerCache cache, String telecomUiPackageName) {
             mDefaultDialerCache = cache;
+            mTelecomUiPackageName = telecomUiPackageName;
         }
 
         @Override
         public void processOutgoingCallIntent(Context context, CallsManager callsManager,
                 Intent intent, String callingPackage, FeatureFlags featureFlags) {
             CallIntentProcessor.processOutgoingCallIntent(context, callsManager, intent,
-                    callingPackage, mDefaultDialerCache, featureFlags);
+                    callingPackage, mTelecomUiPackageName, mDefaultDialerCache, featureFlags);
         }
 
         @Override
@@ -88,13 +90,16 @@ public class CallIntentProcessor {
     private final Context mContext;
     private final CallsManager mCallsManager;
     private final DefaultDialerCache mDefaultDialerCache;
+    private final String mTelecomPackageName;
     private final FeatureFlags mFeatureFlags;
 
     public CallIntentProcessor(Context context, CallsManager callsManager,
-            DefaultDialerCache defaultDialerCache, FeatureFlags featureFlags) {
+            DefaultDialerCache defaultDialerCache, String telecomUiPackageName,
+            FeatureFlags featureFlags) {
         this.mContext = context;
         this.mCallsManager = callsManager;
         this.mDefaultDialerCache = defaultDialerCache;
+        this.mTelecomPackageName = telecomUiPackageName;
         this.mFeatureFlags = featureFlags;
     }
 
@@ -106,7 +111,7 @@ public class CallIntentProcessor {
             processUnknownCallIntent(mCallsManager, intent);
         } else {
             processOutgoingCallIntent(mContext, mCallsManager, intent, callingPackage,
-                    mDefaultDialerCache, mFeatureFlags);
+                    mTelecomPackageName, mDefaultDialerCache, mFeatureFlags);
         }
     }
 
@@ -122,6 +127,7 @@ public class CallIntentProcessor {
             CallsManager callsManager,
             Intent intent,
             String callingPackage,
+            String telecomUiPackage,
             DefaultDialerCache defaultDialerCache,
             FeatureFlags featureFlags) {
 
@@ -241,7 +247,7 @@ public class CallIntentProcessor {
         NewOutgoingCallIntentBroadcaster.CallDisposition disposition = broadcaster.evaluateCall();
         if (disposition.disconnectCause != DisconnectCause.NOT_DISCONNECTED) {
             callsManager.clearPendingMOEmergencyCall();
-            showErrorDialog(context, disposition.disconnectCause);
+            showErrorDialog(context, telecomUiPackage, disposition.disconnectCause);
             return;
         }
 
@@ -360,9 +366,9 @@ public class CallIntentProcessor {
         callsManager.addNewUnknownCall(phoneAccountHandle, intent.getExtras());
     }
 
-    private static void showErrorDialog(Context context, int errorCode) {
+    private static void showErrorDialog(Context context, String telecomUiPackage, int errorCode) {
         final Intent errorIntent = new Intent();
-        errorIntent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
+        errorIntent.setClassName(telecomUiPackage,
               UiConstants.COMPONENT_ERROR_DIALOG);
 
         CharSequence errorMessage = null;

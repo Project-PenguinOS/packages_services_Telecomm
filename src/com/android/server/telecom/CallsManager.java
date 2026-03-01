@@ -586,6 +586,7 @@ public class CallsManager extends Call.ListenerBase
     private CallsManagerCallSequencingAdapter mCallSequencingAdapter;
     private final FeatureFlags mFeatureFlags;
     private final com.android.internal.telephony.flags.FeatureFlags mTelephonyFeatureFlags;
+    private final String mTelecomUiPackageName;
 
     private final IncomingCallFilterGraphProvider mIncomingCallFilterGraphProvider;
     private CallAudioWatchdog mCallAudioWatchDog;
@@ -743,7 +744,8 @@ public class CallsManager extends Call.ListenerBase
             TelecomMetricsController metricsController,
             Ringer.VibratorAdapter vibratorAdapter,
             ScheduledExecutorService scheduledExecutorService,
-            LowBatteryAlertListener lowBatteryAlertListener) {
+            LowBatteryAlertListener lowBatteryAlertListener,
+            String telecomUiPackageName) {
 
         mContext = context;
         mLock = lock;
@@ -764,6 +766,7 @@ public class CallsManager extends Call.ListenerBase
         mCallerInfoLookupHelper = callerInfoLookupHelper;
         mEmergencyCallDiagnosticLogger = emergencyCallDiagnosticLogger;
         mIncomingCallFilterGraphProvider = incomingCallFilterGraphProvider;
+        mTelecomUiPackageName = telecomUiPackageName;
 
         mHandlerThread.start();
         mAudioCallbackHandler = new Handler(mHandlerThread.getLooper());
@@ -887,8 +890,10 @@ public class CallsManager extends Call.ListenerBase
         mCallSequencingAdapter = new CallsManagerCallSequencingAdapter(this, mContext,
                 new CallSequencingController(this, mContext, mClockProxy,
                         mAnomalyReporter, mTimeoutsAdapter, mMetricsController, mMmiUtils,
-                        mFeatureFlags), mCallAudioManager, mMetricsController, mFeatureFlags);
+                        telecomUiPackageName, mFeatureFlags), mCallAudioManager, mMetricsController,
+                mFeatureFlags);
 
+        // This is first to ensure we bind to BT and other ICS first for onCallAdded
         mListeners.add(mInCallController);
         mListeners.add(mInCallWakeLockController);
         mListeners.add(statusBarNotifier);
@@ -1080,7 +1085,8 @@ public class CallsManager extends Call.ListenerBase
         if (incomingCall.hasProperty(Connection.PROPERTY_EMERGENCY_CALLBACK_MODE) ||
                 incomingCall.hasProperty(Connection.PROPERTY_NETWORK_IDENTIFIED_EMERGENCY_CALL) ||
                 isInEmergencySmsMode ||
-                incomingCall.isSelfManaged()) {
+                (!com.android.internal.telecom.flags.Flags.voipDndFocus()
+                        && incomingCall.isSelfManaged())) {
             Log.i(this, "Skipping call filtering for %s (ecm=%b, "
                             + "networkIdentifiedEmergencyCall = %b, emergencySmsMode = %b, "
                             + "selfMgd=%b, skipExtra=%b)",
@@ -1098,7 +1104,13 @@ public class CallsManager extends Call.ListenerBase
                     .build(), false);
             incomingCall.setIsUsingCallFiltering(false);
             return;
-        } else if (extras.getBoolean(PhoneAccount.EXTRA_SKIP_CALL_FILTERING)) {
+        } else if (extras.getBoolean(PhoneAccount.EXTRA_SKIP_CALL_FILTERING)
+                || (com.android.internal.telecom.flags.Flags.voipDndFocus()
+                    && incomingCall.isSelfManaged())) {
+            // Perform just the DND filter for:
+            // 1. calls on watches that are skipping the call filtering for performance reasons.
+            // 2. VoIP calls; we need to ensure we do calculate the DND suppression so that it can
+            // be passed on to Bluetooth.
             IncomingCallFilterGraph graph = setupDndFilterOnlyGraph(incomingCall);
             graph.performFiltering();
             return;
@@ -1187,7 +1199,7 @@ public class CallsManager extends Call.ListenerBase
         // Only set the incoming call as ringing if it isn't already disconnected. It is possible
         // that the connection service disconnected the call before it was even added to Telecom, in
         // which case it makes no sense to set it back to a ringing state.
-        Log.i(this, "onCallFilteringComplete");
+        Log.i(this, "onCallFilteringComplete: result=%s", result);
         mGraphHandlerThreads.clear();
 
         if (timeout) {
@@ -1202,7 +1214,7 @@ public class CallsManager extends Call.ListenerBase
         }
 
         // Store the shouldSuppress value in the call object which will be passed to InCallServices
-        if (mFeatureFlags.voipDndFocus()) {
+        if (com.android.internal.telecom.flags.Flags.voipDndFocus()) {
             // The DND call filter may not have run (e.g. for VoIP calls); in this case we should
             // not set the DND suppression on the call to ensure Ringer.java will recalculate this
             // and not try to use an invalid cached value.
@@ -3307,7 +3319,7 @@ public class CallsManager extends Call.ListenerBase
          // Enforce outgoing call restriction for conference calls. This is handled via
          // UserCallIntentProcessor for normal MO calls.
          if (UserUtil.hasOutgoingCallsUserRestriction(mContext, initiatingUser, null,
-                 isSelfManaged, CallsManager.class.getCanonicalName())) {
+                 isSelfManaged, mTelecomUiPackageName, CallsManager.class.getCanonicalName())) {
              return;
          }
          CompletableFuture<Call> callFuture = startOutgoingCall(participants, phoneAccountHandle,
@@ -3613,7 +3625,7 @@ public class CallsManager extends Call.ListenerBase
             if (uiAction.equals(CallRedirectionProcessor.UI_TYPE_USER_DEFINED_TIMEOUT)
                     && !call.isDisconnected()) {
                 Intent timeoutIntent = new Intent();
-                timeoutIntent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
+                timeoutIntent.setClassName(mTelecomUiPackageName,
                         UiConstants.COMPONENT_CALL_REDIRECTION_TIMEOUT_DIALOG);
                 timeoutIntent.putExtra(
                         UiConstants.EXTRA_REDIRECTION_APP_NAME,
@@ -6756,7 +6768,7 @@ public class CallsManager extends Call.ListenerBase
                     ongoingAppName);
 
             Intent confirmIntent = new Intent();
-            confirmIntent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
+            confirmIntent.setClassName(mTelecomUiPackageName,
                 UiConstants.COMPONENT_CONFIRM_CALL_DIALOG);
             confirmIntent.putExtra(UiConstants.EXTRA_OUTGOING_CALL_ID, call.getId());
             confirmIntent.putExtra(UiConstants.EXTRA_ONGOING_APP_NAME, ongoingAppName);
@@ -6926,7 +6938,7 @@ public class CallsManager extends Call.ListenerBase
                     == DisconnectCause.ERROR) || (disconnectCause.getCode()
                     == DisconnectCause.RESTRICTED))) {
                 final Intent errorIntent = new Intent();
-                errorIntent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
+                errorIntent.setClassName(mTelecomUiPackageName,
                         UiConstants.COMPONENT_ERROR_DIALOG);
                 errorIntent.putExtra(UiConstants.ERROR_MESSAGE_STRING_EXTRA,
                         disconnectCause.getDescription());
@@ -7641,7 +7653,7 @@ public class CallsManager extends Call.ListenerBase
      */
     private void showErrorMessage(CharSequence message) {
         final Intent errorIntent = new Intent();
-        errorIntent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
+        errorIntent.setClassName(mTelecomUiPackageName,
               UiConstants.COMPONENT_ERROR_DIALOG);
         errorIntent.putExtra(UiConstants.ERROR_MESSAGE_STRING_EXTRA, message);
         errorIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);

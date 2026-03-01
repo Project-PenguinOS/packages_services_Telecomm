@@ -37,7 +37,6 @@ import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
 import android.hardware.SensorPrivacyManager;
-import android.os.Binder;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -1262,6 +1261,7 @@ public class InCallController extends CallsManagerListenerBase implements
     private final Map<UserHandle, InCallServiceBindingConnection> mBTInCallServiceConnections =
             new ArrayMap<>();
     private final ClockProxy mClockProxy;
+    private final String mTelecomUiPackageName;
     private final FeatureFlags mFeatureFlags;
 
     // A set of known non-UI in call services on the device, including those that are disabled.
@@ -1318,16 +1318,19 @@ public class InCallController extends CallsManagerListenerBase implements
     public InCallController(Context context, TelecomSystem.SyncRoot lock, CallsManager callsManager,
             SystemStateHelper systemStateHelper, DefaultDialerCache defaultDialerCache,
             Timeouts.Adapter timeoutsAdapter, EmergencyCallHelper emergencyCallHelper,
-            CarModeTracker carModeTracker, ClockProxy clockProxy, FeatureFlags featureFlags) {
+            CarModeTracker carModeTracker, ClockProxy clockProxy, String telecomUiPackageName,
+            FeatureFlags featureFlags) {
       this(context, lock, callsManager, systemStateHelper, defaultDialerCache, timeoutsAdapter,
-              emergencyCallHelper, carModeTracker, clockProxy, featureFlags, null);
+              emergencyCallHelper, carModeTracker, clockProxy, telecomUiPackageName, featureFlags,
+              null);
     }
 
     @VisibleForTesting
     public InCallController(Context context, TelecomSystem.SyncRoot lock, CallsManager callsManager,
             SystemStateHelper systemStateHelper, DefaultDialerCache defaultDialerCache,
             Timeouts.Adapter timeoutsAdapter, EmergencyCallHelper emergencyCallHelper,
-            CarModeTracker carModeTracker, ClockProxy clockProxy, FeatureFlags featureFlags,
+            CarModeTracker carModeTracker, ClockProxy clockProxy, String telecomUiPackageName,
+            FeatureFlags featureFlags,
             com.android.internal.telephony.flags.FeatureFlags telephonyFeatureFlags) {
         mContext = context;
         mAppOpsManager = context.getSystemService(AppOpsManager.class);
@@ -1345,6 +1348,7 @@ public class InCallController extends CallsManagerListenerBase implements
         // Important: Context must be retained or the receivers won't fire when the context is
         // garbage collected.
         mAllUsersContext = mContext.createContextAsUser(UserHandle.ALL, 0);
+        mTelecomUiPackageName = telecomUiPackageName;
         mFeatureFlags = featureFlags;
     }
 
@@ -2106,9 +2110,9 @@ public class InCallController extends CallsManagerListenerBase implements
         call.setLocallyDisconnecting(false);
         updateCall(call);
         // Show an error dialog to the user mentioning why the disconnect failed.
-        UserUtil.showErrorDialogForRestrictedOutgoingCall(mContext, TelecomResourceId.getText(
-                mContext, "call_hangup_fail_during_merge"), NOTIFICATION_TAG,
-                "Call cannot be disconnected during a call merge.");
+        UserUtil.showErrorDialogForRestrictedOutgoingCall(mContext, mTelecomUiPackageName,
+                TelecomResourceId.getText(mContext, "call_hangup_fail_during_merge"),
+                NOTIFICATION_TAG, "Call cannot be disconnected during a call merge.");
     }
 
     private void notifyRttInitiationFailure(Call call, int reason) {

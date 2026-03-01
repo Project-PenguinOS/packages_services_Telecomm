@@ -34,7 +34,10 @@
     <uses-permission android:name="com.android.telephonycore.permission.TELECOM_UI_ACCESS" />
 
     <application
-        android:usesCleartextTraffic="false">
+        android:usesCleartextTraffic="false"
+        android:enabled="false"
+        android:supportsRtl="true"
+        android:directBootAware="true">
 
         <!-- CALL vs CALL_PRIVILEGED vs CALL_EMERGENCY
              We have three different intents through which a call can be initiated each with its

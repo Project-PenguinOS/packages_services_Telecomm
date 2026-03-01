@@ -80,9 +80,9 @@ public final class UserUtil {
     }
 
     public static void showErrorDialogForRestrictedOutgoingCall(Context context,
-            CharSequence message, String tag, String reason) {
+            String telecomUiPackage, CharSequence message, String tag, String reason) {
         final Intent intent = new Intent();
-        intent.setClassName(UiConstants.TELECOM_UI_PACKAGE, UiConstants.COMPONENT_ERROR_DIALOG);
+        intent.setClassName(telecomUiPackage, UiConstants.COMPONENT_ERROR_DIALOG);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         intent.putExtra(UiConstants.ERROR_MESSAGE_STRING_EXTRA, message);
         context.startActivityAsUser(intent, UserHandle.CURRENT);
@@ -91,7 +91,8 @@ public final class UserUtil {
     }
 
     public static boolean hasOutgoingCallsUserRestriction(Context context,
-            UserHandle userHandle, Uri handle, boolean isSelfManaged, String tag) {
+            UserHandle userHandle, Uri handle, boolean isSelfManaged, String telecomUiPackage,
+            String tag) {
         // Set handle for conference calls. Refer to {@link Connection#ADHOC_CONFERENCE_ADDRESS}.
         if (handle == null) {
             handle = Uri.parse("tel:conf-factory");
@@ -110,7 +111,7 @@ public final class UserUtil {
                 if (!TelephonyUtil.shouldProcessAsEmergency(context, handle)) {
                     if (hasDisallowOutgoingCalls(context, userManager, userHandle)) {
                         String reason = "of DISALLOW_OUTGOING_CALLS restriction";
-                        showErrorDialogForRestrictedOutgoingCall(context,
+                        showErrorDialogForRestrictedOutgoingCall(context, telecomUiPackage,
                                 TelecomResourceId.getString(context,
                                         "outgoing_call_not_allowed_user_restriction"), tag, reason);
                         return true;

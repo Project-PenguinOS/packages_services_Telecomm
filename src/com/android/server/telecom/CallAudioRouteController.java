@@ -2355,8 +2355,8 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                 sendMessageWithSessionInfo(SPEAKER_ON);
             } else if (newAudioType == TYPE_BLUETOOTH_SCO) {
                 // Handle switch to BT in the case that the UI isn't already reflected
-                handleSwitchBluetooth(newCommunicationDevice.getAddress(),
-                        false /* isUserRequest */);
+                sendMessageWithSessionInfo(SWITCH_BLUETOOTH, 0,
+                    newCommunicationDevice.getAddress());
                 // Signal BT_AUDIO_CONNECTED if needed
                 handleBtConnectionStateChanged(newCommunicationDevice.getAddress(),
                         true /* isScoConnected */);

@@ -468,7 +468,8 @@ public class CallsManagerTest extends TelecomTestCase {
                 mMockTelecomMetricsController,
                 mMockVibratorAdapter,
                 mTestScheduledExecutorService,
-                mLowBatteryAlertListener);
+                mLowBatteryAlertListener,
+                TELECOM_UI_PACKAGE_NAME);
         mCallsManager.setCallAudioWatchDog(null);
         when(mPhoneAccountRegistrar.getPhoneAccount(
                 eq(SELF_MANAGED_HANDLE), any())).thenReturn(SELF_MANAGED_ACCOUNT);

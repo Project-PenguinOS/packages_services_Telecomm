@@ -33,6 +33,7 @@ import android.os.VibratorManager;
 import android.provider.BlockedNumbersManager;
 import android.telecom.Log;
 
+import android.telecom.TelecomManager;
 import android.view.accessibility.AccessibilityManager;
 
 import com.android.internal.telecom.ITelecomLoader;
@@ -85,6 +86,7 @@ public class TelecomService extends Service {
             public ITelecomService createTelecomService(String sysUiPackageName) {
                 initializeTelecomSystem(TelecomService.this, sysUiPackageName);
                 synchronized (getTelecomSystem().getLock()) {
+                    getTelecomSystem().getTelecomServiceImpl().setInitPath("legacy");
                     return getTelecomSystem().getTelecomServiceImpl().getBinder();
                 }
             }
@@ -224,6 +226,7 @@ public class TelecomService extends Service {
                                     (RoleManager) context.getSystemService(Context.ROLE_SERVICE)),
                             new ContactsAsyncHelper.Factory(),
                             sysUiPackageName,
+                            TelecomManager.DEFAULT_TELECOM_UI_PACKAGE,
                             new Ringer.AccessibilityManagerAdapter() {
                                 @Override
                                 public boolean startFlashNotificationSequence(
@@ -256,7 +259,8 @@ public class TelecomService extends Service {
                                 public void updateEmergencyCallNotification(Context context,
                                         boolean showNotification) {
                                     BlockedNumbersUtil.updateEmergencyCallNotification(context,
-                                            showNotification);
+                                            showNotification,
+                                            TelecomManager.DEFAULT_TELECOM_UI_PACKAGE);
                                 }
                             },
                             featureFlags,
