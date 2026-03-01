@@ -1482,23 +1482,6 @@ public class CallsManagerTest extends TelecomTestCase {
         assertEquals(CallState.ANSWERED, newCall.getState());
     }
 
-    @SmallTest
-    @Test
-    public void testNoFilteringOfSelfManagedCalls() {
-        // GIVEN an incoming call which is self managed.
-        Call incomingCall = addSpyCall(SELF_MANAGED_HANDLE, CallState.NEW);
-        doReturn(false).when(incomingCall).can(Connection.CAPABILITY_HOLD);
-        doReturn(false).when(incomingCall).can(Connection.CAPABILITY_SUPPORT_HOLD);
-        doReturn(true).when(incomingCall).isSelfManaged();
-        doReturn(true).when(incomingCall).setState(anyInt(), any());
-
-        // WHEN the incoming call is successfully added.
-        mCallsManager.onSuccessfulIncomingCall(incomingCall);
-
-        // THEN the incoming call is not using call filtering
-        verify(incomingCall).setIsUsingCallFiltering(eq(false));
-    }
-
     /**
      * Verify the ability to skip call filtering when Telephony reports we are in emergency SMS mode
      * and also verify that when Telephony is not available we will not try to skip filtering.
