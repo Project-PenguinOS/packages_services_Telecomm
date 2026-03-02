@@ -2754,14 +2754,13 @@ public class InCallController extends CallsManagerListenerBase implements
         IInCallService inCallService = IInCallService.Stub.asInterface(service);
         synchronized (mLock) {
             if (info.getType() == IN_CALL_SERVICE_TYPE_BLUETOOTH) {
+                // Binding completed after the timeout but let this through instead of
+                // disconnecting the BT ICS.
                 if (!mBtBindingFuture.containsKey(userHandle)
                         || (mBtBindingFuture.get(userHandle).isDone() && !mBtBindingFuture
                         .get(userHandle).getNow(false))) {
                     Log.i(this, "onConnected: BT binding future timed out but allowing bind "
                             + "to complete.");
-                    // Binding completed after the timeout but let this through instead of
-                    // disconnecting the BT ICS.
-                    return true;
                 } else {
                     mBtBindingFuture.get(userHandle).complete(true);
                 }
