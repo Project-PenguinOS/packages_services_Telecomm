@@ -51,6 +51,7 @@ public class CrsAudioController {
     // and the timeout scheduling off the main thread.
     private final ScheduledExecutorService mExecutor;
     private boolean mIsCrsModeSet = false;
+    private boolean mIsCrsMuteSet = false;
 
     /**
      * Creates a new CrsAudioController.
@@ -195,7 +196,10 @@ public class CrsAudioController {
      * Sets the AudioManager mode to MODE_IN_CALL.
      */
     public void setAudioManagerInCallMode() {
-        mAudioManager.setMode(AudioManager.MODE_IN_CALL);
+        mExecutor.execute(() -> {
+            Log.i(TAG, "Setting audio mode to MODE_IN_CALL");
+            mAudioManager.setMode(AudioManager.MODE_IN_CALL);
+        });
     }
 
     /**
@@ -379,31 +383,43 @@ public class CrsAudioController {
     }
 
     public void setCrsModeParams(boolean enable) {
-        String modeToken = "";
-        if (enable) {
-            modeToken = TelecomResourceId.getString(mContext, "config_crs_mode_on_param");
-            mIsCrsModeSet = true;
-        } else if (mIsCrsModeSet) {
-            modeToken = TelecomResourceId.getString(mContext, "config_crs_mode_off_param");
-            mIsCrsModeSet = false;
-        }
-        if (TextUtils.isEmpty(modeToken)) {
-            return;
-        }
-        mAudioManager.setParameters(modeToken);
+        mExecutor.execute(() -> {
+            if (enable == mIsCrsModeSet) {
+                return;
+            }
+            String modeToken;
+            if (enable) {
+                modeToken = TelecomResourceId.getString(mContext, "config_crs_mode_on_param");
+                mIsCrsModeSet = true;
+            } else {
+                modeToken = TelecomResourceId.getString(mContext, "config_crs_mode_off_param");
+                mIsCrsModeSet = false;
+            }
+            if (!TextUtils.isEmpty(modeToken)) {
+                Log.d(TAG, "setCrsModeParams: " + modeToken);
+                mAudioManager.setParameters(modeToken);
+            }
+        });
     }
 
     public void setCrsSpeechMuted(boolean mute) {
-        String token;
-        if (mute) {
-            token = TelecomResourceId.getString(mContext, "config_crs_speech_mute_param");
-        } else {
-            token = TelecomResourceId.getString(mContext, "config_crs_speech_unmute_param");
-        }
-        if (TextUtils.isEmpty(token)) {
-            return;
-        }
-        mAudioManager.setParameters(token);
+        mExecutor.execute(() -> {
+            if (mute == mIsCrsMuteSet) {
+                return;
+            }
+            String token;
+            if (mute) {
+                token = TelecomResourceId.getString(mContext, "config_crs_speech_mute_param");
+                mIsCrsMuteSet = true;
+            } else {
+                token = TelecomResourceId.getString(mContext, "config_crs_speech_unmute_param");
+                mIsCrsMuteSet = false;
+            }
+            if (!TextUtils.isEmpty(token)) {
+                Log.d(TAG, "setCrsSpeechMuted: " + token);
+                mAudioManager.setParameters(token);
+            }
+        });
     }
 
     /**

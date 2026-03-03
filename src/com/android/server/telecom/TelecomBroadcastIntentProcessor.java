@@ -23,6 +23,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.UserHandle;
 import android.telecom.DisconnectCause;
@@ -117,6 +118,7 @@ public final class TelecomBroadcastIntentProcessor {
             "com.android.server.telecom.ACTION_STOP_STREAMING";
 
     public static final String EXTRA_USERHANDLE = "userhandle";
+    public static final String EXTRA_DATA_URI = "android.telecom.extra.DATA_URI";
     public static final String EXTRA_REDIRECTION_OUTGOING_CALL_ID =
             "android.telecom.extra.REDIRECTION_OUTGOING_CALL_ID";
     public static final String EXTRA_REDIRECTION_APP_NAME =
@@ -266,15 +268,22 @@ public final class TelecomBroadcastIntentProcessor {
         } else if (ACTION_HANGUP_CALL.equals(action)) {
             Log.startSession("TBIP.aHC", "streamingDialog");
             try {
-                Call call = mCallsManager.getCall(intent.getData().getSchemeSpecificPart());
-                if (call != null) {
-                    // User initiated disconnections are always treated as local; this is needed to
-                    // ensure that a local voicemail call doesn't get treated as missed.
-                    if (call.getState() == CallState.LOCAL_VOICEMAIL) {
-                        call.setOverrideDisconnectCauseCode(
-                                new DisconnectCause(DisconnectCause.LOCAL));
+                Uri data = intent.getParcelableExtra(EXTRA_DATA_URI);
+                if (data == null) {
+                    data = intent.getData();
+                }
+                if (data != null) {
+                    Call call = mCallsManager.getCall(data.getSchemeSpecificPart());
+                    if (call != null) {
+                        // User initiated disconnections are always treated as local; this is
+                        // needed to ensure that a local voicemail call doesn't get treated as
+                        // missed.
+                        if (call.getState() == CallState.LOCAL_VOICEMAIL) {
+                            call.setOverrideDisconnectCauseCode(
+                                    new DisconnectCause(DisconnectCause.LOCAL));
+                        }
+                        mCallsManager.disconnectCall(call);
                     }
-                    mCallsManager.disconnectCall(call);
                 }
             } finally {
                 Log.endSession();
@@ -305,9 +314,15 @@ public final class TelecomBroadcastIntentProcessor {
         } else if (ACTION_STOP_STREAMING.equals(action)) {
             Log.startSession("TBIP.aSS", "streamingDialog");
             try {
-                Call call = mCallsManager.getCall(intent.getData().getSchemeSpecificPart());
-                if (call != null) {
-                    mCallsManager.stopCallStreaming(call);
+                Uri data = intent.getParcelableExtra(EXTRA_DATA_URI);
+                if (data == null) {
+                    data = intent.getData();
+                }
+                if (data != null) {
+                    Call call = mCallsManager.getCall(data.getSchemeSpecificPart());
+                    if (call != null) {
+                        mCallsManager.stopCallStreaming(call);
+                    }
                 }
             } finally {
                 Log.endSession();
@@ -330,7 +345,11 @@ public final class TelecomBroadcastIntentProcessor {
     }
 
     private void sendSmsIntent(Intent intent, UserHandle userHandle) {
-        Intent callIntent = new Intent(Intent.ACTION_SENDTO, intent.getData());
+        Uri data = intent.getParcelableExtra(EXTRA_DATA_URI);
+        if (data == null) {
+            data = intent.getData();
+        }
+        Intent callIntent = new Intent(Intent.ACTION_SENDTO, data);
         callIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         List<ResolveInfo> activities;
         activities = UserUtil.getPackageManagerFromUserHandler(mContext, userHandle)
@@ -347,7 +366,11 @@ public final class TelecomBroadcastIntentProcessor {
     }
 
     private void sendCallBackIntent(Intent intent, UserHandle userHandle) {
-        Intent callIntent = new Intent(Intent.ACTION_CALL, intent.getData());
+        Uri data = intent.getParcelableExtra(EXTRA_DATA_URI);
+        if (data == null) {
+            data = intent.getData();
+        }
+        Intent callIntent = new Intent(Intent.ACTION_CALL, data);
         callIntent.setFlags(
                 Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
         mContext.startActivityAsUser(callIntent, userHandle);
