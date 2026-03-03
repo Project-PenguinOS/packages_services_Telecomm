@@ -390,7 +390,7 @@ public class CallRedirectionProcessor implements CallRedirectionCallback {
         mTimeoutsAdapter = callsManager.getTimeoutsAdapter();
         mTelecomLock = callsManager.getLock();
         mFeatureFlags = featureFlags;
-        /**
+        /*
          * The current rule to decide whether the implemented {@link CallRedirectionService} should
          * allow interactive responses with users is only based on whether it is in car mode.
          */

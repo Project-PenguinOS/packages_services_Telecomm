@@ -1494,8 +1494,8 @@ public class InCallController extends CallsManagerListenerBase implements
                 .filter((c) -> getUserFromCall(c).equals(userFromCall));
         boolean isCallCountZero = callsAssociatedWithUserFromCall.count() == 0;
         if (isCallCountZero) {
-            /** Let's add a 2 second delay before we send unbind to the services to hopefully
-             *  give them enough time to process all the pending messages.
+            /* Let's add a 2 second delay before we send unbind to the services to hopefully
+             * give them enough time to process all the pending messages.
              */
             if (mCallRemovedRunnable != null) {
                 mHandler.removeCallbacks(mCallRemovedRunnable);
@@ -2754,14 +2754,13 @@ public class InCallController extends CallsManagerListenerBase implements
         IInCallService inCallService = IInCallService.Stub.asInterface(service);
         synchronized (mLock) {
             if (info.getType() == IN_CALL_SERVICE_TYPE_BLUETOOTH) {
+                // Binding completed after the timeout but let this through instead of
+                // disconnecting the BT ICS.
                 if (!mBtBindingFuture.containsKey(userHandle)
                         || (mBtBindingFuture.get(userHandle).isDone() && !mBtBindingFuture
                         .get(userHandle).getNow(false))) {
                     Log.i(this, "onConnected: BT binding future timed out but allowing bind "
                             + "to complete.");
-                    // Binding completed after the timeout but let this through instead of
-                    // disconnecting the BT ICS.
-                    return true;
                 } else {
                     mBtBindingFuture.get(userHandle).complete(true);
                 }

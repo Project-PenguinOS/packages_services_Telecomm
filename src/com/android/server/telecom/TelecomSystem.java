@@ -96,7 +96,7 @@ public class TelecomSystem {
     /** Intent filter for dialer secret codes. */
     private static final IntentFilter DIALER_SECRET_CODE_FILTER;
 
-    /**
+    /*
      * Initializes the dialer secret code intent filter.  Setup to handle the various secret codes
      * which can be dialed (e.g. in format *#*#code#*#*) to trigger various behavior in Telecom.
      */
