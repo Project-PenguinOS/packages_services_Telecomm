@@ -29,13 +29,7 @@ import android.telephony.DisconnectCause;
 import android.telephony.PhoneNumberUtils;
 import android.telephony.TelephonyManager;
 import android.widget.Toast;
-
 import java.util.concurrent.CompletableFuture;
-
-// QTI_BEGIN: 2018-03-12: Telephony: IMS-VT: Support IMS calls fallback to CS
-import org.codeaurora.ims.QtiCallConstants;
-// QTI_END: 2018-03-12: Telephony: IMS-VT: Support IMS calls fallback to CS
-
 /**
  * Single point of entry for all outgoing and incoming calls.
  * {@link com.android.server.telecom.components.UserCallIntentProcessor} serves as a trampoline that
@@ -175,13 +169,6 @@ public class CallIntentProcessor {
             clientExtras.putString(TelecomManager.EXTRA_CALL_SUBJECT, callsubject);
         }
 
-// QTI_BEGIN: 2018-03-12: Telephony: IMS-VT: Support IMS calls fallback to CS
-        final int callDomain = intent.getIntExtra(
-                QtiCallConstants.EXTRA_CALL_DOMAIN, QtiCallConstants.DOMAIN_AUTOMATIC);
-        Log.d(CallIntentProcessor.class, "callDomain = " + callDomain);
-        clientExtras.putInt(QtiCallConstants.EXTRA_CALL_DOMAIN, callDomain);
-
-// QTI_END: 2018-03-12: Telephony: IMS-VT: Support IMS calls fallback to CS
         if (intent.hasExtra(android.telecom.TelecomManager.EXTRA_PRIORITY)) {
             clientExtras.putInt(android.telecom.TelecomManager.EXTRA_PRIORITY, intent.getIntExtra(
                     android.telecom.TelecomManager.EXTRA_PRIORITY,
