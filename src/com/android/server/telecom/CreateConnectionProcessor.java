@@ -179,7 +179,8 @@ public class CreateConnectionProcessor implements CreateConnectionResponse {
         mTimeoutsAdapter = timeoutsAdapter;
     }
 
-    boolean isProcessingComplete() {
+    @VisibleForTesting
+    public boolean isProcessingComplete() {
         return mCallResponse == null;
     }
 
@@ -213,7 +214,8 @@ public class CreateConnectionProcessor implements CreateConnectionResponse {
         attemptNextPhoneAccount();
     }
 
-    boolean hasMorePhoneAccounts() {
+    @VisibleForTesting
+    public boolean hasMorePhoneAccounts() {
         return mAttemptRecordIterator.hasNext();
     }
 

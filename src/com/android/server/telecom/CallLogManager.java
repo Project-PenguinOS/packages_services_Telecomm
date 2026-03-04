@@ -468,7 +468,7 @@ public final class CallLogManager extends CallsManagerListenerBase {
         // At this point, we have already checked to see if we should log a transactional call.
         if (mFeatureFlags.integratedCallLogs() && call.isTransactionalCall()) {
             paramBuilder.setUuid(call.getId());
-            if (isCallerDisplayPresent) {
+            if (isCallerDisplayPresent && callerInfo != null) {
                 callerInfo.setName(call.getCallerDisplayName());
             }
             // Sets the VoIP contact lookup uri.

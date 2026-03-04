@@ -97,7 +97,6 @@ import androidx.test.filters.SmallTest;
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.internal.telecom.IInCallAdapter;
 import com.android.internal.telecom.IInCallService;
-import com.android.server.telecom.Analytics;
 import com.android.server.telecom.AnomalyReporterAdapter;
 import com.android.server.telecom.Call;
 import com.android.server.telecom.CallAudioManager;
@@ -162,7 +161,6 @@ public class InCallControllerTests extends TelecomTestCase {
     @Mock DefaultDialerCache mDefaultDialerCache;
     @Mock RoleManagerAdapter mMockRoleManagerAdapter;
     @Mock ClockProxy mClockProxy;
-    @Mock Analytics.CallInfoImpl mCallInfo;
     @Mock NotificationManager mNotificationManager;
     @Mock PermissionInfo mMockPermissionInfo;
     @Mock InCallController.InCallServiceInfo mInCallServiceInfo;
@@ -247,7 +245,6 @@ public class InCallControllerTests extends TelecomTestCase {
         doReturn("Mock String").when(mMockContext).getString(anyInt());
         doReturn("Mock Text").when(mMockResources).getText(anyInt());
 
-        when(mMockCall.getAnalytics()).thenReturn(new Analytics.CallInfo());
         when(mMockCall.getAssociatedUser()).thenReturn(mUserHandle);
         when(mMockCall.getId()).thenReturn("TC@1");
         doReturn(mMockResources).when(mMockContext).getResources();
@@ -950,7 +947,6 @@ public class InCallControllerTests extends TelecomTestCase {
         when(mMockCall.isExternalCall()).thenReturn(false);
         when(mMockCall.getTargetPhoneAccount()).thenReturn(PA_HANDLE);
         when(mMockCallsManager.getCurrentUserHandle()).thenReturn(mUserHandle);
-        when(mMockCall.getAnalytics()).thenReturn(mCallInfo);
         when(mMockContext.bindServiceAsUser(
                 any(Intent.class), any(ServiceConnection.class), anyInt(), any(UserHandle.class)))
                 .thenReturn(true);
@@ -983,9 +979,6 @@ public class InCallControllerTests extends TelecomTestCase {
 
         verify(mNotificationManager).notify(eq(NOTIFICATION_TAG),
                 eq(IN_CALL_SERVICE_NOTIFICATION_ID), any(Notification.class));
-        verify(mCallInfo).addInCallService(eq(defDialerComponentName.flattenToShortString()),
-                anyInt(), anyLong(), eq(true));
-
         ArgumentCaptor<Intent> bindIntentCaptor2 = ArgumentCaptor.forClass(Intent.class);
         verify(mMockContext, times(2)).bindServiceAsUser(
                 bindIntentCaptor2.capture(),
@@ -1923,7 +1916,6 @@ public class InCallControllerTests extends TelecomTestCase {
     private void setupFakeSystemCall(@Mock Call call, int id) {
         when(call.getAssociatedUser()).thenReturn(UserHandle.SYSTEM);
         when(call.getTargetPhoneAccount()).thenReturn(PA_HANDLE);
-        when(call.getAnalytics()).thenReturn(new Analytics.CallInfo());
         when(call.getId()).thenReturn("TC@" + id);
     }
 

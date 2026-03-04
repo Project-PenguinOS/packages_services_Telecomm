@@ -20,6 +20,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -422,5 +423,29 @@ public class CrsAudioControllerTest extends TelecomTestCase {
         mCrsAudioController.setCrsAudioRoute(mCallAudioManager);
 
         verify(mCallAudioManager, never()).setAudioRoute(anyInt(), any());
+    }
+
+    @Test
+    public void testSetCrsModeParams_idempotentWhenDisabled() {
+        // Verifies that setParameters is not called when disabling CRS mode if it's
+        // already disabled. This tests the stateful behavior of the method.
+        mockStringResource("config_crs_mode_on_param", "on_param");
+        mockStringResource("config_crs_mode_off_param", "off_param");
+
+        // When CRS mode is not yet set (mIsCrsModeSet=false), calling disable should be a no-op.
+        mCrsAudioController.setCrsModeParams(false);
+        verify(mAudioManager, never()).setParameters(anyString());
+
+        // Enable the mode, which should call setParameters.
+        mCrsAudioController.setCrsModeParams(true);
+        verify(mAudioManager).setParameters("on_param");
+
+        // Disable the mode, which should also call setParameters.
+        mCrsAudioController.setCrsModeParams(false);
+        verify(mAudioManager).setParameters("off_param");
+
+        // Calling disable again should be a no-op since the mode is already off.
+        mCrsAudioController.setCrsModeParams(false);
+        verify(mAudioManager, times(1)).setParameters("off_param");
     }
 }
