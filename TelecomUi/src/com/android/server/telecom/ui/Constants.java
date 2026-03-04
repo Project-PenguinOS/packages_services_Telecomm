@@ -26,4 +26,7 @@ public class Constants {
     public static final String TELECOM_PACKAGE = "com.android.server.telecom";
     public static final String TELECOM_BROADCAST_RECEIVER_CLASS =
             "com.android.server.telecom.components.TelecomBroadcastReceiver";
+
+    public static final String TELECOM_UI_ACCESS_PERMISSION =
+            "com.android.telephonycore.permission.TELECOM_UI_ACCESS";
 }

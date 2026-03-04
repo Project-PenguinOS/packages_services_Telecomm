@@ -98,6 +98,7 @@ import com.android.server.telecom.util.TelecomBundleUtils;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
+import java.util.Collections;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.Arrays;
@@ -182,6 +183,7 @@ public class TelecomServiceImpl {
     private final BlockedNumbersManager mBlockedNumbersManager;
     private final FeatureFlags mFeatureFlags;
     private final android.telecom.flags.FeatureFlags mModuleFeatureFlags;
+    private final com.android.internal.telecom.flags.Flags mBugFixFlags;
     private final com.android.internal.telephony.flags.FeatureFlags mTelephonyFeatureFlags;
     private final TelecomMetricsController mMetricsController;
     private final String mSystemUiPackageName;
@@ -2455,7 +2457,10 @@ public class TelecomServiceImpl {
                 Log.startSession("TSI.dCA");
                 enforcePermission(DUMP);
                 event.setResult(ApiStats.RESULT_NORMAL);
-                return Analytics.dumpToParcelableAnalytics();
+                // Don't return null since the API contract doesn't specifically say it is
+                // possible.
+                // Note: TelecomManager#dumpAnalytics is an unused system API.
+                return new TelecomAnalytics(Collections.emptyList(), Collections.emptyList());
             } finally {
                 logEvent(event);
                 Log.endSession();
@@ -2486,17 +2491,6 @@ public class TelecomServiceImpl {
             event.setResult(ApiStats.RESULT_NORMAL);
             logEvent(event);
 
-            if (args != null && args.length > 0 && Analytics.ANALYTICS_DUMPSYS_ARG.equals(
-                    args[0])) {
-                long token = Binder.clearCallingIdentity();
-                try {
-                    Analytics.dumpToEncodedProto(mContext, writer, args);
-                } finally {
-                    Binder.restoreCallingIdentity(token);
-                }
-                return;
-            }
-
             long token = Binder.clearCallingIdentity();
             try {
                 boolean isTimeLineView = (args != null && args.length > 0
@@ -2516,11 +2510,6 @@ public class TelecomServiceImpl {
                     mPhoneAccountRegistrar.dump(pw);
                     pw.decreaseIndent();
 
-                    pw.println("Analytics:");
-                    pw.increaseIndent();
-                    Analytics.dump(pw);
-                    pw.decreaseIndent();
-
                     pw.println("Flag Configurations (framework - com.android.server.telecom): ");
                     pw.increaseIndent();
                     reflectAndPrintFlagConfigs(FeatureFlags.class.getMethods(), mFeatureFlags, pw);
@@ -2531,6 +2520,14 @@ public class TelecomServiceImpl {
                     reflectAndPrintFlagConfigs(
                             android.telecom.flags.FeatureFlags.class.getMethods(),
                             mModuleFeatureFlags, pw);
+                    pw.decreaseIndent();
+
+                    pw.println("Flag Configurations (module bugfix - com.android.internal.telecom):"
+                            + " ");
+                    pw.increaseIndent();
+                    reflectAndPrintFlagConfigs(
+                            com.android.internal.telecom.flags.Flags.class.getMethods(),
+                            mBugFixFlags, pw);
                     pw.decreaseIndent();
 
                     pw.println("TransactionManager: ");
@@ -2566,7 +2563,7 @@ public class TelecomServiceImpl {
                         .map(Method::getName)
                         .map(String::length)
                         .max(Integer::compare)
-                        .get();
+                        .orElse(0); // Default to 0 if methods is empty.
                 String format = "\t%s: %-" + maxLength + "s %s";
 
                 if (methods.length == 0) {
@@ -2577,16 +2574,18 @@ public class TelecomServiceImpl {
                 // Look away, a forbidden technique (reflection) is being used to allow us to get
                 // all flag configs without having to add them manually to this method.
                 for (Method m : methods) {
+                    if (m == null || target == null) continue;
                     String flagEnabled = (Boolean) m.invoke(target) ? "[✅]" : "[❌]";
                     String methodName = m.getName();
                     String camelCaseName = methodName.replaceAll("([a-z])([A-Z]+)", "$1_$2")
                             .toLowerCase(Locale.US);
                     pw.println(String.format(format, flagEnabled, methodName, camelCaseName));
                 }
+            } catch (IllegalArgumentException e) {
+                // Do nothing
             } catch (Exception e) {
                 pw.println("[ERROR]");
             }
-
         }
 
         @Override
@@ -3405,6 +3404,7 @@ public class TelecomServiceImpl {
             FeatureFlags featureFlags,
             android.telecom.flags.FeatureFlags moduleFeatureFlags,
             com.android.internal.telephony.flags.FeatureFlags telephonyFeatureFlags,
+            com.android.internal.telecom.flags.Flags bugFixFlags,
             TelecomSystem.SyncRoot lock, TelecomMetricsController metricsController,
             String sysUiPackageName,
             String telecomUiPackageName) {
@@ -3417,6 +3417,7 @@ public class TelecomServiceImpl {
         mCallsManager = callsManager;
         mFeatureFlags = featureFlags;
         mModuleFeatureFlags = moduleFeatureFlags;
+        mBugFixFlags = bugFixFlags;
         if (telephonyFeatureFlags != null) {
             mTelephonyFeatureFlags = telephonyFeatureFlags;
         } else {

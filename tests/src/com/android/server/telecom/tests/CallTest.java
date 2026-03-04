@@ -16,6 +16,8 @@
 
 package com.android.server.telecom.tests;
 
+import static android.telephony.TelephonyManager.EVENT_DISPLAY_EMERGENCY_MESSAGE;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -24,17 +26,23 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
@@ -44,7 +52,13 @@ import android.graphics.drawable.ColorDrawable;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.OutcomeReceiver;
+import android.os.ParcelFileDescriptor;
+import android.os.Parcelable;
 import android.os.UserHandle;
+import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.flag.junit.SetFlagsRule;
+import android.telecom.BluetoothCallQualityReport;
 import android.telecom.CallAttributes;
 import android.telecom.CallEndpoint;
 import android.telecom.Connection;
@@ -57,10 +71,13 @@ import android.telecom.StatusHints;
 import android.telecom.TelecomManager;
 import android.telecom.VideoProfile;
 import android.telephony.CallQuality;
+import android.telephony.TelephonyManager;
+import android.telephony.emergency.EmergencyNumber;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
+import com.android.internal.telecom.flags.Flags;
 import com.android.server.telecom.CachedAvailableEndpointsChange;
 import com.android.server.telecom.CachedCallEventQueue;
 import com.android.server.telecom.CachedCurrentEndpointChange;
@@ -72,31 +89,41 @@ import com.android.server.telecom.CallerInfoLookupHelper;
 import com.android.server.telecom.CallsManager;
 import com.android.server.telecom.ClockProxy;
 import com.android.server.telecom.ConnectionServiceWrapper;
+import com.android.server.telecom.CreateConnectionProcessor;
 import com.android.server.telecom.EmergencyCallHelper;
 import com.android.server.telecom.PhoneAccountRegistrar;
 import com.android.server.telecom.PhoneNumberUtilsAdapter;
+import com.android.server.telecom.RespondViaSmsManager;
 import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.TelecomSystem;
 import com.android.server.telecom.TransactionalServiceWrapper;
+import com.android.server.telecom.callsequencing.voip.VoipCallMonitor;
 import com.android.server.telecom.ui.ToastFactory;
 import com.android.server.telecom.util.CallerInfo;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 
+import java.io.FileDescriptor;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @RunWith(AndroidJUnit4.class)
 public class CallTest extends TelecomTestCase {
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
     private static final Uri TEST_ADDRESS = Uri.parse("tel:555-1212");
     private static final ComponentName COMPONENT_NAME_1 = ComponentName
             .unflattenFromString("com.foo/.Blah");
@@ -1093,6 +1120,11 @@ public class CallTest extends TelecomTestCase {
         call.onConnectionEvent(Connection.EVENT_CALL_RESUME_FAILED, null);
         verify(listener).onCallResumeFailed(call);
 
+        call.setIsEmergencyCall(false);
+        // Verify no onConnectionEvent received
+        call.onConnectionEvent(EVENT_DISPLAY_EMERGENCY_MESSAGE, null);
+        verify(listener, never()).onConnectionEvent(eq(call), anyString(), nullable(Bundle.class));
+
         final int d2dType = 1;
         final int d2dValue = 2;
         final Bundle d2dExtras = new Bundle();
@@ -1106,6 +1138,18 @@ public class CallTest extends TelecomTestCase {
         callQualityExtras.putParcelable(Connection.EXTRA_CALL_QUALITY_REPORT, quality);
         call.onConnectionEvent(Connection.EVENT_CALL_QUALITY_REPORT, callQualityExtras);
         verify(listener).onReceivedCallQualityReport(call, quality);
+    }
+
+    @Test
+    @SmallTest
+    public void testOnConnectionEventTS() {
+        Call.Listener listener = mock(Call.Listener.class);
+        Call call = createCall("1");
+        call.addListener(listener);
+        call.setIsTransactionalCall(true);
+        call.onConnectionEvent(Connection.EVENT_CALL_HOLD_FAILED, null);
+        verify(listener).onConnectionEvent(eq(call), eq(Connection.EVENT_CALL_HOLD_FAILED),
+                nullable(Bundle.class));
     }
 
     @Test
@@ -1292,6 +1336,982 @@ public class CallTest extends TelecomTestCase {
         assertFalse(call.isLoggedSelfManaged());
     }
 
+    @Test
+    @SmallTest
+    public void testNotifyAnswerRequested() {
+        Call call = createCall("1");
+        Call.InCallServiceToVoipAppListener listener =
+                mock(Call.InCallServiceToVoipAppListener.class);
+        call.addInCallServiceToVoipAppListener(listener);
+
+        // Target: catch (Exception e) block in notifyAnswerRequested
+        doThrow(new RuntimeException("Test Exception")).when(listener)
+                .onAnswerRequested(any(), anyInt(), any());
+
+        OutcomeReceiver<Object, Exception> or = mock(OutcomeReceiver.class);
+        call.notifyAnswerRequested(VideoProfile.STATE_AUDIO_ONLY, or);
+
+        verify(listener).onAnswerRequested(call, VideoProfile.STATE_AUDIO_ONLY, or);
+        call.removeInCallServiceToVoipAppListener(listener);
+    }
+
+    @Test
+    @SmallTest
+    public void testSetHandleEmergencyErrorPaths() {
+        Call call = createCall("1");
+        TelephonyManager mockTelephonyManager = mock(TelephonyManager.class);
+        when(mContext.getSystemService(TelephonyManager.class)).thenReturn(mockTelephonyManager);
+
+        // Target: catch (UnsupportedOperationException) in setHandle
+        doThrow(new UnsupportedOperationException()).when(mockTelephonyManager)
+                .isEmergencyNumber(anyString());
+        call.setHandle(Uri.parse("tel:911"), TelecomManager.PRESENTATION_ALLOWED);
+        assertFalse(call.isEmergencyCall());
+
+        // Target: catch (IllegalStateException) in setHandle
+        doThrow(new IllegalStateException()).when(mockTelephonyManager)
+                .isEmergencyNumber(anyString());
+        call.setHandle(Uri.parse("tel:912"), TelecomManager.PRESENTATION_ALLOWED);
+        assertFalse(call.isEmergencyCall());
+
+        // Target: catch (RuntimeException) in setHandle
+        doThrow(new RuntimeException()).when(mockTelephonyManager)
+                .isEmergencyNumber(anyString());
+        call.setHandle(Uri.parse("tel:913"), TelecomManager.PRESENTATION_ALLOWED);
+        assertFalse(call.isEmergencyCall());
+    }
+
+    @Test
+    @SmallTest
+    public void testIsTestEmergencyCall() {
+        String testNumber = "123";
+        Call call = createCall("1");
+        TelephonyManager mockTelephonyManager = mock(TelephonyManager.class);
+        when(mContext.getSystemService(TelephonyManager.class)).thenReturn(mockTelephonyManager);
+
+        // Target: Normal true case
+        EmergencyNumber mockEmergencyNumber = mock(EmergencyNumber.class);
+        List<EmergencyNumber> emergencyNumbersList = List.of(mockEmergencyNumber);
+        when(mockEmergencyNumber.isFromSources(anyInt())).thenReturn(true);
+        when(mockEmergencyNumber.getNumber()).thenReturn(testNumber);
+        when(mockTelephonyManager.getEmergencyNumberList())
+                .thenReturn(Map.of(0, emergencyNumbersList));
+        call.setHandle(Uri.parse("tel:911"), TelecomManager.PRESENTATION_ALLOWED);
+        assertTrue(call.isTestEmergencyCall(testNumber));
+
+        // Target: catch (UnsupportedOperationException) in isTestEmergencyCall
+        doThrow(new UnsupportedOperationException()).when(mockTelephonyManager)
+                .getEmergencyNumberList();
+        call.setHandle(Uri.parse("tel:911"), TelecomManager.PRESENTATION_ALLOWED);
+        assertFalse(call.isTestEmergencyCall());
+
+        // Target: catch (IllegalStateException) in isTestEmergencyCall
+        doThrow(new IllegalStateException()).when(mockTelephonyManager)
+                .getEmergencyNumberList();
+        call.setHandle(Uri.parse("tel:911"), TelecomManager.PRESENTATION_ALLOWED);
+        assertFalse(call.isTestEmergencyCall(testNumber));
+    }
+
+    @Test
+    @SmallTest
+    public void testMaybeLoadCannedSmsResponsesCallback_onError() {
+        processMaybeLoadCannedSmsResponsesCallback(false /* onResult */);
+    }
+
+    @Test
+    @SmallTest
+    public void testMaybeLoadCannedSmsResponsesCallback_onResult() {
+        processMaybeLoadCannedSmsResponsesCallback(true /* onResult */);
+    }
+
+    @Test
+    @SmallTest
+    public void testSetTransactionalCallSupportsVideoCallingValidation() {
+        Call call = createCall("1");
+        CallAttributes attributes = new CallAttributes.Builder(
+                SIM_1_HANDLE, CallAttributes.DIRECTION_OUTGOING, "John Doe",
+                Uri.parse("tel:123")).build();
+        CallAttributes videoCallAttributes = new CallAttributes.Builder(
+                SIM_1_HANDLE, CallAttributes.DIRECTION_OUTGOING, "John Doe",
+                Uri.parse("tel:123"))
+                .setCallCapabilities(CallAttributes.SUPPORTS_VIDEO_CALLING).build();
+        call.setIsTransactionalCall(false);
+
+        // Target: if (!mIsTransactionalCall)
+        call.setTransactionalCallSupportsVideoCalling(attributes);
+        assertFalse(call.isTransactionalCallSupportsVideoCalling());
+
+        // Target: null attributes
+        call.setTransactionalCallSupportsVideoCalling(null);
+        assertFalse(call.isTransactionalCallSupportsVideoCalling());
+
+        call.setIsTransactionalCall(true);
+        // Target: attributes don't support video calling
+        call.setTransactionalCallSupportsVideoCalling(attributes);
+        assertFalse(call.isTransactionalCallSupportsVideoCalling());
+
+        // Target: attributes support video calling
+        call.setTransactionalCallSupportsVideoCalling(videoCallAttributes);
+        assertTrue(call.isTransactionalCallSupportsVideoCalling());
+    }
+
+    @Test
+    @SmallTest
+    @RequiresFlagsEnabled({Flags.FLAG_CONNECTION_SERVICE_BAL,
+            Flags.FLAG_VOIP_BACKGROUND_ACTIVITY_LAUNCH_FIX})
+    public void testWaitForConnectionServiceBind() throws Exception {
+        Call call = spy(createCall("1"));
+        ConnectionServiceWrapper csWrapper = mock(ConnectionServiceWrapper.class);
+        call.setConnectionService(csWrapper);
+        call.setIsSelfManaged(true);
+        call.setState(CallState.RINGING, "1");
+        // This triggers the internal OutcomeReceiver in waitForConnectionServiceBind
+        CompletableFuture<Boolean> future = call.answer(VideoProfile.STATE_AUDIO_ONLY);
+        ArgumentCaptor<OutcomeReceiver<Object, Exception>> captor =
+                ArgumentCaptor.forClass(OutcomeReceiver.class);
+        verify(call).notifyAnswerRequested(eq(VideoProfile.STATE_AUDIO_ONLY), captor.capture());
+        OutcomeReceiver<Object, Exception> receiver = captor.getValue();
+
+        // Target: Path unexpected result
+        receiver.onResult("Unexpected String");
+        // Target: onError path
+        receiver.onError(new Exception("Test Error"));
+        assertFalse(future.isDone());
+        future.complete(true);
+
+        future = call.answer(VideoProfile.STATE_AUDIO_ONLY);
+        captor = ArgumentCaptor.forClass(OutcomeReceiver.class);
+        verify(call, times(2)).notifyAnswerRequested(
+                eq(VideoProfile.STATE_AUDIO_ONLY), captor.capture());
+        receiver = captor.getValue();
+        // Target: onResult successful path
+        receiver.onResult(mock(VoipCallMonitor.class));
+        future.complete(true);
+    }
+
+    @Test
+    @SmallTest
+    public void testAnswerForAudioProcessing() {
+        Call call = spy(createCall("1"));
+        // Target: state is not ringing
+        call.answerForAudioProcessing();
+        call.setState(CallState.RINGING, "1");
+        // Target: CS is null
+        call.answerForAudioProcessing();
+        // CS is not null
+        ConnectionServiceWrapper mockCSWrapper = mock(ConnectionServiceWrapper.class);
+        call.setConnectionService(mockCSWrapper);
+        call.answerForAudioProcessing();
+    }
+
+    @Test
+    @SmallTest
+    public void testTransferWithUri() {
+        Call call = spy(createCall("1"));
+        ConnectionServiceWrapper mockCSWrapper = mock(ConnectionServiceWrapper.class);
+        TransactionalServiceWrapper mockTSWrapper = mock(TransactionalServiceWrapper.class);
+        // Target: Call state is not active or on hold
+        call.setState(CallState.DIALING, "1");
+        call.transfer(TEST_ADDRESS, true /* isConfirmationRequired */);
+
+        call.setState(CallState.ACTIVE, "1");
+        // Target: CS + TS are null
+        call.transfer(TEST_ADDRESS, true /* isConfirmationRequired */);
+
+        // Target: CS is not null
+        call.setConnectionService(mockCSWrapper);
+        call.transfer(TEST_ADDRESS, true /* isConfirmationRequired */);
+
+        // Target: TS is not null (this order of mocking works b/c the TS check happens first)
+        call.setTransactionServiceWrapper(mockTSWrapper);
+        call.transfer(TEST_ADDRESS, true /* isConfirmationRequired */);
+    }
+
+    @Test
+    @SmallTest
+    public void testTransferWithCall() {
+        Call call = spy(createCall("1"));
+        Call otherCall = spy(createCall("2"));
+        ConnectionServiceWrapper mockCSWrapper = mock(ConnectionServiceWrapper.class);
+        TransactionalServiceWrapper mockTSWrapper = mock(TransactionalServiceWrapper.class);
+        // Target: Call state active but other call is not on hold
+        call.setState(CallState.ACTIVE, "1");
+        call.transfer(otherCall);
+
+        otherCall.setState(CallState.ON_HOLD, "2");
+        // Target: CS + TS are null
+        call.transfer(otherCall);
+
+        // Target: CS is not null
+        call.setConnectionService(mockCSWrapper);
+        call.transfer(otherCall);
+
+        // Target: TS is not null (this order of mocking works b/c the TS check happens first)
+        call.setTransactionServiceWrapper(mockTSWrapper);
+        call.transfer(otherCall);
+    }
+
+    @Test
+    @SmallTest
+    public void testRejectWithReasonCodeSimulatedRingingTransactional() {
+        Call call = spy(createCall("1"));
+        call.setState(CallState.SIMULATED_RINGING, "test");
+        call.setTransactionServiceWrapper(mMockTransactionalService);
+        when(mMockTransactionalService.onDisconnect(any(), any())).thenReturn(
+                CompletableFuture.completedFuture(true));
+
+        CompletableFuture<Boolean> result = call.reject(
+                android.telecom.Call.REJECT_REASON_DECLINED);
+
+        verify(mMockTransactionalService).onDisconnect(eq(call), any(DisconnectCause.class));
+        assertTrue(result.isDone());
+    }
+
+    @Test
+    @SmallTest
+    public void testRejectWithReasonCodeSimulatedRingingConnectionService() {
+        Call call = spy(createCall("1"));
+        call.setState(CallState.SIMULATED_RINGING, "test");
+        call.setConnectionService(mMockConnectionService);
+        doReturn(CompletableFuture.completedFuture(true))
+                .when(call).awaitCallStateChangeAndMaybeDisconnectCall(anyBoolean(), anyString(),
+                        any());
+
+        CompletableFuture<Boolean> future =
+                call.reject(android.telecom.Call.REJECT_REASON_DECLINED);
+
+        verify(mMockConnectionService).disconnect(call);
+        verify(call).setOverrideDisconnectCauseCode(any(DisconnectCause.class));
+        future.complete(true);
+    }
+
+    @Test
+    @SmallTest
+    public void testRejectWithReasonCodeSimulatedRingingNoService() {
+        Call call = spy(createCall("1"));
+        call.setState(CallState.SIMULATED_RINGING, "test");
+
+        CompletableFuture<Boolean> result = call.reject(
+                android.telecom.Call.REJECT_REASON_DECLINED);
+
+        assertTrue(result.isDone());
+        assertFalse(result.join());
+    }
+
+    @Test
+    @SmallTest
+    public void testRejectWithReasonCodeRingingTransactional() {
+        Call call = spy(createCall("1"));
+        call.setState(CallState.RINGING, "test");
+        call.setTransactionServiceWrapper(mMockTransactionalService);
+        when(mMockTransactionalService.onDisconnect(any(), any())).thenReturn(
+                CompletableFuture.completedFuture(true));
+
+        CompletableFuture<Boolean> future =
+                call.reject(android.telecom.Call.REJECT_REASON_DECLINED);
+        verify(mMockTransactionalService).onDisconnect(eq(call), any(DisconnectCause.class));
+        future.complete(true);
+    }
+
+    @Test
+    @SmallTest
+    public void testRejectWithReasonCodeRingingConnectionService() {
+        Call call = spy(createCall("1"));
+        call.setState(CallState.RINGING, "test");
+        call.setConnectionService(mMockConnectionService);
+        doReturn(CompletableFuture.completedFuture(true))
+                .when(call).awaitCallStateChangeAndMaybeDisconnectCall(anyBoolean(), anyString(),
+                        any());
+        int rejectReason = android.telecom.Call.REJECT_REASON_DECLINED;
+        CompletableFuture<Boolean> future = call.reject(rejectReason);
+        future.complete(true);
+    }
+
+    @Test
+    @SmallTest
+    public void testRejectWithReasonCodeAnsweredConnectionService() {
+        Call call = spy(createCall("1"));
+        call.setState(CallState.ANSWERED, "test");
+        call.setConnectionService(mMockConnectionService);
+        doReturn(CompletableFuture.completedFuture(true))
+                .when(call).awaitCallStateChangeAndMaybeDisconnectCall(anyBoolean(), anyString(),
+                        any());
+        int rejectReason = android.telecom.Call.REJECT_REASON_DECLINED;
+        CompletableFuture<Boolean> future = call.reject(rejectReason);
+        future.complete(true);
+    }
+
+    @Test
+    @SmallTest
+    public void testRejectWithReasonCodeRingingNoService() {
+        Call call = spy(createCall("1"));
+        call.setState(CallState.RINGING, "test");
+
+        CompletableFuture<Boolean> result = call.reject(
+                android.telecom.Call.REJECT_REASON_DECLINED);
+
+        assertTrue(result.isDone());
+        assertFalse(result.join());
+    }
+
+    @Test
+    @SmallTest
+    public void testRejectWithReasonCodeInvalidState() {
+        Call call = spy(createCall("1"));
+        call.setState(CallState.ACTIVE, "test");
+
+        CompletableFuture<Boolean> result = call.reject(
+                android.telecom.Call.REJECT_REASON_DECLINED);
+
+        assertTrue(result.isDone());
+        assertFalse(result.join());
+    }
+
+    @Test
+    @SmallTest
+    public void testHoldSelfManaged() throws Exception {
+        when(mFeatureFlags.transactionalCsVerifier()).thenReturn(true);
+        Call call = spy(createCall("1"));
+        call.setState(CallState.ACTIVE, "1");
+        ConnectionServiceWrapper csWrapper = mock(ConnectionServiceWrapper.class);
+        call.setConnectionService(csWrapper);
+        call.setIsSelfManaged(true);
+        // Successful completion verification
+        CompletableFuture<Boolean> holdFuture = call.hold("hold call");
+        holdFuture.complete(true);
+        // Failed completion verification
+        holdFuture = call.hold("hold call");
+        holdFuture.complete(false);
+    }
+
+    @Test
+    @SmallTest
+    public void testHoldNoService() {
+        Call call = spy(createCall("1"));
+        call.setState(CallState.ACTIVE, "1");
+        assertNull(call.getConnectionService());
+        assertNull(call.getTransactionServiceWrapper());
+        // Hold will do nothing
+        CompletableFuture<Boolean> future = call.hold("hold call");
+        future.complete(true);
+    }
+
+    @Test
+    @SmallTest
+    public void testPutExtras() {
+        // This specific test is mainly to encompass missing coverage for this Call#putExtras
+        Call call = spy(createCall("1"));
+        Bundle bundle = new Bundle();
+        // Audio codec verification paths
+        // Case (1)
+        bundle.putInt(Connection.EXTRA_AUDIO_CODEC, Connection.AUDIO_CODEC_EVS_SWB);
+        call.putConnectionServiceExtras(bundle);
+        assertTrue(call.isHdPlus());
+        // Case (2)
+        bundle = new Bundle();
+        bundle.putInt(Connection.EXTRA_AUDIO_CODEC, Connection.AUDIO_CODEC_EVS_FB);
+        call.putConnectionServiceExtras(bundle);
+        assertFalse(call.isHdPlus());
+        // Additional coverage paths
+        bundle.putInt(TelecomManager.EXTRA_CALL_NETWORK_TYPE, TelephonyManager.NETWORK_TYPE_NR);
+        bundle.putString(Connection.EXTRA_ORIGINAL_CONNECTION_ID, "123");
+        bundle.putInt(Connection.EXTRA_CALLER_NUMBER_VERIFICATION_STATUS,
+                android.telecom.Connection.VERIFICATION_STATUS_PASSED);
+        call.setCallerNumberVerificationStatus(Connection.VERIFICATION_STATUS_NOT_VERIFIED);
+        bundle.putCharSequence(Connection.EXTRA_ANSWERING_DROPS_FG_CALL_APP_NAME, "testFgApp");
+        bundle.putParcelable(Connection.EXTRA_REMOTE_PHONE_ACCOUNT_HANDLE,
+                mock(PhoneAccountHandle.class));
+        call.putConnectionServiceExtras(bundle);
+    }
+
+    @Test
+    @SmallTest
+    public void testRemoveExtras() {
+        List<String> keys = List.of("key1", "key2", "key3");
+        Call call = spy(createCall("1"));
+        // Target: Remove with null extras
+        call.setExtrasForTest(null);
+        call.removeExtras(Call.SOURCE_INCALL_SERVICE, keys);
+        // Target: Remove with no CS + TS
+        call.setExtrasForTest(new Bundle());
+        call.removeExtras(Call.SOURCE_INCALL_SERVICE, keys);
+        // Target: Remove with non-null TS
+        call.setTransactionServiceWrapper(mock(TransactionalServiceWrapper.class));
+        call.removeExtras(Call.SOURCE_INCALL_SERVICE, keys);
+    }
+
+    @Test
+    @SmallTest
+    public void getRingtone() {
+        Call call = spy(createCall("1"));
+        call.getRingtone();
+        CallerInfo callerInfoMock = mock(CallerInfo.class);
+        callerInfoMock.contactRingtoneUri = TEST_ADDRESS;
+        call.setCallerInfoForTesting(callerInfoMock);
+        assertEquals(TEST_ADDRESS, call.getRingtone());
+    }
+
+    @Test
+    @SmallTest
+    public void testOnPostDialWait() {
+        Call call = spy(createCall("1"));
+        Call.Listener listener = mock(Call.Listener.class);
+        String remaining = "123";
+        call.addListener(listener);
+        call.onPostDialWait(remaining);
+        verify(listener).onPostDialWait(eq(call), eq(remaining));
+    }
+
+    @Test
+    @SmallTest
+    public void testOnPostDialChar() {
+        Call call = spy(createCall("1"));
+        Call.Listener listener = mock(Call.Listener.class);
+        call.addListener(listener);
+        call.onPostDialChar('a');
+        verify(listener).onPostDialChar(eq(call), eq('a'));
+    }
+
+    @Test
+    @SmallTest
+    public void testPostDialContinue() {
+        Call call = spy(createCall("1"));
+        ConnectionServiceWrapper csWrapper = mock(ConnectionServiceWrapper.class);
+        TransactionalServiceWrapper tsWrapper = mock(TransactionalServiceWrapper.class);
+        call.postDialContinue(true);
+        call.setConnectionService(csWrapper);
+        call.postDialContinue(true);
+        call.setTransactionServiceWrapper(tsWrapper);
+        call.postDialContinue(true);
+    }
+
+    @Test
+    @SmallTest
+    public void testConferenceWith() {
+        Call call = spy(createCall("1"));
+        Call otherCall = spy(createCall("2"));
+        ConnectionServiceWrapper csWrapper = mock(ConnectionServiceWrapper.class);
+        TransactionalServiceWrapper tsWrapper = mock(TransactionalServiceWrapper.class);
+        call.conferenceWith(otherCall);
+        call.setConnectionService(csWrapper);
+        call.conferenceWith(otherCall);
+        call.setTransactionServiceWrapper(tsWrapper);
+        call.conferenceWith(otherCall);
+    }
+
+    @Test
+    @SmallTest
+    public void testSplitFromConference() {
+        Call call = spy(createCall("1"));
+        ConnectionServiceWrapper csWrapper = mock(ConnectionServiceWrapper.class);
+        TransactionalServiceWrapper tsWrapper = mock(TransactionalServiceWrapper.class);
+        call.splitFromConference();
+        call.setConnectionService(csWrapper);
+        call.splitFromConference();
+        call.setTransactionServiceWrapper(tsWrapper);
+        call.splitFromConference();
+    }
+
+    @Test
+    @SmallTest
+    public void testMergeConferencePaths() {
+        Call call = spy(createCall("1"));
+        ConnectionServiceWrapper csWrapper = mock(ConnectionServiceWrapper.class);
+        TransactionalServiceWrapper tsWrapper = mock(TransactionalServiceWrapper.class);
+        call.mergeConference();
+        call.setConnectionService(csWrapper);
+        call.mergeConference();
+        call.setTransactionServiceWrapper(tsWrapper);
+        call.mergeConference();
+    }
+
+    @Test
+    @SmallTest
+    public void testSwapConferencePaths() {
+        Call call = spy(createCall("1"));
+        ConnectionServiceWrapper csWrapper = mock(ConnectionServiceWrapper.class);
+        TransactionalServiceWrapper tsWrapper = mock(TransactionalServiceWrapper.class);
+        call.swapConference();
+        call.setConnectionService(csWrapper);
+        call.swapConference();
+        call.setTransactionServiceWrapper(tsWrapper);
+        call.swapConference();
+    }
+
+    @Test
+    @SmallTest
+    public void testAddConferenceParticipants() {
+        Call call = spy(createCall("1"));
+        List<Uri> participants = List.of(mock(Uri.class));
+        ConnectionServiceWrapper csWrapper = mock(ConnectionServiceWrapper.class);
+        TransactionalServiceWrapper tsWrapper = mock(TransactionalServiceWrapper.class);
+        // Null CS + TS
+        call.addConferenceParticipants(participants);
+        // CS path without CAPABILITY_ADD_PARTICIPANT
+        call.setConnectionService(csWrapper);
+        call.addConferenceParticipants(participants);
+        // CS path with capability
+        call.setConnectionProperties(Connection.CAPABILITY_ADD_PARTICIPANT);
+        call.addConferenceParticipants(participants);
+        // Non-null TS path
+        call.setTransactionServiceWrapper(tsWrapper);
+        call.addConferenceParticipants(participants);
+    }
+
+    @Test
+    @SmallTest
+    public void testPullExternalCall_NullWrapper() {
+        Call call = spy(createCall("1"));
+        ConnectionServiceWrapper csWrapper = mock(ConnectionServiceWrapper.class);
+        TransactionalServiceWrapper tsWrapper = mock(TransactionalServiceWrapper.class);
+        // CS null
+        call.pullExternalCall();
+        // TS non-null
+        call.setTransactionServiceWrapper(tsWrapper);
+        call.pullExternalCall();
+        // CS non-null
+        call.setTransactionServiceWrapper(null);
+        call.setConnectionService(csWrapper);
+        call.pullExternalCall();
+    }
+
+    @Test
+    @SmallTest
+    public void testSendCallEventBtQualityReport() {
+        Call call = spy(createCall("1"));
+        Call.Listener listener = mock(Call.Listener.class);
+        call.addListener(listener);
+        ConnectionServiceWrapper csWrapper = mock(ConnectionServiceWrapper.class);
+        TransactionalServiceWrapper tsWrapper = mock(TransactionalServiceWrapper.class);
+        // Test the TS path
+        call.setTransactionServiceWrapper(tsWrapper);
+        Bundle bundle = new Bundle();
+        bundle.putParcelable(BluetoothCallQualityReport.EXTRA_BLUETOOTH_CALL_QUALITY_REPORT,
+                mock(android.telecom.BluetoothCallQualityReport.class));
+        call.sendCallEvent(BluetoothCallQualityReport.EVENT_BLUETOOTH_CALL_QUALITY_REPORT, bundle);
+        verify(listener).onBluetoothCallQualityReport(eq(call),
+                any(BluetoothCallQualityReport.class));
+        // Test the CS path
+        call.setConnectionService(csWrapper);
+        call.sendCallEvent(BluetoothCallQualityReport.EVENT_BLUETOOTH_CALL_QUALITY_REPORT, bundle);
+        verify(listener, times(2)).onBluetoothCallQualityReport(eq(call),
+                any(BluetoothCallQualityReport.class));
+    }
+
+    @Test
+    @SmallTest
+    public void testSetParentCall() {
+        Call call = spy(createCall("1"));
+        // Try setting parent as self
+        call.setParentCall(call);
+        assertNull(call.getParentCall());
+        Call parentCall = spy(createCall("2"));
+        call.setParentCall(parentCall);
+        assertEquals(parentCall, call.getParentCall());
+        // Set a new parent and verify that the old parent removes the child dependency
+        Call newParentCall = spy(createCall("3"));
+        call.setParentCall(newParentCall);
+        verify(parentCall).removeChildCall(eq(call));
+    }
+
+    @Test
+    @SmallTest
+    public void testSetConferenceableCalls() {
+        Call call = spy(createCall("1"));
+        Call.Listener listener = mock(Call.Listener.class);
+        call.addListener(listener);
+        List<Call> conferenceableCalls = List.of(spy(createCall("2")));
+        call.setConferenceableCalls(conferenceableCalls);
+        verify(listener).onConferenceableCallsChanged(call);
+    }
+
+    @Test
+    @SmallTest
+    public void testRemoveChild() {
+        Call call = spy(createCall("1"));
+        Call childCall = spy(createCall("2"));
+        Call.Listener listener = mock(Call.Listener.class);
+        call.addListener(listener);
+        call.addChildCallForTesting(childCall);
+        call.removeChildCall(childCall);
+        verify(listener).onChildrenChanged(eq(call));
+    }
+
+    @Test
+    @SmallTest
+    public void testSendRttRequest() {
+        ConnectionServiceWrapper csWrapper = mock(ConnectionServiceWrapper.class);
+        TransactionalServiceWrapper tsWrapper = mock(TransactionalServiceWrapper.class);
+        Call call = spy(createCall("1"));
+        // The setters below are mainly for coverage purposes
+        call.setRttMode(android.telecom.Call.RttCall.RTT_MODE_FULL);
+        call.setRequestedToStartWithRtt();
+        // Send rtt verification - CS
+        call.setConnectionService(csWrapper);
+        call.sendRttRequest();
+        // Send rtt verification - TS
+        call.setTransactionServiceWrapper(tsWrapper);
+        call.sendRttRequest();
+    }
+
+    @Test
+    @SmallTest
+    public void testStopRtt() {
+        ConnectionServiceWrapper csWrapper = mock(ConnectionServiceWrapper.class);
+        TransactionalServiceWrapper tsWrapper = mock(TransactionalServiceWrapper.class);
+        Call call = spy(createCall("1"));
+        // Stop rtt verification no CS nor TS
+        call.setTransactionServiceWrapper(null);
+        call.stopRtt();
+        // Stop rtt with CS
+        call.setConnectionService(csWrapper);
+        call.stopRtt();
+        // Stop rtt with TS
+        call.setTransactionServiceWrapper(tsWrapper);
+        call.stopRtt();
+    }
+
+    @Test
+    @SmallTest
+    public void testOnRttConnectionFailure() {
+        Call call = spy(createCall("1"));
+        Call.Listener listener = mock(Call.Listener.class);
+        call.addListener(listener);
+        call.onRttConnectionFailure(0 /* reason */);
+        verify(listener).onRttInitiationFailure(eq(call), eq(0));
+    }
+
+    @Test
+    @SmallTest
+    public void testOnRemoteRttRequest() {
+        Call call = spy(createCall("1"));
+        Call.Listener listener = mock(Call.Listener.class);
+        call.addListener(listener);
+        // Path for non-RTT call
+        call.onRemoteRttRequest();
+        verify(listener).onRemoteRttRequest(eq(call), anyInt());
+        // Path for RTT call
+        call.setConnectionCapabilities(Connection.PROPERTY_IS_RTT);
+        call.onRemoteRttRequest();
+    }
+
+    @Test
+    @SmallTest
+    public void testHandleRttRequestResponse() {
+        ConnectionServiceWrapper csWrapper = mock(ConnectionServiceWrapper.class);
+        TransactionalServiceWrapper tsWrapper = mock(TransactionalServiceWrapper.class);
+        Call call = spy(createCall("1"));
+        // Undefined request id
+        call.handleRttRequestResponse(0, true);
+        // Request id mismatch
+        call.setPendingRttRequestId(1);
+        call.handleRttRequestResponse(0, true);
+        // Accept -> false
+        call.setConnectionService(csWrapper);
+        call.handleRttRequestResponse(1, false);
+        // Accept -> true
+        call.handleRttRequestResponse(1, true);
+        // Request with TS
+        call.setTransactionServiceWrapper(tsWrapper);
+        call.handleRttRequestResponse(1, true);
+    }
+
+    @Test
+    @SmallTest
+    public void testInCallToCsRttPipeForInCall() {
+        Call call = spy(createCall("1"));
+        ParcelFileDescriptor [] fileDescriptor = new ParcelFileDescriptor[2];
+        fileDescriptor[1] = new ParcelFileDescriptor(mock(FileDescriptor.class));
+        // Verify the null case
+        assertNull(call.getInCallToCsRttPipeForInCall());
+        call.setInCallToCsRttPipeForTesting(fileDescriptor);
+        assertNotNull(call.getInCallToCsRttPipeForInCall());
+    }
+
+    @Test
+    @SmallTest
+    public void testGetStateFromConnectionState() {
+        assertEquals(CallState.CONNECTING, Call.getStateFromConnectionState(
+                Connection.STATE_INITIALIZING));
+        assertEquals(CallState.PULLING, Call.getStateFromConnectionState(
+                Connection.STATE_PULLING_CALL));
+        assertEquals(CallState.DISCONNECTED, Call.getStateFromConnectionState(
+                Connection.STATE_DISCONNECTED));
+        assertEquals(CallState.ON_HOLD, Call.getStateFromConnectionState(
+                Connection.STATE_HOLDING));
+        assertEquals(CallState.RINGING, Call.getStateFromConnectionState(
+                Connection.STATE_RINGING));
+        assertEquals(CallState.DISCONNECTED, Call.getStateFromConnectionState(
+                Connection.STATE_SIMULATED_RINGING));
+    }
+
+    @Test
+    @SmallTest
+    public void testRequestHandover() {
+        Call call = spy(createCall("1"));
+        Call.Listener listener = mock(Call.Listener.class);
+        call.addListener(listener);
+        PhoneAccountHandle mockPhoneAccountHandle = mock(PhoneAccountHandle.class);
+        call.handoverTo(mockPhoneAccountHandle, VideoProfile.STATE_AUDIO_ONLY, null);
+        verify(listener).onHandoverRequested(eq(call), any(PhoneAccountHandle.class), anyInt(),
+                nullable(Bundle.class), anyBoolean());
+    }
+
+    @Test
+    @SmallTest
+    public void testMaybeEnableSpeakerForVideoUpgrade() {
+        Call call = spy(createCall("1"));
+        when(mMockCallsManager.isSpeakerphoneAutoEnabledForVideoCalls(anyInt()))
+                .thenReturn(false);
+        call.maybeEnableSpeakerForVideoUpgrade(VideoProfile.STATE_BIDIRECTIONAL);
+        verify(mMockCallsManager, never()).setAudioRoute(anyInt(), anyInt(), anyString());
+        when(mMockCallsManager.isSpeakerphoneAutoEnabledForVideoCalls(anyInt()))
+                .thenReturn(true);
+        call.maybeEnableSpeakerForVideoUpgrade(VideoProfile.STATE_BIDIRECTIONAL);
+        verify(mMockCallsManager).setAudioRoute(anyInt(), anyInt(), nullable(String.class));
+    }
+
+    @Test
+    @SmallTest
+    public void testRemappedCallDirection() {
+        assertEquals(Call.CALL_DIRECTION_INCOMING, Call.getRemappedCallDirection(
+                android.telecom.Call.Details.DIRECTION_INCOMING));
+        assertEquals(Call.CALL_DIRECTION_OUTGOING, Call.getRemappedCallDirection(
+                android.telecom.Call.Details.DIRECTION_OUTGOING));
+        assertEquals(Call.CALL_DIRECTION_UNDEFINED, Call.getRemappedCallDirection(
+                android.telecom.Call.Details.DIRECTION_UNKNOWN));
+        assertEquals(Call.CALL_DIRECTION_UNDEFINED, Call.getRemappedCallDirection(-2));
+    }
+
+    @Test
+    @SmallTest
+    public void testDiagnosticFutureException() {
+        Call call = spy(createCall("1"));
+        CompletableFuture<Boolean> future = call.initializeDiagnosticCompleteFuture(100);
+        assertNotNull(future);
+        future.completeExceptionally(new Throwable());
+    }
+
+    @Test
+    @SmallTest
+    public void testCleanup() {
+        Call call = spy(createCall("1"));
+        CompletableFuture<Boolean> future = call.initializeDiagnosticCompleteFuture(100);
+        assertNotNull(call.getDiagnosticCompleteFuture());
+        call.cleanup();
+        assertNull(call.getDiagnosticCompleteFuture());
+        future.complete(true);
+    }
+
+    @Test
+    public void testCallRemovalFuture() {
+        Call call = spy(createCall("1"));
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        call.setRemovalFuture(future);
+        assertTrue(call.isRemovalPending());
+        future.complete(null);
+        assertFalse(call.isRemovalPending());
+    }
+
+    @Test
+    @SmallTest
+    public void testWaitForBtIcs() throws ExecutionException, InterruptedException {
+        Call call = spy(createCall("1"));
+        CompletableFuture<Boolean> btFuture = CompletableFuture.completedFuture(true);
+        call.setBtIcsFuture(btFuture);
+        call.waitForBtIcs();
+        // Now verify the exception handling
+        CompletableFuture<Boolean> btFutureMock = mock(CompletableFuture.class);
+        call.setBtIcsFuture(btFutureMock);
+        doThrow(new InterruptedException()).when(btFutureMock).get();
+        call.waitForBtIcs();
+    }
+
+    @Test
+    @SmallTest
+    public void testCallerInfoOnContactPhotoQuery() {
+        Call call = createCall("1");
+        CallerInfo info = new CallerInfo();
+        info.setName("name");
+        info.setPhoneNumber("number");
+        info.cachedPhoto = new ColorDrawable();
+        info.cachedPhotoIcon = Bitmap.createBitmap(24, 24, Bitmap.Config.ALPHA_8);
+
+        ArgumentCaptor<CallerInfoLookupHelper.OnQueryCompleteListener> listenerCaptor =
+                ArgumentCaptor.forClass(CallerInfoLookupHelper.OnQueryCompleteListener.class);
+        verify(mMockCallerInfoLookupHelper).startLookup(any(), listenerCaptor.capture());
+        listenerCaptor.getValue().onContactPhotoQueryComplete(call.getHandle(), info);
+
+        assertEquals(info, call.getCallerInfo());
+        assertEquals(info.getName(), call.getName());
+        assertEquals(info.getPhoneNumber(), call.getPhoneNumber());
+        assertEquals(info.cachedPhoto, call.getPhoto());
+        assertEquals(info.cachedPhotoIcon, call.getPhotoIcon());
+        assertEquals(call.getHandle(), call.getContactUri());
+    }
+
+    @Test
+    @SmallTest
+    public void testHandleOverrideDisconnectMessage() {
+        Call call = spy(createCall("1"));
+        when(call.isDisconnectHandledViaFuture()).thenReturn(false);
+        assertEquals(DisconnectCause.UNKNOWN, call.getOverrideDisconnectCauseCode().getCode());
+        CompletableFuture<Boolean> future = call.initializeDiagnosticCompleteFuture(100);
+        when(call.isDisconnectHandledViaFuture()).thenReturn(true);
+        call.handleOverrideDisconnectMessage("test");
+        assertEquals(DisconnectCause.ERROR, call.getOverrideDisconnectCauseCode().getCode());
+        future.complete(true);
+    }
+
+    @Test
+    @SmallTest
+    public void testSetStateIllegalAudioProcessing() {
+        when(mFeatureFlags.preventIllegalAudioProcessingExit()).thenReturn(true);
+        Call call = spy(createCall("1"));
+        call.setState(CallState.AUDIO_PROCESSING, "1");
+        call.setIsProperlyExitingAudioProcessing(false);
+        call.setAudioProcessingUseCase(
+                android.telecom.Call.AUDIO_PROCESSING_USE_CASE_CALL_SCREENING);
+        assertFalse(call.setState(CallState.DIALING, "1"));
+    }
+
+    @Test
+    @SmallTest
+    public void testSetStateDisconnecting() {
+        Call call = spy(createCall("1"));
+        CreateConnectionProcessor mockProcessor = mock(CreateConnectionProcessor.class);
+        when(mockProcessor.isProcessingComplete()).thenReturn(true);
+        when(mockProcessor.hasMorePhoneAccounts()).thenReturn(true);
+        CompletableFuture<Void> removalFuture = new CompletableFuture<>();
+        call.setCreateConnectionProcessorForTesting(mockProcessor);
+        call.setIsEmergencyCall(true);
+        call.setDisconnectCause(new DisconnectCause(DisconnectCause.ERROR));
+        CompletableFuture<Boolean> future = call.initializeDiagnosticCompleteFuture(500);
+        call.setRemovalFuture(removalFuture);
+        assertFalse(call.setState(CallState.DISCONNECTED, "1"));
+        future.complete(true);
+    }
+
+    @Test
+    @SmallTest
+    public void testCallStateProperties() {
+        Call call = createCall("1");
+        Call.Listener listener = mock(Call.Listener.class);
+        call.addListener(listener);
+        Uri testUri = Uri.parse("123");
+        String testNumber = "123";
+        String testDisplayName = "testDisplayName";
+        int testPresentationNumber = 12345;
+        CallerInfo info = new CallerInfo();
+        info.contactExists = true;
+        info.lookupKey = null;
+        PhoneAccountHandle mockPhoneAccountHandle = mock(PhoneAccountHandle.class);
+        Call handoverDestCall = mock(Call.class);
+        Call handoverSourceCall = mock(Call.class);
+        CharSequence appName = "testApp";
+        String connectionId = "123";
+        CompletableFuture<Void> future = new CompletableFuture<>();
+
+        assertFalse(call.hadChildren());
+        call.setParticipants(List.of());
+        assertTrue(call.getParticipants().isEmpty());
+        call.clearPostDialDigits();
+        call.setViaNumber(testNumber);
+        assertEquals(testNumber, call.getViaNumber());
+        call.setCallerDisplayName(testDisplayName, testPresentationNumber);
+        assertEquals(testDisplayName, call.getCallerDisplayName());
+        assertEquals(testPresentationNumber, call.getCallerDisplayNamePresentation());
+        call.setCallerInfoForTesting(info);
+        assertNull(call.getContactUri());
+        call.setContactPhotoUri(testUri);
+        call.setRemotePhoneAccountHandle(mockPhoneAccountHandle);
+        assertEquals(mockPhoneAccountHandle, call.getRemotePhoneAccountHandle());
+        assertEquals(call.getDelegatePhoneAccountHandle(), call.getRemotePhoneAccountHandle());
+        assertFalse(call.isUsingCallRecordingTone());
+        call.setHandoverDestinationCall(handoverDestCall);
+        assertEquals(handoverDestCall, call.getHandoverDestinationCall());
+        call.setHandoverSourceCall(handoverSourceCall);
+        assertEquals(handoverSourceCall, call.getHandoverSourceCall());
+        call.setConnectElapsedTimeMillis(100L);
+        call.setAudioProcessingRequestingApp(appName);
+        assertEquals(appName.toString(), call.getAudioProcessingRequestingApp().toString());
+        call.setState(CallState.ANSWERED, "1");
+        assertTrue(call.isAnswered("test"));
+        call.setState(CallState.NEW, "1");
+        assertFalse(call.isAnswered("test"));
+        call.setOriginalConnectionId(connectionId);
+        assertEquals(connectionId, call.getOriginalConnectionId());
+        // Not much we can verify for this
+        call.sendDeviceToDeviceMessage(0, 1);
+        call.setDisconnectFuture(future);
+        assertFalse(call.getDisconnectFuture().isDone());
+        future.complete(null);
+        assertTrue(call.getDisconnectFuture().isDone());
+        call.setVoipContactLookupUri(testUri);
+        assertEquals(testUri, call.getVoipContactLookupUri());
+        call.setBulkStateUpdateInProgress(true);
+        assertTrue(call.isBulkStateUpdateInProgress());
+        call.setNewOutgoingCallIntentBroadcastIsDone();
+        assertTrue(call.isNewOutgoingCallIntentBroadcastDone());
+        call.setIsGroupCall(true);
+        assertTrue(call.isGroupCall());
+        call.setIsTransactionalLogExcluded(true);
+        assertTrue(call.isTransactionalLogExcluded());
+        call.setIsVoipAudioMode(true);
+        verify(listener).onIsVoipAudioModeChanged(call);
+    }
+
+    @Test
+    @SmallTest
+    public void testGetTargetPhoneAccountLabel() {
+        Call call = createCall("1");
+        PhoneAccountRegistrar mockPhoneAccountRegistrar = mock(PhoneAccountRegistrar.class);
+        PhoneAccount mockPhoneAccount = mock(PhoneAccount.class);
+        String testLabel = "testLabel";
+        when(mockPhoneAccount.getLabel()).thenReturn(testLabel);
+        call.setTargetPhoneAccount(null);
+        assertNull(call.getTargetPhoneAccountLabel());
+        call.setTargetPhoneAccount(SIM_1_HANDLE);
+        when(mMockCallsManager.getPhoneAccountRegistrar()).thenReturn(mockPhoneAccountRegistrar);
+        when(mockPhoneAccountRegistrar.getPhoneAccountUnchecked(any(PhoneAccountHandle.class)))
+                .thenReturn(null);
+        assertNull(call.getTargetPhoneAccountLabel());
+        when(mockPhoneAccountRegistrar.getPhoneAccountUnchecked(any(PhoneAccountHandle.class)))
+                .thenReturn(mockPhoneAccount);
+        assertEquals(testLabel.toString(), call.getTargetPhoneAccountLabel().toString());
+    }
+
+    @Test
+    @SmallTest
+    public void testReplaceConnectionService() {
+        Call call = createCall("1");
+        ConnectionServiceWrapper service1 = mock(ConnectionServiceWrapper.class);
+        ConnectionServiceWrapper service2 = mock(ConnectionServiceWrapper.class);
+        call.setConnectionService(service1);
+        call.replaceConnectionService(service2);
+        assertEquals(service2, call.getService());
+    }
+
+    @Test
+    @SmallTest
+    public void testDtmfTone() {
+        Call call = createCall("1");
+        ConnectionServiceWrapper service = mock(ConnectionServiceWrapper.class);
+        call.setConnectionService(service);
+        call.playDtmfTone('a');
+        call.stopDtmfTone();
+    }
+
+    @Test
+    @SmallTest
+    public void testSilence() {
+        Call call = createCall("1");
+        ConnectionServiceWrapper service = mock(ConnectionServiceWrapper.class);
+        call.silence();
+        call.setConnectionService(service);
+        call.silence();
+    }
+
     private Call createCall(String id) {
         return createCall(id, Call.CALL_DIRECTION_UNDEFINED);
     }
@@ -1329,5 +2349,40 @@ public class CallTest extends TelecomTestCase {
                 mMockClockProxy,
                 mMockToastProxy,
                 mFeatureFlags);
+    }
+
+    private void processMaybeLoadCannedSmsResponsesCallback(boolean onResult) {
+        Call call = spy(createCall("1", Call.CALL_DIRECTION_INCOMING));
+        call.setState(CallState.RINGING, "1");
+        when(mMockResources.getBoolean(R.bool.skip_loading_canned_text_response))
+                .thenReturn(false);
+        TelephonyManager mMockTelephonyManager = mock(TelephonyManager.class);
+        when(mContext.getSystemService(TelephonyManager.class))
+                .thenReturn(mMockTelephonyManager);
+        when(mMockTelephonyManager.getAndUpdateDefaultRespondViaMessageApplication())
+                .thenReturn(mock(ComponentName.class));
+        RespondViaSmsManager mockSmsManager = mock(RespondViaSmsManager.class);
+        when(mMockCallsManager.getRespondViaSmsManager()).thenReturn(mockSmsManager);
+
+        // Pre-condition for maybeLoadCannedSmsResponses
+        call.setConnectionCapabilities(Connection.CAPABILITY_RESPOND_VIA_TEXT);
+
+        Call.Listener listener = mock(Call.Listener.class);
+        call.addListener(listener);
+        call.maybeLoadCannedSmsResponses();
+
+        // Target: anonymous Response.onResult loop
+        ArgumentCaptor<CallsManager.Response<Void, List<String>>> captor =
+                ArgumentCaptor.forClass(CallsManager.Response.class);
+        verify(mockSmsManager).loadCannedTextMessages(captor.capture(), eq(mContext));
+
+        if (onResult) {
+            List<String> responses = List.of("Message 1", "Message 2");
+            captor.getValue().onResult(null, responses);
+            verify(listener).onCannedSmsResponsesLoaded(call);
+        } else {
+            captor.getValue().onError(null, -1, "");
+            verify(listener, never()).onCannedSmsResponsesLoaded(call);
+        }
     }
 }

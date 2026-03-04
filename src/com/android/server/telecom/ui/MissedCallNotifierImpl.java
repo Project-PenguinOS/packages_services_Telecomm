@@ -23,15 +23,12 @@ import android.annotation.Nullable;
 import android.app.BroadcastOptions;
 import android.app.Notification;
 import android.app.PendingIntent;
-import android.app.TaskStackBuilder;
 import android.app.admin.DevicePolicyManager;
 import android.content.AsyncQueryHandler;
-import android.content.ContentProvider;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.pm.ResolveInfo;
 import android.database.Cursor;
@@ -44,7 +41,6 @@ import android.os.Binder;
 import android.os.Bundle;
 import android.os.PowerExemptionManager;
 import android.os.UserHandle;
-import android.provider.CallLog;
 import android.provider.CallLog.Calls;
 import android.telecom.Log;
 import android.telecom.Logging.Runnable;
@@ -72,10 +68,8 @@ import com.android.server.telecom.TelecomBroadcastIntentProcessor;
 import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.TelecomSystem;
 import com.android.server.telecom.Timeouts;
-import com.android.server.telecom.components.TelecomBroadcastReceiver;
 import com.android.server.telecom.util.CallerInfo;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -619,9 +613,12 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
      */
     private PendingIntent createTelecomPendingIntent(String action, Uri data,
             UserHandle userHandle) {
-        Intent intent = new Intent(action, data, mContext, TelecomBroadcastReceiver.class);
+        Intent intent = new Intent(action);
+        intent.setPackage(mContext.getPackageName());
+        intent.putExtra(TelecomBroadcastIntentProcessor.EXTRA_DATA_URI, data);
         intent.putExtra(TelecomBroadcastIntentProcessor.EXTRA_USERHANDLE, userHandle);
-        return PendingIntent.getBroadcast(mContext, 0, intent,
+        int requestCode = data == null ? 0 : data.hashCode();
+        return PendingIntent.getBroadcast(mContext, requestCode, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 

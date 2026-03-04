@@ -272,10 +272,10 @@ public class HeadsetMediaButton extends CallsManagerListenerBase {
         }
     }
 
-    @VisibleForTesting
     /**
      * @return the handler this class instance uses for operation; used for unit testing.
      */
+    @VisibleForTesting
     public Handler getHandler() {
         return mMediaSessionHandler;
     }

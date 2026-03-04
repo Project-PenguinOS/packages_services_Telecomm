@@ -69,7 +69,6 @@ import androidx.test.filters.FlakyTest;
 import androidx.test.filters.MediumTest;
 import androidx.test.filters.SmallTest;
 
-import com.android.server.telecom.Analytics;
 import com.android.server.telecom.AnomalyReporterAdapter;
 import com.android.server.telecom.Call;
 import com.android.server.telecom.CallLogManager;
@@ -106,7 +105,6 @@ public class CallLogManagerTest extends TelecomTestCase {
     private PhoneAccountHandle mOtherUserAccountHandle;
     private PhoneAccountHandle mManagedProfileAccountHandle;
     private PhoneAccountHandle mSelfManagedAccountHandle;
-    private Analytics.CallInfo mCallInfo;
 
     private static final Uri TEL_PHONEHANDLE = Uri.parse("tel:5555551234");
 
@@ -176,7 +174,6 @@ public class CallLogManagerTest extends TelecomTestCase {
                 TEST_SELF_MGD_PHONE_ACCOUNT_ID,
                 UserHandle.of(CURRENT_USER_ID)
         );
-        mCallInfo = new Analytics.CallInfo();
 
         // Since we can't mock ContentResolver directly, use a ContentProvider
         when(mContext.getContentResolver()).thenReturn(ContentResolver.wrap(mContentProvider));
@@ -1460,7 +1457,6 @@ public class CallLogManagerTest extends TelecomTestCase {
         when(fakeCall.getParentCall()).thenReturn(null);
         when(fakeCall.hadChildren()).thenReturn(true);
         when(fakeCall.hasProperty(eq(Connection.PROPERTY_REMOTELY_HOSTED))).thenReturn(false);
-        when(fakeCall.getAnalytics()).thenReturn(mCallInfo);
         when(fakeCall.isManaged()).thenReturn(true);
         when(fakeCall.isSelfManaged()).thenReturn(false);
         when(fakeCall.isTransactionalCall()).thenReturn(false);

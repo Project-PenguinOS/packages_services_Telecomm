@@ -21,7 +21,6 @@ import static com.android.server.telecom.ui.MissedCallNotifierImpl.CALL_LOG_COLU
 import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertTrue;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -45,7 +44,6 @@ import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.ComponentName;
-import android.content.ContentProvider;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.IContentProvider;
@@ -57,7 +55,6 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.ICancellationSignal;
 import android.os.Looper;
 import android.os.UserHandle;
 import android.provider.CallLog;
@@ -74,9 +71,7 @@ import com.android.server.telecom.DefaultDialerCache;
 import com.android.server.telecom.MissedCallNotifier;
 import com.android.server.telecom.PhoneAccountRegistrar;
 import com.android.server.telecom.TelecomBroadcastIntentProcessor;
-import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.TelecomSystem;
-import com.android.server.telecom.components.TelecomBroadcastReceiver;
 import com.android.server.telecom.ui.MissedCallNotifierImpl;
 import com.android.server.telecom.ui.MissedCallNotifierImpl.NotificationBuilderFactory;
 import com.android.server.telecom.util.CallerInfo;
@@ -94,7 +89,6 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Objects;
 
 @RunWith(JUnit4.class)
 public class MissedCallNotifierImplTest extends TelecomTestCase {
@@ -487,19 +481,21 @@ public class MissedCallNotifierImplTest extends TelecomTestCase {
         // Create two intents that correspond to call-back and respond back with SMS, and assert
         // that these pending intents have in fact been registered.
         Intent callBackIntent = new Intent(
-                TelecomBroadcastIntentProcessor.ACTION_CALL_BACK_FROM_NOTIFICATION,
-                TEL_CALL_HANDLE,
-                mContext,
-                TelecomBroadcastReceiver.class);
-        Intent smsIntent = new Intent(
-                TelecomBroadcastIntentProcessor.ACTION_SEND_SMS_FROM_NOTIFICATION,
-                Uri.fromParts(Constants.SCHEME_SMSTO, TEL_CALL_HANDLE.getSchemeSpecificPart(), null),
-                mContext,
-                TelecomBroadcastReceiver.class);
+                TelecomBroadcastIntentProcessor.ACTION_CALL_BACK_FROM_NOTIFICATION);
+        callBackIntent.setPackage(mContext.getPackageName());
+        callBackIntent.putExtra(TelecomBroadcastIntentProcessor.EXTRA_DATA_URI, TEL_CALL_HANDLE);
 
-        assertNotNull(PendingIntent.getBroadcast(mContext, REQUEST_ID,
+        Intent smsIntent = new Intent(
+                TelecomBroadcastIntentProcessor.ACTION_SEND_SMS_FROM_NOTIFICATION);
+        smsIntent.setPackage(mContext.getPackageName());
+        smsIntent.putExtra(TelecomBroadcastIntentProcessor.EXTRA_DATA_URI,
+                Uri.fromParts(Constants.SCHEME_SMSTO, TEL_CALL_HANDLE.getSchemeSpecificPart(),
+                        null));
+
+        assertNotNull(PendingIntent.getBroadcast(mContext, TEL_CALL_HANDLE.hashCode(),
                 callBackIntent, PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE));
-        assertNotNull(PendingIntent.getBroadcast(mContext, REQUEST_ID,
+        assertNotNull(PendingIntent.getBroadcast(mContext, Uri.fromParts(Constants.SCHEME_SMSTO,
+                        TEL_CALL_HANDLE.getSchemeSpecificPart(), null).hashCode(),
                 smsIntent, PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE));
     }
 
@@ -522,20 +518,21 @@ public class MissedCallNotifierImplTest extends TelecomTestCase {
         // Create two intents that correspond to call-back and respond back with SMS, and assert
         // that in the case of a SIP call, no SMS intent is generated.
         Intent callBackIntent = new Intent(
-                TelecomBroadcastIntentProcessor.ACTION_CALL_BACK_FROM_NOTIFICATION,
-                SIP_CALL_HANDLE,
-                mContext,
-                TelecomBroadcastReceiver.class);
-        Intent smsIntent = new Intent(
-                TelecomBroadcastIntentProcessor.ACTION_SEND_SMS_FROM_NOTIFICATION,
-                Uri.fromParts(Constants.SCHEME_SMSTO, SIP_CALL_HANDLE.getSchemeSpecificPart(),
-                        null),
-                mContext,
-                TelecomBroadcastReceiver.class);
+                TelecomBroadcastIntentProcessor.ACTION_CALL_BACK_FROM_NOTIFICATION);
+        callBackIntent.setPackage(mContext.getPackageName());
+        callBackIntent.putExtra(TelecomBroadcastIntentProcessor.EXTRA_DATA_URI, SIP_CALL_HANDLE);
 
-        assertNotNull(PendingIntent.getBroadcast(mContext, REQUEST_ID,
+        Intent smsIntent = new Intent(
+                TelecomBroadcastIntentProcessor.ACTION_SEND_SMS_FROM_NOTIFICATION);
+        smsIntent.setPackage(mContext.getPackageName());
+        smsIntent.putExtra(TelecomBroadcastIntentProcessor.EXTRA_DATA_URI,
+                Uri.fromParts(Constants.SCHEME_SMSTO, SIP_CALL_HANDLE.getSchemeSpecificPart(),
+                        null));
+
+        assertNotNull(PendingIntent.getBroadcast(mContext, SIP_CALL_HANDLE.hashCode(),
                 callBackIntent, PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE));
-        assertNull(PendingIntent.getBroadcast(mContext, REQUEST_ID,
+        assertNull(PendingIntent.getBroadcast(mContext, Uri.fromParts(Constants.SCHEME_SMSTO,
+                        SIP_CALL_HANDLE.getSchemeSpecificPart(), null).hashCode(),
                 smsIntent, PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE));
     }
 

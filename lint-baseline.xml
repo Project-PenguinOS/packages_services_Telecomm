@@ -30,4 +30,58 @@
             column="48"/>
     </issue>
 
+    <issue
+        id="NewApi"
+        message="Field requires API level CUR_DEVELOPMENT/10000 (current min is 36): `android.provider.CallLog.Calls#CONTENT_URI_WITH_VOIP_CALLS`"
+        errorLine1="                CallLog.Calls.CONTENT_URI_WITH_VOIP_CALLS, userHandle);"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/services/Telecomm/src/com/android/server/telecom/CallLogIntegrationAdapterImpl.java"
+            line="472"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level CUR_DEVELOPMENT/10000 (current min is 36): `android.media.RingtoneManager#getRingtoneUriForPhoneAccountHandle`"
+        errorLine1="                    RingtoneManager.getRingtoneUriForPhoneAccountHandle("
+        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/services/Telecomm/src/com/android/server/telecom/Ringer.java"
+            line="617"
+            column="37"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level CUR_DEVELOPMENT/10000 (current min is 36): `android.media.RingtoneManager#getRingtoneUriForPhoneAccountHandle`"
+        errorLine1="                    defaultRingtoneUri = RingtoneManager.getRingtoneUriForPhoneAccountHandle("
+        errorLine2="                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/services/Telecomm/src/com/android/server/telecom/RingtoneFactory.java"
+            line="102"
+            column="58"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level CUR_DEVELOPMENT/10000 (current min is 36): `android.telephony.TelephonyManager#getCurrentTtyMode`"
+        errorLine1="                return tm.getCurrentTtyMode();"
+        errorLine2="                          ~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/telecomm/framework/java/android/telecom/TelecomManager.java"
+            line="2425"
+            column="27"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level CUR_DEVELOPMENT/10000 (current min is 36): `android.telephony.TelephonyManager#getCurrentTtyMode`"
+        errorLine1="        mPreferredTtyMode =  tm.getCurrentTtyMode();"
+        errorLine2="                                ~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/services/Telecomm/src/com/android/server/telecom/TtyManager.java"
+            line="48"
+            column="33"/>
+    </issue>
 </issues>

@@ -2313,6 +2313,12 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     public void handleCommunicationDeviceChanged(int newAudioType,
             AudioDeviceInfo newCommunicationDevice,
             AudioDeviceInfo previousCommunicationDevice) {
+        if (!mIsActive) {
+            Log.i(this, "handleCommunicationDeviceChanged: Not active, skipping. New audio type: "
+                            + "%d, new communication device: %s, previous communication device: %s",
+                    newAudioType, newCommunicationDevice, previousCommunicationDevice);
+            return;
+        }
         int currentAudioType = mCurrentRoute.getType();
         boolean areAudioTypesSame = newAudioType == currentAudioType;
         boolean areBluetoothAddressesSame = BT_AUDIO_ROUTE_TYPES.contains(newAudioType)
