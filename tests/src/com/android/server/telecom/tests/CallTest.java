@@ -56,7 +56,7 @@ import android.os.OutcomeReceiver;
 import android.os.ParcelFileDescriptor;
 import android.os.Parcelable;
 import android.os.UserHandle;
-import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.telecom.BluetoothCallQualityReport;
 import android.telecom.CallAttributes;
@@ -1457,7 +1457,7 @@ public class CallTest extends TelecomTestCase {
 
     @Test
     @SmallTest
-    @RequiresFlagsEnabled({Flags.FLAG_CONNECTION_SERVICE_BAL,
+    @EnableFlags({Flags.FLAG_CONNECTION_SERVICE_BAL,
             Flags.FLAG_VOIP_BACKGROUND_ACTIVITY_LAUNCH_FIX})
     public void testWaitForConnectionServiceBind() throws Exception {
         Call call = spy(createCall("1"));
