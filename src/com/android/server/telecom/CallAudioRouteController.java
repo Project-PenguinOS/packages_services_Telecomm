@@ -16,6 +16,8 @@
 
 package com.android.server.telecom;
 
+import static com.android.server.telecom.AudioRoute.AUDIO_ROUTE_TYPE_TO_DEVICE_INFO_TYPE;
+import static com.android.server.telecom.AudioRoute.BT_AUDIO_DEVICE_INFO_TYPES;
 import static com.android.server.telecom.AudioRoute.BT_AUDIO_ROUTE_TYPES;
 import static com.android.server.telecom.AudioRoute.DEVICE_INFO_TYPE_TO_AUDIO_ROUTE_TYPE;
 import static com.android.server.telecom.AudioRoute.TYPE_BLUETOOTH_HA;
@@ -320,6 +322,25 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         mWasOnSpeaker = false;
         setCurrentCommunicationDevice(null);
         mPreferredDeviceRoute = DUMMY_ROUTE;
+        // Add support for TYPE_BLE_HEARING_AID
+        if (android.media.audio.Flags.bleHearingAidDevice()) {
+            BT_AUDIO_DEVICE_INFO_TYPES.add(AudioDeviceInfo.TYPE_BLE_HEARING_AID);
+            DEVICE_INFO_TYPE_TO_AUDIO_ROUTE_TYPE.put(AudioDeviceInfo.TYPE_BLE_HEARING_AID,
+                    AudioRoute.TYPE_BLUETOOTH_LE);
+            List<Integer> bluetoothLeDeviceInfoTypes = AUDIO_ROUTE_TYPE_TO_DEVICE_INFO_TYPE
+                    .get(AudioRoute.TYPE_BLUETOOTH_LE);
+            if (!bluetoothLeDeviceInfoTypes.contains(AudioDeviceInfo.TYPE_BLE_HEARING_AID)) {
+                bluetoothLeDeviceInfoTypes.add(AudioDeviceInfo.TYPE_BLE_HEARING_AID);
+            }
+        } else {
+            // This is mainly in place for unit testing.
+            BT_AUDIO_DEVICE_INFO_TYPES.remove(AudioDeviceInfo.TYPE_BLE_HEARING_AID);
+            DEVICE_INFO_TYPE_TO_AUDIO_ROUTE_TYPE.remove(AudioDeviceInfo.TYPE_BLE_HEARING_AID);
+            List<Integer> bluetoothLeDeviceInfoTypes = AUDIO_ROUTE_TYPE_TO_DEVICE_INFO_TYPE
+                    .get(AudioRoute.TYPE_BLUETOOTH_LE);
+            bluetoothLeDeviceInfoTypes.removeIf(
+                    device -> device.equals(AudioDeviceInfo.TYPE_BLE_HEARING_AID));
+        }
 
         mTelecomLock = callsManager.getLock();
         HandlerThread handlerThread = new HandlerThread(this.getClass().getSimpleName());
