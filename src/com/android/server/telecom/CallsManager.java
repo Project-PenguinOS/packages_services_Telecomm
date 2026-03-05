@@ -2705,7 +2705,7 @@ public class CallsManager extends Call.ListenerBase
                     boolean isVoicemail = isVoicemail(callToUse.getHandle(), accountToUse);
 
 // QTI_BEGIN: 2019-05-23: Telephony: IMS-VT: Handle RTT support for Video Calls.
-                    int phoneId = SubscriptionManager.getPhoneId(
+                    int phoneId = SubscriptionManager.getSlotIndex(
                             mPhoneAccountRegistrar.getSubscriptionIdForPhoneAccount(
                             callToUse.getTargetPhoneAccount()));
 // QTI_END: 2019-05-23: Telephony: IMS-VT: Handle RTT support for Video Calls.
@@ -2935,6 +2935,9 @@ public class CallsManager extends Call.ListenerBase
         CompletableFuture<Pair<PhoneAccountHandle, Boolean>> makeRoomForCall =
                 dialerSelectPhoneAccountFuture.thenComposeAsync(potentialCallAttr -> {
                     Log.i(CallsManager.this, "make room for call stage");
+                    if (potentialCallAttr == null) {
+                        return CompletableFuture.completedFuture(null);
+                    }
                     Call callToPlace = potentialCallAttr.first;
                     PhoneAccountHandle callHandle = potentialCallAttr.second;
                     if (callToPlace == null) {
