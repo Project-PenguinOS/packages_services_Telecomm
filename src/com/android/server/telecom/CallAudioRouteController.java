@@ -2317,6 +2317,15 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         boolean areAudioRoutesSame = areAudioTypesSame && areBluetoothAddressesSame;
         boolean areCommunicationDevicesSame = Objects.equals(previousCommunicationDevice,
                 newCommunicationDevice);
+
+        // Ensure that if the BT device is removed via BT_DEVICE_REMOVED and the route no longer
+        // exists, that we still clear the pending SCO disconnect message.
+        if (previousCommunicationDevice != null
+                && previousCommunicationDevice.getAddress() != null) {
+            mPendingAudioRoute.clearPendingMessage(new Pair<>(BT_AUDIO_DISCONNECTED,
+                    previousCommunicationDevice.getAddress()));
+        }
+
         // We need to perform an update if the current communication device type is different from
         // whatever the current route is and we should also account for multiple BT devices of the
         // same type. It's also possible that the previous communication device is null in which

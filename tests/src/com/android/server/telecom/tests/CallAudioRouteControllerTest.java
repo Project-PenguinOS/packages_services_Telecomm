@@ -2090,6 +2090,28 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
 
     @Test
     @SmallTest
+    public void testClearPendingScoDisconnectWhenRouteDoesNotExist() {
+        mController.initialize();
+        mController.setActive(true);
+        // Add a pending message to clear
+        mController.getPendingAudioRoute().addMessage(BT_AUDIO_DISCONNECTED, BT_ADDRESS_1);
+        assertTrue(mController.getPendingAudioRoute().getPendingMessages()
+                .contains(new Pair<>(BT_AUDIO_DISCONNECTED, BT_ADDRESS_1)));
+
+        AudioDeviceInfo mockPreviousDevice = mock(AudioDeviceInfo.class);
+        when(mockPreviousDevice.getAddress()).thenReturn(BT_ADDRESS_1);
+
+        // Call handleCommunicationDeviceChanged with a different device
+        mController.handleCommunicationDeviceChanged(AudioRoute.TYPE_SPEAKER,
+                mock(AudioDeviceInfo.class), mockPreviousDevice);
+
+        // Verify the message is cleared
+        assertFalse(mController.getPendingAudioRoute().getPendingMessages()
+                .contains(new Pair<>(BT_AUDIO_DISCONNECTED, BT_ADDRESS_1)));
+    }
+
+    @Test
+    @SmallTest
     public void testSwitchToBtOnCommunicationDeviceUpdate() {
         // This test verifies that when the audio framework reports a communication device change
         // to a Bluetooth device, the controller correctly queues a SWITCH_BLUETOOTH message
