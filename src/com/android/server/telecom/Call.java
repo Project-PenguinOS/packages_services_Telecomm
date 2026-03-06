@@ -1737,7 +1737,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         mIsProperlyExitingAudioProcessing = isExiting;
     }
 
-    void setRingbackRequested(boolean ringbackRequested) {
+    @VisibleForTesting
+    public void setRingbackRequested(boolean ringbackRequested) {
         mRingbackRequested = ringbackRequested;
         for (Listener l : mListeners) {
             l.onRingbackRequested(this, mRingbackRequested);
@@ -2560,7 +2561,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         }
     }
 
-    boolean shouldAttachToExistingConnection() {
+    @VisibleForTesting
+    public boolean shouldAttachToExistingConnection() {
         return mShouldAttachToExistingConnection;
     }
 
@@ -4155,7 +4157,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      * have this call as a child.
      * @param parentCall
      */
-    void setParentAndChildCall(Call parentCall) {
+    @VisibleForTesting
+    public void setParentAndChildCall(Call parentCall) {
         boolean isParentChanging = (mParentCall != parentCall);
         setParentCall(parentCall);
         setChildOf(parentCall);

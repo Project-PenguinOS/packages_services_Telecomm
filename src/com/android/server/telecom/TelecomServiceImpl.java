@@ -73,6 +73,7 @@ import android.telecom.VideoProfile;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
+import android.util.Base64;
 import android.util.EventLog;
 import android.util.IndentingPrintWriter;
 
@@ -2490,6 +2491,13 @@ public class TelecomServiceImpl {
 
             event.setResult(ApiStats.RESULT_NORMAL);
             logEvent(event);
+            if (args != null && args.length > 0 && "analytics".equals(args[0])) {
+                // Return nothing so that we don't confuse a legacy analytics reader which is going
+                // to expect either nothing or a base64 encoded proto.  Returning the regular
+                // dumpsys will confuse it.
+                writer.print(Base64.encodeToString(new byte[]{' '}, Base64.DEFAULT));
+                return;
+            }
 
             long token = Binder.clearCallingIdentity();
             try {
