@@ -56,7 +56,8 @@ import java.util.Set;
  * the reliability of audio operations for a call.  Augments the Telecom dumpsys with Telecom calls
  * with information about calls.
  */
-public class CallAudioWatchdog extends CallsManagerListenerBase {
+public class CallAudioWatchdog extends CallsManagerListenerBase
+        implements AudioModeTracker.AudioModeListener {
     /**
      * Bit flag set on a {@link CommunicationSession#sessionAttr} to indicate that the session has
      * audio recording resources.
@@ -76,9 +77,15 @@ public class CallAudioWatchdog extends CallsManagerListenerBase {
      */
     public static final int SESSION_ATTR_HAS_PHONE_ACCOUNT = 1 << 2;
 
+    /**
+     * Bit flag set on a {@link CommunicationSession#sessionAttr} to indicate that the audio mode
+     * was in communication during this session.
+     */
+    public static final int SESSION_ATTR_IS_IN_COMMUNICATION = 1 << 3;
+
     @IntDef(prefix = { "SESSION_ATTR_" },
             value = {SESSION_ATTR_HAS_AUDIO_RECORD, SESSION_ATTR_HAS_AUDIO_PLAYBACK,
-                    SESSION_ATTR_HAS_PHONE_ACCOUNT},
+                    SESSION_ATTR_HAS_PHONE_ACCOUNT, SESSION_ATTR_IS_IN_COMMUNICATION},
             flag = true)
     @Retention(RetentionPolicy.SOURCE)
     public @interface SessionAttribute {}
@@ -168,7 +175,8 @@ public class CallAudioWatchdog extends CallsManagerListenerBase {
         public static String sessionAttrToString(@SessionAttribute int attr) {
             return (isBitSet(attr, SESSION_ATTR_HAS_PHONE_ACCOUNT) ? "phac, " : "") +
                     (isBitSet(attr, SESSION_ATTR_HAS_AUDIO_PLAYBACK) ? "ap, " : "") +
-                    (isBitSet(attr, SESSION_ATTR_HAS_AUDIO_RECORD) ? "ar, " : "");
+                    (isBitSet(attr, SESSION_ATTR_HAS_AUDIO_RECORD) ? "ar, " : "") +
+                    (isBitSet(attr, SESSION_ATTR_IS_IN_COMMUNICATION) ? "comm, " : "");
         }
 
         @Override
@@ -376,6 +384,9 @@ public class CallAudioWatchdog extends CallsManagerListenerBase {
 
     private final TelecomMetricsController mMetricsController;
 
+    // The current audio mode as reported by audio manager.
+    private int mCurrentAudioMode = AudioManager.MODE_NORMAL;
+
     public CallAudioWatchdog(AudioManager audioManager,
             PhoneAccountRegistrarProxy phoneAccountRegistrarProxy, ClockProxy clockProxy,
             Handler handler, TelecomMetricsController metricsController) {
@@ -578,6 +589,31 @@ public class CallAudioWatchdog extends CallsManagerListenerBase {
         }
     }
 
+    @Override
+    public void onAudioModeChanged(int mode) {
+        mCurrentAudioMode = mode;
+        synchronized (mCommunicationSessionsLock) {
+            if (mode == AudioManager.MODE_IN_COMMUNICATION) {
+                for (CommunicationSession session : mCommunicationSessions.values()) {
+                    int originalAttrs = session.getSessionAttr();
+                    session.setBit(SESSION_ATTR_IS_IN_COMMUNICATION);
+                    if (originalAttrs != session.getSessionAttr()
+                            && session.getTelecomCall() != null) {
+                        Log.addEvent(session.getTelecomCall(), LogUtils.Events.AUDIO_ATTR,
+                                CommunicationSession.sessionAttrToString(originalAttrs)
+                                        + " -> " + CommunicationSession.sessionAttrToString(
+                                        session.getSessionAttr()));
+                    }
+                }
+            }
+        }
+    }
+
+    @VisibleForTesting
+    public void setAudioModeForTesting(int audioMode) {
+        mCurrentAudioMode = audioMode;
+    }
+
     /**
      * Returns an existing session for a uid, or {@code null} if none exists.
      * @param uid the uid,
@@ -604,6 +640,12 @@ public class CallAudioWatchdog extends CallsManagerListenerBase {
             newSession.setUid(uid);
             if (mPhoneAccountRegistrarProxy.hasPhoneAccountForUid(uid)) {
                 newSession.setBit(SESSION_ATTR_HAS_PHONE_ACCOUNT);
+            }
+            // IMPORTANT: DO NOT CALL AudioManager to get the mode; use the cached value here.
+            // Calling AudioManager from here to get the mode will result in a call back to Telecom
+            // from AudioManager, which will likely cause a deadlock.
+            if (mCurrentAudioMode == AudioManager.MODE_IN_COMMUNICATION) {
+                newSession.setBit(SESSION_ATTR_IS_IN_COMMUNICATION);
             }
             mCommunicationSessions.put(uid, newSession);
             Log.i(this, "getOrAddSession: uid=%d, new, %s", uid, newSession);
@@ -695,7 +737,8 @@ public class CallAudioWatchdog extends CallsManagerListenerBase {
      * @param session the session to log.
      */
     private void maybeLogMetrics(CommunicationSession session) {
-        if (mMetricsController != null && session.getTelecomCall() == null) {
+        if (mMetricsController != null && session.getTelecomCall() == null
+                && session.isBitSet(SESSION_ATTR_IS_IN_COMMUNICATION)) {
             mMetricsController.getCallStats().onNonTelecomCallEnd(
                     session.isBitSet(SESSION_ATTR_HAS_PHONE_ACCOUNT),
                     session.getUid(),

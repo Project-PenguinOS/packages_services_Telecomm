@@ -909,9 +909,11 @@ public class CallsManager extends Call.ListenerBase
 
         // Note this needs to be after mCallAudioManager so that the audio mode changes as needed
         // before we try to bind.
+        mAudioModeTracker = new AudioModeTracker(audioManager, asyncCallAudioTaskExecutor,
+                mLock);
+        mAudioModeTracker.addListener(mCallAudioWatchDog);
+
         if (android.telecom.flags.Flags.localVoicemail()) {
-            mAudioModeTracker = new AudioModeTracker(audioManager, asyncCallAudioTaskExecutor,
-                    mLock);
             mLocalVoicemailController = new LocalVoicemailController(
                     new LocalVoicemailController.CallsManagerAdapter() {
                         @Override
@@ -951,7 +953,6 @@ public class CallsManager extends Call.ListenerBase
             mListeners.add(mLocalVoicemailController);
             mListeners.add(mLocalVoicemailNotification);
         } else {
-            mAudioModeTracker = null;
             mLocalVoicemailController = null;
             mLocalVoicemailNotification = null;
         }
@@ -4760,7 +4761,8 @@ public class CallsManager extends Call.ListenerBase
         }
     }
 
-    void markCallAsRinging(Call call) {
+    @VisibleForTesting
+    public void markCallAsRinging(Call call) {
         setCallState(call, CallState.RINGING, "ringing set explicitly");
     }
 
@@ -4772,7 +4774,8 @@ public class CallsManager extends Call.ListenerBase
         ensureCallAudible();
     }
 
-    void markCallAsPulling(Call call) {
+    @VisibleForTesting
+    public void markCallAsPulling(Call call) {
         setCallState(call, CallState.PULLING, "pulling set explicitly");
         maybeMoveToSpeakerPhone(call);
     }
@@ -5191,7 +5194,8 @@ public class CallsManager extends Call.ListenerBase
      *
      * @param service The connection service that disconnected.
      */
-    void handleConnectionServiceDeath(ConnectionServiceWrapper service) {
+    @VisibleForTesting
+    public void handleConnectionServiceDeath(ConnectionServiceWrapper service) {
         if (service != null) {
             Log.i(this, "handleConnectionServiceDeath: service %s died", service);
             for (Call call : mCalls) {
@@ -5485,7 +5489,8 @@ public class CallsManager extends Call.ListenerBase
     }
 
 // QTI_END: 2023-05-30: Telephony: DSDA: Make room to place emergency call
-    Call createConferenceCall(
+    @VisibleForTesting
+    public Call createConferenceCall(
             String callId,
             PhoneAccountHandle phoneAccount,
             ParcelableConference parcelableConference) {
@@ -6376,7 +6381,8 @@ public class CallsManager extends Call.ListenerBase
      * @param connection The connection information.
      * @return The new call.
      */
-    Call createCallForExistingConnection(String callId, ParcelableConnection connection) {
+    @VisibleForTesting
+    public Call createCallForExistingConnection(String callId, ParcelableConnection connection) {
         boolean isDowngradedConference = (connection.getConnectionProperties()
                 & Connection.PROPERTY_IS_DOWNGRADED_CONFERENCE) != 0;
 

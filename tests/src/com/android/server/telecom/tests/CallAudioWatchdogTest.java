@@ -41,9 +41,11 @@ import android.media.AudioRecordingConfiguration;
 import android.media.IPlayer;
 import android.media.MediaRecorder;
 import android.media.PlayerBase;
+import android.media.AudioManager;
 import android.telecom.PhoneAccountHandle;
 import android.util.ArrayMap;
 
+import com.android.server.telecom.AudioModeTracker;
 import com.android.server.telecom.Call;
 import com.android.server.telecom.CallAudioWatchdog;
 import com.android.server.telecom.ClockProxy;
@@ -109,6 +111,9 @@ public class CallAudioWatchdogTest extends TelecomTestCase {
         TEST_UID_TO_PHAC.put(TEST_APP_1_UID, TEST_APP_1_HANDLE);
         mCallAudioWatchdog = new CallAudioWatchdog(mComponentContextFixture.getAudioManager(),
                 mPhoneAccountRegistrarProxy, mClockProxy, null /* mHandler */, mMetricsController);
+        // Default to MODE_IN_COMMUNICATION for most tests so that metrics log as expected.
+        when(mComponentContextFixture.getAudioManager().getMode())
+                .thenReturn(AudioManager.MODE_IN_COMMUNICATION);
     }
 
     @Override
@@ -169,6 +174,7 @@ public class CallAudioWatchdogTest extends TelecomTestCase {
      */
     @Test
     public void testTrackAudioRecord() {
+        mCallAudioWatchdog.setAudioModeForTesting(AudioManager.MODE_IN_COMMUNICATION);
         var client1Recording = makeAudioRecordingConfiguration(TEST_APP_1_UID, 1);
         var theRecords = Arrays.asList(client1Recording);
         when(mComponentContextFixture.getAudioManager().getActiveRecordingConfigurations())
@@ -207,6 +213,7 @@ public class CallAudioWatchdogTest extends TelecomTestCase {
      */
     @Test
     public void testNonTelecomCallMetricsTracking() {
+        mCallAudioWatchdog.setAudioModeForTesting(AudioManager.MODE_IN_COMMUNICATION);
         var client1Recording = makeAudioRecordingConfiguration(TEST_APP_2_UID, 1);
         var theRecords = Arrays.asList(client1Recording);
         when(mComponentContextFixture.getAudioManager().getActiveRecordingConfigurations())
@@ -226,11 +233,64 @@ public class CallAudioWatchdogTest extends TelecomTestCase {
     }
 
     /**
+     * Verifies that if a call is not in communication mode, we don't log it to metrics.
+     */
+    @Test
+    public void testNonTelecomCallMetricsTracking_NotInCommunication() {
+        mCallAudioWatchdog.setAudioModeForTesting(AudioManager.MODE_NORMAL);
+        var client1Recording = makeAudioRecordingConfiguration(TEST_APP_2_UID, 1);
+        var theRecords = Arrays.asList(client1Recording);
+        when(mComponentContextFixture.getAudioManager().getActiveRecordingConfigurations())
+                .thenReturn(theRecords);
+        mCallAudioWatchdog.getWatchdogAudioRecordCallack().onRecordingConfigChanged(theRecords);
+        assertTrue(mCallAudioWatchdog.getCommunicationSessions().containsKey(TEST_APP_2_UID));
+
+        when(mComponentContextFixture.getAudioManager().getActiveRecordingConfigurations())
+                .thenReturn(Collections.EMPTY_LIST);
+        when(mClockProxy.elapsedRealtime()).thenReturn(1000L);
+        mCallAudioWatchdog.getWatchdogAudioRecordCallack().onRecordingConfigChanged(
+                Collections.EMPTY_LIST);
+        assertFalse(mCallAudioWatchdog.getCommunicationSessions().containsKey(TEST_APP_2_UID));
+
+        // This should NOT log as a non-telecom call because it wasn't in communication mode.
+        verify(mCallStats, never()).onNonTelecomCallEnd(anyBoolean(), anyInt(), anyLong());
+    }
+
+    /**
+     * Verifies that if a call starts out NOT in communication mode but then enters it later,
+     * we will log it.
+     */
+    @Test
+    public void testNonTelecomCallMetricsTracking_EnteredCommunication() {
+        mCallAudioWatchdog.setAudioModeForTesting(AudioManager.MODE_NORMAL);
+        var client1Recording = makeAudioRecordingConfiguration(TEST_APP_2_UID, 1);
+        var theRecords = Arrays.asList(client1Recording);
+        when(mComponentContextFixture.getAudioManager().getActiveRecordingConfigurations())
+                .thenReturn(theRecords);
+        mCallAudioWatchdog.getWatchdogAudioRecordCallack().onRecordingConfigChanged(theRecords);
+        assertTrue(mCallAudioWatchdog.getCommunicationSessions().containsKey(TEST_APP_2_UID));
+
+        // Signal entered communication mode.
+        mCallAudioWatchdog.onAudioModeChanged(AudioManager.MODE_IN_COMMUNICATION);
+
+        when(mComponentContextFixture.getAudioManager().getActiveRecordingConfigurations())
+                .thenReturn(Collections.EMPTY_LIST);
+        when(mClockProxy.elapsedRealtime()).thenReturn(1000L);
+        mCallAudioWatchdog.getWatchdogAudioRecordCallack().onRecordingConfigChanged(
+                Collections.EMPTY_LIST);
+        assertFalse(mCallAudioWatchdog.getCommunicationSessions().containsKey(TEST_APP_2_UID));
+
+        // This should log as a non-telecom call because it was in communication mode at some point.
+        verify(mCallStats).onNonTelecomCallEnd(eq(false), eq(TEST_APP_2_UID), eq(1000L));
+    }
+
+    /**
      * Verifies that if a call known to Telecom is added, that we don't try to track it in the
      * non-telecom metrics.
      */
     @Test
     public void testTelecomCallMetricsTracking() {
+        mCallAudioWatchdog.setAudioModeForTesting(AudioManager.MODE_IN_COMMUNICATION);
         var client1Recording = makeAudioRecordingConfiguration(TEST_APP_1_UID, 1);
         var theRecords = Arrays.asList(client1Recording);
         when(mComponentContextFixture.getAudioManager().getActiveRecordingConfigurations())

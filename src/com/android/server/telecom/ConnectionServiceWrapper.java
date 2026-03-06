@@ -1733,13 +1733,15 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         });
     }
 
-    private Bundle getQueryLocationResult(Location location) {
+    @VisibleForTesting
+    public Bundle getQueryLocationResult(Location location) {
         Bundle extras = new Bundle();
         extras.putParcelable(Connection.EXTRA_KEY_QUERY_LOCATION, location);
         return extras;
     }
 
-    private Bundle getQueryLocationErrorResult(int result) {
+    @VisibleForTesting
+    public Bundle getQueryLocationErrorResult(int result) {
         String message;
 
         switch (result) {
@@ -1774,7 +1776,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
      *
      * returns true if the binder_uid matches the packageManager_uid records
      */
-    private boolean callingUidMatchesPackageManagerRecords(String packageName) {
+    @VisibleForTesting
+    public boolean callingUidMatchesPackageManagerRecords(String packageName) {
         int packageUid = -1;
         int callingUid = Binder.getCallingUid();
 
@@ -2138,7 +2141,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
      * create a conference has been denied or failed.
      * @param call The call.
      */
-    void createConferenceFailed(final Call call) {
+    @VisibleForTesting
+    public void createConferenceFailed(final Call call) {
         Log.d(this, "createConferenceFailed(%s) via %s.", call, getComponentName());
         BindCallback callback = new BindCallback() {
             @Override
@@ -2188,7 +2192,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     }
 
 
-    void handoverFailed(final Call call, final int reason) {
+    @VisibleForTesting
+    public void handoverFailed(final Call call, final int reason) {
         Log.d(this, "handoverFailed(%s) via %s.", call, getComponentName());
         BindCallback callback = new BindCallback() {
             @Override
@@ -2230,7 +2235,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         mBinder.bind(callback, call);
     }
 
-    void handoverComplete(final Call call) {
+    @VisibleForTesting
+    public void handoverComplete(final Call call) {
         Log.d(this, "handoverComplete(%s) via %s.", call, getComponentName());
         BindCallback callback = new BindCallback() {
             @Override
@@ -2264,7 +2270,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     }
 
     /** @see IConnectionService#abort(String, Session.Info)  */
-    void abort(Call call) {
+    @VisibleForTesting
+    public void abort(Call call) {
         // Clear out any pending outgoing call data
         final String callId = mCallIdMapper.getCallId(call);
 
@@ -2283,7 +2290,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     }
 
     /** @see IConnectionService#silence(String, Session.Info) */
-    void silence(Call call) {
+    @VisibleForTesting
+    public void silence(Call call) {
         final String callId = mCallIdMapper.getCallId(call);
 // QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("silence") && mServiceInterface != null) {
@@ -2297,7 +2305,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     }
 
     /** @see IConnectionService#hold(String, Session.Info) */
-    void hold(Call call) {
+    @VisibleForTesting
+    public void hold(Call call) {
         final String callId = mCallIdMapper.getCallId(call);
 // QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("hold") && mServiceInterface != null) {
@@ -2311,7 +2320,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     }
 
     /** @see IConnectionService#unhold(String, Session.Info) */
-    void unhold(Call call) {
+    @VisibleForTesting
+    public void unhold(Call call) {
         final String callId = mCallIdMapper.getCallId(call);
 // QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("unhold") && mServiceInterface != null) {
@@ -2443,7 +2453,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     }
 
     /** @see IConnectionService#answer(String, Session.Info) */
-    void answer(Call call, int videoState) {
+    @VisibleForTesting
+    public void answer(Call call, int videoState) {
         final String callId = mCallIdMapper.getCallId(call);
 // QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("answer") && mServiceInterface != null) {
@@ -2462,7 +2473,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     }
 
     /** @see IConnectionService#deflect(String, Uri , Session.Info) */
-    void deflect(Call call, Uri address) {
+    @VisibleForTesting
+    public void deflect(Call call, Uri address) {
         final String callId = mCallIdMapper.getCallId(call);
 // QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("deflect") && mServiceInterface != null) {
@@ -2477,7 +2489,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     }
 
     /** @see IConnectionService#reject(String, Session.Info) */
-    void reject(Call call, boolean rejectWithMessage, String message) {
+    @VisibleForTesting
+    public void reject(Call call, boolean rejectWithMessage, String message) {
         final String callId = mCallIdMapper.getCallId(call);
 // QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("reject") && mServiceInterface != null) {
@@ -2498,7 +2511,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     }
 
     /** @see IConnectionService#reject(String, Session.Info) */
-    void rejectWithReason(Call call, /*@android.telecom.Call.RejectReason*/ int rejectReason) {
+    @VisibleForTesting
+    public void rejectWithReason(Call call,
+            /*@android.telecom.Call.RejectReason*/ int rejectReason) {
         final String callId = mCallIdMapper.getCallId(call);
 // QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("rejectReason") && mServiceInterface != null) {
@@ -2514,7 +2529,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     }
 
     /** @see IConnectionService#transfer(String, Uri , boolean, Session.Info) */
-    void transfer(Call call, Uri number, boolean isConfirmationRequired) {
+    @VisibleForTesting
+    public void transfer(Call call, Uri number, boolean isConfirmationRequired) {
         final String callId = mCallIdMapper.getCallId(call);
 // QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("transfer") && mServiceInterface != null) {
@@ -2529,7 +2545,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     }
 
     /** @see IConnectionService#consultativeTransfer(String, String, Session.Info) */
-    void transfer(Call call, Call otherCall) {
+    @VisibleForTesting
+    public void transfer(Call call, Call otherCall) {
         final String callId = mCallIdMapper.getCallId(call);
         final String otherCallId = mCallIdMapper.getCallId(otherCall);
 // QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
@@ -2546,7 +2563,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     }
 
     /** @see IConnectionService#playDtmfTone(String, char, Session.Info) */
-    void playDtmfTone(Call call, char digit) {
+    @VisibleForTesting
+    public void playDtmfTone(Call call, char digit) {
         final String callId = mCallIdMapper.getCallId(call);
 // QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("playDtmfTone") && mServiceInterface != null) {
@@ -2561,7 +2579,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
     }
 
     /** @see IConnectionService#stopDtmfTone(String, Session.Info) */
-    void stopDtmfTone(Call call) {
+    @VisibleForTesting
+    public void stopDtmfTone(Call call) {
         final String callId = mCallIdMapper.getCallId(call);
 // QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("stopDtmfTone") && mServiceInterface != null) {
@@ -2582,19 +2601,13 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         }
     }
 
-    /**
-     * Associates newCall with this connection service by replacing callToReplace.
-     */
-    void replaceCall(Call newCall, Call callToReplace) {
-        Preconditions.checkState(callToReplace.getConnectionService() == this);
-        mCallIdMapper.replaceCall(newCall, callToReplace);
-    }
-
-    void removeCall(Call call) {
+    @VisibleForTesting
+    public void removeCall(Call call) {
         removeCall(call, new DisconnectCause(DisconnectCause.ERROR));
     }
 
-    void removeCall(String callId, DisconnectCause disconnectCause) {
+    @VisibleForTesting
+    public void removeCall(String callId, DisconnectCause disconnectCause) {
         CreateConnectionResponse response = mPendingResponses.remove(callId);
         if (response != null) {
             response.handleCreateConnectionFailure(disconnectCause);
@@ -2605,7 +2618,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         mCallIdMapper.removeCall(callId);
     }
 
-    void removeCall(Call call, DisconnectCause disconnectCause) {
+    @VisibleForTesting
+    public void removeCall(Call call, DisconnectCause disconnectCause) {
         CreateConnectionResponse response = mPendingResponses.remove(mCallIdMapper.getCallId(call));
         if (response != null) {
             response.handleCreateConnectionFailure(disconnectCause);
@@ -2615,7 +2629,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         mCallIdMapper.removeCall(call);
     }
 
-    void onPostDialContinue(Call call, boolean proceed) {
+    @VisibleForTesting
+    public void onPostDialContinue(Call call, boolean proceed) {
         final String callId = mCallIdMapper.getCallId(call);
 // QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("onPostDialContinue") && mServiceInterface != null) {
@@ -2629,7 +2644,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         }
     }
 
-    void conference(final Call call, Call otherCall) {
+    @VisibleForTesting
+    public void conference(final Call call, Call otherCall) {
         final String callId = mCallIdMapper.getCallId(call);
         final String otherCallId = mCallIdMapper.getCallId(otherCall);
 // QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
@@ -2645,7 +2661,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         }
     }
 
-    void splitFromConference(Call call) {
+    @VisibleForTesting
+    public void splitFromConference(Call call) {
         final String callId = mCallIdMapper.getCallId(call);
 // QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("splitFromConference") && mServiceInterface != null) {
@@ -2659,7 +2676,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         }
     }
 
-    void mergeConference(Call call) {
+    @VisibleForTesting
+    public void mergeConference(Call call) {
         final String callId = mCallIdMapper.getCallId(call);
 // QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("mergeConference") && mServiceInterface != null) {
@@ -2673,7 +2691,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         }
     }
 
-    void swapConference(Call call) {
+    @VisibleForTesting
+    public void swapConference(Call call) {
         final String callId = mCallIdMapper.getCallId(call);
 // QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("swapConference") && mServiceInterface != null) {
@@ -2687,7 +2706,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         }
     }
 
-    void addConferenceParticipants(Call call, List<Uri> participants) {
+    @VisibleForTesting
+    public void addConferenceParticipants(Call call, List<Uri> participants) {
         final String callId = mCallIdMapper.getCallId(call);
 // QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("addConferenceParticipants")
@@ -2732,7 +2752,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         }
     }
 
-    void onCallFilteringCompleted(Call call,
+    @VisibleForTesting
+    public void onCallFilteringCompleted(Call call,
             Connection.CallFilteringCompletionInfo completionInfo) {
         final String callId = mCallIdMapper.getCallId(call);
         if (callId != null && isServiceValid("onCallFilteringCompleted")) {
@@ -2754,7 +2775,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         }
     }
 
-    void onExtrasChanged(Call call, Bundle extras) {
+    @VisibleForTesting
+    public void onExtrasChanged(Call call, Bundle extras) {
         final String callId = mCallIdMapper.getCallId(call);
 // QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("onExtrasChanged") && mServiceInterface != null) {
@@ -2768,7 +2790,9 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         }
     }
 
-    void startRtt(Call call, ParcelFileDescriptor fromInCall, ParcelFileDescriptor toInCall) {
+    @VisibleForTesting
+    public void startRtt(Call call, ParcelFileDescriptor fromInCall,
+            ParcelFileDescriptor toInCall) {
         final String callId = mCallIdMapper.getCallId(call);
 // QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("startRtt") && mServiceInterface != null) {
@@ -2782,7 +2806,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         }
     }
 
-    void stopRtt(Call call) {
+    @VisibleForTesting
+    public void stopRtt(Call call) {
         final String callId = mCallIdMapper.getCallId(call);
 // QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
         if (callId != null && isServiceValid("stopRtt") && mServiceInterface != null) {
@@ -2795,7 +2820,8 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         }
     }
 
-    void respondToRttRequest(
+    @VisibleForTesting
+    public void respondToRttRequest(
             Call call, ParcelFileDescriptor fromInCall, ParcelFileDescriptor toInCall) {
         final String callId = mCallIdMapper.getCallId(call);
 // QTI_BEGIN: 2020-07-30: Telephony: Add null checks in ConnectionServiceWrapper.
@@ -2964,7 +2990,7 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
      */
     private void handleConnectionServiceDeath() {
         if (!mPendingResponses.isEmpty()) {
-            Collection<CreateConnectionResponse> responses = mPendingResponses.values();
+            List<CreateConnectionResponse> responses = new ArrayList<>(mPendingResponses.values());
             mPendingResponses.clear();
             for (CreateConnectionResponse response : responses) {
                 response.handleCreateConnectionFailure(new DisconnectCause(DisconnectCause.ERROR,
@@ -3123,5 +3149,24 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
         }
         future.cancel(false /* interrupt */);
 
+    }
+
+    @VisibleForTesting
+    public IConnectionServiceAdapter.Stub getAdapter() {
+        return mAdapter;
+    }
+
+    @VisibleForTesting
+    public void setServiceInterfaceForTesting(IConnectionService service) {
+        mServiceInterface = service;
+    }
+    @VisibleForTesting
+    public CallIdMapper getCallIdMapper() {
+        return mCallIdMapper;
+    }
+
+    @VisibleForTesting
+    public void addPendingResponse(String callId, CreateConnectionResponse response) {
+        mPendingResponses.put(callId, response);
     }
 }

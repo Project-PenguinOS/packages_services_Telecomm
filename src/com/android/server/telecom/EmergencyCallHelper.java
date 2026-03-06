@@ -84,7 +84,8 @@ public class EmergencyCallHelper {
         }
     }
 
-    long getLastEmergencyCallTimeMillis() {
+    @VisibleForTesting
+    public long getLastEmergencyCallTimeMillis() {
         return mLastEmergencyCallTimestampMillis;
     }
 
