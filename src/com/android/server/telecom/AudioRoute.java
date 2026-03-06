@@ -38,7 +38,9 @@ import com.android.server.telecom.bluetooth.BluetoothRouteManager;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -145,13 +147,13 @@ public class AudioRoute {
     private AudioDeviceInfo mInfo;
     private boolean mIsDestRouteForWatch;
     private boolean mIsScoManagedByAudio;
-    public static final Set<Integer> BT_AUDIO_DEVICE_INFO_TYPES = Set.of(
+    public static final Set<Integer> BT_AUDIO_DEVICE_INFO_TYPES = new HashSet<>(Arrays.asList(
             AudioDeviceInfo.TYPE_BLE_HEADSET,
             AudioDeviceInfo.TYPE_BLE_SPEAKER,
             AudioDeviceInfo.TYPE_BLE_BROADCAST,
             AudioDeviceInfo.TYPE_HEARING_AID,
             AudioDeviceInfo.TYPE_BLUETOOTH_SCO
-    );
+    ));
 
     public static final Set<Integer> BT_AUDIO_ROUTE_TYPES = Set.of(
             AudioRoute.TYPE_BLUETOOTH_SCO,
@@ -201,7 +203,7 @@ public class AudioRoute {
         DEVICE_INFO_TYPE_TO_AUDIO_ROUTE_TYPE.put(AudioDeviceInfo.TYPE_BUS, TYPE_BUS);
     }
 
-    private static final HashMap<Integer, List<Integer>> AUDIO_ROUTE_TYPE_TO_DEVICE_INFO_TYPE;
+    public static final HashMap<Integer, List<Integer>> AUDIO_ROUTE_TYPE_TO_DEVICE_INFO_TYPE;
     static {
         AUDIO_ROUTE_TYPE_TO_DEVICE_INFO_TYPE = new HashMap<>();
         List<Integer> earpieceDeviceInfoTypes = new ArrayList<>();
