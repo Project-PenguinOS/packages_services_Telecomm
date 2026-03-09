@@ -744,7 +744,10 @@ public class CallSequencingTests extends TelecomTestCase {
     /* Helpers */
     private void setPhoneAccounts(Call call1, Call call2, boolean useSamePhoneAccount) {
         when(call1.getTargetPhoneAccount()).thenReturn(mHandle1);
+        when(call1.getDelegatePhoneAccountHandle()).thenReturn(mHandle1);
         when(call2.getTargetPhoneAccount()).thenReturn(useSamePhoneAccount ? mHandle1 : mHandle2);
+        when(call2.getDelegatePhoneAccountHandle())
+                .thenReturn(useSamePhoneAccount ? mHandle1 : mHandle2);
     }
 
     private void setActiveCallFocus(Call call) {
