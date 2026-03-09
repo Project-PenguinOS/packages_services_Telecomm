@@ -107,7 +107,7 @@
     <string name="notification_local_voicemail_details" msgid="8462904524686541516">"‫<xliff:g id="APP_NAME">%1$s</xliff:g> درحال ضبط پیام صوتی برای تماسی از <xliff:g id="CALLER_NAME">%2$s</xliff:g> است."</string>
     <string name="notification_local_voicemail_unknown_details" msgid="7688396653463660224">"‫<xliff:g id="APP_NAME">%1$s</xliff:g> درحال ضبط پیام صوتی برای تماسی از تماس‌گیرنده ناشناس است."</string>
     <string name="notification_send_to_voicemail_details" msgid="5864892579891906399">"تماس از <xliff:g id="CALLER_NAME">%2$s</xliff:g> به <xliff:g id="APP_NAME">%1$s</xliff:g> ارسال می‌شود تا پیام دریافت شود."</string>
-    <string name="send_to_voicemail" msgid="7535268790380893835">"ارسال به پست صوتی"</string>
+    <string name="send_to_voicemail" msgid="7535268790380893835">"ارسال به «پست صوتی»"</string>
     <string name="notification_send_to_voicemail_unknown_details" msgid="2376840328981503932">"تماس‌گیرنده ناشناس به <xliff:g id="APP_NAME">%1$s</xliff:g> ارسال می‌شود تا پیام دریافت شود."</string>
     <string name="alert_outgoing_call" msgid="5319895109298927431">"اگر این تماس را برقرار کنید، تماس <xliff:g id="OTHER_APP">%1$s</xliff:g> شما قطع می‌شود."</string>
     <string name="alert_redirect_outgoing_call_or_not" msgid="665409645789521636">"انتخاب نحوه برقراری این تماس"</string>
