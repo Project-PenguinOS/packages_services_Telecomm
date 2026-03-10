@@ -489,5 +489,5 @@ android_test {
         include_filter: ["com.android.server.telecom.**"],
         exclude_filter: ["com.android.server.telecom.tests.**"],
     },
-    test_suites: ["device-tests"],
+    test_suites: ["general-tests"],
 }
