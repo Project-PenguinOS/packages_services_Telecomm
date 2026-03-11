@@ -327,6 +327,16 @@ public class AudioRoute {
                         && isSameDeviceType) {
                     mInfo = deviceInfo;
                 }
+                // Handle wired headset device address changes to ensure that we choose the right
+                // available device to set the communication device to.
+                if (mAudioRouteType == TYPE_WIRED && isSameDeviceType
+                        && !deviceInfo.equals(mInfo)) {
+                    Log.i(this, "onDestRouteAsPendingRoute: wired headset device changed, "
+                            + "update mInfo from %s to %s",
+                            mInfo == null ? "null" : audioDeviceTypeToString(mInfo.getType()),
+                            audioDeviceTypeToString(deviceInfo.getType()));
+                    mInfo = deviceInfo;
+                }
                 if (deviceInfo.equals(mInfo)) {
                     result = audioManager.setCommunicationDevice(mInfo);
                     if (result) {
