@@ -62,6 +62,7 @@ public class CallStats extends TelecomPulledAtom {
     private static final String TAG = CallStats.class.getSimpleName();
 
     private static final String FILE_NAME = "call_stats";
+    private static final int MAX_DURATIONS_SIZE = 10;
     private final Set<String> mOngoingCallsWithoutMultipleAudioDevices = new HashSet<>();
     private final Set<String> mOngoingCallsWithMultipleAudioDevices = new HashSet<>();
     private Map<CallStatsKey, CallStatsData> mCallStatsMap;
@@ -91,7 +92,8 @@ public class CallStats extends TelecomPulledAtom {
                             v.getCallDirection(), v.getExternalCall(), v.getEmergencyCall(),
                             v.getMultipleAudioAvailable(), v.getAccountType(), v.getUid(),
                             v.getCount(), v.getAverageDurationMs(), v.getDisconnectCause(),
-                            v.getSimultaneousType(), v.getVideoCall(), v.getRatOnEnd())));
+                            v.getSimultaneousType(), v.getVideoCall(), v.getRatOnEnd(),
+                            v.repeatedIntDurations)));
             mCallStatsMap.clear();
             onAggregate();
         }
@@ -109,7 +111,7 @@ public class CallStats extends TelecomPulledAtom {
                         v.getUid(), v.getDisconnectCause(), v.getSimultaneousType(),
                         v.getVideoCall(), v.getRatOnEnd()),
                         new CallStatsData(
-                                v.getCount(), v.getAverageDurationMs()));
+                                v.getCount(), v.getAverageDurationMs(), v.repeatedIntDurations));
             }
             mLastPulledTimestamps = mPulledAtoms.getCallStatsPullTimestampMillis();
         }
@@ -140,6 +142,8 @@ public class CallStats extends TelecomPulledAtom {
             mPulledAtoms.callStats[index[0]].setRatOnEnd(k.mRat);
             mPulledAtoms.callStats[index[0]].setCount(v.mCount);
             mPulledAtoms.callStats[index[0]].setAverageDurationMs(v.mAverageDuration);
+            mPulledAtoms.callStats[index[0]].repeatedIntDurations = v.mDurations.stream()
+                    .mapToInt(Integer::intValue).toArray();
             index[0]++;
         });
         save(DELAY_FOR_PERSISTENT_MILLIS);
@@ -359,21 +363,35 @@ public class CallStats extends TelecomPulledAtom {
 
         int mCount;
         int mAverageDuration;
+        List<Integer> mDurations;
 
         CallStatsData(int count, int averageDuration) {
+            this(count, averageDuration, new int[0]);
+        }
+
+        CallStatsData(int count, int averageDuration, int[] durations) {
             mCount = count;
             mAverageDuration = averageDuration;
+            mDurations = new ArrayList<>();
+            if (durations != null) {
+                for (int duration : durations) {
+                    mDurations.add(duration);
+                }
+            }
         }
 
         void add(int duration) {
             mCount++;
             mAverageDuration += (duration - mAverageDuration) / mCount;
+            if (mDurations.size() < MAX_DURATIONS_SIZE) {
+                mDurations.add(duration);
+            }
         }
 
         @Override
         public String toString() {
             return "[CallStatsData: mCount=" + mCount + ", mAverageDuration:" + mAverageDuration
-                    + "]";
+                    + ", mDurations=" + mDurations + "]";
         }
     }
 }

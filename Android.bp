@@ -173,6 +173,7 @@ java_library {
     ],
     libs: [
         "framework-statsd.stubs.module_lib",
+        "androidx.annotation_annotation",
     ],
     apex_available: [
         "com.android.telephonycore",
@@ -196,6 +197,7 @@ java_library {
     ],
     libs: [
         "framework-statsd.stubs.module_lib",
+        "androidx.annotation_annotation",
     ],
     apex_available: [
         "com.android.telephonycore",
