@@ -426,12 +426,31 @@ public class CallAnomalyWatchdog extends CallsManagerListenerBase implements Cal
             return false;
         }
         int currentStuckState = call.getState();
-        return call.isSelfManaged() &&
-                (currentStuckState == CallState.NEW ||
-                        currentStuckState == CallState.RINGING ||
-                        currentStuckState == CallState.DIALING ||
-                        currentStuckState == CallState.CONNECTING) &&
-                isVanillaIceCreamBuildOrHigher(context, call);
+        if (com.android.internal.telecom.flags.Flags.addEscapeHatchForStuckVoip()) {
+            if (!call.isSelfManaged()) {
+                return false;
+            }
+
+            boolean isRinging = currentStuckState == CallState.RINGING;
+            boolean isOtherState = currentStuckState == CallState.NEW ||
+                    currentStuckState == CallState.DIALING ||
+                    currentStuckState == CallState.CONNECTING;
+
+            if (isRinging) {
+                return true;
+            }
+            if (isOtherState) {
+                return isVanillaIceCreamBuildOrHigher(context, call);
+            }
+            return false;
+        } else {
+            return call.isSelfManaged() &&
+                    (currentStuckState == CallState.NEW ||
+                            currentStuckState == CallState.RINGING ||
+                            currentStuckState == CallState.DIALING ||
+                            currentStuckState == CallState.CONNECTING) &&
+                    isVanillaIceCreamBuildOrHigher(context, call);
+        }
     }
 
     private boolean isVanillaIceCreamBuildOrHigher(Context context, Call call) {
