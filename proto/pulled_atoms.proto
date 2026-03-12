@@ -71,6 +71,9 @@ message CallStats {
 
     // Radio network type on call ended
     optional int32 rat_on_end = 12;
+
+    // Call durations
+    repeated int32 repeated_int_durations = 13;
 }
 
 /**

@@ -24,6 +24,7 @@ import static com.android.server.telecom.TelecomStatsLog.CALL_STATS__ACCOUNT_TYP
 import static com.android.server.telecom.TelecomStatsLog.CALL_STATS__CALL_DIRECTION__DIR_INCOMING;
 import static com.android.server.telecom.TelecomStatsLog.CALL_STATS__RAT_ON_END__NETWORK_TYPE_SATELLITE;
 import static com.android.server.telecom.TelecomStatsLog.CALL_STATS__RAT_ON_END__NETWORK_TYPE_WIFI;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
@@ -769,7 +770,28 @@ public class TelecomPulledAtomTest extends TelecomTestCase {
         assertEquals(callStats.mPulledAtoms.callStats.length, 1);
         verifyMessageForCallStats(callStats.mPulledAtoms.callStats[0], VALUE_CALL_DIRECTION,
                 false, false, true, VALUE_CALL_ACCOUNT_TYPE, VALUE_UID, 2, VALUE_CALL_DURATION,
-                VALUE_CALL_RAT);
+                VALUE_CALL_RAT, new int[]{VALUE_CALL_DURATION, VALUE_CALL_DURATION});
+    }
+
+    @Test
+    public void testCallStatsLogDurationLimit() throws Exception {
+        CallStats callStats = spy(new CallStats(mSpyContext, mLooper, false));
+
+        for (int i = 0; i < 20; i++) {
+            callStats.log(VALUE_CALL_DIRECTION, false, false, true, VALUE_CALL_ACCOUNT_TYPE,
+                    VALUE_UID, 0, 0, false, VALUE_CALL_RAT, i);
+            waitForHandlerAction(callStats, TEST_TIMEOUT);
+        }
+
+        assertEquals(callStats.mPulledAtoms.callStats.length, 1);
+        assertEquals(callStats.mPulledAtoms.callStats[0].getCount(), 20);
+        assertEquals(callStats.mPulledAtoms.callStats[0].repeatedIntDurations.length, 10);
+        int[] expectedDurations = new int[10];
+        for (int i = 0; i < 10; i++) {
+            expectedDurations[i] = i;
+        }
+        assertArrayEquals(callStats.mPulledAtoms.callStats[0].repeatedIntDurations,
+                expectedDurations);
     }
 
     @Test
@@ -1424,6 +1446,7 @@ public class TelecomPulledAtomTest extends TelecomTestCase {
             atom.callStats[i].setRatOnEnd(VALUE_CALL_RAT);
             atom.callStats[i].setCount(VALUE_CALL_COUNT);
             atom.callStats[i].setAverageDurationMs(VALUE_CALL_DURATION);
+            atom.callStats[i].repeatedIntDurations = new int[]{VALUE_CALL_DURATION};
         }
         atom.setCallStatsPullTimestampMillis(timestamps);
         FileOutputStream stream = new FileOutputStream(mTempFile);
@@ -1448,6 +1471,13 @@ public class TelecomPulledAtomTest extends TelecomTestCase {
     private void verifyMessageForCallStats(final PulledAtomsClass.CallStats msg,
             int direction, boolean external, boolean emergency, boolean multipleAudio,
             int accountType, int uid, int count, int duration, int rat) {
+        verifyMessageForCallStats(msg, direction, external, emergency, multipleAudio, accountType,
+                uid, count, duration, rat, new int[]{duration});
+    }
+
+    private void verifyMessageForCallStats(final PulledAtomsClass.CallStats msg,
+            int direction, boolean external, boolean emergency, boolean multipleAudio,
+            int accountType, int uid, int count, int duration, int rat, int[] durations) {
         assertEquals(msg.getCallDirection(), direction);
         assertEquals(msg.getExternalCall(), external);
         assertEquals(msg.getEmergencyCall(), emergency);
@@ -1457,6 +1487,7 @@ public class TelecomPulledAtomTest extends TelecomTestCase {
         assertEquals(msg.getCount(), count);
         assertEquals(msg.getAverageDurationMs(), duration);
         assertEquals(msg.getRatOnEnd(), rat);
+        assertArrayEquals(msg.repeatedIntDurations, durations);
     }
 
     private void createTestFileForErrorStats(long timestamps) throws IOException {
