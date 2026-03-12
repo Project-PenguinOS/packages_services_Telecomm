@@ -2635,6 +2635,84 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         verify(mCallsManager, never()).onCallAudioStateChanged(any(), any());
     }
 
+    @SmallTest
+    @Test
+    public void testVideoCallRoutesToSpeakerOnActiveFocus() {
+        mController.initialize();
+        mController.onCallAdded(mCall);
+        when(mCall.isActiveFocus()).thenReturn(true);
+        when(mCall.getVideoState()).thenReturn(VideoProfile.STATE_BIDIRECTIONAL);
+
+        mController.sendMessageWithSessionInfo(SWITCH_FOCUS, ACTIVE_FOCUS, 0);
+        mController.sendMessageWithSessionInfo(SPEAKER_ON);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+
+        assertEquals(AudioRoute.TYPE_SPEAKER, mController.getCurrentOrPendingRoute().getType());
+        CallAudioState expectedState = new CallAudioState(false, CallAudioState.ROUTE_SPEAKER,
+                CallAudioState.ROUTE_EARPIECE | CallAudioState.ROUTE_SPEAKER, null,
+                new HashSet<>());
+        verify(mCallsManager, timeout(TEST_TIMEOUT)).onCallAudioStateChanged(
+                any(CallAudioState.class), eq(expectedState));
+    }
+
+    @SmallTest
+    @Test
+    public void testAudioCallDoesNotRouteToSpeakerOnActiveFocus() {
+        mController.initialize();
+        mController.onCallAdded(mCall);
+        when(mCall.isActiveFocus()).thenReturn(true);
+        when(mCall.getVideoState()).thenReturn(VideoProfile.STATE_AUDIO_ONLY);
+
+        mController.sendMessageWithSessionInfo(SWITCH_FOCUS, ACTIVE_FOCUS, 0);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+
+        assertEquals(AudioRoute.TYPE_EARPIECE, mController.getCurrentOrPendingRoute().getType());
+    }
+
+    @SmallTest
+    @Test
+    public void testVideoCallDoesNotRouteToSpeakerIfAlreadyProcessedActiveFocus() {
+        mController.initialize();
+        mController.onCallAdded(mCall);
+        when(mCall.isActiveFocus()).thenReturn(true);
+        when(mCall.getVideoState()).thenReturn(VideoProfile.STATE_BIDIRECTIONAL);
+
+        // First active focus switch - should route to speaker
+        mController.sendMessageWithSessionInfo(SWITCH_FOCUS, ACTIVE_FOCUS, 0);
+        mController.sendMessageWithSessionInfo(SPEAKER_ON);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+        assertEquals(AudioRoute.TYPE_SPEAKER, mController.getCurrentOrPendingRoute().getType());
+
+        // Switch back to earpiece manually
+        mController.sendMessageWithSessionInfo(USER_SWITCH_EARPIECE);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+        assertEquals(AudioRoute.TYPE_EARPIECE, mController.getCurrentOrPendingRoute().getType());
+
+        // Second active focus switch - should NOT route to speaker
+        mController.sendMessageWithSessionInfo(SWITCH_FOCUS, ACTIVE_FOCUS, 0);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+        assertEquals(AudioRoute.TYPE_EARPIECE, mController.getCurrentOrPendingRoute().getType());
+    }
+
+    @SmallTest
+    @Test
+    public void testVideoCallDoesNotRouteToSpeakerIfUserRequested() {
+        mController.initialize();
+        mController.onCallAdded(mCall);
+        when(mCall.isActiveFocus()).thenReturn(true);
+        when(mCall.getVideoState()).thenReturn(VideoProfile.STATE_BIDIRECTIONAL);
+
+        // User requests earpiece BEFORE active focus
+        mController.sendMessageWithSessionInfo(USER_SWITCH_EARPIECE);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+
+        mController.sendMessageWithSessionInfo(SWITCH_FOCUS, ACTIVE_FOCUS, 0);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+
+        // Should remain on earpiece
+        assertEquals(AudioRoute.TYPE_EARPIECE, mController.getCurrentOrPendingRoute().getType());
+    }
+
     private void turnOffShouldControlCrsWithParameters() {
         CrsAudioController mockCrsAudioController = mock(CrsAudioController.class);
         when(mCallAudioManager.getCrsAudioController()).thenReturn(mockCrsAudioController);

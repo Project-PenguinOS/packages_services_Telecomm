@@ -888,6 +888,7 @@ public class CallsManager extends Call.ListenerBase
         mListeners.add(mCallStreamingNotification);
         mListeners.add(mCallAudioWatchDog);
         mListeners.add(mVoipCallMonitor);
+        mListeners.add((CallAudioRouteController) mCallAudioRouteAdapter);
 
         // Note this needs to be after mCallAudioManager so that the audio mode changes as needed
         // before we try to bind.
