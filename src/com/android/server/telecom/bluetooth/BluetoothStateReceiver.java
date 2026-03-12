@@ -25,6 +25,7 @@ import static com.android.server.telecom.CallAudioRouteAdapter.BT_DEVICE_REMOVED
 import static com.android.server.telecom.CallAudioRouteAdapter.SWITCH_BASELINE_ROUTE;
 import static com.android.server.telecom.CallAudioRouteController.INCLUDE_BLUETOOTH_IN_BASELINE;
 
+import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothHeadset;
 import android.bluetooth.BluetoothHearingAid;
@@ -60,6 +61,7 @@ public class BluetoothStateReceiver extends BroadcastReceiver {
         INTENT_FILTER.addAction(BluetoothHearingAid.ACTION_ACTIVE_DEVICE_CHANGED);
         INTENT_FILTER.addAction(BluetoothLeAudio.ACTION_LE_AUDIO_CONNECTION_STATE_CHANGED);
         INTENT_FILTER.addAction(BluetoothLeAudio.ACTION_LE_AUDIO_ACTIVE_DEVICE_CHANGED);
+        INTENT_FILTER.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
         INTENT_FILTER.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
     }
 
@@ -76,6 +78,11 @@ public class BluetoothStateReceiver extends BroadcastReceiver {
         try {
             String action = intent.getAction();
             switch (action) {
+                case BluetoothAdapter.ACTION_STATE_CHANGED:
+                    int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE,
+                            BluetoothAdapter.ERROR);
+                    mBluetoothDeviceManager.handleBluetoothStateChanged(state);
+                    break;
                 case BluetoothHeadset.ACTION_AUDIO_STATE_CHANGED:
                     // Broadcast is ignored. Telecom will listen to the audio fwk communication
                     // device updates instead. Refer to
