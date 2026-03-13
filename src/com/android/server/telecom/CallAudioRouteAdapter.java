@@ -58,6 +58,12 @@ public interface CallAudioRouteAdapter {
 
     int SWITCH_FOCUS = 4001;
 
+    int ON_CALL_ADDED = 5001;
+    int ON_CALL_REMOVED = 5002;
+
+    int VIDEO_STATE_CHANGED = 5003;
+    int SET_AUDIO_MODE = 5004;
+
     // Used in testing to execute verifications. Not compatible with subsessions.
     int RUN_RUNNABLE = 9001;
 
@@ -117,6 +123,11 @@ public interface CallAudioRouteAdapter {
         put(MUTE_EXTERNALLY_CHANGED, "MUTE_EXTERNALLY_CHANGED");
 
         put(SWITCH_FOCUS, "SWITCH_FOCUS");
+
+        put(ON_CALL_ADDED, "ON_CALL_ADDED");
+        put(ON_CALL_REMOVED, "ON_CALL_REMOVED");
+        put(VIDEO_STATE_CHANGED, "VIDEO_STATE_CHANGED");
+        put(SET_AUDIO_MODE, "SET_AUDIO_MODE");
 
         put(RUN_RUNNABLE, "RUN_RUNNABLE");
 
