@@ -789,6 +789,7 @@ public class ComponentContextFixture implements TestFixture<Context> {
         when(mCarrierConfigManager.getConfigForSubId(anyInt())).thenReturn(new PersistableBundle());
 
         when(mUserManager.getSerialNumberForUser(any(UserHandle.class))).thenReturn(-1L);
+        when(mUserManager.isAdminUser()).thenReturn(true);
 
         doReturn(null).when(mApplicationContextSpy).registerReceiver(any(BroadcastReceiver.class),
                 any(IntentFilter.class));
