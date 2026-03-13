@@ -48,7 +48,12 @@ public class ConfirmCallDialogActivity extends Activity {
     private void showDialog(final String callId, CharSequence ongoingAppName) {
         Log.i(TAG, String.format("showDialog: confirming callId=%s, ongoing=%s", callId,
                 ongoingAppName));
-        CharSequence message = getString(R.string.alert_outgoing_call, ongoingAppName);
+        CharSequence message;
+        if (ongoingAppName == null) {
+            message = getString(R.string.alert_outgoing_call_null_app_name);
+        } else {
+            message = getString(R.string.alert_outgoing_call, ongoingAppName);
+        }
         final AlertDialog errorDialog = new AlertDialog.Builder(this)
                 .setMessage(message)
                 .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {

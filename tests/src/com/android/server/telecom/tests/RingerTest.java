@@ -1241,4 +1241,33 @@ public class RingerTest extends TelecomTestCase {
         // The afterRingtoneLogic should only be called once.
         // If it were called twice, the future would be completed twice, causing an exception.
     }
+
+    @SmallTest
+    @Test
+    public void testVibrationInVibrateModeWithRampingRingerEnabled() throws Exception {
+        Ringtone mockRingtone = ensureRingtoneMocked();
+        // Ensure ringtone vibration is supported.
+        int mockResourceId = Resources.getSystem().getIdentifier(
+                "config_ringtoneVibrationSettingsSupported", "bool",
+                "android");
+        when(mMockResources.getBoolean(mockResourceId)).thenReturn(true);
+        createRingerUnderTest();
+
+        when(mockAudioManager.getRingerMode()).thenReturn(AudioManager.RINGER_MODE_VIBRATE);
+        // Add vibration_uri parameter to the ringtone URI to trigger useCustomVibration
+        Uri ringtoneUriWithVibration = FAKE_RINGTONE_URI.buildUpon()
+                .appendQueryParameter(VIBRATION_PARAM, FAKE_VIBRATION_URI.toString()).build();
+        when(mockCall1.getRingtone()).thenReturn(ringtoneUriWithVibration);
+
+        enableVibrationWhenRinging();
+        enableRampingRinger();
+        when(mockSystemSettingsUtil.isAudioCoupledVibrationForRampingRingerEnabled()).thenReturn(
+                false);
+
+        assertFalse(startRingingAndWaitForAsync(mockCall1, false));
+
+        // Verify that getRingtone was called with hapticChannelsMuted = false
+        verify(mockRingtoneFactory, atLeastOnce())
+                .getRingtone(any(Call.class), any(), eq(false));
+    }
 }
