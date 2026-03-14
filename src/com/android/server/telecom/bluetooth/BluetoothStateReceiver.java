@@ -190,9 +190,11 @@ public class BluetoothStateReceiver extends BroadcastReceiver {
                     Log.i(LOG_TAG, "Ignoring audio on since we're not in a call");
                     return;
                 }
-                if (!mBluetoothDeviceManager.setCommunicationDeviceForAddress(address)) {
-                    Log.i(this, "handleActiveDeviceChanged: Failed to set "
-                            + "communication device for %s.", address);
+                if (!com.android.internal.telecom.flags.Flags.callAudioRouteRf()) {
+                    if (!mBluetoothDeviceManager.setCommunicationDeviceForAddress(address)) {
+                        Log.i(this, "handleActiveDeviceChanged: Failed to set "
+                                + "communication device for %s.", address);
+                    }
                 }
             }
         }

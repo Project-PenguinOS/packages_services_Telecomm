@@ -69,7 +69,6 @@ public abstract class TelecomTestCase {
 
     @After
     public void tearDown() throws Exception {
-        TelecomResourceId.setTelecomContext(null);
         if (mHandlerThread != null) {
             mHandlerThread.quit();
             mHandlerThread.join();
@@ -79,6 +78,7 @@ public abstract class TelecomTestCase {
         mComponentContextFixture = null;
         mMockitoHelper.tearDown();
         Mockito.framework().clearInlineMocks();
+        TelecomResourceId.setTelecomContext(null);
     }
 
     protected Looper getLooper() {

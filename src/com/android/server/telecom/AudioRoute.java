@@ -252,6 +252,10 @@ public class AudioRoute {
         return mAudioRouteType;
     }
 
+    public AudioDeviceInfo getInfo() {
+        return mInfo;
+    }
+
     public boolean isWatch() {
         return mIsDestRouteForWatch;
     }
@@ -338,7 +342,14 @@ public class AudioRoute {
                     mInfo = deviceInfo;
                 }
                 if (deviceInfo.equals(mInfo)) {
-                    result = audioManager.setCommunicationDevice(mInfo);
+                    if (!com.android.internal.telecom.flags.Flags.callAudioRouteRf()) {
+                        result = audioManager.setCommunicationDevice(mInfo);
+                        Log.i(this, "onDestRouteAsPendingRoute: route=%s, "
+                                + "AudioManager#setCommunicationDevice(%s)=%b", this,
+                                audioDeviceTypeToString(mInfo.getType()), result);
+                    } else {
+                        result = true;
+                    }
                     if (result) {
                         pendingAudioRoute.setCommunicationDeviceType(mAudioRouteType);
                         if (mAudioRouteType == TYPE_BLUETOOTH_SCO
@@ -347,9 +358,6 @@ public class AudioRoute {
                             pendingAudioRoute.addMessage(BT_AUDIO_CONNECTED, mBluetoothAddress);
                         }
                     }
-                    Log.i(this, "onDestRouteAsPendingRoute: route=%s, "
-                            + "AudioManager#setCommunicationDevice(%s)=%b", this,
-                            audioDeviceTypeToString(mInfo.getType()), result);
                     break;
                 }
             }
@@ -449,8 +457,9 @@ public class AudioRoute {
         }
 
         // Connect to the device (explicit handling for HFP devices).
-        boolean success = false;
-        if (device != null) {
+        // This is not needed with audio mode session API
+        boolean success = com.android.internal.telecom.flags.Flags.callAudioRouteRf();
+        if (device != null && !success) {
             success = bluetoothRouteManager.getDeviceManager()
                     .connectAudio(device, mAudioRouteType, mIsScoManagedByAudio);
         }
@@ -479,10 +488,12 @@ public class AudioRoute {
         // Only clear communication device if the destination route will be inactive; route to
         // route transitions do not require clearing the communication device.
         if (!pendingAudioRoute.isActive()) {
-            Log.i(this,
-                    "clearCommunicationDevice: AudioManager#clearCommunicationDevice, type=%s",
-                    DEVICE_TYPE_STRINGS.get(pendingAudioRoute.getCommunicationDeviceType()));
-            audioManager.clearCommunicationDevice();
+            if (!com.android.internal.telecom.flags.Flags.callAudioRouteRf()) {
+                Log.i(this, "clearCommunicationDevice: AudioManager#clearCommunicationDevice,"
+                        + " type=" + DEVICE_TYPE_STRINGS.get(
+                                pendingAudioRoute.getCommunicationDeviceType()));
+                audioManager.clearCommunicationDevice();
+            }
         }
 
         // Try to see if there's a previously set device for communication that should be cleared.

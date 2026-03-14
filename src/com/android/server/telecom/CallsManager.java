@@ -831,6 +831,9 @@ public class CallsManager extends Call.ListenerBase
                 featureFlags), playerFactory, mRinger, new RingbackPlayer(playerFactory),
                 bluetoothStateReceiver, mDtmfLocalTonePlayer, featureFlags,
                 mCallConnectedIndicatorSettings);
+        if (mCrsAudioController != null) {
+            mCrsAudioController.setCallAudioManager(mCallAudioManager);
+        }
 
         mConnectionSvrFocusMgr = connectionServiceFocusManagerFactory.create(mRequester);
         mHeadsetMediaButton = headsetMediaButtonFactory.create(context, this, mLock);
