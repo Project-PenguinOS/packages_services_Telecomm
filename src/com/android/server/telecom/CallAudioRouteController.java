@@ -71,11 +71,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class CallAudioRouteController implements CallAudioRouteAdapter {
+public class CallAudioRouteController extends CallsManagerListenerBase
+        implements CallAudioRouteAdapter  {
     public static class Factory {
         public CallAudioRouteController create(
                 Context context, CallsManager callsManager,
@@ -113,6 +115,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
             "Call audio routing was changed externally by another app via the AudioManager APIs."
                     + "This should only be handled by Telecom.";
     private static final Map<Integer, Integer> ROUTE_MAP;
+    private static final Set<Integer> USER_REQUESTED_MESSAGES;
     static {
         ROUTE_MAP = new ArrayMap<>();
         ROUTE_MAP.put(TYPE_INVALID, 0);
@@ -125,6 +128,12 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         ROUTE_MAP.put(AudioRoute.TYPE_BLUETOOTH_HA, CallAudioState.ROUTE_BLUETOOTH);
         ROUTE_MAP.put(AudioRoute.TYPE_BLUETOOTH_LE, CallAudioState.ROUTE_BLUETOOTH);
         ROUTE_MAP.put(AudioRoute.TYPE_STREAMING, CallAudioState.ROUTE_STREAMING);
+        USER_REQUESTED_MESSAGES = new HashSet<>();
+        USER_REQUESTED_MESSAGES.add(USER_SWITCH_EARPIECE);
+        USER_REQUESTED_MESSAGES.add(USER_SWITCH_BLUETOOTH);
+        USER_REQUESTED_MESSAGES.add(USER_SWITCH_HEADSET);
+        USER_REQUESTED_MESSAGES.add(USER_SWITCH_SPEAKER);
+        USER_REQUESTED_MESSAGES.add(USER_SWITCH_BASELINE_ROUTE);
     }
 
     /** Valid values for the first argument for SWITCH_BASELINE_ROUTE */
@@ -158,6 +167,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     private Map<Integer, Pair<String, String>> mActiveDeviceCache;
     private String mBluetoothAddressForRinging;
     private Map<Integer, AudioRoute> mTypeRoutes;
+    private Map<Call, Boolean> mCallsActiveFocusSwitch;
     private PendingAudioRoute mPendingAudioRoute;
     private AudioRoute.Factory mAudioRouteFactory;
     private StatusBarNotifier mStatusBarNotifier;
@@ -172,6 +182,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     private BluetoothDevice mLastScoDisconnectedDevice;
     private boolean mAvailableRoutesUpdated;
     private boolean mUsePreferredDeviceStrategy;
+    private boolean mIsLastRequestedRouteUserSwitch;
     private AudioDeviceInfo mCurrentCommunicationDevice;
     private final Object mLock = new Object();
     private final TelecomSystem.SyncRoot mTelecomLock;
@@ -417,6 +428,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                     int focus;
                     int handleEndTone;
                     @AudioRoute.AudioRouteType int type;
+                    AudioRoute currentPendingRoute = getCurrentOrPendingRoute();
                     switch (msg.what) {
                         case CONNECT_WIRED_HEADSET:
                             handleWiredHeadsetConnected();
@@ -529,7 +541,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                         default:
                             break;
                     }
-                    postHandleMessage(msg);
+                    postHandleMessage(msg, currentPendingRoute);
                 }
             }
         };
@@ -545,6 +557,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         mActiveDeviceCache.put(AudioRoute.TYPE_BLUETOOTH_LE, null);
         mActiveBluetoothDevice = null;
         mTypeRoutes = new ArrayMap<>();
+        mCallsActiveFocusSwitch = new ConcurrentHashMap<>();
         mStreamingRoutes = new HashSet<>();
         mPendingAudioRoute = new PendingAudioRoute(this, mAudioManager, mBluetoothRouteManager,
                 mFeatureFlags);
@@ -596,6 +609,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                 mPreferredDeviceListener);
         mAudioRoutesCallback = new AudioRoutesCallback();
         mAudioManager.registerAudioDeviceCallback(mAudioRoutesCallback, mHandler);
+        mIsLastRequestedRouteUserSwitch = false;
     }
 
     @Override
@@ -678,6 +692,46 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     public void dump(IndentingPrintWriter pw) {
     }
 
+    @Override
+    public void onCallAdded(Call call) {
+        Log.i(this, "onCallAdded(%s)", call);
+        // Tracks the added call internally and the latest audio route request type (whether it's
+        // a user request or not)
+        mCallsActiveFocusSwitch.put(call, false);
+    }
+
+    @Override
+    public void onCallRemoved(Call call) {
+        Log.i(this, "onCallRemoved(%s)", call);
+        mCallsActiveFocusSwitch.remove(call);
+    }
+
+    private boolean shouldHandleRouteForVideoCall() {
+        // Determine if we need to handle initial audio routing for a video call. The idea is that
+        // upon the first ACTIVE_FOCUS switch (CONNECTING/DIALING for outgoing calls and ACTIVE for
+        // incoming calls), we should trigger a recalculation if all the following conditions
+        // are met:
+        //    (1) The call is a video call
+        //    (2) We're processing the first active focus switch for the foreground call.
+        //    (3) The last processed request isn't a user request.
+        Call foregroundCall = mCallsManager.getForegroundCall();
+        boolean isVideo = false;
+        boolean isActiveFocusAlreadySet = true;
+        if (foregroundCall != null) {
+            isVideo = VideoProfile.isVideo(foregroundCall.getVideoState());
+            if (mCallsActiveFocusSwitch.containsKey(foregroundCall)) {
+                isActiveFocusAlreadySet = mCallsActiveFocusSwitch.get(foregroundCall);
+                if (!isActiveFocusAlreadySet) {
+                    mCallsActiveFocusSwitch.put(foregroundCall, true);
+                }
+            }
+        }
+        Log.i(this, "shouldHandleRouteForVideoCall: fgCall=%s, isVideo=%b, "
+                + "isActiveFocusAlreadySet=%b, " + "mIsLastRequestedRouteUserSwitch=%b",
+                foregroundCall, isVideo, isActiveFocusAlreadySet, mIsLastRequestedRouteUserSwitch);
+        return isVideo && !isActiveFocusAlreadySet && !mIsLastRequestedRouteUserSwitch;
+    }
+
     private void preHandleMessage(Message msg) {
         if (msg.obj instanceof SomeArgs) {
             Session session = (Session) ((SomeArgs) msg.obj).arg1;
@@ -687,7 +741,17 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         }
     }
 
-    private void postHandleMessage(Message msg) {
+    private void postHandleMessage(Message msg, AudioRoute previousRoute) {
+        AudioRoute newRoute = getCurrentOrPendingRoute();
+        if (USER_REQUESTED_MESSAGES.contains(msg.what)) {
+            mIsLastRequestedRouteUserSwitch = true;
+        } else if (!Objects.equals(previousRoute, newRoute)) {
+            // If it's not a user switch, and it resulted in the route changing, only then should we
+            // reset. Consider the following: USER_SWITCH_EARPIECE -> RINGING_FOCUS -> ACTIVE_FOCUS:
+            // We shouldn't reset on the ringing focus switch if it doesn't result in the route
+            // changing.
+            mIsLastRequestedRouteUserSwitch = false;
+        }
         Log.endSession();
         if (msg.obj instanceof SomeArgs) {
             ((SomeArgs) msg.obj).recycle();
@@ -1190,7 +1254,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                 userAudioManager.setMicrophoneMute(mute);
             }
         }
-        onMuteStateChanged(mIsMute);
+        processOnMuteStateChanged(mIsMute);
     }
 
     private void handleSwitchFocus(int focus, int handleEndTone) {
@@ -1225,11 +1289,12 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                 AudioRoute route = useRingingBluetoothDevice
                         ? mCurrentRoute
                         : getBaseRoute(true, null);
-                // Use the current route for handling ringing focus when the flag is enabled
-                // unless the preferred device route is set as indicated by the audio fwk. We
-                // don't want to override this selection if the user had set a default audio
-                // route for calls.
-                if (!isPreferredDeviceSet() ) {
+                // Unless the preferred device selection (reported by the audio fwk) is set or the
+                // initial audio routing needs to be explicitly handled for video calls, the route
+                // should remain on the current route. We don't want to override the selection if
+                // the user had explicitly requested route.
+                if (!isPreferredDeviceSet() && !shouldHandleRouteForVideoCall()) {
+                    Log.i(this, "Using current route for audio");
                     route = getCurrentOrPendingRoute();
                 }
                 routeTo(true, route);
@@ -1555,7 +1620,7 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
         }
     }
 
-    private void onMuteStateChanged(boolean mute) {
+    private void processOnMuteStateChanged(boolean mute) {
         updateCallAudioState(new CallAudioState(mute, mCallAudioState.getRoute(),
                 mCallAudioState.getSupportedRouteMask(), mCallAudioState.getActiveBluetoothDevice(),
                 mCallAudioState.getSupportedBluetoothDevices()));
