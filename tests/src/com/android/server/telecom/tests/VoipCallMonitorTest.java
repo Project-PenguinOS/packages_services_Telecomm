@@ -454,6 +454,7 @@ public class VoipCallMonitorTest extends TelecomTestCase {
         Intent intent = intentCaptor.getValue();
         assertEquals(ConnectionService.SERVICE_INTERFACE, intent.getAction());
         assertEquals(PKG_NAME_1, intent.getPackage());
+        assertTrue(intent.getBooleanExtra(ConnectionService.EXTRA_IS_BAL_BINDING, false));
 
         // 2. Simulate the system saying "Service Connected"
         serviceConnCaptor.getValue().onServiceConnected(
