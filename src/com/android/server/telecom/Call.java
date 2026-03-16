@@ -776,10 +776,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     private boolean mSkipAutoUnhold = false;
     private boolean mIsTransactionalLogExcluded = false;
     private int mLastCallStateBeforeDisconnect = CallState.DISCONNECTED;
-    // Set true if the call was held due to a new (MT/MO) call. Reset when the user explicitly tries
-    // to hold the call. This is only used to determine when we should auto-unhold a call (e.g. due
-    // to a call setup failure).
-    private boolean mIsHeldDueToNewCall = false;
     private Uri mVoipContactLookupUri;
     private boolean mIsGroupCall = false;
 
@@ -3590,19 +3586,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     }
 
     /**
-     * Puts the call on hold if it is currently active. This should only be invoked via the ICA
-     * path where the user/app is explicitly requesting the call to be held. This ensures that we
-     * correctly reset the mIsCallHeldDueToNewCall correctly in these cases. In all other cases,
-     * we should set the latter to true.
-     */
-    @VisibleForTesting
-    public CompletableFuture<Boolean> requestHoldFromApp() {
-        CompletableFuture<Boolean> holdFuture = hold(null /* reason */);
-        mIsHeldDueToNewCall = false;
-        return holdFuture;
-    }
-
-    /**
      * Puts the call on hold if it is currently active.
      */
     @VisibleForTesting
@@ -3615,9 +3598,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      * the call on hold
      */
     public CompletableFuture<Boolean> hold(String reason) {
-        // Refer to #requestHoldFromApp, which will reset this value if the request is explicitly
-        // coming from the app.
-        mIsHeldDueToNewCall = true;
         CompletableFuture<Boolean> holdFutureHandler = CompletableFuture.completedFuture(false);
         if (mState == CallState.ACTIVE) {
             Log.addEvent(this, LogUtils.Events.REQUEST_HOLD, reason);
@@ -5617,14 +5597,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
     public boolean isTransactionalLogExcluded() {
         return mIsTransactionalLogExcluded;
-    }
-
-    public void setIsHeldDueToNewCall(boolean result) {
-        mIsHeldDueToNewCall = result;
-    }
-
-    public boolean isHeldDueToNewCall() {
-        return mIsHeldDueToNewCall;
     }
 
     public int getLastCallStateBeforeDisconnect() {

@@ -25,6 +25,7 @@ import static com.android.server.telecom.CallsManager.LIVE_CALL_STUCK_CONNECTING
 import static com.android.server.telecom.CallsManager.LIVE_CALL_STUCK_CONNECTING_ERROR_UUID;
 import static com.android.server.telecom.CallsManager.ONGOING_CALL_STATES;
 import static com.android.server.telecom.CallsManager.OUTGOING_CALL_STATES;
+import static com.android.server.telecom.UserUtil.showErrorDialogForRestrictedOutgoingCall;
 
 import android.content.Context;
 import android.content.Intent;
@@ -50,7 +51,6 @@ import com.android.server.telecom.AnomalyReporterAdapter;
 import com.android.server.telecom.Call;
 import com.android.server.telecom.CallState;
 import com.android.server.telecom.CallsManager;
-import com.android.server.telecom.UserUtil;
 import com.android.server.telecom.ClockProxy;
 import com.android.server.telecom.LogUtils;
 import com.android.server.telecom.LoggedHandlerExecutor;
@@ -1260,18 +1260,10 @@ public class CallSequencingController {
     }
 
     private void showErrorDialogForOutgoingDuringRingingCall(Call call) {
+        int resourceId = TelecomResourceId.getIdentifier(mContext,
+                "callFailed_already_ringing", "string");
         String reason = " can't place outgoing call with an unanswered incoming call.";
-        if (com.android.internal.telecom.flags.Flags.addEscapeHatchForStuckVoip()) {
-            Call ringingCall = mCallsManager.getRingingOrSimulatedRingingCall();
-            CharSequence name =
-                    ringingCall != null ? ringingCall.getTargetPhoneAccountLabel() : null;
-            UserUtil.startCallConfirmation(mContext, mTelecomPackageName,
-                    name, TAG, reason, call.getId());
-        } else {
-            int resourceId = TelecomResourceId.getIdentifier(mContext,
-                    "callFailed_already_ringing", "string");
-            showErrorDialogForFailedCall(call, null, resourceId, reason);
-        }
+        showErrorDialogForFailedCall(call, null, resourceId, reason);
     }
 
     private void showErrorDialogForCannotSwapCall(Call call) {
@@ -1299,8 +1291,8 @@ public class CallSequencingController {
             call.setStartFailCause(cause);
         }
         CharSequence message = TelecomResourceId.getResources(mContext).getText(resourceId);
-        UserUtil.showErrorDialogForRestrictedOutgoingCall(mContext, mTelecomPackageName, message,
-                TAG, reason);
+        showErrorDialogForRestrictedOutgoingCall(mContext, mTelecomPackageName, message, TAG,
+                reason);
     }
 
     public Handler getHandler() {

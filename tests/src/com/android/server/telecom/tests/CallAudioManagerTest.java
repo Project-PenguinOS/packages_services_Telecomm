@@ -195,25 +195,13 @@ public class CallAudioManagerTest extends TelecomTestCase {
     }
 
     @Test
-    public void testSilenceRing_CrsWithParameters_CrsCall() {
+    public void testSilenceRing_CrsWithParameters() {
         Call call = createIncomingCall();
-        when(mCrsAudioController.isCrsInCallMode(call)).thenReturn(true);
         when(mCrsAudioController.shouldControlCrsWithParameters()).thenReturn(true);
 
         mCallAudioManager.silenceRingers(mContext, null, true);
 
         verify(mCrsAudioController).setCrsSpeechMuted(true);
-    }
-
-    @Test
-    public void testSilenceRing_CrsWithParameters_NonCrsCall() {
-        Call call = createIncomingCall();
-        when(mCrsAudioController.isCrsInCallMode(call)).thenReturn(false);
-        when(mCrsAudioController.shouldControlCrsWithParameters()).thenReturn(true);
-
-        mCallAudioManager.silenceRingers(mContext, null, true);
-
-        verify(mCrsAudioController, never()).setCrsSpeechMuted(true);
     }
 
 

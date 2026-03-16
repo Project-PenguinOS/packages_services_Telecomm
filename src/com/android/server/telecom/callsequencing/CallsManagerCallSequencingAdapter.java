@@ -105,7 +105,7 @@ public class CallsManagerCallSequencingAdapter {
      */
     public void holdCall(Call call) {
         // Sequencing already taken care of for CSW/TSW in Call class.
-        CompletableFuture<Boolean> holdFuture = call.requestHoldFromApp();
+        CompletableFuture<Boolean> holdFuture = call.hold();
         maybeLogFutureResultTransaction(holdFuture, "holdCall", "CMCSA.hC",
                 "hold call transaction succeeded.", "hold call transaction failed.");
     }
@@ -221,9 +221,6 @@ public class CallsManagerCallSequencingAdapter {
                 && foregroundCall.getState() == CallState.ON_HOLD;
         boolean didCallDisconnectDuringSetup = SETUP_CALL_STATES.contains(
                 removedCall.getLastCallStateBeforeDisconnect());
-        boolean shouldAutoUnholdFgCall =
-                !com.android.internal.telecom.flags.Flags.preventAutoUnholdIfUserHeld()
-                        || foregroundCall.isHeldDueToNewCall();
         if (isLocallyDisconnecting) {
             // Auto-unhold the foreground call due to a locally disconnected call, except if the
             // call which was disconnected is a member of a conference (don't want to auto
@@ -243,8 +240,7 @@ public class CallsManagerCallSequencingAdapter {
             Log.i(this, "maybeMoveHeldCallToForeground: Auto-unholding held foreground call (call "
                     + "doesn't support hold)");
             unholdForegroundCallFuture = foregroundCall.unhold();
-        } else if (shouldAutoUnholdFgCall && didCallDisconnectDuringSetup
-                && !isDisconnectingChildCall && isForegroundCallHeld
+        } else if (didCallDisconnectDuringSetup && !isDisconnectingChildCall && isForegroundCallHeld
                 && (removedCall.getDisconnectCause().getCode() == DisconnectCause.ERROR
                 || removedCall.getDisconnectCause().getCode() == DisconnectCause.CANCELED)) {
             // Auto-disconnect the held call if the call was disconnected with an error or canceled.

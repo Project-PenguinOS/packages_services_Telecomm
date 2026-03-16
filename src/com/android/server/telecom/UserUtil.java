@@ -90,21 +90,6 @@ public final class UserUtil {
                 + reason);
     }
 
-    public static void startCallConfirmation(Context context,
-            String telecomUiPackage, CharSequence ongoingAppName, String tag,
-            String reason, String callId) {
-        Log.d("UserUtil", "startCallConfirmation: callId=%s, ongoingApp=%s", callId,
-                ongoingAppName);
-        final Intent intent = new Intent();
-        intent.setClassName(telecomUiPackage, UiConstants.COMPONENT_CONFIRM_CALL_DIALOG);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        intent.putExtra(UiConstants.EXTRA_OUTGOING_CALL_ID, callId);
-        intent.putExtra(UiConstants.EXTRA_ONGOING_APP_NAME, ongoingAppName);
-        context.startActivityAsUser(intent, UserHandle.CURRENT);
-        Log.w(tag, "Showing call confirmation UI because "
-                + reason);
-    }
-
     public static boolean hasOutgoingCallsUserRestriction(Context context,
             UserHandle userHandle, Uri handle, boolean isSelfManaged, String telecomUiPackage,
             String tag) {

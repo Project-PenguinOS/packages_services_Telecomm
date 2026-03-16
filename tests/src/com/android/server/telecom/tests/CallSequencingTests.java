@@ -46,9 +46,6 @@ import android.os.Bundle;
 import android.os.OutcomeReceiver;
 import android.os.PersistableBundle;
 import android.os.UserHandle;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
-import android.platform.test.flag.junit.SetFlagsRule;
 import android.telecom.CallAttributes;
 import android.telecom.CallException;
 import android.telecom.Connection;
@@ -59,7 +56,6 @@ import android.telephony.CarrierConfigManager;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.internal.telecom.flags.Flags;
 import com.android.server.telecom.AnomalyReporterAdapter;
 import com.android.server.telecom.Call;
 import com.android.server.telecom.CallState;
@@ -75,15 +71,12 @@ import com.android.server.telecom.callsequencing.CallTransaction;
 import com.android.server.telecom.callsequencing.voip.OutgoingCallTransactionSequencing;
 import com.android.server.telecom.metrics.TelecomMetricsController;
 import com.android.server.telecom.stats.CallFailureCause;
-import com.android.server.telecom.ui.UiConstants;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 
 import java.util.Arrays;
@@ -106,8 +99,6 @@ public class CallSequencingTests extends TelecomTestCase {
     private static final String NEW_CALL_ID = "TC@2";
 
     private CallSequencingController mController;
-    @Rule
-    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
     @Mock CallsManager mCallsManager;
     @Mock Context mContext;
     @Mock ClockProxy mClockProxy;
@@ -654,42 +645,12 @@ public class CallSequencingTests extends TelecomTestCase {
 
     @Test
     @SmallTest
-    @EnableFlags(Flags.FLAG_ADD_ESCAPE_HATCH_FOR_STUCK_VOIP)
-    public void testMakeRoomForOutgoingCallFail_RingingCall_FlagEnabled() {
-        when(mNewCall.isSelfManaged()).thenReturn(false);
-        when(mCallsManager.hasManagedRingingOrSimulatedRingingCall()).thenReturn(true);
-        when(mCallsManager.getRingingOrSimulatedRingingCall()).thenReturn(mRingingCall);
-        when(mRingingCall.getTargetPhoneAccountLabel()).thenReturn("TestApp");
-
-        CompletableFuture<Boolean> future = mController.makeRoomForOutgoingCall(false, mNewCall);
-        assertFalse(waitForFutureResult(future, true));
-
-        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
-        verify(mContext).startActivityAsUser(intentCaptor.capture(), eq(UserHandle.CURRENT));
-        Intent intent = intentCaptor.getValue();
-        assertEquals(UiConstants.COMPONENT_CONFIRM_CALL_DIALOG,
-                intent.getComponent().getClassName());
-        assertEquals("TestApp", intent.getCharSequenceExtra(
-                UiConstants.EXTRA_ONGOING_APP_NAME).toString());
-        assertEquals(NEW_CALL_ID, intent.getStringExtra(
-                UiConstants.EXTRA_OUTGOING_CALL_ID));
-    }
-
-    @Test
-    @SmallTest
-    @DisableFlags(Flags.FLAG_ADD_ESCAPE_HATCH_FOR_STUCK_VOIP)
-    public void testMakeRoomForOutgoingCallFail_RingingCall_FlagDisabled() {
+    public void testMakeRoomForOutgoingCallFail_RingingCall() {
         when(mNewCall.isSelfManaged()).thenReturn(false);
         when(mCallsManager.hasManagedRingingOrSimulatedRingingCall()).thenReturn(true);
 
         CompletableFuture<Boolean> future = mController.makeRoomForOutgoingCall(false, mNewCall);
         assertFalse(waitForFutureResult(future, true));
-
-        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
-        verify(mContext).startActivityAsUser(intentCaptor.capture(), eq(UserHandle.CURRENT));
-        Intent intent = intentCaptor.getValue();
-        assertEquals(UiConstants.COMPONENT_ERROR_DIALOG,
-                intent.getComponent().getClassName());
     }
 
     @Test

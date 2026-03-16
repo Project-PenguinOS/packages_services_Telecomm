@@ -595,7 +595,6 @@ public class CallAudioManager extends CallsManagerListenerBase {
                 call.silence();
                 mSilencedCalls.add(call);
                 if (getCrsAudioController() != null
-                        && getCrsAudioController().isCrsInCallMode(call)
                         && getCrsAudioController().shouldControlCrsWithParameters()) {
                     // Send speech mute in case user explicitly mute the ring
                     getCrsAudioController().setCrsSpeechMuted(true);
