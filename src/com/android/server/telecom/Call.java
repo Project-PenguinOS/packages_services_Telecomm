@@ -1267,6 +1267,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 }
             }
         }
+        mConnectionServiceToInCallStreams = null;
+        mInCallToConnectionServiceStreams = null;
     }
 
     /** {@inheritDoc} */
@@ -2727,8 +2729,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                     }
                 } else {
                     closeRttStreams();
-                    mInCallToConnectionServiceStreams = null;
-                    mConnectionServiceToInCallStreams = null;
                 }
             }
             mWasHighDefAudio = (connectionProperties & Connection.PROPERTY_HIGH_DEF_AUDIO) ==
@@ -4565,7 +4565,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         mConnectionService.startRtt(this, getInCallToCsRttPipeForCs(), getCsToInCallRttPipeForCs());
     }
 
-    private boolean areRttStreamsInitialized() {
+    boolean areRttStreamsInitialized() {
         return mInCallToConnectionServiceStreams != null
                 && mConnectionServiceToInCallStreams != null;
     }
