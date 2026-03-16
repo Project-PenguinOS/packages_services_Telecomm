@@ -30,6 +30,7 @@ import static com.android.server.telecom.CallAudioRouteAdapter.CONNECT_DOCK;
 import static com.android.server.telecom.CallAudioRouteAdapter.CONNECT_WIRED_HEADSET;
 import static com.android.server.telecom.CallAudioRouteAdapter.DISCONNECT_DOCK;
 import static com.android.server.telecom.CallAudioRouteAdapter.DISCONNECT_WIRED_HEADSET;
+import static com.android.server.telecom.CallAudioRouteAdapter.MUTE_EXTERNALLY_CHANGED;
 import static com.android.server.telecom.CallAudioRouteAdapter.MUTE_OFF;
 import static com.android.server.telecom.CallAudioRouteAdapter.MUTE_ON;
 import static com.android.server.telecom.CallAudioRouteAdapter.NO_FOCUS;
@@ -880,6 +881,48 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         verify(mUserAudioManager, timeout(TEST_TIMEOUT)).setMicrophoneMute(eq(true));
         verify(mCallsManager, timeout(TEST_TIMEOUT).atLeastOnce()).onCallAudioStateChanged(
                 any(CallAudioState.class), eq(expectedState));
+    }
+
+    @SmallTest
+    @Test
+    public void testMuteRequestsWhenRoutingInactive() {
+        mController.initialize();
+        mController.setActive(false);
+
+        // 1. MUTE_EXTERNALLY_CHANGED when inactive: should NOT invoke
+        // AudioManager#setMicrophoneMute
+        // Controller mIsMute is true. Mock system to be TRUE
+        when(mAudioManager.isMicrophoneMute()).thenReturn(true);
+        mController.sendMessageWithSessionInfo(MUTE_EXTERNALLY_CHANGED);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+        // Verify setMicrophoneMute was NEVER called because routing is inactive and it's external.
+        verify(mUserAudioManager, never()).setMicrophoneMute(anyBoolean());
+        // Verify state is updated anyway
+        assertTrue(mController.getCurrentCallAudioState().isMuted());
+
+        // 2. MUTE_OFF when inactive: SHOULD invoke AudioManager#setMicrophoneMute(false)
+        // Controller mIsMute is true. Mock system to be TRUE
+        when(mAudioManager.isMicrophoneMute()).thenReturn(true);
+        mController.sendMessageWithSessionInfo(MUTE_OFF);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+        verify(mUserAudioManager, timeout(TEST_TIMEOUT)).setMicrophoneMute(false);
+        assertFalse(mController.getCurrentCallAudioState().isMuted());
+
+        // 3. MUTE_ON when inactive: SHOULD invoke AudioManager#setMicrophoneMute(true)
+        // Controller mIsMute is false. Mock system to be FALSE
+        when(mAudioManager.isMicrophoneMute()).thenReturn(false);
+        mController.sendMessageWithSessionInfo(MUTE_ON);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+        verify(mUserAudioManager, timeout(TEST_TIMEOUT)).setMicrophoneMute(true);
+        assertTrue(mController.getCurrentCallAudioState().isMuted());
+
+        // 4. TOGGLE_MUTE when inactive: SHOULD invoke AudioManager#setMicrophoneMute(false)
+        // Controller mIsMute is true. Mock system to be TRUE
+        when(mAudioManager.isMicrophoneMute()).thenReturn(true);
+        mController.sendMessageWithSessionInfo(TOGGLE_MUTE);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+        verify(mUserAudioManager, timeout(TEST_TIMEOUT).times(2)).setMicrophoneMute(false);
+        assertFalse(mController.getCurrentCallAudioState().isMuted());
     }
 
     @SmallTest
