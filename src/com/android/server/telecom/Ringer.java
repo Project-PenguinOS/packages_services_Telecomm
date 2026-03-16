@@ -516,7 +516,7 @@ public class Ringer {
             }
 
             boolean hapticChannelsMuted = !isVibratorEnabled || !mIsHapticPlaybackSupportedByDevice;
-            if (shouldApplyRampingRinger
+            if (mRingerAttributes.isRingerAudible() && shouldApplyRampingRinger
                     && !mSystemSettingsUtil.isAudioCoupledVibrationForRampingRingerEnabled()
                     && isVibratorEnabled) {
                 Log.i(this, "Muted haptic channels since audio coupled ramping ringer is disabled");
