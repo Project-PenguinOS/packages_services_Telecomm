@@ -342,10 +342,19 @@
     <!-- Notification content for a notification that is posted when a voicemail from an
          unknown caller is being recorded by the app named`app_name`. -->
     <string name="notification_local_voicemail_unknown_details">Voicemail is being recorded by <xliff:g id="app_name">%1$s</xliff:g> for call from an unknown caller.</string>
+    <!-- Notification content for a notification that is posted when a voicemail from an
+             unknown caller is being recorded by the app named `app_name`; this version is shown
+              when the user's device is locked and the name of the caller is hidden. -->
+    <string name="notification_local_voicemail_public_details">Voicemail is being recorded by <xliff:g id="app_name">%1$s</xliff:g> for a call.</string>
 
     <!-- Notification content for a notification that is posted when a call from `caller_name` is
          ringing so that they can choose to send the call to `app_name` to take a message. -->
     <string name="notification_send_to_voicemail_details">Send call from <xliff:g id="caller_name">%2$s</xliff:g> to <xliff:g id="app_name">%1$s</xliff:g> to take a message.</string>
+    <!-- Notification content for a notification that is posted when a call is
+             ringing so that they can choose to send the call to `app_name` to take a message.
+             This version is shown when the device is locked and the caller name is hidden for
+             privacy purposes. -->
+    <string name="notification_send_to_voicemail_public_details">Send call to <xliff:g id="app_name">%1$s</xliff:g> to take a message.</string>
 
     <!-- Notification button that the user presses to cause the current ringing call to be sent to
          voicemail to have a message taken. -->

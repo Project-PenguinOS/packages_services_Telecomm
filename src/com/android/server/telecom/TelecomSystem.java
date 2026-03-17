@@ -521,7 +521,10 @@ public class TelecomSystem {
                     .ACTION_DISCONNECTED_SEND_SMS_FROM_NOTIFICATION);
             telecomBroadcastFilter.addAction(TelecomBroadcastIntentProcessor
                     .ACTION_DISCONNECTED_CALL_BACK_FROM_NOTIFICATION);
-
+            telecomBroadcastFilter.addAction(TelecomBroadcastIntentProcessor
+                    .ACTION_SEND_CALL_TO_LOCAL_VOICEMAIL);
+            telecomBroadcastFilter.addAction(TelecomBroadcastIntentProcessor
+                    .ACTION_PICKUP_LOCAL_VOICEMAIL);
             mAllUsersContext.registerReceiver(new TelecomBroadcastReceiver(),
                     telecomBroadcastFilter, TelecomManager.PERMISSION_TELECOM_UI_ACCESS, null,
                     Context.RECEIVER_EXPORTED);
