@@ -144,6 +144,11 @@ public class InCallController extends CallsManagerListenerBase implements
         public InCallServiceInfo getInfo() { return null; }
         public void dump(IndentingPrintWriter pw) {}
         public Call mCall;
+        private Call mPendingCall;
+        public Call getPendingCall() { return mPendingCall; }
+        public void setPendingCall(Call pendingCall) {
+            mPendingCall = pendingCall;
+        }
     }
 
     public static class InCallServiceInfo {
@@ -364,6 +369,12 @@ public class InCallController extends CallsManagerListenerBase implements
             }
 
             Log.i(this, "Attempting to bind to InCall %s, with %s", mInCallServiceInfo, intent);
+            if (mInCallServiceInfo.mType == IN_CALL_SERVICE_TYPE_DEFAULT_DIALER_UI ||
+                mInCallServiceInfo.mType == IN_CALL_SERVICE_TYPE_SYSTEM_UI) {
+                // Cache this call for dialer ICS as binding is taking time
+                setPendingCall(call);
+            }
+
             mIsConnected = true;
             mInCallServiceInfo.setBindingStartTime(mClockProxy.elapsedRealtime());
             boolean isManagedProfile = UserUtil.isManagedProfile(mContext,
@@ -605,6 +616,24 @@ public class InCallController extends CallsManagerListenerBase implements
         }
 
         @Override
+        public Call getPendingCall() {
+            if (mIsProxying) {
+                return mSubConnection.getPendingCall();
+            } else {
+                return super.getPendingCall();
+            }
+        }
+
+        @Override
+        public void setPendingCall(Call pendingCall) {
+            if (mIsProxying) {
+                mSubConnection.setPendingCall(pendingCall);
+            } else {
+                super.setPendingCall(pendingCall);
+            }
+        }
+
+        @Override
         public void dump(IndentingPrintWriter pw) {
             pw.print("Emergency ICS Connection [");
             pw.append(mIsProxying ? "" : "not ").append("proxying, ");
@@ -790,6 +819,16 @@ public class InCallController extends CallsManagerListenerBase implements
                 pw.print("Car Mode: ");
                 mCarModeConnection.dump(pw);
             }
+        }
+
+        @Override
+        public void setPendingCall(Call pendingCall) {
+            mDialerConnection.setPendingCall(pendingCall);
+        }
+
+        @Override
+        public Call getPendingCall() {
+            return mDialerConnection.getPendingCall();
         }
 
         private InCallServiceConnection getCurrentConnection() {
@@ -1198,8 +1237,10 @@ public class InCallController extends CallsManagerListenerBase implements
     };
 
     private static final int IN_CALL_SERVICE_TYPE_INVALID = 0;
-    private static final int IN_CALL_SERVICE_TYPE_DEFAULT_DIALER_UI = 1;
-    private static final int IN_CALL_SERVICE_TYPE_SYSTEM_UI = 2;
+    @VisibleForTesting
+    public static final int IN_CALL_SERVICE_TYPE_DEFAULT_DIALER_UI = 1;
+    @VisibleForTesting
+    public static final int IN_CALL_SERVICE_TYPE_SYSTEM_UI = 2;
     private static final int IN_CALL_SERVICE_TYPE_CAR_MODE_UI = 3;
     private static final int IN_CALL_SERVICE_TYPE_NON_UI = 4;
     private static final int IN_CALL_SERVICE_TYPE_COMPANION = 5;
@@ -2791,6 +2832,21 @@ public class InCallController extends CallsManagerListenerBase implements
         List<Call> calls = orderCallsWithChildrenFirst(mCallsManager.getCalls().stream().filter(
                 call -> getUserFromCall(call).equals(userHandle))
                 .collect(Collectors.toUnmodifiableList()));
+        if (calls.isEmpty() &&
+            (info.mType == IN_CALL_SERVICE_TYPE_DEFAULT_DIALER_UI ||
+            info.mType == IN_CALL_SERVICE_TYPE_SYSTEM_UI)) {
+            // If the call list is empty
+            // and yet onServiceConnected callback
+            // is received, this implies that the relevant ICS has not received the call updates
+            // Hence we are adding the cached call, to be sent to ICS.
+            if (mInCallServiceConnections.containsKey(userHandle)) {
+                Call pendingCall = mInCallServiceConnections.get(userHandle).getPendingCall();
+                if (pendingCall != null) {
+                    calls.add(pendingCall);
+                }
+            }
+
+        }
         Log.i(this, "Adding %s calls to InCallService after onConnected: %s, including external " +
                 "calls", calls.size(), info.getComponentName());
         int numCallsSent = 0;
@@ -2831,11 +2887,20 @@ public class InCallController extends CallsManagerListenerBase implements
             // Only send the RTT call if it's a UI in-call service
             boolean includeRttCall = false;
             if (mInCallServiceConnections.containsKey(userFromCall)) {
-                includeRttCall = info.equals(mInCallServiceConnections.get(userFromCall).getInfo());
+                InCallServiceConnection connection = mInCallServiceConnections.get(userFromCall);
+                if (connection != null && connection.getInfo() != null) {
+                    includeRttCall = info.equals(connection.getInfo())
+                            && call.areRttStreamsInitialized();
+                }
             }
 
             // Track the call if we don't already know about it.
-            addCall(call);
+            if (call.getState() != android.telecom.Call.STATE_DISCONNECTED) {
+                // In the case of late binding for dialer ICS, when we call SendTOICS with
+                // a call in disconnected state, we should not add the call back in CallIdMapper
+                // to avoid a call already removed.
+                addCall(call);
+            }
             ParcelableCall parcelableCall = ParcelableCallUtils.toParcelableCall(
                     call,
                     true /* includeVideoProvider */,
@@ -2859,6 +2924,15 @@ public class InCallController extends CallsManagerListenerBase implements
                 }
             } else {
                 inCallService.addCall(sanitizeParcelableCallForService(info, parcelableCall));
+            }
+            if (info.mType == IN_CALL_SERVICE_TYPE_DEFAULT_DIALER_UI ||
+                info.mType == IN_CALL_SERVICE_TYPE_SYSTEM_UI) {
+                // Reset cached call once we are done sending to dialer ICS
+                if (mInCallServiceConnections.containsKey(userFromCall)) {
+                    InCallServiceConnection icsConnection = mInCallServiceConnections.get(
+                        userFromCall);
+                    icsConnection.setPendingCall(null);
+                }
             }
             updateCallTracking(call, info, true /* isAdd */);
             return 1;
