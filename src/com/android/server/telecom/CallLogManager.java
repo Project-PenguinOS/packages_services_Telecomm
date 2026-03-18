@@ -479,9 +479,7 @@ public final class CallLogManager extends CallsManagerListenerBase {
         // name as that field is used for populating the CACHED_NAME column in the call log, which
         // may be overwritten if a contact exists.
         if (mFeatureFlags.supportDisplayNameCallLog()) {
-            String preferredName = isCallerDisplayPresent
-                    ? call.getCallerDisplayName()
-                    : (callerInfo != null ? callerInfo.cnapName : "");
+            String preferredName = getPreferredName(call, isCallerDisplayPresent, callerInfo);
             paramBuilder.setPreferredDisplayName(preferredName);
             String name = callerInfo != null ? callerInfo.getName() : "";
             Log.w(TAG, "Call display name details - [display name: %s, preferred display name: %s]",
@@ -505,6 +503,22 @@ public final class CallLogManager extends CallsManagerListenerBase {
         } else {
             Log.addEvent(call, LogUtils.Events.SKIP_CALL_LOG);
         }
+    }
+
+    private static String getPreferredName(Call call, boolean isCallerDisplayPresent,
+        CallerInfo callerInfo) {
+        if (isCallerDisplayPresent) {
+            if (call.getCallerDisplayNamePresentation() == TelecomManager.PRESENTATION_ALLOWED) {
+                return call.getCallerDisplayName();
+            }
+            Log.w(TAG, "Clearing caller display name due to presentation restriction");
+        } else if (callerInfo != null) {
+            if (callerInfo.namePresentation == TelecomManager.PRESENTATION_ALLOWED) {
+                return callerInfo.cnapName;
+            }
+            Log.w(TAG, "Clearing cnapName due to presentation restriction");
+        }
+        return "";
     }
 
     boolean okayToLogCall(PhoneAccountHandle accountHandle, String number, boolean isEmergency) {
