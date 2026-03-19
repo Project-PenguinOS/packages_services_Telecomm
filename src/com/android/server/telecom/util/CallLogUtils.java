@@ -286,7 +286,6 @@ public class CallLogUtils {
         // Clear the number and name if the presentation is restricted
         if (numberPresentation == PRESENTATION_RESTRICTED) {
             params.mNumber = "";
-            params.mPreferredDisplayName = "";
             if (params.mCallerInfo != null) {
                 name = "";
             }
