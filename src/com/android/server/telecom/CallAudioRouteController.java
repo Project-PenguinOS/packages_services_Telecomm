@@ -2202,6 +2202,9 @@ public class CallAudioRouteController extends CallsManagerListenerBase
                 || existingHaRoute.getType() != AudioRoute.TYPE_BLUETOOTH_HA) {
             return;
         }
+        if (newHaDevice.getAddress().equals(existingHaRoute.getBluetoothAddress())) {
+            return;
+        }
         // This is critical to avoid an inconsistent hash state.
         updateAvailableRoutes(existingHaRoute, false);
         existingHaRoute.setBluetoothHaPairDevice(newHaDevice);
