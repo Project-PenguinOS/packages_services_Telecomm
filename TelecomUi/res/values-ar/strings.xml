@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--  Copyright (C) 2026 The Android Open Source Project
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+ -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="no_vm_number" msgid="376664256838987483">"رقم البريد الصوتي مفقود"</string>
+    <string name="no_vm_number_msg" msgid="4356509787635374260">"‏لم يتم تخزين رقم بريد صوتي على شريحة SIM."</string>
+    <string name="add_vm_number_str" msgid="7980945268907340849">"إضافة رقم"</string>
+    <string name="unblock_dialog_body" msgid="6409669116679064706">"‏إلغاء حظر ‎<xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g>؟"</string>
+    <string name="unblock_button" msgid="2085988753097438725">"إزالة الحظر"</string>
+    <string name="add_blocked_dialog_body" msgid="3646939382577972663">"حظر المكالمات والرسائل النصية من"</string>
+    <string name="block_button" msgid="2455086271060345610">"حظر"</string>
+    <string name="non_primary_user" msgid="2435380778851874271">"يمكن لمالك الجهاز فقط الاطّلاع على الأرقام المحظورة وإدارتها."</string>
+    <string name="blocked_numbers_number_blocked_message" msgid="3020928355060753128">"تم حظر <xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g>"</string>
+    <string name="blocked_numbers_number_unblocked_message" msgid="3112599598762744796">"تمت إزالة حظر <xliff:g id="UNBLOCKED_NUMBER">%1$s</xliff:g>"</string>
+    <string name="blocked_numbers_block_emergency_number_message" msgid="7109238580553660467">"غير قادر على حظر رقم الطوارئ."</string>
+    <string name="blocked_numbers_number_already_blocked_message" msgid="5999222621606917984">"تم حظر <xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g> بالفعل."</string>
+    <string name="alert_outgoing_call" msgid="762286363406537247">"يؤدي إجراء هذه المكالمة إلى إنهاء مكالمة <xliff:g id="OTHER_APP">%1$s</xliff:g>."</string>
+    <string name="alert_redirect_outgoing_call_timeout" msgid="7563578831876981546">"لا يمكن إجراء المكالمة بواسطة <xliff:g id="OTHER_APP">%1$s</xliff:g>. يمكنك تجربة استخدام تطبيق آخر لإعادة توجيه المكالمة أو الاتصال بمطور البرنامج للحصول على مساعدة."</string>
+    <string name="phone_strings_emergency_call_made_dialog_title_txt" msgid="1535746249366437841">"تم إجراء مكالمة طوارئ"</string>
+</resources>
