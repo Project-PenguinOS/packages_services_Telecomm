@@ -46,6 +46,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
+import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.media.ToneGenerator;
 import android.net.Uri;
@@ -403,7 +404,6 @@ public class TelecomSystemTest extends TelecomTestCase{
 
     @Override
     public void tearDown() throws Exception {
-        TelecomResourceId.setTelecomContext(null);
         if (mTelecomSystem != null && mTelecomSystem.getCallsManager() != null) {
             mTelecomSystem.getCallsManager().waitOnHandlers();
             LinkedList<HandlerThread> handlerThreads = mTelecomSystem.getCallsManager()
@@ -450,7 +450,7 @@ public class TelecomSystemTest extends TelecomTestCase{
             mConnectionServiceFixtureA.waitForHandlerToClear();
         }
 
-        if (mConnectionServiceFixtureA != null) {
+        if (mConnectionServiceFixtureB != null) {
             mConnectionServiceFixtureB.waitForHandlerToClear();
         }
 
@@ -459,6 +459,7 @@ public class TelecomSystemTest extends TelecomTestCase{
         Log.getSessionManager().cleanupStaleSessions(0);
 
         mTelecomSystem = null;
+        TelecomResourceId.setTelecomContext(null);
         super.tearDown();
     }
 

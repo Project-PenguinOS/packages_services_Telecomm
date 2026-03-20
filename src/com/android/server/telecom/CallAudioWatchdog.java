@@ -50,6 +50,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Monitors {@link AudioRecord}, {@link AudioTrack}, and {@link AudioManager#getMode()} to determine
@@ -58,6 +59,12 @@ import java.util.Set;
  */
 public class CallAudioWatchdog extends CallsManagerListenerBase
         implements AudioModeTracker.AudioModeListener {
+
+    public static final UUID WATCHDOG_SUPPRESSED_SELF_MANAGED_CALL_UUID =
+            UUID.fromString("51307b0c-45fb-4972-8d77-6cb5f6063e7c");
+    public static final String WATCHDOG_SUPPRESSED_SELF_MANAGED_CALL_MSG =
+            "A self-managed call was suppressed due to a platform action (e.g. losing foreground "
+                    + "service)";
     /**
      * Bit flag set on a {@link CommunicationSession#sessionAttr} to indicate that the session has
      * audio recording resources.
@@ -349,6 +356,26 @@ public class CallAudioWatchdog extends CallsManagerListenerBase
                             new ArraySet<>()).add(config.getClientAudioSessionId());
                     maybeTrackAudioRecord(config.getClientUid(), config.getClientAudioSessionId(),
                             true);
+
+                    // Note: This is a temporary measure. We are using the isClientSilenced
+                    // API to detect when the platform has suppressed a transactional call's
+                    // audio recording (for example, if the app loses its foreground service
+                    // or permission). We report an anomaly so we can track the frequency
+                    // of these occurrences.
+                    if (config.isClientSilenced()) {
+                        CommunicationSession session;
+                        synchronized (mCommunicationSessionsLock) {
+                            session = getSession(config.getClientUid());
+                        }
+                        if (session != null && session.getTelecomCall() instanceof Call
+                                && ((Call) session.getTelecomCall()).isTransactionalCall()) {
+                            Log.i(CallAudioWatchdog.this, "onRecordingConfigChanged: transactional "
+                                    + "call for uid=%d was silenced by platform", config.getClientUid());
+                            mAnomalyReporter.reportAnomaly(
+                                    WATCHDOG_SUPPRESSED_SELF_MANAGED_CALL_UUID,
+                                    WATCHDOG_SUPPRESSED_SELF_MANAGED_CALL_MSG);
+                        }
+                    }
                 }
             }
             // The listener stops reporting audio sessions that go away, so we need to clean up the
@@ -383,6 +410,7 @@ public class CallAudioWatchdog extends CallsManagerListenerBase
     private final LocalLog mLocalLog = new LocalLog(30);
 
     private final TelecomMetricsController mMetricsController;
+    private AnomalyReporterAdapter mAnomalyReporter = new AnomalyReporterAdapterImpl();
 
     // The current audio mode as reported by audio manager.
     private int mCurrentAudioMode = AudioManager.MODE_NORMAL;

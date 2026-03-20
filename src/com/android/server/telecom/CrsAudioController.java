@@ -52,6 +52,7 @@ public class CrsAudioController {
     private final ScheduledExecutorService mExecutor;
     private boolean mIsCrsModeSet = false;
     private boolean mIsCrsMuteSet = false;
+    private CallAudioManager mCallAudioManager;
 
     /**
      * Creates a new CrsAudioController.
@@ -66,6 +67,10 @@ public class CrsAudioController {
         mContext = context;
         mAudioManager = audioManager;
         mExecutor = executor;
+    }
+
+    public void setCallAudioManager(CallAudioManager callAudioManager) {
+        mCallAudioManager = callAudioManager;
     }
 
 
@@ -198,7 +203,11 @@ public class CrsAudioController {
     public void setAudioManagerInCallMode() {
         mExecutor.execute(() -> {
             Log.i(TAG, "Setting audio mode to MODE_IN_CALL");
-            mAudioManager.setMode(AudioManager.MODE_IN_CALL);
+            if (!com.android.internal.telecom.flags.Flags.callAudioRouteRf()) {
+                mAudioManager.setMode(AudioManager.MODE_IN_CALL);
+            } else if (mCallAudioManager != null) {
+                mCallAudioManager.setAudioMode(AudioManager.MODE_IN_CALL);
+            }
         });
     }
 
@@ -427,6 +436,9 @@ public class CrsAudioController {
      * @return {@code true} if Audio HAL handling the audio routing else {@code false}.
      */
     public boolean shouldControlCrsWithParameters() {
+        if (mContext == null) {
+            return false;
+        }
         return TextUtils.isEmpty(TelecomResourceId.getString(mContext,
                 "config_audio_parameter_key_crs_volume"))
                 && !TextUtils.isEmpty(TelecomResourceId.getString(mContext,

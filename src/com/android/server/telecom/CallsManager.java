@@ -849,6 +849,9 @@ public class CallsManager extends Call.ListenerBase
                 featureFlags), playerFactory, mRinger, new RingbackPlayer(playerFactory),
                 bluetoothStateReceiver, mDtmfLocalTonePlayer, featureFlags,
                 mCallConnectedIndicatorSettings);
+        if (mCrsAudioController != null) {
+            mCrsAudioController.setCallAudioManager(mCallAudioManager);
+        }
 
         mConnectionSvrFocusMgr = connectionServiceFocusManagerFactory.create(mRequester);
         mHeadsetMediaButton = headsetMediaButtonFactory.create(context, this, mLock);
@@ -906,6 +909,7 @@ public class CallsManager extends Call.ListenerBase
         mListeners.add(mCallStreamingNotification);
         mListeners.add(mCallAudioWatchDog);
         mListeners.add(mVoipCallMonitor);
+        mListeners.add((CallAudioRouteController) mCallAudioRouteAdapter);
 
         // Note this needs to be after mCallAudioManager so that the audio mode changes as needed
         // before we try to bind.
