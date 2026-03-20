@@ -36,6 +36,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.media.AudioAttributes;
 import android.media.AudioDeviceAttributes;
 import android.media.AudioDeviceCallback;
@@ -809,6 +810,14 @@ public class CallAudioRouteController extends CallsManagerListenerBase
     public void onCallRemoved(Call call) {
         Log.i(this, "onCallRemoved(%s)", call);
         mCallsActiveFocusSwitch.remove(call);
+        // Reset the mute state if all external and non-external calls have been removed. This
+        // should only be performed for the watch case.
+        if (mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_WATCH)
+                && mFocusType == NO_FOCUS && !mCallsManager.hasAnyCalls()
+                && !mCallsManager.hasExternalCalls()) {
+            Log.i(this, "Last call removed in NO_FOCUS, resetting mute.");
+            handleMuteChanged(false, false);
+        }
     }
 
     private boolean shouldHandleRouteForVideoCall() {
@@ -1450,8 +1459,13 @@ public class CallAudioRouteController extends CallsManagerListenerBase
             case NO_FOCUS -> {
                 mWasOnSpeaker = false;
                 // Reset mute state after call ends. This should remain unaffected if audio routing
-                // never went active.
-                handleMuteChanged(false, false /* isExternal */);
+                // never went active. Only reset if there are no external calls. Ensure that this
+                // conditional gate only applies to watches, otherwise, always reset as per existing
+                // behavior.
+                if (!mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_WATCH)
+                        || !mCallsManager.hasExternalCalls()) {
+                    handleMuteChanged(false, false /* isExternal */);
+                }
                 // Ensure we reset call audio state at the end of the call (i.e. if we're on
                 // speaker, route back to earpiece). If we're on BT, remain on BT if it's still
                 // connected.
