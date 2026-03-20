@@ -22,13 +22,13 @@
     <string name="unblock_dialog_body" msgid="6409669116679064706">"<xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g> അൺബ്ലോക്ക് ചെയ്യണോ?"</string>
     <string name="unblock_button" msgid="2085988753097438725">"അൺബ്ലോക്ക് ചെയ്യുക"</string>
     <string name="add_blocked_dialog_body" msgid="3646939382577972663">"ഈ നമ്പറിൽ നിന്നുള്ള കോളുകളും ടെക്സ്റ്റുകളും ബ്ലോക്ക് ചെയ്യുക"</string>
-    <string name="block_button" msgid="2455086271060345610">"ബ്ലോക്കുചെയ്യുക"</string>
-    <string name="non_primary_user" msgid="2435380778851874271">"ബ്ലോക്കുചെയ്ത നമ്പറുകൾ ഉപകരണ ഉടമയ്ക്ക് മാത്രമേ കാണാനും മാനേജുചെയ്യാനും കഴിയൂ."</string>
-    <string name="blocked_numbers_number_blocked_message" msgid="3020928355060753128">"<xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g> ബ്ലോക്ക് ചെയ്‌തു"</string>
+    <string name="block_button" msgid="2455086271060345610">"ബ്ലോക്ക് ചെയ്യുക"</string>
+    <string name="non_primary_user" msgid="2435380778851874271">"ബ്ലോക്ക് ചെയ്ത നമ്പറുകൾ ഉപകരണ ഉടമയ്ക്ക് മാത്രമേ കാണാനും മാനേജ് ചെയ്യാനും കഴിയൂ."</string>
+    <string name="blocked_numbers_number_blocked_message" msgid="3020928355060753128">"<xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g> ബ്ലോക്ക് ചെയ്തു"</string>
     <string name="blocked_numbers_number_unblocked_message" msgid="3112599598762744796">"<xliff:g id="UNBLOCKED_NUMBER">%1$s</xliff:g> അൺബ്ലോക്ക് ചെയ്‌തു"</string>
-    <string name="blocked_numbers_block_emergency_number_message" msgid="7109238580553660467">"അടിയന്തര നമ്പർ ബ്ലോക്കുചെയ്യാനാകുന്നില്ല."</string>
-    <string name="blocked_numbers_number_already_blocked_message" msgid="5999222621606917984">"<xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g> മുമ്പേതന്നെ ബ്ലോക്കുചെയ്‌തതാണ്."</string>
+    <string name="blocked_numbers_block_emergency_number_message" msgid="7109238580553660467">"എമർജൻസി നമ്പർ ബ്ലോക്ക് ചെയ്യാനാകുന്നില്ല."</string>
+    <string name="blocked_numbers_number_already_blocked_message" msgid="5999222621606917984">"<xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g> മുമ്പേ ബ്ലോക്ക് ചെയ്തു."</string>
     <string name="alert_outgoing_call" msgid="762286363406537247">"ഈ കോൾ ചെയ്യുന്നത് നിങ്ങളുടെ <xliff:g id="OTHER_APP">%1$s</xliff:g> കോൾ അവസാനിക്കാനിടയാക്കും."</string>
-    <string name="alert_redirect_outgoing_call_timeout" msgid="7563578831876981546">"<xliff:g id="OTHER_APP">%1$s</xliff:g>-ന് കോൾ ചെയ്യാനാവില്ല. സഹായത്തിനായി, ഡെവലപ്പറിനെ കോൺടാക്റ്റ് ചെയ്യുകയോ ആപ്പിനെ റീഡയറക്‌ട് ചെയ്യുകയോ ചെയ്‌ത്, മറ്റൊരു കോൾ ചെയ്യാൻ ശ്രമിക്കുക."</string>
-    <string name="phone_strings_emergency_call_made_dialog_title_txt" msgid="1535746249366437841">"അടിയന്തര കോൾ ചെയ്തു"</string>
+    <string name="alert_redirect_outgoing_call_timeout" msgid="7563578831876981546">"<xliff:g id="OTHER_APP">%1$s</xliff:g>-ന് കോൾ ചെയ്യാനാകുന്നില്ല. മറ്റൊരു \'കോൾ റീഡയറക്റ്റിംഗ് ആപ്പ്\' ഉപയോഗിച്ച് ട്രൈ ചെയ്യുകയോ സഹായത്തിനായി ഡെവലപ്പറെ ബന്ധപ്പെടുകയോ ചെയ്യുക."</string>
+    <string name="phone_strings_emergency_call_made_dialog_title_txt" msgid="1535746249366437841">"എമർജൻസി കോൾ ചെയ്തു"</string>
 </resources>

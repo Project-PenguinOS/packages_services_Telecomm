@@ -23,12 +23,12 @@
     <string name="unblock_button" msgid="2085988753097438725">"Odblokovat"</string>
     <string name="add_blocked_dialog_body" msgid="3646939382577972663">"Blokovat hovory a SMS od odesílatele"</string>
     <string name="block_button" msgid="2455086271060345610">"Blokovat"</string>
-    <string name="non_primary_user" msgid="2435380778851874271">"Prohlížet a spravovat blokovaná čísla může pouze vlastník zařízení."</string>
-    <string name="blocked_numbers_number_blocked_message" msgid="3020928355060753128">"Číslo <xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g> bylo zablokováno"</string>
+    <string name="non_primary_user" msgid="2435380778851874271">"Prohlížet a spravovat blokovaná čísla může jen vlastník zařízení."</string>
+    <string name="blocked_numbers_number_blocked_message" msgid="3020928355060753128">"Číslo <xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g> je zablokované"</string>
     <string name="blocked_numbers_number_unblocked_message" msgid="3112599598762744796">"Číslo <xliff:g id="UNBLOCKED_NUMBER">%1$s</xliff:g> bylo odblokováno"</string>
-    <string name="blocked_numbers_block_emergency_number_message" msgid="7109238580553660467">"Číslo tísňové linky se nepodařilo zablokovat."</string>
-    <string name="blocked_numbers_number_already_blocked_message" msgid="5999222621606917984">"Číslo <xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g> už je zablokováno."</string>
-    <string name="alert_outgoing_call" msgid="762286363406537247">"Uskutečněním tohoto hovoru ukončíte hovor <xliff:g id="OTHER_APP">%1$s</xliff:g>."</string>
-    <string name="alert_redirect_outgoing_call_timeout" msgid="7563578831876981546">"Aplikace <xliff:g id="OTHER_APP">%1$s</xliff:g> nemůže hovor provést. Zkuste jinou aplikaci na přesměrování hovorů nebo požádejte o pomoc vývojáře."</string>
+    <string name="blocked_numbers_block_emergency_number_message" msgid="7109238580553660467">"Číslo tísňové linky nejde zablokovat."</string>
+    <string name="blocked_numbers_number_already_blocked_message" msgid="5999222621606917984">"Číslo <xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g> už je zablokované."</string>
+    <string name="alert_outgoing_call" msgid="762286363406537247">"Když zahájíte tento hovor, hovor v aplikaci <xliff:g id="OTHER_APP">%1$s</xliff:g> se ukončí."</string>
+    <string name="alert_redirect_outgoing_call_timeout" msgid="7563578831876981546">"Aplikace <xliff:g id="OTHER_APP">%1$s</xliff:g> nemůže hovor spojit. Zkuste jinou aplikaci na přesměrování hovorů nebo požádejte o pomoc vývojáře."</string>
     <string name="phone_strings_emergency_call_made_dialog_title_txt" msgid="1535746249366437841">"Uskutečněno tísňové volání"</string>
 </resources>

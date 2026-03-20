@@ -16,8 +16,8 @@
 
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <string name="no_vm_number" msgid="376664256838987483">"Fehlende Mailbox-Nummer"</string>
-    <string name="no_vm_number_msg" msgid="4356509787635374260">"Auf der SIM-Karte ist keine Mailbox-Nummer gespeichert."</string>
+    <string name="no_vm_number" msgid="376664256838987483">"Fehlende Mailboxnummer"</string>
+    <string name="no_vm_number_msg" msgid="4356509787635374260">"Auf der SIM-Karte ist keine Mailboxnummer gespeichert."</string>
     <string name="add_vm_number_str" msgid="7980945268907340849">"Nummer hinzufügen"</string>
     <string name="unblock_dialog_body" msgid="6409669116679064706">"Blockierung von <xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g> aufheben?"</string>
     <string name="unblock_button" msgid="2085988753097438725">"Blockierung aufheben"</string>
