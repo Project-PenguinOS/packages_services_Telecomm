@@ -2519,7 +2519,7 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
     public void testBleHearingAidSupport_NotIncluded() {
         // Reinitialize the controller to ensure changes take place due to the disabling of the flag
         mController = new CallAudioRouteController.Factory().create(mContext, mCallsManager,
-                mAudioRouteFactory, mWiredHeadsetManager,mBluetoothRouteManager,
+                mAudioRouteFactory, mWiredHeadsetManager, mBluetoothRouteManager,
                 mockStatusBarNotifier, mFeatureFlags,
                 mMockTelecomMetricsController, mRingtonePlayer, mAnomalyReporterAdapter);
         assertFalse(BT_AUDIO_DEVICE_INFO_TYPES.contains(AudioDeviceInfo.TYPE_BLE_HEARING_AID));
@@ -2527,6 +2527,38 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         List<Integer> bluetoothLeDeviceInfoTypes = AUDIO_ROUTE_TYPE_TO_DEVICE_INFO_TYPE
                 .get(AudioRoute.TYPE_BLUETOOTH_LE);
         assertFalse(bluetoothLeDeviceInfoTypes.contains(AudioDeviceInfo.TYPE_BLE_HEARING_AID));
+    }
+    
+    @Test
+    @SmallTest
+    public void testHearingAidPair_AddMainDeviceTwice() {
+        // Connect the first HA device (creates route)
+        mController.initialize();
+        mController.setActive(true);
+        mController.sendMessageWithSessionInfo(BT_DEVICE_ADDED, AudioRoute.TYPE_BLUETOOTH_HA,
+                BLUETOOTH_DEVICE_1);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+
+        // Connect the second HA device (tracks as pair)
+        when(mBluetoothAdapter.getActiveDevices(android.bluetooth.BluetoothProfile.HEARING_AID))
+                .thenReturn(List.of(BLUETOOTH_DEVICE_1, HEARING_AID_PAIR_DEVICE));
+        mController.sendMessageWithSessionInfo(BT_DEVICE_ADDED, AudioRoute.TYPE_BLUETOOTH_HA,
+                HEARING_AID_PAIR_DEVICE);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+
+        AudioRoute hearingAidRoute = mController.getBluetoothRoute(
+                AudioRoute.TYPE_BLUETOOTH_HA, BT_ADDRESS_1);
+        assertEquals(HEARING_AID_PAIR_ADDRESS, hearingAidRoute.getBluetoothHaPairDevice()
+                .getAddress());
+
+        // Connect the first HA device AGAIN (simulating the bug)
+        mController.sendMessageWithSessionInfo(BT_DEVICE_ADDED, AudioRoute.TYPE_BLUETOOTH_HA,
+                BLUETOOTH_DEVICE_1);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+
+        // Verify that the pair device is STILL the second device and NOT the first one.
+        assertEquals(HEARING_AID_PAIR_ADDRESS, hearingAidRoute.getBluetoothHaPairDevice()
+                .getAddress());
     }
 
     private void verifyRouteUnchangedAfterFocusSwitch(int focusType, boolean setPreferredDevice) {
