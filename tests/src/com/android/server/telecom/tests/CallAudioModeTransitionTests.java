@@ -33,6 +33,7 @@ import android.os.HandlerThread;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.server.telecom.CallAudioManager;
 import com.android.server.telecom.CallAudioModeStateMachine;
 import com.android.server.telecom.CallAudioModeStateMachine.MessageArgs;
@@ -44,6 +45,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.mockito.Mock;
+import org.mockito.MockitoSession;
+import org.mockito.quality.Strictness;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -109,6 +112,7 @@ public class CallAudioModeTransitionTests extends TelecomTestCase {
     @Mock private CallAudioManager mCallAudioManager;
     private final ModeTestParameters mParams;
     private HandlerThread mTestThread;
+    private MockitoSession mMockitoSession;
 
     @Override
     @Before
@@ -116,6 +120,12 @@ public class CallAudioModeTransitionTests extends TelecomTestCase {
         mTestThread = new HandlerThread("CallAudioModeStateMachineTest");
         mTestThread.start();
         super.setUp();
+        mMockitoSession = ExtendedMockito.mockitoSession()
+                .strictness(Strictness.LENIENT)
+                .mockStatic(com.android.internal.telecom.flags.Flags.class)
+                .startMocking();
+        ExtendedMockito.when(com.android.internal.telecom.flags.Flags.callAudioRouteRf())
+                .thenReturn(false);
     }
 
     @Override
@@ -123,6 +133,9 @@ public class CallAudioModeTransitionTests extends TelecomTestCase {
     public void tearDown() throws Exception {
         mTestThread.quit();
         mTestThread.join();
+        if (mMockitoSession != null) {
+            mMockitoSession.finishMocking();
+        }
         super.tearDown();
     }
 

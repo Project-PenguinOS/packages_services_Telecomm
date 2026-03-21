@@ -16,38 +16,70 @@
 package com.android.server.telecom;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.content.res.Resources;
 import android.util.Log;
+
+import java.util.List;
 
 /**
  * Helper class to get resource IDs from the Telecom package.
  */
 public class TelecomResourceId {
-    private static final String TELECOM_PACKAGE = "com.android.server.telecom";
-    private static String sTelecomPackageName = TELECOM_PACKAGE;
+    private static final String TAG = "TelecomResourceId";
+    private static final String RESOURCES_APK_INTENT =
+            "com.android.server.telecom.intent.action.SERVICE_TELECOM_RESOURCES_APK";
+    private static final String TELEPHONY_MODULE_NAME = "com.android.telephonycore";
+    private static final String TELECOM_RES_PKG_DIR = "/apex/" + TELEPHONY_MODULE_NAME + "/";
+
+    private static String sTelecomPackageName;
     private static Context sTelecomContext;
 
     @com.android.internal.annotations.VisibleForTesting
-    public static void setTelecomContext(Context context) {
+    public static synchronized void setTelecomContext(Context context) {
         sTelecomContext = context;
         if (context != null) {
             sTelecomPackageName = context.getPackageName();
         } else {
-            sTelecomPackageName = TELECOM_PACKAGE;
+            sTelecomPackageName = null;
         }
     }
 
-    public static Context getTelecomContext(Context context) {
+    public static synchronized Context getTelecomContext(Context context) {
         if (sTelecomContext == null) {
-            try {
-                sTelecomContext = context.createPackageContext(TELECOM_PACKAGE, 0);
-            } catch (PackageManager.NameNotFoundException e) {
-                Log.e("TelecomResourceId", "Could not create Telecom context", e);
-                return context;
+            PackageManager pm = context.getPackageManager();
+            if (pm != null) {
+                final List<ResolveInfo> pkgs = pm.queryIntentActivities(
+                        new Intent(RESOURCES_APK_INTENT), PackageManager.MATCH_SYSTEM_ONLY);
+
+                pkgs.removeIf(pkg -> !pkg.activityInfo.applicationInfo.sourceDir.startsWith(
+                        TELECOM_RES_PKG_DIR));
+
+                if (pkgs.size() > 1) {
+                    Log.wtf(TAG, "More than one telecom resources package found: " + pkgs);
+                }
+
+                if (!pkgs.isEmpty()) {
+                    final String resPkg = pkgs.get(0).activityInfo.applicationInfo.packageName;
+                    try {
+                        sTelecomContext = context.createPackageContext(resPkg, 0);
+                        sTelecomPackageName = resPkg;
+                    } catch (PackageManager.NameNotFoundException e) {
+                        Log.e(TAG, "Resolved resource package not found: " + resPkg, e);
+                    }
+                }
+            }
+
+            // If discovery fails, fallback to the caller's context and identity.
+            if (sTelecomContext == null) {
+                Log.w(TAG, "No telecom resource package found via intent. Using caller context.");
+                sTelecomContext = context;
+                sTelecomPackageName = context.getPackageName();
             }
         }
-        return sTelecomContext;
+        return sTelecomContext != null ? sTelecomContext : context;
     }
 
     public static Resources getResources(Context context) {

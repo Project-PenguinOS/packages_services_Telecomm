@@ -400,7 +400,18 @@ public class ConnectionServiceFocusManager {
                 .filter(call -> mCurrentFocus.equals(call.getConnectionServiceWrapper())
                         && call.isFocusable())
                 .collect(Collectors.toList());
-
+        int numCallsWithFocus = 0;
+        for (CallFocus call : calls) {
+            if (PRIORITY_FOCUS_CALL_STATE.contains(call.getState())) {
+                Log.d(this, "updateCurrentFocusCall call with " +
+                        "PRIORITY_FOCUS_CALL_STATE = %s", call);
+                numCallsWithFocus++;
+            }
+        }
+        if (numCallsWithFocus > 1) {
+            Log.w(this, "updateCurrentFocusCall: multiple calls with " +
+                    "PRIORITY_FOCUS_CALL_STATE: %s", calls);
+        }
         for (CallFocus call : calls) {
             if (PRIORITY_FOCUS_CALL_STATE.contains(call.getState())) {
                 mCurrentFocusCall = call;

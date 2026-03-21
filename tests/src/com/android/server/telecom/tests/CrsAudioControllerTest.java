@@ -37,6 +37,7 @@ import android.telecom.CallAudioState;
 import android.telecom.VideoProfile;
 import android.text.TextUtils;
 
+import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.server.telecom.Call;
 import com.android.server.telecom.CallAudioManager;
 import com.android.server.telecom.CallState;
@@ -51,6 +52,8 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.MockitoSession;
+import org.mockito.quality.Strictness;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
@@ -74,11 +77,19 @@ public class CrsAudioControllerTest extends TelecomTestCase {
 
     private CrsAudioController mCrsAudioController;
     private CompletableFuture<Boolean> mTimeoutFuture;
+    private MockitoSession mMockitoSession;
 
     @Override
     @Before
     public void setUp() throws Exception {
         super.setUp();
+        mMockitoSession = ExtendedMockito.mockitoSession()
+                .strictness(Strictness.LENIENT)
+                .mockStatic(com.android.internal.telecom.flags.Flags.class)
+                .startMocking();
+        ExtendedMockito.when(com.android.internal.telecom.flags.Flags.callAudioRouteRf())
+                .thenReturn(false);
+
         MockitoAnnotations.initMocks(this);
         TelecomResourceId.setTelecomContext(mContext);
         when(mContext.getResources()).thenReturn(mResources);
@@ -105,6 +116,9 @@ public class CrsAudioControllerTest extends TelecomTestCase {
     @Override
     @After
     public void tearDown() throws Exception {
+        if (mMockitoSession != null) {
+            mMockitoSession.finishMocking();
+        }
         TelecomResourceId.setTelecomContext(null);
         super.tearDown();
     }
@@ -447,5 +461,16 @@ public class CrsAudioControllerTest extends TelecomTestCase {
         // Calling disable again should be a no-op since the mode is already off.
         mCrsAudioController.setCrsModeParams(false);
         verify(mAudioManager, times(1)).setParameters("off_param");
+    }
+
+    @Test
+    public void testSetAudioManagerInCallMode_FlagEnabled() {
+        ExtendedMockito.when(com.android.internal.telecom.flags.Flags.callAudioRouteRf())
+                .thenReturn(true);
+        mCrsAudioController.setCallAudioManager(mCallAudioManager);
+        mCrsAudioController.setAudioManagerInCallMode();
+
+        verify(mCallAudioManager).setAudioMode(AudioManager.MODE_IN_CALL);
+        verify(mAudioManager, never()).setMode(anyInt());
     }
 }

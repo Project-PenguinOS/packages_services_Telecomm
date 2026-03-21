@@ -173,6 +173,7 @@ java_library {
     ],
     libs: [
         "framework-statsd.stubs.module_lib",
+        "androidx.annotation_annotation",
     ],
     apex_available: [
         "com.android.telephonycore",
@@ -196,6 +197,7 @@ java_library {
     ],
     libs: [
         "framework-statsd.stubs.module_lib",
+        "androidx.annotation_annotation",
     ],
     apex_available: [
         "com.android.telephonycore",
@@ -237,9 +239,6 @@ android_library {
       "services",
       "framework-telecom.impl",
       "services.core",
-    ],
-    uses_libs: [
-      "ims-ext-common",
     ],
     manifest: "AndroidManifestLib.xml",
     srcs: [
@@ -363,6 +362,26 @@ android_app {
     updatable: true,
 }
 
+// APK to hold all the telecom overlayable resources.
+android_app {
+    name: "TelecomServiceResources",
+    manifest: "AndroidManifestServiceResources.xml",
+    sdk_version: "module_current",
+    min_sdk_version: "36",
+    resource_dirs: ["res"],
+    privileged: true,
+    export_package_resources: true,
+    certificate: select(release_flag("RELEASE_TELECOM_MAINLINE_MODULE"), {
+        true: ":com.android.telecom.resources.certificate",
+        default: "platform",
+    }),
+    preinstall_allowlist: ":preinstalled-packages-com.android.server.telecom.resources.xml",
+    updatable: true,
+    apex_available: [
+        "com.android.telephonycore",
+    ],
+}
+
 android_library {
     name: "shared-telecom-lib",
     manifest: "AndroidManifestLib.xml",
@@ -480,10 +499,6 @@ android_test {
         "telephony-ext",
         "ims-ext-common",
     ],
-    uses_libs: [
-        "ims-ext-common",
-    ],
-
     jni_libs: [
         "libdexmakerjvmtiagent",
         "libstaticjvmtiagent",
@@ -500,5 +515,5 @@ android_test {
         include_filter: ["com.android.server.telecom.**"],
         exclude_filter: ["com.android.server.telecom.tests.**"],
     },
-    test_suites: ["device-tests"],
+    test_suites: ["general-tests"],
 }
