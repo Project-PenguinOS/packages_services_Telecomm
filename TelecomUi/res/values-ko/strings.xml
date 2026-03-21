@@ -30,5 +30,5 @@
     <string name="blocked_numbers_number_already_blocked_message" msgid="5999222621606917984">"<xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g>번은 이미 차단되었습니다."</string>
     <string name="alert_outgoing_call" msgid="762286363406537247">"이 전화를 걸면 현재 <xliff:g id="OTHER_APP">%1$s</xliff:g>에서 진행 중인 통화가 종료됩니다."</string>
     <string name="alert_redirect_outgoing_call_timeout" msgid="7563578831876981546">"<xliff:g id="OTHER_APP">%1$s</xliff:g> 앱으로는 전화를 걸 수 없습니다. 다른 통화 리디렉션 앱을 사용하거나 개발자에게 도움을 요청해 보세요."</string>
-    <string name="phone_strings_emergency_call_made_dialog_title_txt" msgid="1535746249366437841">"긴급 통화가 사용됨"</string>
+    <string name="phone_strings_emergency_call_made_dialog_title_txt" msgid="1535746249366437841">"긴급 전화가 사용됨"</string>
 </resources>

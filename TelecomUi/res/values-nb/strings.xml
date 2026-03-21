@@ -16,12 +16,12 @@
 
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <string name="no_vm_number" msgid="376664256838987483">"Mangler nummer til talepostkasse"</string>
+    <string name="no_vm_number" msgid="376664256838987483">"Mangler nummeret til talepostkassen"</string>
     <string name="no_vm_number_msg" msgid="4356509787635374260">"Det er ikke lagret noe nummer for talepostkasse på SIM-kortet."</string>
     <string name="add_vm_number_str" msgid="7980945268907340849">"Legg til nummer"</string>
     <string name="unblock_dialog_body" msgid="6409669116679064706">"Vil du oppheve blokkeringen av <xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g>?"</string>
     <string name="unblock_button" msgid="2085988753097438725">"Opphev blokkering"</string>
-    <string name="add_blocked_dialog_body" msgid="3646939382577972663">"Blokkér anrop og meldinger fra"</string>
+    <string name="add_blocked_dialog_body" msgid="3646939382577972663">"Blokker anrop og meldinger fra"</string>
     <string name="block_button" msgid="2455086271060345610">"Blokkér"</string>
     <string name="non_primary_user" msgid="2435380778851874271">"Bare enhetseieren kan se og administrere blokkerte numre."</string>
     <string name="blocked_numbers_number_blocked_message" msgid="3020928355060753128">"<xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g> er blokkert"</string>

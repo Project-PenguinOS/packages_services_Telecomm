@@ -16,19 +16,19 @@
 
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <string name="no_vm_number" msgid="376664256838987483">"Дауыс хабарының нөмірі жоқ"</string>
-    <string name="no_vm_number_msg" msgid="4356509787635374260">"SIM картасында ешқандай дауыс хабарының нөмірі сақталмаған."</string>
+    <string name="no_vm_number" msgid="376664256838987483">"Дауыстық хабар нөмірі жоқ"</string>
+    <string name="no_vm_number_msg" msgid="4356509787635374260">"SIM картасында ешқандай дауыстық хабар нөмірі сақталмаған."</string>
     <string name="add_vm_number_str" msgid="7980945268907340849">"Нөмір қосу"</string>
-    <string name="unblock_dialog_body" msgid="6409669116679064706">"<xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g> бөгеуден шығарылсын ба?"</string>
-    <string name="unblock_button" msgid="2085988753097438725">"Бөгеуден шығару"</string>
-    <string name="add_blocked_dialog_body" msgid="3646939382577972663">"Қоңыраулары мен мәтіндік хабарлары бөгелетін нөмір"</string>
+    <string name="unblock_dialog_body" msgid="6409669116679064706">"<xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g> блоктан шығарылсын ба?"</string>
+    <string name="unblock_button" msgid="2085988753097438725">"Блоктан шығару"</string>
+    <string name="add_blocked_dialog_body" msgid="3646939382577972663">"Қоңыраулары мен мәтіндік хабарлары блокталатын нөмір"</string>
     <string name="block_button" msgid="2455086271060345610">"Блоктау"</string>
-    <string name="non_primary_user" msgid="2435380778851874271">"Блокталған нөмірлерді тек құрылғы иесі көре және басқара алады."</string>
-    <string name="blocked_numbers_number_blocked_message" msgid="3020928355060753128">"<xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g> блокталған"</string>
-    <string name="blocked_numbers_number_unblocked_message" msgid="3112599598762744796">"<xliff:g id="UNBLOCKED_NUMBER">%1$s</xliff:g> бөгеуден шығарылды"</string>
-    <string name="blocked_numbers_block_emergency_number_message" msgid="7109238580553660467">"Жедел қызмет нөмірін бөгеу мүмкін емес."</string>
-    <string name="blocked_numbers_number_already_blocked_message" msgid="5999222621606917984">"<xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g> бұрыннан блокталған."</string>
-    <string name="alert_outgoing_call" msgid="762286363406537247">"Жаңа қоңырау шалу <xliff:g id="OTHER_APP">%1$s</xliff:g> қоңырауын тоқтатады."</string>
-    <string name="alert_redirect_outgoing_call_timeout" msgid="7563578831876981546">"<xliff:g id="OTHER_APP">%1$s</xliff:g> арқылы қоңырау шалу мүмкін емес. Басқа қоңырау бағыттайтын қолданбаны пайдаланып көріңіз немесе әзірлеушіден көмек сұраңыз."</string>
-    <string name="phone_strings_emergency_call_made_dialog_title_txt" msgid="1535746249366437841">"Төтенше жағдай қоңырауы шалынды"</string>
+    <string name="non_primary_user" msgid="2435380778851874271">"Блокталған нөмірлерді тек құрылғы иесі көре алады және басқара алады."</string>
+    <string name="blocked_numbers_number_blocked_message" msgid="3020928355060753128">"<xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g> блокталды."</string>
+    <string name="blocked_numbers_number_unblocked_message" msgid="3112599598762744796">"<xliff:g id="UNBLOCKED_NUMBER">%1$s</xliff:g> блоктан шығарылды."</string>
+    <string name="blocked_numbers_block_emergency_number_message" msgid="7109238580553660467">"Құтқару қызметінің нөмірін блоктау мүмкін емес."</string>
+    <string name="blocked_numbers_number_already_blocked_message" msgid="5999222621606917984">"<xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g> блокталып қойған."</string>
+    <string name="alert_outgoing_call" msgid="762286363406537247">"Бұл қоңырау шалынса, <xliff:g id="OTHER_APP">%1$s</xliff:g> қоңырауы тоқтайды."</string>
+    <string name="alert_redirect_outgoing_call_timeout" msgid="7563578831876981546">"<xliff:g id="OTHER_APP">%1$s</xliff:g> арқылы қоңырау шалу мүмкін емес. Қоңырау бағыттайтын басқа қолданбаны пайдаланып көріңіз немесе әзірлеушіден көмек сұраңыз."</string>
+    <string name="phone_strings_emergency_call_made_dialog_title_txt" msgid="1535746249366437841">"Құтқару қызметіне қоңырау шалынды"</string>
 </resources>

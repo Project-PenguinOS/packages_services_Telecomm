@@ -16,19 +16,19 @@
 
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <string name="no_vm_number" msgid="376664256838987483">"गुम वॉयस मेल नंबर"</string>
-    <string name="no_vm_number_msg" msgid="4356509787635374260">"सिम कार्ड पर कोई वॉयस मेल नंबर संग्रहित नहीं है."</string>
+    <string name="no_vm_number" msgid="376664256838987483">"वॉइसमेल नंबर मौजूद नहीं है"</string>
+    <string name="no_vm_number_msg" msgid="4356509787635374260">"सिम कार्ड पर कोई वॉइसमेल नंबर सेव नहीं किया गया है."</string>
     <string name="add_vm_number_str" msgid="7980945268907340849">"नंबर जोड़ें"</string>
-    <string name="unblock_dialog_body" msgid="6409669116679064706">"<xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g> को अनब्लॉक करें?"</string>
+    <string name="unblock_dialog_body" msgid="6409669116679064706">"क्या आपको <xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g> को अनब्लॉक करना है?"</string>
     <string name="unblock_button" msgid="2085988753097438725">"अनब्लॉक करें"</string>
-    <string name="add_blocked_dialog_body" msgid="3646939382577972663">"इसके कॉल और मैसेज रोकें"</string>
+    <string name="add_blocked_dialog_body" msgid="3646939382577972663">"इसके कॉल और मैसेज ब्लॉक करें"</string>
     <string name="block_button" msgid="2455086271060345610">"ब्लॉक करें"</string>
-    <string name="non_primary_user" msgid="2435380778851874271">"सिर्फ़ डिवाइस के मालिक रोके गए नंबर देख और प्रबंधित कर सकते हैं."</string>
-    <string name="blocked_numbers_number_blocked_message" msgid="3020928355060753128">"<xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g> अवरोधित है"</string>
-    <string name="blocked_numbers_number_unblocked_message" msgid="3112599598762744796">"<xliff:g id="UNBLOCKED_NUMBER">%1$s</xliff:g> अनब्लॉक किया गया"</string>
-    <string name="blocked_numbers_block_emergency_number_message" msgid="7109238580553660467">"आपातकालीन नंबर ब्लॉक करने में असमर्थ."</string>
-    <string name="blocked_numbers_number_already_blocked_message" msgid="5999222621606917984">"<xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g> पहले से अवरोधित है."</string>
-    <string name="alert_outgoing_call" msgid="762286363406537247">"इस कॉल को करने से आपका <xliff:g id="OTHER_APP">%1$s</xliff:g> कॉल खत्म हो जाएगा."</string>
-    <string name="alert_redirect_outgoing_call_timeout" msgid="7563578831876981546">"<xliff:g id="OTHER_APP">%1$s</xliff:g> के ज़रिए कॉल नहीं किया जा सकता. कॉल को रीडायरेक्ट करने वाले दूसरे ऐप्लिकेशन का इस्तेमाल करके देखें या मदद के लिए डेवलपर से संपर्क करने की कोशिश करें."</string>
+    <string name="non_primary_user" msgid="2435380778851874271">"सिर्फ़ डिवाइस के मालिक ब्लॉक किए गए नंबर देख सकते हैं और उन्हें मैनेज कर सकते हैं."</string>
+    <string name="blocked_numbers_number_blocked_message" msgid="3020928355060753128">"<xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g> को ब्लॉक किया गया"</string>
+    <string name="blocked_numbers_number_unblocked_message" msgid="3112599598762744796">"<xliff:g id="UNBLOCKED_NUMBER">%1$s</xliff:g> को अनब्लॉक किया गया"</string>
+    <string name="blocked_numbers_block_emergency_number_message" msgid="7109238580553660467">"आपातकालीन नंबर को ब्लॉक नहीं किया जा सका."</string>
+    <string name="blocked_numbers_number_already_blocked_message" msgid="5999222621606917984">"<xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g> पहले ही ब्लॉक किया जा चुका है."</string>
+    <string name="alert_outgoing_call" msgid="762286363406537247">"इस कॉल को करने से <xliff:g id="OTHER_APP">%1$s</xliff:g> में चल रहा कॉल खत्म हो जाएगा."</string>
+    <string name="alert_redirect_outgoing_call_timeout" msgid="7563578831876981546">"<xliff:g id="OTHER_APP">%1$s</xliff:g> से कॉल नहीं किया जा सकता. कॉल को रीडायरेक्ट करने वाले किसी दूसरे ऐप्लिकेशन का इस्तेमाल करके देखें या मदद के लिए डेवलपर से संपर्क करें."</string>
     <string name="phone_strings_emergency_call_made_dialog_title_txt" msgid="1535746249366437841">"आपातकालीन कॉल किया गया"</string>
 </resources>

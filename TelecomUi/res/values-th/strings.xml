@@ -21,7 +21,7 @@
     <string name="add_vm_number_str" msgid="7980945268907340849">"เพิ่มหมายเลข"</string>
     <string name="unblock_dialog_body" msgid="6409669116679064706">"เลิกบล็อก <xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g> ใช่ไหม"</string>
     <string name="unblock_button" msgid="2085988753097438725">"เลิกบล็อก"</string>
-    <string name="add_blocked_dialog_body" msgid="3646939382577972663">"บล็อกสายเรียกเข้าและข้อความจาก"</string>
+    <string name="add_blocked_dialog_body" msgid="3646939382577972663">"บล็อกการโทรและข้อความจาก"</string>
     <string name="block_button" msgid="2455086271060345610">"บล็อก"</string>
     <string name="non_primary_user" msgid="2435380778851874271">"มีเพียงเจ้าของอุปกรณ์เท่านั้นที่สามารถดูและจัดการหมายเลขที่ถูกบล็อก"</string>
     <string name="blocked_numbers_number_blocked_message" msgid="3020928355060753128">"บล็อก <xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g> แล้ว"</string>
@@ -29,6 +29,6 @@
     <string name="blocked_numbers_block_emergency_number_message" msgid="7109238580553660467">"ไม่สามารถบล็อกหมายเลขฉุกเฉินได้"</string>
     <string name="blocked_numbers_number_already_blocked_message" msgid="5999222621606917984">"<xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g> ถูกบล็อกอยู่แล้ว"</string>
     <string name="alert_outgoing_call" msgid="762286363406537247">"การโทรออกนี้จะวางสายใน <xliff:g id="OTHER_APP">%1$s</xliff:g>"</string>
-    <string name="alert_redirect_outgoing_call_timeout" msgid="7563578831876981546">"<xliff:g id="OTHER_APP">%1$s</xliff:g> จะไม่รองรับการโทรออก ลองใช้แอปการเปลี่ยนเส้นทางการโทรอื่นหรือติดต่อนักพัฒนาซอฟต์แวร์เพื่อขอความช่วยเหลือ"</string>
-    <string name="phone_strings_emergency_call_made_dialog_title_txt" msgid="1535746249366437841">"โทรหมายเลขฉุกเฉินแล้ว"</string>
+    <string name="alert_redirect_outgoing_call_timeout" msgid="7563578831876981546">"<xliff:g id="OTHER_APP">%1$s</xliff:g> จะไม่รองรับการโทรออก ลองใช้แอปการเปลี่ยนเส้นทางการโทรอื่นหรือติดต่อนักพัฒนาแอปเพื่อขอความช่วยเหลือ"</string>
+    <string name="phone_strings_emergency_call_made_dialog_title_txt" msgid="1535746249366437841">"โทรฉุกเฉินแล้ว"</string>
 </resources>
