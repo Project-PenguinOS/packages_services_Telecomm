@@ -457,9 +457,9 @@ public class AudioRoute {
         }
 
         // Connect to the device (explicit handling for HFP devices).
-        // This is not needed with audio mode session API
-        boolean success = com.android.internal.telecom.flags.Flags.callAudioRouteRf();
-        if (device != null && !success) {
+        // TODO: b/494671714 This is not needed with audio mode session API
+        boolean success = false;
+        if (device != null) {
             success = bluetoothRouteManager.getDeviceManager()
                     .connectAudio(device, mAudioRouteType, mIsScoManagedByAudio);
         }
