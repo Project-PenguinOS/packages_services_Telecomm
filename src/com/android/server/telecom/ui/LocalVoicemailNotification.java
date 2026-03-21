@@ -206,22 +206,19 @@ public class LocalVoicemailNotification extends CallsManagerListenerBase
         CharSequence contentText;
         if (TextUtils.isEmpty(callerName) ||
                 callerPresentation != TelecomManager.PRESENTATION_ALLOWED) {
-            contentText = mContext.getString(
-                    TelecomResourceId.getIdentifier(mContext,
-                            "notification_send_to_voicemail_unknown_details", "string"), appName);
+            contentText = TelecomResourceId.getString(mContext,
+                    "notification_send_to_voicemail_unknown_details", appName);
         } else {
-            contentText = mContext.getString(
-                    TelecomResourceId.getIdentifier(mContext,
-                            "notification_send_to_voicemail_details", "string"),
+            contentText = TelecomResourceId.getString(mContext,
+                    "notification_send_to_voicemail_details",
+
                     appName, callerName);
         }
 
         // Content of the public notification with the caller name removed.
         // Voicemail is being recorded by <xliff:g id="app_name">%1$s</xliff:g> for a call.
-        CharSequence publicContentText = mContext.getString(
-                        TelecomResourceId.getIdentifier(mContext,
-                                "notification_send_to_voicemail_public_details", "string"),
-                        appName);
+        CharSequence publicContentText = TelecomResourceId.getString(mContext,
+                "notification_send_to_voicemail_public_details", appName);
 
         // Version of the notification that has private information removed so it is safe to show
         // on the lock screen when private information is hidden.
@@ -234,8 +231,7 @@ public class LocalVoicemailNotification extends CallsManagerListenerBase
                 .setContentText(publicContentText)
                 .setSmallIcon(
                         TelecomResourceId.getIdentifier(mContext, "ic_phone", "drawable"))
-                .setColor(mContext.getResources().getColor(
-                        TelecomResourceId.getIdentifier(mContext, "theme_color", "color")))
+                .setColor(TelecomResourceId.getColor(mContext, "theme_color"))
                 .addAction(
                         new Notification.Action.Builder(
                                 TelecomResourceId.getIdentifier(mContext, "voicemail_24px",
@@ -255,8 +251,7 @@ public class LocalVoicemailNotification extends CallsManagerListenerBase
                 .setContentText(contentText)
                 .setSmallIcon(
                         TelecomResourceId.getIdentifier(mContext, "ic_phone", "drawable"))
-                .setColor(mContext.getResources().getColor(
-                        TelecomResourceId.getIdentifier(mContext, "theme_color", "color")))
+                .setColor(TelecomResourceId.getColor(mContext, "theme_color"))
                 .addAction(
                         new Notification.Action.Builder(
                                 TelecomResourceId.getIdentifier(mContext, "voicemail_24px",
