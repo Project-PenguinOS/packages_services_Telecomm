@@ -608,11 +608,11 @@ public class CallAudioRouteController extends CallsManagerListenerBase
                                 bluetoothDevice = (BluetoothDevice) ((SomeArgs) msg.obj).arg2;
                                 handleBtAudioInactive(bluetoothDevice);
                             }
-                            case MUTE_ON -> handleMuteChanged(true);
-                            case MUTE_OFF -> handleMuteChanged(false);
+                            case MUTE_ON -> handleMuteChanged(true, false /* isExternal */);
+                            case MUTE_OFF -> handleMuteChanged(false, false /* isExternal */);
                             case MUTE_EXTERNALLY_CHANGED -> handleMuteChanged(
-                                    mAudioManager.isMicrophoneMute());
-                            case TOGGLE_MUTE -> handleMuteChanged(!mIsMute);
+                                    mAudioManager.isMicrophoneMute(), true /* isExternal */);
+                            case TOGGLE_MUTE -> handleMuteChanged(!mIsMute, false /* isExternal */);
                             case SWITCH_FOCUS -> {
                                 focus = msg.arg1;
                                 handleEndTone = (int) ((SomeArgs) msg.obj).arg2;
@@ -1424,9 +1424,11 @@ public class CallAudioRouteController extends CallsManagerListenerBase
         }
     }
 
-    private void handleMuteChanged(boolean mute) {
+    private void handleMuteChanged(boolean mute, boolean isExternal) {
         mIsMute = mute;
-        if (mIsMute != mAudioManager.isMicrophoneMute() && mIsActive) {
+        // Allow the mute state to be set for an internal request even if the routing isn't
+        // active. If there are calls in progress, we should always allow the mute state to be set.
+        if (mIsMute != mAudioManager.isMicrophoneMute() && (mIsActive || !isExternal)) {
             Context userContext =
                     mContext.createContextAsUser(mCallsManager.getCurrentUserHandle(), 0);
             AudioManager userAudioManager = userContext.getSystemService(AudioManager.class);
@@ -1447,7 +1449,7 @@ public class CallAudioRouteController extends CallsManagerListenerBase
                 mWasOnSpeaker = false;
                 // Reset mute state after call ends. This should remain unaffected if audio routing
                 // never went active.
-                handleMuteChanged(false);
+                handleMuteChanged(false, false /* isExternal */);
                 // Ensure we reset call audio state at the end of the call (i.e. if we're on
                 // speaker, route back to earpiece). If we're on BT, remain on BT if it's still
                 // connected.
