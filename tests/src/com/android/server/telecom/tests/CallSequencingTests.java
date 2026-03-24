@@ -741,6 +741,38 @@ public class CallSequencingTests extends TelecomTestCase {
         verify(mNewCall, times(0)).setOverrideDisconnectCauseCode(any(DisconnectCause.class));
     }
 
+    /**
+     * Verifies that when an incoming call arrives on the same PhoneAccount as an active,
+     * unholdable Transactional call, Telecom explicitly disconnects the active call to ensure
+     * focus can be granted to the new call, while ensuring the new call itself is not disconnected.
+     */
+    @Test
+    @SmallTest
+    public void testHoldCallForNewCall_TransactionalSameAccount_Disconnect() {
+        setPhoneAccounts(mNewCall, mActiveCall, true); // Same account
+        setActiveCallFocus(mActiveCall);
+        when(mCallsManager.canHold(mActiveCall)).thenReturn(false);
+        when(mCallsManager.supportsHold(mActiveCall)).thenReturn(false);
+        when(mActiveCall.isTransactionalCall()).thenReturn(true);
+        // Include BOTH calls in the list to verify exclusion logic
+        when(mCallsManager.getCalls()).thenReturn(Arrays.asList(mActiveCall, mNewCall));
+        when(mActiveCall.disconnect(anyString())).thenReturn(
+                CompletableFuture.completedFuture(true));
+        when(mNewCall.disconnect(anyString())).thenReturn(
+                CompletableFuture.completedFuture(true));
+
+        assertTrue(CallSequencingController.arePhoneAccountsSame(mNewCall, mActiveCall));
+        CompletableFuture<Boolean> resultFuture = mController
+                .holdActiveCallForNewCallWithSequencing(mNewCall,
+                        CallsManager.REQUEST_ORIGIN_UNKNOWN);
+
+        // This should now disconnect the active call
+        verify(mActiveCall, timeout(SEQUENCING_TIMEOUT_MS)).disconnect(anyString());
+        // But it should NOT disconnect the new call
+        verify(mNewCall, never()).disconnect(anyString());
+        assertTrue(waitForFutureResult(resultFuture, false));
+    }
+
     /* Helpers */
     private void setPhoneAccounts(Call call1, Call call2, boolean useSamePhoneAccount) {
         when(call1.getTargetPhoneAccount()).thenReturn(mHandle1);
