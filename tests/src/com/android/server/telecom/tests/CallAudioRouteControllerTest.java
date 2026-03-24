@@ -64,6 +64,7 @@ import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -80,6 +81,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.media.AudioAttributes;
 import android.media.AudioDeviceAttributes;
 import android.media.AudioDeviceInfo;
@@ -952,6 +954,83 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
         // Ensure we tell the CallAudioManager that audio operations are done so that we can ensure
         // audio focus is relinquished.
         verify(mCallAudioManager, timeout(TEST_TIMEOUT)).notifyAudioOperationsComplete();
+    }
+
+    @SmallTest
+    @Test
+    public void testMutePreservedAfterCallEndsIfExternalCallActive() {
+        PackageManager pm = mock(PackageManager.class);
+        when(pm.hasSystemFeature(PackageManager.FEATURE_WATCH)).thenReturn(true);
+        when(mContext.getPackageManager()).thenReturn(pm);
+        when(mAudioManager.isMicrophoneMute()).thenReturn(false);
+        mController.initialize();
+        mController.setActive(true);
+
+        mController.sendMessageWithSessionInfo(MUTE_ON);
+        verify(mUserAudioManager, timeout(TEST_TIMEOUT)).setMicrophoneMute(eq(true));
+
+        // Mock that there is an external call active.
+        when(mCallsManager.hasExternalCalls()).thenReturn(true);
+
+        // Switch to NO_FOCUS. Mute should NOT be reset.
+        mController.sendMessageWithSessionInfo(SWITCH_FOCUS, NO_FOCUS, 0);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+
+        // Verify setMicrophoneMute(false) was NEVER called.
+        verify(mUserAudioManager, never()).setMicrophoneMute(eq(false));
+    }
+
+    @SmallTest
+    @Test
+    public void testMuteResetWhenLastExternalCallRemoved() {
+        PackageManager pm = mock(PackageManager.class);
+        when(pm.hasSystemFeature(PackageManager.FEATURE_WATCH)).thenReturn(true);
+        when(mContext.getPackageManager()).thenReturn(pm);
+        when(mAudioManager.isMicrophoneMute()).thenReturn(false);
+        mController.initialize();
+        mController.setActive(true);
+
+        mController.sendMessageWithSessionInfo(MUTE_ON);
+        verify(mUserAudioManager, timeout(TEST_TIMEOUT)).setMicrophoneMute(eq(true));
+
+        // 2. External call ends. Both hasAnyCalls and hasExternalCalls must be false.
+        doReturn(false).when(mCallsManager).hasAnyCalls();
+        doReturn(false).when(mCallsManager).hasExternalCalls();
+        mController.setActive(false);
+        // Also stub isMicrophoneMute to return true so handleMuteChanged sees a change.
+        when(mAudioManager.isMicrophoneMute()).thenReturn(true);
+        mController.onCallRemoved(mCall);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+
+        // Verify mute is finally reset.
+        verify(mUserAudioManager, timeout(TEST_TIMEOUT)).setMicrophoneMute(eq(false));
+    }
+
+    @SmallTest
+    @Test
+    public void testMuteNotResetWhenOneOfMultipleExternalCallsRemoved() {
+        PackageManager pm = mock(PackageManager.class);
+        when(pm.hasSystemFeature(PackageManager.FEATURE_WATCH)).thenReturn(true);
+        when(mContext.getPackageManager()).thenReturn(pm);
+        when(mAudioManager.isMicrophoneMute()).thenReturn(false);
+        mController.initialize();
+        mController.setActive(true);
+
+        mController.sendMessageWithSessionInfo(MUTE_ON);
+        verify(mUserAudioManager, timeout(TEST_TIMEOUT)).setMicrophoneMute(eq(true));
+
+        // Local call ends, multiple external calls remain.
+        when(mCallsManager.hasExternalCalls()).thenReturn(true);
+        mController.sendMessageWithSessionInfo(SWITCH_FOCUS, NO_FOCUS, 0);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+
+        // One external call ends, but another one still remains.
+        when(mCallsManager.hasExternalCalls()).thenReturn(true);
+        mController.onCallRemoved(mCall);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+
+        // Verify mute is still NOT reset.
+        verify(mUserAudioManager, never()).setMicrophoneMute(eq(false));
     }
 
     @SmallTest
