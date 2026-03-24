@@ -189,10 +189,7 @@ import java.util.stream.Stream;
 // QTI_BEGIN: 2018-03-13: Telephony: IMS-VT: Add support for Low battery
 import org.codeaurora.ims.QtiCallConstants;
 // QTI_END: 2018-03-13: Telephony: IMS-VT: Add support for Low battery
-// QTI_BEGIN: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
-import org.codeaurora.ims.utils.QtiCarrierConfigHelper;
-import org.codeaurora.ims.utils.QtiImsExtUtils;
-// QTI_END: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
+
 /**
  * Singleton.
  *
@@ -235,11 +232,18 @@ public class CallsManager extends Call.ListenerBase
     public static final int REQUEST_ORIGIN_TELECOM_LOCAL_VOICEMAIL = 2;
 
     /**
+     * The request originated from the persistent local voicemail notification because the user
+     * wants to pickup the call.
+     */
+    public static final int REQUEST_ORIGIN_TELECOM_LOCAL_VOICEMAIL_NOTIFICATION = 3;
+
+    /**
      * @hide
      */
     @IntDef(prefix = { "REQUEST_ORIGIN_" },
             value = {REQUEST_ORIGIN_UNKNOWN, REQUEST_ORIGIN_TELECOM_DISAMBIGUATION,
-                    REQUEST_ORIGIN_TELECOM_LOCAL_VOICEMAIL})
+                    REQUEST_ORIGIN_TELECOM_LOCAL_VOICEMAIL,
+                    REQUEST_ORIGIN_TELECOM_LOCAL_VOICEMAIL_NOTIFICATION})
     @Retention(RetentionPolicy.SOURCE)
     public @interface RequestOrigin {}
 
@@ -441,19 +445,6 @@ public class CallsManager extends Call.ListenerBase
 
     public static final String TELECOM_CALL_ID_PREFIX = "TC@";
 
-    // Maps call technologies in TelephonyManager to those in Analytics.
-    private static final Map<Integer, Integer> sAnalyticsTechnologyMap;
-    static {
-        // TODO (b/469802407): Create consistent constants.
-
-        sAnalyticsTechnologyMap = new HashMap<>(5);
-        sAnalyticsTechnologyMap.put(TelephonyManager.PHONE_TYPE_CDMA, Analytics.CDMA_PHONE);
-        sAnalyticsTechnologyMap.put(TelephonyManager.PHONE_TYPE_GSM, Analytics.GSM_PHONE);
-        sAnalyticsTechnologyMap.put(PHONE_TYPE_IMS, Analytics.IMS_PHONE);
-        sAnalyticsTechnologyMap.put(TelephonyManager.PHONE_TYPE_SIP, Analytics.SIP_PHONE);
-        sAnalyticsTechnologyMap.put(PHONE_TYPE_THIRD_PARTY, Analytics.THIRD_PARTY_PHONE);
-    }
-
     private static final long WAIT_FOR_AUDIO_UPDATE_TIMEOUT = 4000L;
     /**
      * The main call repository. Keeps an instance of all live calls. New incoming and outgoing
@@ -586,6 +577,7 @@ public class CallsManager extends Call.ListenerBase
     private CallsManagerCallSequencingAdapter mCallSequencingAdapter;
     private final FeatureFlags mFeatureFlags;
     private final com.android.internal.telephony.flags.FeatureFlags mTelephonyFeatureFlags;
+    private final String mTelecomUiPackageName;
 
     private final IncomingCallFilterGraphProvider mIncomingCallFilterGraphProvider;
     private CallAudioWatchdog mCallAudioWatchDog;
@@ -743,7 +735,8 @@ public class CallsManager extends Call.ListenerBase
             TelecomMetricsController metricsController,
             Ringer.VibratorAdapter vibratorAdapter,
             ScheduledExecutorService scheduledExecutorService,
-            LowBatteryAlertListener lowBatteryAlertListener) {
+            LowBatteryAlertListener lowBatteryAlertListener,
+            String telecomUiPackageName) {
 
         mContext = context;
         mLock = lock;
@@ -764,6 +757,7 @@ public class CallsManager extends Call.ListenerBase
         mCallerInfoLookupHelper = callerInfoLookupHelper;
         mEmergencyCallDiagnosticLogger = emergencyCallDiagnosticLogger;
         mIncomingCallFilterGraphProvider = incomingCallFilterGraphProvider;
+        mTelecomUiPackageName = telecomUiPackageName;
 
         mHandlerThread.start();
         mAudioCallbackHandler = new Handler(mHandlerThread.getLooper());
@@ -887,8 +881,10 @@ public class CallsManager extends Call.ListenerBase
         mCallSequencingAdapter = new CallsManagerCallSequencingAdapter(this, mContext,
                 new CallSequencingController(this, mContext, mClockProxy,
                         mAnomalyReporter, mTimeoutsAdapter, mMetricsController, mMmiUtils,
-                        mFeatureFlags), mCallAudioManager, mMetricsController, mFeatureFlags);
+                        telecomUiPackageName, mFeatureFlags), mCallAudioManager, mMetricsController,
+                mFeatureFlags);
 
+        // This is first to ensure we bind to BT and other ICS first for onCallAdded
         mListeners.add(mInCallController);
         mListeners.add(mInCallWakeLockController);
         mListeners.add(statusBarNotifier);
@@ -913,9 +909,11 @@ public class CallsManager extends Call.ListenerBase
 
         // Note this needs to be after mCallAudioManager so that the audio mode changes as needed
         // before we try to bind.
+        mAudioModeTracker = new AudioModeTracker(audioManager, asyncCallAudioTaskExecutor,
+                mLock);
+        mAudioModeTracker.addListener(mCallAudioWatchDog);
+
         if (android.telecom.flags.Flags.localVoicemail()) {
-            mAudioModeTracker = new AudioModeTracker(audioManager, asyncCallAudioTaskExecutor,
-                    mLock);
             mLocalVoicemailController = new LocalVoicemailController(
                     new LocalVoicemailController.CallsManagerAdapter() {
                         @Override
@@ -955,7 +953,6 @@ public class CallsManager extends Call.ListenerBase
             mListeners.add(mLocalVoicemailController);
             mListeners.add(mLocalVoicemailNotification);
         } else {
-            mAudioModeTracker = null;
             mLocalVoicemailController = null;
             mLocalVoicemailNotification = null;
         }
@@ -985,11 +982,6 @@ public class CallsManager extends Call.ListenerBase
         }
 
         mCallLogIntegrationAdapter = new CallLogIntegrationAdapterImpl(mContext, mFeatureFlags);
-
-// QTI_BEGIN: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
-        QtiCarrierConfigHelper.getInstance().setup(mContext);
-// QTI_END: 2018-08-07: Telephony: IMS: Keep speaker status same as common VoLTE call for VoLTE call video CRBT
-
     }
 
     public CrsAudioController getCrsAudioController() {
@@ -1080,7 +1072,8 @@ public class CallsManager extends Call.ListenerBase
         if (incomingCall.hasProperty(Connection.PROPERTY_EMERGENCY_CALLBACK_MODE) ||
                 incomingCall.hasProperty(Connection.PROPERTY_NETWORK_IDENTIFIED_EMERGENCY_CALL) ||
                 isInEmergencySmsMode ||
-                incomingCall.isSelfManaged()) {
+                (!com.android.internal.telecom.flags.Flags.voipDndFocus()
+                        && incomingCall.isSelfManaged())) {
             Log.i(this, "Skipping call filtering for %s (ecm=%b, "
                             + "networkIdentifiedEmergencyCall = %b, emergencySmsMode = %b, "
                             + "selfMgd=%b, skipExtra=%b)",
@@ -1098,7 +1091,13 @@ public class CallsManager extends Call.ListenerBase
                     .build(), false);
             incomingCall.setIsUsingCallFiltering(false);
             return;
-        } else if (extras.getBoolean(PhoneAccount.EXTRA_SKIP_CALL_FILTERING)) {
+        } else if (extras.getBoolean(PhoneAccount.EXTRA_SKIP_CALL_FILTERING)
+                || (com.android.internal.telecom.flags.Flags.voipDndFocus()
+                    && incomingCall.isSelfManaged())) {
+            // Perform just the DND filter for:
+            // 1. calls on watches that are skipping the call filtering for performance reasons.
+            // 2. VoIP calls; we need to ensure we do calculate the DND suppression so that it can
+            // be passed on to Bluetooth.
             IncomingCallFilterGraph graph = setupDndFilterOnlyGraph(incomingCall);
             graph.performFiltering();
             return;
@@ -1187,7 +1186,7 @@ public class CallsManager extends Call.ListenerBase
         // Only set the incoming call as ringing if it isn't already disconnected. It is possible
         // that the connection service disconnected the call before it was even added to Telecom, in
         // which case it makes no sense to set it back to a ringing state.
-        Log.i(this, "onCallFilteringComplete");
+        Log.i(this, "onCallFilteringComplete: result=%s", result);
         mGraphHandlerThreads.clear();
 
         if (timeout) {
@@ -1202,7 +1201,7 @@ public class CallsManager extends Call.ListenerBase
         }
 
         // Store the shouldSuppress value in the call object which will be passed to InCallServices
-        if (mFeatureFlags.voipDndFocus()) {
+        if (com.android.internal.telecom.flags.Flags.voipDndFocus()) {
             // The DND call filter may not have run (e.g. for VoIP calls); in this case we should
             // not set the DND suppression on the call to ensure Ringer.java will recalculate this
             // and not try to use an invalid cached value.
@@ -1875,11 +1874,8 @@ public class CallsManager extends Call.ListenerBase
             call.setVideoState(videoState);
         }
 
-        call.initAnalytics();
-        if (getForegroundCall() != null) {
-            getForegroundCall().getAnalytics().setCallIsInterrupted(true);
-            call.getAnalytics().setCallIsAdditional(true);
-        }
+        Log.addEvent(call, LogUtils.Events.CREATED);
+
         setIntentExtrasAndStartTime(call, extras);
         // TODO: Move this to be a part of addCall()
         call.addListener(this);
@@ -2000,7 +1996,6 @@ public class CallsManager extends Call.ListenerBase
             // call UI during an emergency call. In this case, log the call as missed instead of
             // rejected since the user did not explicitly reject.
             call.setMissedReason(AUTO_MISSED_EMERGENCY_CALL);
-            call.getAnalytics().setMissedReason(call.getMissedReason());
             call.setStartFailCause(CallFailureCause.IN_EMERGENCY_CALL);
             mCallLogManager.logCallIfNotSelfManaged(call, Calls.MISSED_TYPE,
                     true /*showNotificationForMissedCall*/, null /*CallFilteringResult*/);
@@ -2025,7 +2020,6 @@ public class CallsManager extends Call.ListenerBase
             } else {
                 call.setMissedReason(AUTO_MISSED_MAXIMUM_DIALING);
             }
-            call.getAnalytics().setMissedReason(call.getMissedReason());
             mCallLogManager.logCallIfNotSelfManaged(call, Calls.MISSED_TYPE,
                     true /*showNotificationForMissedCall*/, null /*CallFilteringResult*/);
             if (isConference) {
@@ -2069,8 +2063,7 @@ public class CallsManager extends Call.ListenerBase
                 mClockProxy,
                 mToastFactory,
                 mFeatureFlags);
-        call.initAnalytics();
-
+        Log.addEvent(call, LogUtils.Events.CREATED);
         // For unknown calls, base the associated user off of the target phone account handle.
         UserHandle associatedUser = UserUtil.getAssociatedUserForCall(
                 getPhoneAccountRegistrar(), getCurrentUserHandle(), phoneAccountHandle);
@@ -2236,7 +2229,8 @@ public class CallsManager extends Call.ListenerBase
                 }
             }
 
-            call.initAnalytics(callingPackage, creationLogs.toString());
+            Log.addEvent(call, LogUtils.Events.CREATED, callingPackage + ";"
+                    + creationLogs.toString());
 
             // Log info for emergency call
             if (call.isEmergencyCall()) {
@@ -2704,18 +2698,8 @@ public class CallsManager extends Call.ListenerBase
 
                     boolean isVoicemail = isVoicemail(callToUse.getHandle(), accountToUse);
 
-// QTI_BEGIN: 2019-05-23: Telephony: IMS-VT: Handle RTT support for Video Calls.
-                    int phoneId = SubscriptionManager.getSlotIndex(
-                            mPhoneAccountRegistrar.getSubscriptionIdForPhoneAccount(
-                            callToUse.getTargetPhoneAccount()));
-// QTI_END: 2019-05-23: Telephony: IMS-VT: Handle RTT support for Video Calls.
                     boolean isRttSettingOn = isRttSettingOn(phoneAccountHandle);
-// QTI_BEGIN: 2019-05-23: Telephony: IMS-VT: Handle RTT support for Video Calls.
-                    if (!isVoicemail && (!VideoProfile.isVideo(callToUse.getVideoState())
-                            || QtiImsExtUtils.isRttSupportedOnVtCalls(
-                            phoneId, mContext))
-// QTI_END: 2019-05-23: Telephony: IMS-VT: Handle RTT support for Video Calls.
-                            && (isRttSettingOn || (extras != null
+                    if (!isVoicemail && (isRttSettingOn || (extras != null
                             && extras.getBoolean(TelecomManager.EXTRA_START_CALL_WITH_RTT,
                             false)))) {
                         Log.d(this, "Outgoing call requesting RTT, rtt setting is %b",
@@ -2732,7 +2716,7 @@ public class CallsManager extends Call.ListenerBase
                     }
 
                     setIntentExtrasAndStartTime(callToUse, extras);
-                    setCallSourceToAnalytics(callToUse, originalIntent);
+
 
                     if ((mMmiUtils.isPotentialMMICode(handle) || (mMmiUtils
                             .isPotentialInCallMMICode(handle))) && !isSelfManaged) {
@@ -3122,7 +3106,7 @@ public class CallsManager extends Call.ListenerBase
                     }
 
                     setIntentExtrasAndStartTime(callToUse, extras);
-                    setCallSourceToAnalytics(callToUse, originalIntent);
+
 
                     if (mMmiUtils.isPotentialMMICode(handle) && !isSelfManaged) {
                         // Do not add the call if it is a potential MMI code.
@@ -3317,7 +3301,7 @@ public class CallsManager extends Call.ListenerBase
          // Enforce outgoing call restriction for conference calls. This is handled via
          // UserCallIntentProcessor for normal MO calls.
          if (UserUtil.hasOutgoingCallsUserRestriction(mContext, initiatingUser, null,
-                 isSelfManaged, CallsManager.class.getCanonicalName())) {
+                 isSelfManaged, mTelecomUiPackageName, CallsManager.class.getCanonicalName())) {
              return;
          }
          CompletableFuture<Call> callFuture = startOutgoingCall(participants, phoneAccountHandle,
@@ -3623,7 +3607,7 @@ public class CallsManager extends Call.ListenerBase
             if (uiAction.equals(CallRedirectionProcessor.UI_TYPE_USER_DEFINED_TIMEOUT)
                     && !call.isDisconnected()) {
                 Intent timeoutIntent = new Intent();
-                timeoutIntent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
+                timeoutIntent.setClassName(mTelecomUiPackageName,
                         UiConstants.COMPONENT_CALL_REDIRECTION_TIMEOUT_DIALOG);
                 timeoutIntent.putExtra(
                         UiConstants.EXTRA_REDIRECTION_APP_NAME,
@@ -3721,9 +3705,8 @@ public class CallsManager extends Call.ListenerBase
             @Override
             public void onClick(View v) {
                 Intent proceedWithoutRedirectedCall = new Intent(
-                        TelecomBroadcastIntentProcessor.ACTION_PLACE_UNREDIRECTED_CALL,
-                        null, mContext,
-                        TelecomBroadcastReceiver.class);
+                        TelecomBroadcastIntentProcessor.ACTION_PLACE_UNREDIRECTED_CALL);
+                proceedWithoutRedirectedCall.setPackage(mContext.getPackageName());
                 proceedWithoutRedirectedCall.putExtra(
                         TelecomBroadcastIntentProcessor.EXTRA_REDIRECTION_OUTGOING_CALL_ID,
                         callId);
@@ -3742,9 +3725,8 @@ public class CallsManager extends Call.ListenerBase
             @Override
             public void onClick(View v) {
                 Intent proceedWithRedirectedCall = new Intent(
-                        TelecomBroadcastIntentProcessor.ACTION_PLACE_REDIRECTED_CALL, null,
-                        mContext,
-                        TelecomBroadcastReceiver.class);
+                        TelecomBroadcastIntentProcessor.ACTION_PLACE_REDIRECTED_CALL);
+                proceedWithRedirectedCall.setPackage(mContext.getPackageName());
                 proceedWithRedirectedCall.putExtra(
                         TelecomBroadcastIntentProcessor.EXTRA_REDIRECTION_OUTGOING_CALL_ID,
                         callId);
@@ -3786,9 +3768,8 @@ public class CallsManager extends Call.ListenerBase
      */
     private void cancelRedirection(String callId) {
         Intent cancelRedirectedCall = new Intent(
-                TelecomBroadcastIntentProcessor.ACTION_CANCEL_REDIRECTED_CALL,
-                null, mContext,
-                TelecomBroadcastReceiver.class);
+                TelecomBroadcastIntentProcessor.ACTION_CANCEL_REDIRECTED_CALL);
+        cancelRedirectedCall.setPackage(mContext.getPackageName());
         cancelRedirectedCall.putExtra(
                 TelecomBroadcastIntentProcessor.EXTRA_REDIRECTION_OUTGOING_CALL_ID, callId);
         mContext.sendBroadcastAsUser(cancelRedirectedCall, UserHandle.CURRENT);
@@ -4438,7 +4419,6 @@ public class CallsManager extends Call.ListenerBase
         if (source != Call.SOURCE_CONNECTION_SERVICE) {
             return;
         }
-        handleCallTechnologyChange(c);
         handleChildAddressChange(c);
         updateCanAddCall();
         maybeUpdateVideoCrsCall(c);
@@ -4597,19 +4577,6 @@ public class CallsManager extends Call.ListenerBase
         Log.v(this, "onCallStreamingStateChanged: %b", isStreaming);
         for (CallsManagerListener listener : mListeners) {
             listener.onCallStreamingStateChanged(call, isStreaming);
-        }
-    }
-
-    private void handleCallTechnologyChange(Call call) {
-        if (call.getExtras() != null
-                && call.getExtras().containsKey(TelecomManager.EXTRA_CALL_TECHNOLOGY_TYPE)) {
-
-            Integer analyticsCallTechnology = sAnalyticsTechnologyMap.get(
-                    call.getExtras().getInt(TelecomManager.EXTRA_CALL_TECHNOLOGY_TYPE));
-            if (analyticsCallTechnology == null) {
-                analyticsCallTechnology = Analytics.THIRD_PARTY_PHONE;
-            }
-            call.getAnalytics().addCallTechnology(analyticsCallTechnology);
         }
     }
 
@@ -4794,7 +4761,8 @@ public class CallsManager extends Call.ListenerBase
         }
     }
 
-    void markCallAsRinging(Call call) {
+    @VisibleForTesting
+    public void markCallAsRinging(Call call) {
         setCallState(call, CallState.RINGING, "ringing set explicitly");
     }
 
@@ -4806,7 +4774,8 @@ public class CallsManager extends Call.ListenerBase
         ensureCallAudible();
     }
 
-    void markCallAsPulling(Call call) {
+    @VisibleForTesting
+    public void markCallAsPulling(Call call) {
         setCallState(call, CallState.PULLING, "pulling set explicitly");
         maybeMoveToSpeakerPhone(call);
     }
@@ -5021,8 +4990,10 @@ public class CallsManager extends Call.ListenerBase
             // If the remote end hangs up while in SIMULATED_RINGING, the call should
             // be marked as missed.
             call.setOverrideDisconnectCauseCode(new DisconnectCause(DisconnectCause.MISSED));
-        } else if (oldState == CallState.LOCAL_VOICEMAIL) {
-            // Local VM calls should be considered missed.
+        } else if (oldState == CallState.LOCAL_VOICEMAIL
+                && call.getOverrideDisconnectCauseCode().getCode() == DisconnectCause.UNKNOWN) {
+            // Local VM calls should be considered missed unless overwise indicated (ie by being
+            // disconnected through the persistent notification).
             Log.i(this, "markCallAsDisconnected: callid=%s; was local voicemail; marking missed.",
                     call.getId());
             call.setOverrideDisconnectCauseCode(new DisconnectCause(DisconnectCause.MISSED));
@@ -5223,7 +5194,8 @@ public class CallsManager extends Call.ListenerBase
      *
      * @param service The connection service that disconnected.
      */
-    void handleConnectionServiceDeath(ConnectionServiceWrapper service) {
+    @VisibleForTesting
+    public void handleConnectionServiceDeath(ConnectionServiceWrapper service) {
         if (service != null) {
             Log.i(this, "handleConnectionServiceDeath: service %s died", service);
             for (Call call : mCalls) {
@@ -5517,7 +5489,8 @@ public class CallsManager extends Call.ListenerBase
     }
 
 // QTI_END: 2023-05-30: Telephony: DSDA: Make room to place emergency call
-    Call createConferenceCall(
+    @VisibleForTesting
+    public Call createConferenceCall(
             String callId,
             PhoneAccountHandle phoneAccount,
             ParcelableConference parcelableConference) {
@@ -5665,7 +5638,6 @@ public class CallsManager extends Call.ListenerBase
      * @param incomingCall Incoming call that has been rejected
      */
     private void autoMissCallAndLog(Call incomingCall, CallFilteringResult result) {
-        incomingCall.getAnalytics().setMissedReason(incomingCall.getMissedReason());
         if (incomingCall.getConnectionService() != null) {
             // Only reject the call if it has not already been destroyed.  If a call ends while
             // incoming call filtering is taking place, it is possible that the call has already
@@ -5820,7 +5792,6 @@ public class CallsManager extends Call.ListenerBase
                         && (disconnectCode != DisconnectCause.CANCELED))) {
                     call.setMissedReason(MISSED_REASON_NOT_MISSED);
                 }
-                call.getAnalytics().setMissedReason(call.getMissedReason());
 
                 maybeShowErrorDialogOnDisconnect(call);
                 maybeHandleHandover(call, newState);
@@ -6410,7 +6381,8 @@ public class CallsManager extends Call.ListenerBase
      * @param connection The connection information.
      * @return The new call.
      */
-    Call createCallForExistingConnection(String callId, ParcelableConnection connection) {
+    @VisibleForTesting
+    public Call createCallForExistingConnection(String callId, ParcelableConnection connection) {
         boolean isDowngradedConference = (connection.getConnectionProperties()
                 & Connection.PROPERTY_IS_DOWNGRADED_CONFERENCE) != 0;
 
@@ -6437,9 +6409,7 @@ public class CallsManager extends Call.ListenerBase
                 mToastFactory,
                 mFeatureFlags);
 
-        call.initAnalytics();
-        call.getAnalytics().setCreatedFromExistingConnection(true);
-
+        Log.addEvent(call, LogUtils.Events.CREATED);
         setCallState(call, Call.getStateFromConnectionState(connection.getState()),
                 "existing connection");
 // QTI_BEGIN: 2018-03-07: Telephony: IMS-VT: Remove video call back attached with old video provider
@@ -6766,7 +6736,7 @@ public class CallsManager extends Call.ListenerBase
                     ongoingAppName);
 
             Intent confirmIntent = new Intent();
-            confirmIntent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
+            confirmIntent.setClassName(mTelecomUiPackageName,
                 UiConstants.COMPONENT_CONFIRM_CALL_DIALOG);
             confirmIntent.putExtra(UiConstants.EXTRA_OUTGOING_CALL_ID, call.getId());
             confirmIntent.putExtra(UiConstants.EXTRA_ONGOING_APP_NAME, ongoingAppName);
@@ -6936,7 +6906,7 @@ public class CallsManager extends Call.ListenerBase
                     == DisconnectCause.ERROR) || (disconnectCause.getCode()
                     == DisconnectCause.RESTRICTED))) {
                 final Intent errorIntent = new Intent();
-                errorIntent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
+                errorIntent.setClassName(mTelecomUiPackageName,
                         UiConstants.COMPONENT_ERROR_DIALOG);
                 errorIntent.putExtra(UiConstants.ERROR_MESSAGE_STRING_EXTRA,
                         disconnectCause.getDescription());
@@ -6963,18 +6933,6 @@ public class CallsManager extends Call.ListenerBase
             extras.putBoolean(PhoneAccount.EXTRA_ADD_SELF_MANAGED_CALLS_TO_INCALLSERVICE, true);
         }
         call.setIntentExtras(extras);
-    }
-
-    private void setCallSourceToAnalytics(Call call, Intent originalIntent) {
-        if (originalIntent == null) {
-            return;
-        }
-
-        int callSource = originalIntent.getIntExtra(TelecomManager.EXTRA_CALL_SOURCE,
-                Analytics.CALL_SOURCE_UNSPECIFIED);
-
-        // Call source is only used by metrics, so we simply set it to Analytics directly.
-        call.getAnalytics().setCallSource(callSource);
     }
 
     private boolean isVoicemail(Uri callHandle, PhoneAccount phoneAccount) {
@@ -7109,7 +7067,7 @@ public class CallsManager extends Call.ListenerBase
                 null, null,
                 Call.CALL_DIRECTION_OUTGOING, false,
                 false, mClockProxy, mToastFactory, mFeatureFlags);
-        call.initAnalytics();
+        Log.addEvent(call, LogUtils.Events.CREATED);
 
         // Set self-managed and voipAudioMode if destination is self-managed CS
         call.setIsSelfManaged(isSelfManaged);
@@ -7347,7 +7305,7 @@ public class CallsManager extends Call.ListenerBase
             call.setVideoState(videoState);
         }
 
-        call.initAnalytics();
+        Log.addEvent(call, LogUtils.Events.CREATED);
         call.addListener(this);
 
         fromCall.setHandoverDestinationCall(call);
@@ -7482,6 +7440,14 @@ public class CallsManager extends Call.ListenerBase
                     // we can just declare it active.
                     setCallState(mCall, CallState.ACTIVE, "answering simulated ringing");
                     Log.addEvent(mCall, LogUtils.Events.REQUEST_SIMULATED_ACCEPT);
+                } else if (mCall.getState() == CallState.LOCAL_VOICEMAIL) {
+                    if (mRequestOrigin == REQUEST_ORIGIN_TELECOM_LOCAL_VOICEMAIL_NOTIFICATION) {
+                        if (mLocalVoicemailController != null) {
+                            mLocalVoicemailController.notifyLocalPickup(mCall);
+                        }
+                    }
+                    setCallState(mCall, CallState.ACTIVE, "pickup local voicemail");
+                    Log.addEvent(mCall, LogUtils.Events.REQUEST_ACCEPT);
                 } else if (mCall.getState() == CallState.ANSWERED) {
                     // In certain circumstances, the connection service can lose track of a request
                     // to answer a call. Therefore, if the user presses answer again, still send it
@@ -7651,7 +7617,7 @@ public class CallsManager extends Call.ListenerBase
      */
     private void showErrorMessage(CharSequence message) {
         final Intent errorIntent = new Intent();
-        errorIntent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
+        errorIntent.setClassName(mTelecomUiPackageName,
               UiConstants.COMPONENT_ERROR_DIALOG);
         errorIntent.putExtra(UiConstants.ERROR_MESSAGE_STRING_EXTRA, message);
         errorIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);

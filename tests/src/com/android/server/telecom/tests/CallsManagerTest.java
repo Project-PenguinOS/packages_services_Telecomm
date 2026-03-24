@@ -468,7 +468,8 @@ public class CallsManagerTest extends TelecomTestCase {
                 mMockTelecomMetricsController,
                 mMockVibratorAdapter,
                 mTestScheduledExecutorService,
-                mLowBatteryAlertListener);
+                mLowBatteryAlertListener,
+                TELECOM_UI_PACKAGE_NAME);
         mCallsManager.setCallAudioWatchDog(null);
         when(mPhoneAccountRegistrar.getPhoneAccount(
                 eq(SELF_MANAGED_HANDLE), any())).thenReturn(SELF_MANAGED_ACCOUNT);
@@ -1479,23 +1480,6 @@ public class CallsManagerTest extends TelecomTestCase {
 
         // and the new call is marked answered
         assertEquals(CallState.ANSWERED, newCall.getState());
-    }
-
-    @SmallTest
-    @Test
-    public void testNoFilteringOfSelfManagedCalls() {
-        // GIVEN an incoming call which is self managed.
-        Call incomingCall = addSpyCall(SELF_MANAGED_HANDLE, CallState.NEW);
-        doReturn(false).when(incomingCall).can(Connection.CAPABILITY_HOLD);
-        doReturn(false).when(incomingCall).can(Connection.CAPABILITY_SUPPORT_HOLD);
-        doReturn(true).when(incomingCall).isSelfManaged();
-        doReturn(true).when(incomingCall).setState(anyInt(), any());
-
-        // WHEN the incoming call is successfully added.
-        mCallsManager.onSuccessfulIncomingCall(incomingCall);
-
-        // THEN the incoming call is not using call filtering
-        verify(incomingCall).setIsUsingCallFiltering(eq(false));
     }
 
     /**

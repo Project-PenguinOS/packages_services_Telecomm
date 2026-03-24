@@ -24,13 +24,16 @@ import android.util.Log;
 
 public class TelecomService extends Service {
 
+    private static final String TAG = "TelecomService";
+
     @Override
     public IBinder onBind(Intent intent) {
-        Log.i("TelecomService", "onBind");
+        Log.i(TAG, "onBind");
+
         if (TelecomServiceInitializerRepository.getInitializer() != null) {
             return TelecomServiceInitializerRepository.getInitializer().initialize(this);
         } else {
-            Log.wtf("TelecomService", "no telecom library loaded!");
+            Log.wtf(TAG, "no telecom library loaded!");
         }
         return null;
     }

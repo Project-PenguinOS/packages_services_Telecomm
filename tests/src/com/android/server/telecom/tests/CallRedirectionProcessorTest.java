@@ -144,7 +144,9 @@ public class CallRedirectionProcessorTest extends TelecomTestCase {
     @Override
     @After
     public void tearDown() throws Exception {
-        mProcessor.getHandler().removeCallbacksAndMessages(null);
+        if (mProcessor != null) {
+            mProcessor.getHandler().removeCallbacksAndMessages(null);
+        }
         waitForHandlerAction(new Handler(Looper.getMainLooper()), TelecomSystemTest.TEST_TIMEOUT);
         super.tearDown();
     }
@@ -481,5 +483,160 @@ public class CallRedirectionProcessorTest extends TelecomTestCase {
         assertEquals(Uri.fromParts("tel", "6505551212", null),
                 helper.formatNumberToE164(
                         Uri.fromParts("tel", "6505551212", null)));
+    }
+
+    @Test
+    public void testPlaceCallToAlternateNumber() throws Exception {
+        startProcessWithNoGateWayInfo(ORIGINAL_NUMBER_NO_POST_DIAL);
+        enableUserDefinedCallRedirectionService();
+        disableCarrierCallRedirectionService();
+
+        mProcessor.performCallRedirection(UserHandle.CURRENT);
+
+        // Capture binding and mock it out.
+        ArgumentCaptor<ServiceConnection> serviceConnectionCaptor = ArgumentCaptor.forClass(
+                ServiceConnection.class);
+        verify(mContext, times(1)).bindServiceAsUser(any(Intent.class),
+                serviceConnectionCaptor.capture(), anyInt(), eq(UserHandle.CURRENT));
+
+        // Mock out a service which performed a redirection
+        IBinder mockBinder = mock(IBinder.class);
+        ICallRedirectionService mockCallRedirectionService = mock(ICallRedirectionService.class);
+        when(mockBinder.queryLocalInterface(anyString())).thenReturn(mockCallRedirectionService);
+        serviceConnectionCaptor.getValue().onServiceConnected(
+                USER_DEFINED_SERVICE_TEST_COMPONENT_NAME, mockBinder);
+
+        ArgumentCaptor<ICallRedirectionAdapter> redirectionAdapterCaptor = ArgumentCaptor.forClass(
+                ICallRedirectionAdapter.class);
+        verify(mockCallRedirectionService, times(1)).placeCall(redirectionAdapterCaptor.capture(),
+                any(), any(), any(), anyBoolean());
+
+        Uri alternateNumber = Uri.parse("tel:6505551214");
+        // Redirect to an alternate number.
+        redirectionAdapterCaptor.getValue().placeCallToAlternateNumber(alternateNumber,
+                mPhoneAccountHandle, false);
+
+        waitForHandlerAction(mProcessor.getHandler(), HANDLER_TIMEOUT_DELAY);
+
+        verify(mCallsManager, times(1)).onCallRedirectionComplete(eq(mCall),
+                eq(alternateNumber), eq(mPhoneAccountHandle),
+                eq(null), eq(SPEAKER_PHONE_ON), eq(VIDEO_STATE),
+                eq(false), eq(CallRedirectionProcessor.UI_TYPE_NO_ACTION));
+    }
+
+    @Test
+    public void testPlaceCallToAlternateNumberWithPostDial() throws Exception {
+        startProcessWithNoGateWayInfo(ORIGINAL_NUMBER_WITH_POST_DIAL);
+        enableUserDefinedCallRedirectionService();
+        disableCarrierCallRedirectionService();
+
+        mProcessor.performCallRedirection(UserHandle.CURRENT);
+
+        // Capture binding and mock it out.
+        ArgumentCaptor<ServiceConnection> serviceConnectionCaptor = ArgumentCaptor.forClass(
+                ServiceConnection.class);
+        verify(mContext, times(1)).bindServiceAsUser(any(Intent.class),
+                serviceConnectionCaptor.capture(), anyInt(), eq(UserHandle.CURRENT));
+
+        // Mock out a service which performed a redirection
+        IBinder mockBinder = mock(IBinder.class);
+        ICallRedirectionService mockCallRedirectionService = mock(ICallRedirectionService.class);
+        when(mockBinder.queryLocalInterface(anyString())).thenReturn(mockCallRedirectionService);
+        serviceConnectionCaptor.getValue().onServiceConnected(
+                USER_DEFINED_SERVICE_TEST_COMPONENT_NAME, mockBinder);
+
+        ArgumentCaptor<ICallRedirectionAdapter> redirectionAdapterCaptor = ArgumentCaptor.forClass(
+                ICallRedirectionAdapter.class);
+        verify(mockCallRedirectionService, times(1)).placeCall(redirectionAdapterCaptor.capture(),
+                any(), any(), any(), anyBoolean());
+
+        Uri alternateNumber = Uri.parse("tel:6505551214");
+        Uri expectedNumber = Uri.parse("tel:6505551214,,,1234");
+        // Redirect to an alternate number.
+        redirectionAdapterCaptor.getValue().placeCallToAlternateNumber(alternateNumber,
+                mPhoneAccountHandle, false);
+
+        waitForHandlerAction(mProcessor.getHandler(), HANDLER_TIMEOUT_DELAY);
+
+        verify(mCallsManager, times(1)).onCallRedirectionComplete(eq(mCall),
+                eq(expectedNumber), eq(mPhoneAccountHandle),
+                eq(null), eq(SPEAKER_PHONE_ON), eq(VIDEO_STATE),
+                eq(false), eq(CallRedirectionProcessor.UI_TYPE_NO_ACTION));
+    }
+
+    @Test
+    public void testNotifyTimeoutSentToService() throws Exception {
+        startProcessWithNoGateWayInfo();
+        // To make sure tests are not flaky, clean all the previous handler messages
+        waitForHandlerAction(mProcessor.getHandler(), HANDLER_TIMEOUT_DELAY);
+        enableUserDefinedCallRedirectionService();
+        disableCarrierCallRedirectionService();
+        mProcessor.performCallRedirection(UserHandle.CURRENT);
+
+        // Capture binding and mock it out.
+        ArgumentCaptor<ServiceConnection> serviceConnectionCaptor = ArgumentCaptor.forClass(
+                ServiceConnection.class);
+        verify(mContext, times(1)).bindServiceAsUser(any(Intent.class),
+                serviceConnectionCaptor.capture(), anyInt(), eq(UserHandle.CURRENT));
+
+        // Mock out a service which performed a redirection
+        IBinder mockBinder = mock(IBinder.class);
+        ICallRedirectionService mockCallRedirectionService = mock(ICallRedirectionService.class);
+        when(mockBinder.queryLocalInterface(anyString())).thenReturn(mockCallRedirectionService);
+        serviceConnectionCaptor.getValue().onServiceConnected(
+                USER_DEFINED_SERVICE_TEST_COMPONENT_NAME, mockBinder);
+
+        verify(mockCallRedirectionService, times(1)).placeCall(any(),
+                any(), any(), any(), anyBoolean());
+
+        // Wait for the rest of user-defined timeout time.
+        waitForHandlerActionDelayed(mProcessor.getHandler(), HANDLER_TIMEOUT_DELAY,
+                USER_DEFINED_SHORT_TIMEOUT_MS + CODE_EXECUTION_DELAY);
+
+        // Verify that notifyTimeout was called on the service.
+        verify(mockCallRedirectionService, times(1)).notifyTimeout();
+
+        // Verify service was unbound
+        verify(mContext, times(1)).unbindService(any(ServiceConnection.class));
+
+        // Verify that the redirection process still completes and notifies CallsManager.
+        verify(mCallsManager, times(1)).onCallRedirectionComplete(eq(mCall), any(),
+                eq(mPhoneAccountHandle), eq(null), eq(SPEAKER_PHONE_ON), eq(VIDEO_STATE),
+                eq(true), eq(CallRedirectionProcessor.UI_TYPE_USER_DEFINED_TIMEOUT));
+    }
+
+    @Test
+    public void testCancelCallFromService() throws Exception {
+        startProcessWithNoGateWayInfo();
+        enableUserDefinedCallRedirectionService();
+        disableCarrierCallRedirectionService();
+
+        mProcessor.performCallRedirection(UserHandle.CURRENT);
+
+        ArgumentCaptor<ServiceConnection> serviceConnectionCaptor = ArgumentCaptor.forClass(
+                ServiceConnection.class);
+        verify(mContext, times(1)).bindServiceAsUser(any(Intent.class),
+                serviceConnectionCaptor.capture(), anyInt(), eq(UserHandle.CURRENT));
+
+        IBinder mockBinder = mock(IBinder.class);
+        ICallRedirectionService mockCallRedirectionService = mock(ICallRedirectionService.class);
+        when(mockBinder.queryLocalInterface(anyString())).thenReturn(mockCallRedirectionService);
+        serviceConnectionCaptor.getValue().onServiceConnected(
+                USER_DEFINED_SERVICE_TEST_COMPONENT_NAME, mockBinder);
+
+        ArgumentCaptor<ICallRedirectionAdapter> redirectionAdapterCaptor = ArgumentCaptor.forClass(
+                ICallRedirectionAdapter.class);
+        verify(mockCallRedirectionService, times(1)).placeCall(redirectionAdapterCaptor.capture(),
+                any(), any(), any(), anyBoolean());
+
+        // Service cancels the call.
+        redirectionAdapterCaptor.getValue().cancelCall();
+
+        waitForHandlerAction(mProcessor.getHandler(), HANDLER_TIMEOUT_DELAY);
+
+        verify(mCallsManager, times(1)).onCallRedirectionComplete(eq(mCall),
+                any(), eq(mPhoneAccountHandle),
+                eq(null), eq(SPEAKER_PHONE_ON), eq(VIDEO_STATE),
+                eq(true), eq(CallRedirectionProcessor.UI_TYPE_NO_ACTION));
     }
 }

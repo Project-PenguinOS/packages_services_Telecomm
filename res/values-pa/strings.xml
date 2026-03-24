@@ -106,6 +106,9 @@
     <string name="notification_local_voicemail_title" msgid="7886943892975348066">"ਵੌਇਸਮੇਲ"</string>
     <string name="notification_local_voicemail_details" msgid="8462904524686541516">"<xliff:g id="CALLER_NAME">%2$s</xliff:g> ਦੀ ਕਾਲ ਲਈ <xliff:g id="APP_NAME">%1$s</xliff:g> ਵੱਲੋਂ ਵੌਇਸਮੇਲ ਰਿਕਾਰਡ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ।"</string>
     <string name="notification_local_voicemail_unknown_details" msgid="7688396653463660224">"ਅਗਿਆਤ ਕਾਲਰ ਦੀ ਕਾਲ ਲਈ <xliff:g id="APP_NAME">%1$s</xliff:g> ਵੱਲੋਂ ਵੌਇਸਮੇਲ ਰਿਕਾਰਡ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ।"</string>
+    <string name="notification_send_to_voicemail_details" msgid="5864892579891906399">"ਸੁਨੇਹਾ ਲੈਣ ਲਈ <xliff:g id="CALLER_NAME">%2$s</xliff:g> ਤੋਂ ਆਉਣ ਵਾਲੀ ਕਾਲ ਨੂੰ <xliff:g id="APP_NAME">%1$s</xliff:g> \'ਤੇ ਭੇਜੋ।"</string>
+    <string name="send_to_voicemail" msgid="7535268790380893835">"ਵੌਇਸਮੇਲ \'ਤੇ ਭੇਜੋ"</string>
+    <string name="notification_send_to_voicemail_unknown_details" msgid="2376840328981503932">"ਸੁਨੇਹਾ ਲੈਣ ਲਈ ਅਗਿਆਤ ਕਾਲਰ ਨੂੰ <xliff:g id="APP_NAME">%1$s</xliff:g> \'ਤੇ ਭੇਜੋ।"</string>
     <string name="alert_outgoing_call" msgid="5319895109298927431">"ਇਹ ਕਾਲ ਕਰਨ ਨਾਲ ਤੁਹਾਡੀ <xliff:g id="OTHER_APP">%1$s</xliff:g> ਕਾਲ ਸਮਾਪਤ ਹੋ ਜਾਵੇਗੀ।"</string>
     <string name="alert_redirect_outgoing_call_or_not" msgid="665409645789521636">"ਚੁਣੋ ਕਿ ਕਾਲ ਕਿਵੇਂ ਕਰਨੀ ਹੈ"</string>
     <string name="alert_place_outgoing_call_with_redirection" msgid="5221065030959024121">"<xliff:g id="OTHER_APP">%1$s</xliff:g> ਦੀ ਵਰਤੋਂ ਕਰਕੇ ਕਾਲ ਰੀਡਾਇਰੈਕਟ ਕਰੋ"</string>

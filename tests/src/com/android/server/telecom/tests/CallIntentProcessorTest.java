@@ -36,7 +36,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.UserHandle;
 import android.os.UserManager;
-import android.platform.test.flag.junit.SetFlagsRule;
 
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.server.telecom.Call;
@@ -60,8 +59,6 @@ import java.util.concurrent.CompletableFuture;
 @RunWith(JUnit4.class)
 public class CallIntentProcessorTest extends TelecomTestCase {
 
-    @Rule
-    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
     @Mock
     private CallsManager mCallsManager;
     @Mock
@@ -99,7 +96,7 @@ public class CallIntentProcessorTest extends TelecomTestCase {
                 mMockCurrentUserManager);
         when(mMockCreateContextAsUser.getPackageManager()).thenReturn(mPackageManager);
         mCallIntentProcessor = new CallIntentProcessor(mContext, mCallsManager, mDefaultDialerCache,
-                mFeatureFlags);
+                TELECOM_UI_PACKAGE_NAME, mFeatureFlags);
         when(mFeatureFlags.telecomResolveHiddenDependencies()).thenReturn(false);
         when(mCallsManager.getPhoneNumberUtilsAdapter()).thenReturn(mPhoneNumberUtilsAdapter);
         when(mPhoneNumberUtilsAdapter.isUriNumber(anyString())).thenReturn(true);
@@ -160,8 +157,6 @@ public class CallIntentProcessorTest extends TelecomTestCase {
 
     @Test
     public void testNonPrivateSpaceCall_noConsentDialogShown() {
-        setPrivateSpaceFlagsEnabled();
-
         Intent intent = new Intent(Intent.ACTION_CALL);
         intent.setData(TEST_PHONE_NUMBER);
         intent.putExtra(CallIntentProcessor.KEY_INITIATING_USER, UserHandle.CURRENT);
@@ -178,7 +173,6 @@ public class CallIntentProcessorTest extends TelecomTestCase {
 
     @Test
     public void testPrivateSpaceCall_isSelfManaged_noDialogShown() {
-        setPrivateSpaceFlagsEnabled();
         markInitiatingUserAsPrivateProfile();
         resolveAsIntentForwarderActivity();
 
@@ -204,7 +198,6 @@ public class CallIntentProcessorTest extends TelecomTestCase {
         ExtendedMockito.doReturn(true).when(
                 () -> TelephonyUtil.shouldProcessAsEmergency(any(), any()));
 
-        setPrivateSpaceFlagsEnabled();
         markInitiatingUserAsPrivateProfile();
         resolveAsIntentForwarderActivity();
 
@@ -222,7 +215,6 @@ public class CallIntentProcessorTest extends TelecomTestCase {
 
     @Test
     public void testPrivateSpaceCall_showConsentDialog() {
-        setPrivateSpaceFlagsEnabled();
         markInitiatingUserAsPrivateProfile();
         resolveAsIntentForwarderActivity();
 
@@ -239,11 +231,6 @@ public class CallIntentProcessorTest extends TelecomTestCase {
         /// Verify that the call does not proceeds as normal since the dialog was shown
         verify(mCallsManager, never()).startOutgoingCall(any(), any(), any(), any(), any(),
                 anyString());
-    }
-
-    private void setPrivateSpaceFlagsEnabled() {
-        mSetFlagsRule.enableFlags(
-            android.multiuser.Flags.FLAG_ENABLE_PRIVATE_SPACE_INTENT_REDIRECTION);
     }
 
     private void markInitiatingUserAsPrivateProfile() {

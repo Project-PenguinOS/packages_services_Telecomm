@@ -47,7 +47,6 @@ import com.android.server.telecom.CallsManagerListenerBase;
 import com.android.server.telecom.TelecomBroadcastIntentProcessor;
 import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.UserUtil;
-import com.android.server.telecom.components.TelecomBroadcastReceiver;
 import com.android.server.telecom.flags.FeatureFlags;
 
 import java.util.concurrent.Executor;
@@ -214,16 +213,18 @@ public class CallStreamingNotification extends CallsManagerListenerBase implemen
 
         // Action to hangup; this can use the default hangup action from the call style
         // notification.
-        Intent hangupIntent = new Intent(TelecomBroadcastIntentProcessor.ACTION_HANGUP_CALL,
-                Uri.fromParts(CALL_ID_SCHEME, callId, null),
-                mContext, TelecomBroadcastReceiver.class);
+        Intent hangupIntent = new Intent(TelecomBroadcastIntentProcessor.ACTION_HANGUP_CALL);
+        hangupIntent.setPackage(mContext.getPackageName());
+        hangupIntent.putExtra(TelecomBroadcastIntentProcessor.EXTRA_DATA_URI,
+                Uri.fromParts(CALL_ID_SCHEME, callId, null));
         PendingIntent hangupPendingIntent = PendingIntent.getBroadcast(mContext, 0, hangupIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
         // Action to switch here.
-        Intent switchHereIntent = new Intent(TelecomBroadcastIntentProcessor.ACTION_STOP_STREAMING,
-                Uri.fromParts(CALL_ID_SCHEME, callId, null),
-                mContext, TelecomBroadcastReceiver.class);
+        Intent switchHereIntent = new Intent(TelecomBroadcastIntentProcessor.ACTION_STOP_STREAMING);
+        switchHereIntent.setPackage(mContext.getPackageName());
+        switchHereIntent.putExtra(TelecomBroadcastIntentProcessor.EXTRA_DATA_URI,
+                Uri.fromParts(CALL_ID_SCHEME, callId, null));
         PendingIntent switchHerePendingIntent = PendingIntent.getBroadcast(mContext, 0,
                 switchHereIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 

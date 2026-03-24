@@ -2313,6 +2313,12 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
     public void handleCommunicationDeviceChanged(int newAudioType,
             AudioDeviceInfo newCommunicationDevice,
             AudioDeviceInfo previousCommunicationDevice) {
+        if (!mIsActive) {
+            Log.i(this, "handleCommunicationDeviceChanged: Not active, skipping. New audio type: "
+                            + "%d, new communication device: %s, previous communication device: %s",
+                    newAudioType, newCommunicationDevice, previousCommunicationDevice);
+            return;
+        }
         int currentAudioType = mCurrentRoute.getType();
         boolean areAudioTypesSame = newAudioType == currentAudioType;
         boolean areBluetoothAddressesSame = BT_AUDIO_ROUTE_TYPES.contains(newAudioType)
@@ -2355,8 +2361,8 @@ public class CallAudioRouteController implements CallAudioRouteAdapter {
                 sendMessageWithSessionInfo(SPEAKER_ON);
             } else if (newAudioType == TYPE_BLUETOOTH_SCO) {
                 // Handle switch to BT in the case that the UI isn't already reflected
-                handleSwitchBluetooth(newCommunicationDevice.getAddress(),
-                        false /* isUserRequest */);
+                sendMessageWithSessionInfo(SWITCH_BLUETOOTH, 0,
+                    newCommunicationDevice.getAddress());
                 // Signal BT_AUDIO_CONNECTED if needed
                 handleBtConnectionStateChanged(newCommunicationDevice.getAddress(),
                         true /* isScoConnected */);

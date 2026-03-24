@@ -6,6 +6,7 @@ import android.Manifest;
 import com.android.server.telecom.flags.FeatureFlags;
 import com.android.server.telecom.ui.UiConstants;
 
+import android.app.role.RoleManager;
 import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.content.Context;
@@ -28,13 +29,7 @@ import android.telephony.DisconnectCause;
 import android.telephony.PhoneNumberUtils;
 import android.telephony.TelephonyManager;
 import android.widget.Toast;
-
 import java.util.concurrent.CompletableFuture;
-
-// QTI_BEGIN: 2018-03-12: Telephony: IMS-VT: Support IMS calls fallback to CS
-import org.codeaurora.ims.QtiCallConstants;
-// QTI_END: 2018-03-12: Telephony: IMS-VT: Support IMS calls fallback to CS
-
 /**
  * Single point of entry for all outgoing and incoming calls.
  * {@link com.android.server.telecom.components.UserCallIntentProcessor} serves as a trampoline that
@@ -51,15 +46,17 @@ public class CallIntentProcessor {
 
     public static class AdapterImpl implements Adapter {
         private final DefaultDialerCache mDefaultDialerCache;
-        public AdapterImpl(DefaultDialerCache cache) {
+        private final String mTelecomUiPackageName;
+        public AdapterImpl(DefaultDialerCache cache, String telecomUiPackageName) {
             mDefaultDialerCache = cache;
+            mTelecomUiPackageName = telecomUiPackageName;
         }
 
         @Override
         public void processOutgoingCallIntent(Context context, CallsManager callsManager,
                 Intent intent, String callingPackage, FeatureFlags featureFlags) {
             CallIntentProcessor.processOutgoingCallIntent(context, callsManager, intent,
-                    callingPackage, mDefaultDialerCache, featureFlags);
+                    callingPackage, mTelecomUiPackageName, mDefaultDialerCache, featureFlags);
         }
 
         @Override
@@ -87,13 +84,16 @@ public class CallIntentProcessor {
     private final Context mContext;
     private final CallsManager mCallsManager;
     private final DefaultDialerCache mDefaultDialerCache;
+    private final String mTelecomPackageName;
     private final FeatureFlags mFeatureFlags;
 
     public CallIntentProcessor(Context context, CallsManager callsManager,
-            DefaultDialerCache defaultDialerCache, FeatureFlags featureFlags) {
+            DefaultDialerCache defaultDialerCache, String telecomUiPackageName,
+            FeatureFlags featureFlags) {
         this.mContext = context;
         this.mCallsManager = callsManager;
         this.mDefaultDialerCache = defaultDialerCache;
+        this.mTelecomPackageName = telecomUiPackageName;
         this.mFeatureFlags = featureFlags;
     }
 
@@ -105,7 +105,7 @@ public class CallIntentProcessor {
             processUnknownCallIntent(mCallsManager, intent);
         } else {
             processOutgoingCallIntent(mContext, mCallsManager, intent, callingPackage,
-                    mDefaultDialerCache, mFeatureFlags);
+                    mTelecomPackageName, mDefaultDialerCache, mFeatureFlags);
         }
     }
 
@@ -121,6 +121,7 @@ public class CallIntentProcessor {
             CallsManager callsManager,
             Intent intent,
             String callingPackage,
+            String telecomUiPackage,
             DefaultDialerCache defaultDialerCache,
             FeatureFlags featureFlags) {
 
@@ -168,13 +169,6 @@ public class CallIntentProcessor {
             clientExtras.putString(TelecomManager.EXTRA_CALL_SUBJECT, callsubject);
         }
 
-// QTI_BEGIN: 2018-03-12: Telephony: IMS-VT: Support IMS calls fallback to CS
-        final int callDomain = intent.getIntExtra(
-                QtiCallConstants.EXTRA_CALL_DOMAIN, QtiCallConstants.DOMAIN_AUTOMATIC);
-        Log.d(CallIntentProcessor.class, "callDomain = " + callDomain);
-        clientExtras.putInt(QtiCallConstants.EXTRA_CALL_DOMAIN, callDomain);
-
-// QTI_END: 2018-03-12: Telephony: IMS-VT: Support IMS calls fallback to CS
         if (intent.hasExtra(android.telecom.TelecomManager.EXTRA_PRIORITY)) {
             clientExtras.putInt(android.telecom.TelecomManager.EXTRA_PRIORITY, intent.getIntExtra(
                     android.telecom.TelecomManager.EXTRA_PRIORITY,
@@ -240,7 +234,7 @@ public class CallIntentProcessor {
         NewOutgoingCallIntentBroadcaster.CallDisposition disposition = broadcaster.evaluateCall();
         if (disposition.disconnectCause != DisconnectCause.NOT_DISCONNECTED) {
             callsManager.clearPendingMOEmergencyCall();
-            showErrorDialog(context, disposition.disconnectCause);
+            showErrorDialog(context, telecomUiPackage, disposition.disconnectCause);
             return;
         }
 
@@ -269,6 +263,20 @@ public class CallIntentProcessor {
     }
 
     /**
+     * Determines if the {@link RoleManager} for the specified user has a role holder for the dialer
+     * role.
+     * @param context the context.
+     * @param user the user to check.
+     * @return {@code true} if the dialer role is held by a valid apk that meets the requirements of
+     * being a dialer app, {@code false} otherwise.
+     */
+    private static boolean doesUserHaveDialerRoleHolder(Context context, UserHandle user) {
+        Context userContext = context.createContextAsUser(user, 0);
+        RoleManager roleManager = userContext.getSystemService(RoleManager.class);
+        return roleManager.getRoleHolders(RoleManager.ROLE_DIALER).size() > 0;
+    }
+
+    /**
      * If the call is initiated from managed profile but there is no work dialer installed, treat
      * the call is initiated from its parent user.
      *
@@ -278,8 +286,15 @@ public class CallIntentProcessor {
             FeatureFlags featureFlags) {
         final UserHandle initiatingUser = intent.getParcelableExtra(KEY_INITIATING_USER);
         if (UserUtil.isManagedProfile(context, initiatingUser)) {
-            boolean noDialerInstalled = DefaultDialerManager.getInstalledDialerApplications(context,
-                    initiatingUser).size() == 0;
+            // Note: We used to just check DefaultDialerManager.getInstalledDialerApplications to
+            // see if some activity handles the ACTION_DIAL intent.  An OS bug was introduced
+            // where we were seeing that a work profile had something handling the ACTION_DIAL
+            // intent in the android package, despite none existing. (╯°□°)╯︵ ┻━┻
+            // That method was introduced in 2015 when there was no concept of a dialer role and
+            // RoleManager.  It is much more reliable to check if the RoleManager reports that
+            // there is a role holder for that user instead.  Just because you handle the dial
+            // intent it does not mean you are actually a dialer.
+            boolean noDialerInstalled = !doesUserHaveDialerRoleHolder(context, initiatingUser);
             if (noDialerInstalled) {
                 final UserManager userManager = context.getSystemService(UserManager.class);
                 UserHandle parentUserHandle = userManager.getProfileParent(initiatingUser);
@@ -338,9 +353,9 @@ public class CallIntentProcessor {
         callsManager.addNewUnknownCall(phoneAccountHandle, intent.getExtras());
     }
 
-    private static void showErrorDialog(Context context, int errorCode) {
+    private static void showErrorDialog(Context context, String telecomUiPackage, int errorCode) {
         final Intent errorIntent = new Intent();
-        errorIntent.setClassName(UiConstants.TELECOM_UI_PACKAGE,
+        errorIntent.setClassName(telecomUiPackage,
               UiConstants.COMPONENT_ERROR_DIALOG);
 
         CharSequence errorMessage = null;

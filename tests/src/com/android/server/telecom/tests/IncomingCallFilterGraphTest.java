@@ -28,6 +28,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import android.content.Context;
+import android.platform.test.annotations.RequiresFlagsDisabled;
+import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
+
 import android.util.Log;
 
 import androidx.test.filters.SmallTest;
@@ -44,6 +49,7 @@ import com.android.server.telecom.callfiltering.IncomingCallFilterGraph;
 import com.android.server.telecom.flags.FeatureFlags;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -55,6 +61,9 @@ import java.util.concurrent.TimeUnit;
 
 @RunWith(JUnit4.class)
 public class IncomingCallFilterGraphTest extends TelecomTestCase {
+    @Rule
+    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
+
     private final String TAG = IncomingCallFilterGraphTest.class.getSimpleName();
     @Mock private Call mCall;
     @Mock private Context mContext;
@@ -236,19 +245,9 @@ public class IncomingCallFilterGraphTest extends TelecomTestCase {
         graph.performFiltering();
 
         // THEN: assert that DND is not determined or suppressed.
-        if (mFeatureFlags.voipDndFocus()) {
-            assertEquals(DND_NOT_DETERMINED,
-                    IncomingCallFilterGraph.DEFAULT_RESULT.dndSuppressionStatus);
-        } else {
-            assertFalse(IncomingCallFilterGraph.DEFAULT_RESULT.shouldSuppressCallDueToDndStatus);
-        }
-
-        if (mFeatureFlags.voipDndFocus()) {
-            assertEquals(DND_SUPPRESSED, testResult.get(TIMEOUT_FILTER_SLEEP_TIME,
-                    TimeUnit.MILLISECONDS).dndSuppressionStatus);
-        } else {
-            assertTrue(testResult.get(TIMEOUT_FILTER_SLEEP_TIME,
-                    TimeUnit.MILLISECONDS).shouldSuppressCallDueToDndStatus);
-        }
+        assertEquals(DND_NOT_DETERMINED,
+                IncomingCallFilterGraph.DEFAULT_RESULT.dndSuppressionStatus);
+        assertEquals(DND_SUPPRESSED, testResult.get(TIMEOUT_FILTER_SLEEP_TIME,
+                TimeUnit.MILLISECONDS).dndSuppressionStatus);
     }
 }

@@ -208,7 +208,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         }
     }
 
-    private void notifyAnswerRequested(int videoState, OutcomeReceiver<Object, Exception> or) {
+    @VisibleForTesting
+    public void notifyAnswerRequested(int videoState, OutcomeReceiver<Object, Exception> or) {
         Log.i(this, "notifyAnswerRequested: id=%s", mId);
         for (InCallServiceToVoipAppListener listener : mInCallServiceToVoipAppListeners) {
             try {
@@ -721,7 +722,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     private final TelecomSystem.SyncRoot mLock;
     private final String mId;
     private String mConnectionId;
-    private Analytics.CallInfo mAnalytics = new Analytics.CallInfo();
     private CallStateChangedAtomWriter mCallStateChangedAtomWriter =
             new CallStateChangedAtomWriter();
     private char mPlayingDtmfTone;
@@ -1214,7 +1214,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
         mConnectTimeMillis = connectTimeMillis;
         mConnectElapsedTimeMillis = connectElapsedTimeMillis;
-        mAnalytics.setCallStartTime(connectTimeMillis);
     }
 
     public void addListener(Listener listener) {
@@ -1225,33 +1224,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         if (listener != null) {
             mListeners.remove(listener);
         }
-    }
-
-    public void initAnalytics() {
-        initAnalytics(null, null);
-    }
-
-    public void initAnalytics(String callingPackage, String extraCreationLogs) {
-        int analyticsDirection;
-        switch (mCallDirection) {
-            case CALL_DIRECTION_OUTGOING:
-                analyticsDirection = Analytics.OUTGOING_DIRECTION;
-                break;
-            case CALL_DIRECTION_INCOMING:
-                analyticsDirection = Analytics.INCOMING_DIRECTION;
-                break;
-            case CALL_DIRECTION_UNKNOWN:
-            case CALL_DIRECTION_UNDEFINED:
-            default:
-                analyticsDirection = Analytics.UNKNOWN_DIRECTION;
-        }
-        mAnalytics = Analytics.initiateCallAnalytics(mId, analyticsDirection);
-        mAnalytics.setCallIsEmergency(mIsEmergencyCall);
-        Log.addEvent(this, LogUtils.Events.CREATED, callingPackage + ";" + extraCreationLogs);
-    }
-
-    public Analytics.CallInfo getAnalytics() {
-        return mAnalytics;
     }
 
     public void destroy() {
@@ -1614,7 +1586,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                     // ACTIVE/ON_HOLD
                     mConnectTimeMillis = mClockProxy.currentTimeMillis();
                     mConnectElapsedTimeMillis = mClockProxy.elapsedRealtime();
-                    mAnalytics.setCallStartTime(mConnectTimeMillis);
                 }
 
                 // We're clearly not disconnected, so reset the disconnected time.
@@ -1624,7 +1595,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             } else if (mState == CallState.DISCONNECTED) {
                 mDisconnectTimeMillis = mClockProxy.currentTimeMillis();
                 mDisconnectElapsedTimeMillis = mClockProxy.elapsedRealtime();
-                mAnalytics.setCallEndTime(mDisconnectTimeMillis);
                 setLocallyDisconnecting(false);
                 fixParentAfterDisconnect();
             }
@@ -1767,7 +1737,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         mIsProperlyExitingAudioProcessing = isExiting;
     }
 
-    void setRingbackRequested(boolean ringbackRequested) {
+    @VisibleForTesting
+    public void setRingbackRequested(boolean ringbackRequested) {
         mRingbackRequested = ringbackRequested;
         for (Listener l : mListeners) {
             l.onRingbackRequested(this, mRingbackRequested);
@@ -1908,7 +1879,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                     Log.e(this, r, "setHandle: can't determine if number is emergency");
                     mIsEmergencyCall = false;
                 }
-                mAnalytics.setCallIsEmergency(mIsEmergencyCall);
             }
             if (!mIsTestEmergencyCall) {
                 mIsTestEmergencyCall = mHandle != null &&
@@ -1927,7 +1897,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         }
     }
 
-    private boolean isTestEmergencyCall(String number) {
+    @VisibleForTesting
+    public boolean isTestEmergencyCall(String number) {
         try {
             Map<Integer, List<EmergencyNumber>> eMap =
                     getTelephonyManager().getEmergencyNumberList();
@@ -1957,7 +1928,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         return mCallerDisplayNamePresentation;
     }
 
-    void setCallerDisplayName(String callerDisplayName, int presentation) {
+    @VisibleForTesting
+    public void setCallerDisplayName(String callerDisplayName, int presentation) {
         if (!TextUtils.equals(callerDisplayName, mCallerDisplayName) ||
                 presentation != mCallerDisplayNamePresentation) {
             mCallerDisplayName = callerDisplayName;
@@ -1968,7 +1940,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         }
     }
 
-    void setContactPhotoUri(Uri contactPhotoUri) {
+    @VisibleForTesting
+    public void setContactPhotoUri(Uri contactPhotoUri) {
         if (mCallerInfo != null) {
             mCallerInfo.SetContactDisplayPhotoUri(contactPhotoUri);
         }
@@ -2009,12 +1982,15 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                     (mOverrideDisconnectCause.getTone() == 0) ?
                             cause.getTone() : mOverrideDisconnectCause.getTone());
         }
-        mAnalytics.setCallDisconnectCause(cause);
         mDisconnectCause = cause;
     }
 
     public void setOverrideDisconnectCauseCode(DisconnectCause overrideDisconnectCause) {
         mOverrideDisconnectCause = overrideDisconnectCause;
+    }
+
+    public DisconnectCause getOverrideDisconnectCauseCode() {
+        return mOverrideDisconnectCause;
     }
 
 
@@ -2269,7 +2245,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                     isTransactionalCall(), packageName, pkgSupportsIntent,
                     isTransactionalLogExcluded(), userPrefEnabled);
         }
-        return isTransactionalCall() && pkgSupportsIntent && !isTransactionalLogExcluded();
+        return shouldLogTransactionalCall;
     }
 
     /**
@@ -2585,7 +2561,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         }
     }
 
-    boolean shouldAttachToExistingConnection() {
+    @VisibleForTesting
+    public boolean shouldAttachToExistingConnection() {
         return mShouldAttachToExistingConnection;
     }
 
@@ -2793,8 +2770,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 setConferenceState(false);
             }
 
-            mAnalytics.addCallProperties(mConnectionProperties);
-
             int xorProps = previousProperties ^ mConnectionProperties;
             Log.addEvent(this, LogUtils.Events.PROPERTY_CHANGE,
                     "Current: [%s], Removed [%s], Added [%s]",
@@ -2888,9 +2863,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             remoteService.incrementAssociatedCallCount();
             mRemoteConnectionService = remoteService;
         }
-
         mConnectionService = service;
-        mAnalytics.setCallConnectionService(service.getComponentName().flattenToShortString());
         mConnectionService.addCall(this);
         processCachedCallbacks(service);
     }
@@ -2925,7 +2898,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
         service.incrementAssociatedCallCount();
         mConnectionService = service;
-        mAnalytics.setCallConnectionService(service.getComponentName().flattenToShortString());
     }
 
     /**
@@ -3161,7 +3133,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     /**
      * Silences the ringer.
      */
-    void silence() {
+    @VisibleForTesting
+    public void silence() {
         if (mConnectionService == null) {
             Log.w(this, "silence() request on a call without a connection service.");
         } else {
@@ -3467,7 +3440,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      */
     @VisibleForTesting
     public void reject(boolean rejectWithMessage, String textMessage) {
-        reject(rejectWithMessage, textMessage, "internal" /** reason */);
+        reject(rejectWithMessage, textMessage, "internal" /* reason */);
     }
 
     /**
@@ -3968,19 +3941,22 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         return mCallerInfo == null ? null : mCallerInfo.contactRingtoneUri;
     }
 
-    void onPostDialWait(String remaining) {
+    @VisibleForTesting
+    public void onPostDialWait(String remaining) {
         for (Listener l : mListeners) {
             l.onPostDialWait(this, remaining);
         }
     }
 
-    void onPostDialChar(char nextChar) {
+    @VisibleForTesting
+    public void onPostDialChar(char nextChar) {
         for (Listener l : mListeners) {
             l.onPostDialChar(this, nextChar);
         }
     }
 
-    void postDialContinue(boolean proceed) {
+    @VisibleForTesting
+    public void postDialContinue(boolean proceed) {
         if (mTransactionalService != null) {
             Log.i(this, "postDialContinue: called on TransactionalService. doing nothing");
         } else if (mConnectionService != null) {
@@ -3991,7 +3967,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         }
     }
 
-    void conferenceWith(Call otherCall) {
+    @VisibleForTesting
+    public void conferenceWith(Call otherCall) {
         if (mTransactionalService != null) {
             Log.i(this, "conferenceWith: called on TransactionalService. doing nothing");
         } else if (mConnectionService == null) {
@@ -4180,7 +4157,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      * have this call as a child.
      * @param parentCall
      */
-    void setParentAndChildCall(Call parentCall) {
+    @VisibleForTesting
+    public void setParentAndChildCall(Call parentCall) {
         boolean isParentChanging = (mParentCall != parentCall);
         setParentCall(parentCall);
         setChildOf(parentCall);
@@ -4208,7 +4186,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      * can avoid sending the "onParentChanged" callback until later.
      * @param parentCall The new parent call.
      */
-    void setParentCall(Call parentCall) {
+    @VisibleForTesting
+    public void setParentCall(Call parentCall) {
         if (parentCall == this) {
             Log.e(this, new Exception(), "setting the parent to self");
             return;
@@ -4240,7 +4219,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         }
     }
 
-    void setConferenceableCalls(List<Call> conferenceableCalls) {
+    @VisibleForTesting
+    public void setConferenceableCalls(List<Call> conferenceableCalls) {
         mConferenceableCalls.clear();
         mConferenceableCalls.addAll(conferenceableCalls);
         String confCallIds = "";
@@ -4316,7 +4296,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         }
     }
 
-    private void removeChildCall(Call call) {
+    @VisibleForTesting
+    public void removeChildCall(Call call) {
         if (mChildCalls.remove(call)) {
             Log.addEvent(this, LogUtils.Events.REMOVE_CHILD, call);
             for (Listener l : mListeners) {
@@ -4425,7 +4406,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     /**
      * @return True if the call is answered, else logs the action name.
      */
-    private boolean isAnswered(String actionName) {
+    @VisibleForTesting
+    public boolean isAnswered(String actionName) {
         if (mState == CallState.ANSWERED) {
             return true;
         }
@@ -4485,7 +4467,13 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         return mCallerInfo;
     }
 
-    private void maybeLoadCannedSmsResponses() {
+    @VisibleForTesting
+    public void setCallerInfoForTesting(CallerInfo callerInfo) {
+        mCallerInfo = callerInfo;
+    }
+
+    @VisibleForTesting
+    public void maybeLoadCannedSmsResponses() {
         if (mCallDirection == CALL_DIRECTION_INCOMING
                 && isRespondViaSmsCapable()
                 && !mCannedSmsResponsesLoadingStarted) {
@@ -4652,6 +4640,11 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
                 : mInCallToConnectionServiceStreams[RTT_PIPE_WRITE_SIDE_INDEX];
     }
 
+    @VisibleForTesting
+    public void setInCallToCsRttPipeForTesting(ParcelFileDescriptor[] parcelFileDescriptor) {
+        mInCallToConnectionServiceStreams = parcelFileDescriptor;
+    }
+
     public int getRttMode() {
         return mRttMode;
     }
@@ -4783,7 +4776,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
         if (VideoProfile.isVideo(videoState)) {
             mHasVideoCall = true;
-            mAnalytics.setCallIsVideo(true);
         }
     }
 
@@ -4867,7 +4859,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         mAssociatedUser = associatedUser;
     }
 
-    static int getStateFromConnectionState(int state) {
+    @VisibleForTesting
+    public static int getStateFromConnectionState(int state) {
         switch (state) {
             case Connection.STATE_INITIALIZING:
                 return CallState.CONNECTING;
@@ -5550,7 +5543,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
             mIsStreaming = true;
             for (Listener listener : mListeners) {
-                listener.onCallStreamingStateChanged(this, true /** isStreaming */);
+                listener.onCallStreamingStateChanged(this, true /* isStreaming */);
             }
         }
     }
@@ -5564,7 +5557,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             Log.addEvent(this, LogUtils.Events.STOP_STREAMING);
             mIsStreaming = false;
             for (Listener listener : mListeners) {
-                listener.onCallStreamingStateChanged(this, false /** isStreaming */);
+                listener.onCallStreamingStateChanged(this, false /* isStreaming */);
             }
         }
     }
@@ -5630,5 +5623,35 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
 
     public boolean isBulkStateUpdateInProgress() {
       return mIsBulkStateUpdateInProgress;
+    }
+
+    @VisibleForTesting
+    public void setBulkStateUpdateInProgress(boolean result) {
+        mIsBulkStateUpdateInProgress = result;
+    }
+
+    @VisibleForTesting
+    public void setExtrasForTest(Bundle extras) {
+        mExtras = extras;
+    }
+
+    @VisibleForTesting
+    public void setPendingRttRequestId(int requestId) {
+        mPendingRttRequestId = requestId;
+    }
+
+    @VisibleForTesting
+    public void addChildCallForTesting(Call childCall) {
+        mChildCalls.add(childCall);
+    }
+
+    @VisibleForTesting
+    public void setCreateConnectionProcessorForTesting(CreateConnectionProcessor processor) {
+        mCreateConnectionProcessor = processor;
+    }
+
+    @VisibleForTesting
+    public void setParticipants(List<Uri> participants) {
+        mParticipants = participants;
     }
 }

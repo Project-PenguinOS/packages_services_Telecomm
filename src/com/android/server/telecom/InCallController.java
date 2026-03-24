@@ -37,7 +37,6 @@ import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
 import android.hardware.SensorPrivacyManager;
-import android.os.Binder;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -450,11 +449,6 @@ public class InCallController extends CallsManagerListenerBase implements
                     sendCrashedInCallServiceNotification(packageName, userFromCall);
                 }
                 if (mCall != null) {
-                    mCall.getAnalytics().addInCallService(
-                            mInCallServiceInfo.getComponentName().flattenToShortString(),
-                            mInCallServiceInfo.getType(),
-                            mInCallServiceInfo.getDisconnectTime()
-                                    - mInCallServiceInfo.getBindingStartTime(), mIsNullBinding);
                     updateCallTracking(mCall, mInCallServiceInfo, false /* isAdd */);
                 }
 
@@ -1262,6 +1256,7 @@ public class InCallController extends CallsManagerListenerBase implements
     private final Map<UserHandle, InCallServiceBindingConnection> mBTInCallServiceConnections =
             new ArrayMap<>();
     private final ClockProxy mClockProxy;
+    private final String mTelecomUiPackageName;
     private final FeatureFlags mFeatureFlags;
 
     // A set of known non-UI in call services on the device, including those that are disabled.
@@ -1318,16 +1313,19 @@ public class InCallController extends CallsManagerListenerBase implements
     public InCallController(Context context, TelecomSystem.SyncRoot lock, CallsManager callsManager,
             SystemStateHelper systemStateHelper, DefaultDialerCache defaultDialerCache,
             Timeouts.Adapter timeoutsAdapter, EmergencyCallHelper emergencyCallHelper,
-            CarModeTracker carModeTracker, ClockProxy clockProxy, FeatureFlags featureFlags) {
+            CarModeTracker carModeTracker, ClockProxy clockProxy, String telecomUiPackageName,
+            FeatureFlags featureFlags) {
       this(context, lock, callsManager, systemStateHelper, defaultDialerCache, timeoutsAdapter,
-              emergencyCallHelper, carModeTracker, clockProxy, featureFlags, null);
+              emergencyCallHelper, carModeTracker, clockProxy, telecomUiPackageName, featureFlags,
+              null);
     }
 
     @VisibleForTesting
     public InCallController(Context context, TelecomSystem.SyncRoot lock, CallsManager callsManager,
             SystemStateHelper systemStateHelper, DefaultDialerCache defaultDialerCache,
             Timeouts.Adapter timeoutsAdapter, EmergencyCallHelper emergencyCallHelper,
-            CarModeTracker carModeTracker, ClockProxy clockProxy, FeatureFlags featureFlags,
+            CarModeTracker carModeTracker, ClockProxy clockProxy, String telecomUiPackageName,
+            FeatureFlags featureFlags,
             com.android.internal.telephony.flags.FeatureFlags telephonyFeatureFlags) {
         mContext = context;
         mAppOpsManager = context.getSystemService(AppOpsManager.class);
@@ -1345,6 +1343,7 @@ public class InCallController extends CallsManagerListenerBase implements
         // Important: Context must be retained or the receivers won't fire when the context is
         // garbage collected.
         mAllUsersContext = mContext.createContextAsUser(UserHandle.ALL, 0);
+        mTelecomUiPackageName = telecomUiPackageName;
         mFeatureFlags = featureFlags;
     }
 
@@ -1509,8 +1508,8 @@ public class InCallController extends CallsManagerListenerBase implements
                 .filter((c) -> getUserFromCall(c).equals(userFromCall));
         boolean isCallCountZero = callsAssociatedWithUserFromCall.count() == 0;
         if (isCallCountZero) {
-            /** Let's add a 2 second delay before we send unbind to the services to hopefully
-             *  give them enough time to process all the pending messages.
+            /* Let's add a 2 second delay before we send unbind to the services to hopefully
+             * give them enough time to process all the pending messages.
              */
             if (mCallRemovedRunnable != null) {
                 mHandler.removeCallbacks(mCallRemovedRunnable);
@@ -1809,6 +1808,8 @@ public class InCallController extends CallsManagerListenerBase implements
                 return;
             } else if (oldState == CallState.LOCAL_VOICEMAIL
                     && newState == CallState.ACTIVE) {
+                Log.i(this, "onCallStateChanged: %s moved from local VM to active, adding",
+                        call.getId());
                 UserHandle userFromCall = getUserFromCall(call);
                 // The call went active once more, so add it to the ICS.
                 maybeAddCallToInCallServices(call, userFromCall);
@@ -2106,9 +2107,9 @@ public class InCallController extends CallsManagerListenerBase implements
         call.setLocallyDisconnecting(false);
         updateCall(call);
         // Show an error dialog to the user mentioning why the disconnect failed.
-        UserUtil.showErrorDialogForRestrictedOutgoingCall(mContext, TelecomResourceId.getText(
-                mContext, "call_hangup_fail_during_merge"), NOTIFICATION_TAG,
-                "Call cannot be disconnected during a call merge.");
+        UserUtil.showErrorDialogForRestrictedOutgoingCall(mContext, mTelecomUiPackageName,
+                TelecomResourceId.getText(mContext, "call_hangup_fail_during_merge"),
+                NOTIFICATION_TAG, "Call cannot be disconnected during a call merge.");
     }
 
     private void notifyRttInitiationFailure(Call call, int reason) {
@@ -2767,14 +2768,13 @@ public class InCallController extends CallsManagerListenerBase implements
         IInCallService inCallService = IInCallService.Stub.asInterface(service);
         synchronized (mLock) {
             if (info.getType() == IN_CALL_SERVICE_TYPE_BLUETOOTH) {
+                // Binding completed after the timeout but let this through instead of
+                // disconnecting the BT ICS.
                 if (!mBtBindingFuture.containsKey(userHandle)
                         || (mBtBindingFuture.get(userHandle).isDone() && !mBtBindingFuture
                         .get(userHandle).getNow(false))) {
                     Log.i(this, "onConnected: BT binding future timed out but allowing bind "
                             + "to complete.");
-                    // Binding completed after the timeout but let this through instead of
-                    // disconnecting the BT ICS.
-                    return true;
                 } else {
                     mBtBindingFuture.get(userHandle).complete(true);
                 }

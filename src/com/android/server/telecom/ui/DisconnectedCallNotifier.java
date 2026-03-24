@@ -49,7 +49,6 @@ import com.android.server.telecom.Constants;
 import com.android.server.telecom.TelecomBroadcastIntentProcessor;
 import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.UserUtil;
-import com.android.server.telecom.components.TelecomBroadcastReceiver;
 import com.android.server.telecom.flags.FeatureFlags;
 
 import java.util.Locale;
@@ -350,9 +349,12 @@ public class DisconnectedCallNotifier extends CallsManagerListenerBase {
      */
     private PendingIntent createTelecomPendingIntent(String action, Uri data,
             UserHandle userHandle) {
-        Intent intent = new Intent(action, data, mContext, TelecomBroadcastReceiver.class);
+        Intent intent = new Intent(action);
+        intent.setPackage(mContext.getPackageName());
+        intent.putExtra(TelecomBroadcastIntentProcessor.EXTRA_DATA_URI, data);
         intent.putExtra(TelecomBroadcastIntentProcessor.EXTRA_USERHANDLE, userHandle);
-        return PendingIntent.getBroadcast(mContext, 0, intent,
+        int requestCode = data == null ? 0 : data.hashCode();
+        return PendingIntent.getBroadcast(mContext, requestCode, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
