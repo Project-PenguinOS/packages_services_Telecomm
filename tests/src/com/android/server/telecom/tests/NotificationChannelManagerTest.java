@@ -72,7 +72,7 @@ public class NotificationChannelManagerTest extends TelecomTestCase {
         // Verify channel creation
         ArgumentCaptor<NotificationChannel> channelCaptor =
                 ArgumentCaptor.forClass(NotificationChannel.class);
-        verify(mNotificationManager, times(7)).createNotificationChannel(channelCaptor.capture());
+        verify(mNotificationManager, times(8)).createNotificationChannel(channelCaptor.capture());
 
         List<NotificationChannel> channels = channelCaptor.getAllValues();
         assertChannelExists(channels, NotificationChannelManager.CHANNEL_ID_MISSED_CALLS);
@@ -83,6 +83,7 @@ public class NotificationChannelManagerTest extends TelecomTestCase {
         assertChannelExists(channels,
                 NotificationChannelManager.CHANNEL_ID_IN_CALL_SERVICE_CRASH);
         assertChannelExists(channels, NotificationChannelManager.CHANNEL_ID_CALL_STREAMING);
+        assertChannelExists(channels, NotificationChannelManager.CHANNEL_ID_LOCAL_VOICEMAIL);
     }
 
     @SmallTest
@@ -97,8 +98,8 @@ public class NotificationChannelManagerTest extends TelecomTestCase {
         BroadcastReceiver receiver = receiverCaptor.getValue();
         receiver.onReceive(mContext, new Intent(Intent.ACTION_LOCALE_CHANGED));
 
-        // Verify channels are created again (total 14 times: 7 initially + 7 on receive)
-        verify(mNotificationManager, times(14)).createNotificationChannel(any());
+        // Verify channels are created again (total 16 times: 8 initially + 8 on receive)
+        verify(mNotificationManager, times(16)).createNotificationChannel(any());
     }
 
     private void assertChannelExists(List<NotificationChannel> channels, String id) {
