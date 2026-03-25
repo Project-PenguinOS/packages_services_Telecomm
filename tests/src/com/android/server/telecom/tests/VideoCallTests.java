@@ -18,23 +18,29 @@ package com.android.server.telecom.tests;
 
 import static com.android.server.telecom.CallAudioRouteAdapter.SPEAKER_ON;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import android.os.Process;
 import android.os.RemoteException;
 import android.telecom.CallAudioState;
 import android.telecom.DisconnectCause;
+import android.telecom.ParcelableCall;
 import android.telecom.VideoProfile;
 
 import androidx.test.filters.LargeTest;
 import androidx.test.filters.MediumTest;
 
+import com.android.internal.telecom.IVideoProvider;
 import com.android.server.telecom.AudioRoute;
 import com.android.server.telecom.CallAudioModeStateMachine;
 import com.android.server.telecom.CallAudioRouteAdapter;
@@ -67,6 +73,50 @@ public class VideoCallTests extends TelecomSystemTest {
     @After
     public void tearDown() throws Exception {
         super.tearDown();
+    }
+
+    @MediumTest
+    @Test
+    public void testVideoCallImplEqualsAndHashCode() {
+        IVideoProvider videoProvider1 = mock(IVideoProvider.class);
+        when(videoProvider1.asBinder()).thenReturn(mock(android.os.IBinder.class));
+
+        IVideoProvider videoProvider2 = mock(IVideoProvider.class);
+        when(videoProvider2.asBinder()).thenReturn(mock(android.os.IBinder.class));
+
+        ParcelableCall parcelableCall1 = new ParcelableCall.ParcelableCallBuilder()
+                .setId("1")
+                .setVideoCallProvider(videoProvider1)
+                .setConferenceableCallIds(java.util.Collections.emptyList())
+                .createParcelableCall();
+        Object videoCall1 = parcelableCall1.getVideoCallImpl("pkg", 1);
+
+        ParcelableCall parcelableCall2 = new ParcelableCall.ParcelableCallBuilder()
+                .setId("1")
+                .setVideoCallProvider(videoProvider1)
+                .setConferenceableCallIds(java.util.Collections.emptyList())
+                .createParcelableCall();
+        Object videoCall2 = parcelableCall2.getVideoCallImpl("pkg", 1);
+
+        ParcelableCall parcelableCall3 = new ParcelableCall.ParcelableCallBuilder()
+                .setId("2")
+                .setVideoCallProvider(videoProvider1)
+                .setConferenceableCallIds(java.util.Collections.emptyList())
+                .createParcelableCall();
+        Object videoCall3 = parcelableCall3.getVideoCallImpl("pkg", 1);
+
+        ParcelableCall parcelableCall4 = new ParcelableCall.ParcelableCallBuilder()
+                .setId("1")
+                .setVideoCallProvider(videoProvider2)
+                .setConferenceableCallIds(java.util.Collections.emptyList())
+                .createParcelableCall();
+        Object videoCall4 = parcelableCall4.getVideoCallImpl("pkg", 1);
+
+        assertEquals(videoCall1, videoCall2);
+        assertEquals(videoCall1.hashCode(), videoCall2.hashCode());
+
+        assertNotEquals(videoCall1, videoCall3);
+        assertNotEquals(videoCall1, videoCall4);
     }
 
     /**
