@@ -94,7 +94,11 @@
     <string name="notification_local_voicemail_title" msgid="7886943892975348066">"صوتی میل"</string>
     <string name="notification_local_voicemail_details" msgid="8462904524686541516">"‫<xliff:g id="CALLER_NAME">%2$s</xliff:g> کی کال کے لیے <xliff:g id="APP_NAME">%1$s</xliff:g> کے ذریعے صوتی میل ریکارڈ کی جا رہی ہے۔"</string>
     <string name="notification_local_voicemail_unknown_details" msgid="7688396653463660224">"نامعلوم کالر کی کال کے لیے <xliff:g id="APP_NAME">%1$s</xliff:g> کے ذریعے صوتی میل ریکارڈ کی جا رہی ہے۔"</string>
+    <!-- no translation found for notification_local_voicemail_public_details (7881672203714928274) -->
+    <skip />
     <string name="notification_send_to_voicemail_details" msgid="5864892579891906399">"پیغام لینے کے لیے <xliff:g id="CALLER_NAME">%2$s</xliff:g> سے آنے والی کال کو <xliff:g id="APP_NAME">%1$s</xliff:g> پر بھیجیں۔"</string>
+    <!-- no translation found for notification_send_to_voicemail_public_details (4874500727719949035) -->
+    <skip />
     <string name="send_to_voicemail" msgid="7535268790380893835">"صوتی میل پر بھیجیں"</string>
     <string name="notification_send_to_voicemail_unknown_details" msgid="2376840328981503932">"پیغام لینے کے لیے نامعلوم کالر کو <xliff:g id="APP_NAME">%1$s</xliff:g> پر بھیجیں۔"</string>
     <string name="alert_outgoing_call_null_app_name" msgid="7017268474293036850">"اس کال کو کرنے سے آپ کی اِن کمنگ کال ختم ہو جائے گی۔"</string>
