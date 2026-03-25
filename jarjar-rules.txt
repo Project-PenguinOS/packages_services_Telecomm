@@ -1,4 +1,0 @@
-rule android.app.privatecompute.flags.*FeatureFlags* com.android.server.telecom.jarjar.@0
-rule android.app.privatecompute.flags.FeatureFlags* com.android.server.telecom.jarjar.@0
-rule android.app.privatecompute.flags.FeatureFlags com.android.server.telecom.jarjar.@0
-rule android.app.privatecompute.flags.Flags com.android.server.telecom.jarjar.@0

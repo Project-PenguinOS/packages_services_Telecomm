@@ -2317,9 +2317,7 @@ public class PhoneAccountRegistrarTest extends TelecomTestCase {
 
         // Step 1a: Make the bitmap "density-aware" by setting its density to match the test context.
         // This is the key change.
-        int densityDpi = mContext.getResources().getDisplayMetrics().densityDpi;
-        testBitmap.setDensity(densityDpi == 0 ? android.util.DisplayMetrics.DENSITY_DEFAULT :
-                densityDpi);
+        testBitmap.setDensity(mContext.getResources().getDisplayMetrics().densityDpi);
 
         // Step 2: Create a Canvas to draw on the bitmap.
         android.graphics.Canvas canvas = new android.graphics.Canvas(testBitmap);

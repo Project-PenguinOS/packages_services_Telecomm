@@ -736,7 +736,7 @@ public class ComponentContextFixture implements TestFixture<Context> {
     private final Resources.Theme mResourcesTheme = mock(Resources.Theme.class);
     private final Resources mResources = mock(Resources.class);
     private final Context mApplicationContextSpy = spy(mApplicationContext);
-    private final DisplayMetrics mDisplayMetrics = new DisplayMetrics();
+    private final DisplayMetrics mDisplayMetrics = mock(DisplayMetrics.class);
     private final PackageManager mPackageManager = mock(PackageManager.class);
     private final Executor mMainExecutor = mock(Executor.class);
     private final FakeAudioManager mFakeAudioManager = new FakeAudioManager(mContext);
@@ -784,8 +784,6 @@ public class ComponentContextFixture implements TestFixture<Context> {
         when(mResources.newTheme()).thenReturn(mResourcesTheme);
         when(mResources.getDisplayMetrics()).thenReturn(mDisplayMetrics);
         mDisplayMetrics.density = 3.125f;
-        mDisplayMetrics.densityDpi =
-                (int) (mDisplayMetrics.density * DisplayMetrics.DENSITY_DEFAULT);
         mResourceConfiguration.setLocale(Locale.TAIWAN);
 
         // TODO: Move into actual tests

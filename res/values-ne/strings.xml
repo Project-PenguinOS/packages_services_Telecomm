@@ -52,6 +52,9 @@
     <string name="outgoing_call_not_allowed_no_permission" msgid="8590468836581488679">"यो एपले फोनको अनुमति बिना बहिर्गमन कलहरू गर्न सक्दैन।"</string>
     <string name="outgoing_call_error_no_phone_number_supplied" msgid="7665135102566099778">"एक कल गर्नको लागि, एक वैध नम्बर प्रविष्टि गर्नुहोस्।"</string>
     <string name="duplicate_video_call_not_allowed" msgid="5754746140185781159">"यस समयमा कल थप गर्न सकिँदैन।"</string>
+    <string name="no_vm_number" msgid="2179959110602180844">"भ्वाइसमेल नम्बर हराइरहेको छ"</string>
+    <string name="no_vm_number_msg" msgid="1339245731058529388">"SIM कार्डमा कुनै पनि भ्वाइसमेल नम्बर भण्डारण भएको छैन।"</string>
+    <string name="add_vm_number_str" msgid="5179510133063168998">"नम्बर थप्नुहोस्"</string>
     <string name="change_default_dialer_dialog_title" msgid="5861469279421508060">"तपाईंको डिफल्ट फोन एप <xliff:g id="NEW_APP">%s</xliff:g> बनाउने हो?"</string>
     <string name="change_default_dialer_dialog_affirmative" msgid="8604665314757739550">"डिफल्ट रूपमा सेट गर्नुहोस्"</string>
     <string name="change_default_dialer_dialog_negative" msgid="8648669840052697821">"रद्द गर्नुहोस्"</string>
@@ -64,11 +67,20 @@
     <string name="blocked_numbers" msgid="8322134197039865180">"रोकिएका नम्बरहरू"</string>
     <string name="blocked_numbers_msg" msgid="141985883563301785">"तपाईं ब्लक गरिएका नम्बरहरूबाट फोन कल वा टेक्स्ट म्यासेज प्राप्त गर्नु हुने छैन। तर तपाईंले आपत्‌कालीन कल गर्नुभयो भने कल अस्वीकार गर्ने सेटिङ स्वतः अफ हुन्छ।"</string>
     <string name="block_number" msgid="3784343046852802722">"नम्बर थप्नुहोस्"</string>
+    <string name="unblock_dialog_body" msgid="2723393535797217261">"<xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g> लाई अनब्लक गर्ने हो?"</string>
+    <string name="unblock_button" msgid="8732021675729981781">"अनब्लक गर्नुहोस्"</string>
+    <string name="add_blocked_dialog_body" msgid="8599974422407139255">"यस नम्बरबाट कल र पाठ सन्देशहरूलाई रोक्नुहोस्"</string>
     <string name="add_blocked_number_hint" msgid="8769422085658041097">"फोन नम्बर"</string>
+    <string name="block_button" msgid="485080149164258770">"रोक्नुहोस्"</string>
+    <string name="non_primary_user" msgid="315564589279622098">"यन्त्रको मालिकले रोकिएका नम्बरहरूलाई हेर्न र व्यवस्थापन गर्न सक्छ।"</string>
     <string name="delete_icon_description" msgid="5335959254954774373">"अनब्लक गर्नुहोस्"</string>
     <string name="blocked_numbers_butter_bar_title" msgid="582982373755950791">"रोक लगाउने काम अस्थायी रूपमा अफ छ"</string>
     <string name="blocked_numbers_butter_bar_body" msgid="1261213114919301485">"तपाईँले आपत्‌कालीन नम्बरमा डायल गरेपछि वा टेक्स्ट म्यासेज पठाएपछि आपत्‌कालीन सेवाहरूले तपाईँलाई सम्पर्क गर्न सकून् भन्ने कुरा सुनिश्चित गर्न कलमाथिको अवरोध निष्क्रिय गरिन्छ।"</string>
     <string name="blocked_numbers_butter_bar_button" msgid="2704456308072489793">"अब पुन:-अन गर्नुहोस्"</string>
+    <string name="blocked_numbers_number_blocked_message" msgid="4314736791180919167">"<xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g> माथि रोक लगाइयो"</string>
+    <string name="blocked_numbers_number_unblocked_message" msgid="2933071624674945601">"<xliff:g id="UNBLOCKED_NUMBER">%1$s</xliff:g> माथिको रोक हटाइयो"</string>
+    <string name="blocked_numbers_block_emergency_number_message" msgid="4198550501500893890">"आपत्‌कालीन नम्बरमाथि रोक लगाउन सकिएन।"</string>
+    <string name="blocked_numbers_number_already_blocked_message" msgid="2301270825735665458">"<xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g> लाई पहिले नै रोकिएको छ।"</string>
     <string name="toast_personal_call_msg" msgid="5817631570381795610">"कल गर्न व्यक्तिगत डायलर प्रयोग गर्दै"</string>
     <string name="notification_incoming_call" msgid="1233481138362230894">"<xliff:g id="CALL_FROM">%2$s</xliff:g> ले गरेको <xliff:g id="CALL_VIA">%1$s</xliff:g> कल"</string>
     <string name="notification_incoming_video_call" msgid="5795968314037063900">"<xliff:g id="CALL_FROM">%2$s</xliff:g> ले गरेको <xliff:g id="CALL_VIA">%1$s</xliff:g> भिडियो कल"</string>
@@ -97,10 +109,12 @@
     <string name="notification_send_to_voicemail_details" msgid="5864892579891906399">"भ्वाइस म्यासेज प्राप्त गर्न <xliff:g id="CALLER_NAME">%2$s</xliff:g> बाट आउने कल <xliff:g id="APP_NAME">%1$s</xliff:g> मा पठाउनुहोस्।"</string>
     <string name="send_to_voicemail" msgid="7535268790380893835">"भ्वाइस मेलमा पठाउनुहोस्"</string>
     <string name="notification_send_to_voicemail_unknown_details" msgid="2376840328981503932">"भ्वाइस म्यासेज प्राप्त गर्न अज्ञात कल <xliff:g id="APP_NAME">%1$s</xliff:g> मा पठाउनुहोस्।"</string>
+    <string name="alert_outgoing_call" msgid="5319895109298927431">"यो कल गर्नुले तपाईंको <xliff:g id="OTHER_APP">%1$s</xliff:g> कल अन्त्य गर्दछ।"</string>
     <string name="alert_outgoing_call_null_app_name" msgid="7017268474293036850">"तपाईंले यो कल गर्नुभयो भने तपाईंको आगमन कल काटिने छ।"</string>
     <string name="alert_redirect_outgoing_call_or_not" msgid="665409645789521636">"यो कल गर्ने तरिका छनौट गर्नुहोस्"</string>
     <string name="alert_place_outgoing_call_with_redirection" msgid="5221065030959024121">"<xliff:g id="OTHER_APP">%1$s</xliff:g> प्रयोग गरी कल रिडाइरेक्ट गर्नुहोस्"</string>
     <string name="alert_place_unredirect_outgoing_call" msgid="2467608535225764006">"फोन नम्बर प्रयोग गरी कल गर्नुहोस्"</string>
+    <string name="alert_redirect_outgoing_call_timeout" msgid="5568101425637373060">"<xliff:g id="OTHER_APP">%1$s</xliff:g> प्रयोग गरेर कल गर्न सकिएन। कुनै अर्को रिडिरेक्टिङ एपको प्रयोग वा मद्दतका लागि विकासकर्तासँग सम्पर्क गरी हेर्नुहोस्।"</string>
     <string name="phone_settings_call_blocking_txt" msgid="7311523114822507178">"कलमाथि रोक लगाउने सुविधा"</string>
     <string name="phone_settings_number_not_in_contact_txt" msgid="2602249106007265757">"सम्पर्क सूचीहरूमा नरहेका नम्बरहरू"</string>
     <string name="phone_settings_number_not_in_contact_summary_txt" msgid="963327038085718969">"आफ्नो सम्पर्क सूचीहरूमा सूचीबद्ध नगरिएका नम्बरहरूमाथि रोक लगाउनुहोस्"</string>
@@ -114,6 +128,7 @@
     <string name="phone_settings_unavailable_summary_txt" msgid="8221686031038282633">"नम्बर उपलब्ध नभएका कल ब्लक गर्नुहोस्"</string>
     <string name="phone_strings_call_blocking_turned_off_notification_title_txt" msgid="2895809176537908791">"कलमाथि रोक लगाउने सुविधा"</string>
     <string name="phone_strings_call_blocking_turned_off_notification_text_txt" msgid="1713632946174016619">"कलमाथि रोक लगाउने सुविधालाई असक्षम पारियो"</string>
+    <string name="phone_strings_emergency_call_made_dialog_title_txt" msgid="6629412508584507377">"आपत्‌कालीन कल गरियो"</string>
     <string name="phone_strings_emergency_call_made_dialog_call_blocking_text_txt" msgid="3140411733995271126">"आपत्‌कालीन अवस्थामा उद्दार गर्ने मान्छेहरूलाई तपाईंलाई सम्पर्क गर्न दिन कलमाथि रोक लगाउने सुविधा अफ गरिएको छ।"</string>
     <string name="toast_emergency_can_not_pull_call" msgid="9074229465338410869">"आपत्‌कालीन कल चलिराखेको बेलामा अरु कल स्वीकार गर्न सकिँदैन।"</string>
     <string name="cancel" msgid="6733466216239934756">"रद्द गर्नुहोस्"</string>

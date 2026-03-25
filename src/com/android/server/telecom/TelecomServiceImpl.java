@@ -32,7 +32,6 @@ import static android.telecom.TelecomManager.TELECOM_TRANSACTION_SUCCESS;
 
 import android.Manifest;
 
-import android.app.privatecompute.flags.Flags;
 import android.annotation.SuppressLint;
 import android.app.ActivityManager;
 import android.app.AppOpsManager;
@@ -200,18 +199,6 @@ public class TelecomServiceImpl {
     private TransactionManager mTransactionManager;
     private final PermissionManager mPermissionManager;
     private PackageRemovedReceiver mPackageRemovedReceiver;
-
-    private int getAppUidIfPcc(int uid) {
-        if (mPackageManager != null && Process.isPrivateComputeCoreUid(uid)) {
-            try {
-                return mPackageManager.getAppUidForPrivateComputeCoreUid(uid);
-            } catch (Exception e) {
-                Log.w(TAG, "getAppUidIfPcc: exception for uid " + uid + " : " + e);
-            }
-        }
-        return uid;
-    }
-
     private final ITelecomService.Stub mBinderImpl = new ITelecomService.Stub() {
 
         @Override
@@ -1636,14 +1623,6 @@ public class TelecomServiceImpl {
             return UserHandle.getAppId(uid1) == UserHandle.getAppId(uid2);
         }
 
-        private boolean isSameAppIncludingPccUid(int uid1, int uid2) {
-            if (Flags.enablePccFrameworkSupport()) {
-                uid1 = getAppUidIfPcc(uid1);
-                uid2 = getAppUidIfPcc(uid2);
-            }
-            return isSameApp(uid1, uid2);
-        }
-
         private boolean isSysUiUid() {
             int callingUid = Binder.getCallingUid();
             int systemUiUid;
@@ -1654,7 +1633,7 @@ public class TelecomServiceImpl {
                         systemUiUid = mPackageManager.getPackageUid(mSystemUiPackageName, 0);
                         Log.i(TAG, "isSysUiUid: callingUid = " + callingUid + "; systemUiUid = "
                                 + systemUiUid);
-                        return isSameAppIncludingPccUid(callingUid, systemUiUid);
+                        return isSameApp(callingUid, systemUiUid);
                     } catch (PackageManager.NameNotFoundException e) {
                         Log.w(TAG,
                                 "isSysUiUid: caught PackageManager NameNotFoundException = " + e);
@@ -3806,16 +3785,13 @@ public class TelecomServiceImpl {
             Binder.restoreCallingIdentity(token);
         }
 
-        int definingAppUid = Flags.enablePccFrameworkSupport() ?
-                getAppUidIfPcc(callingUid) : callingUid;
-
-        if (packageUid != definingAppUid) {
+        if (packageUid != callingUid) {
             Log.i(this, "callingUidMatchesPackageManagerRecords: uid mismatch found for"
                     + "packageName=[%s]. packageManager reports packageUid=[%d] but "
                     + "binder reports callingUid=[%d]", packageName, packageUid, callingUid);
         }
 
-        return packageUid == definingAppUid;
+        return packageUid == callingUid;
     }
 
     /**

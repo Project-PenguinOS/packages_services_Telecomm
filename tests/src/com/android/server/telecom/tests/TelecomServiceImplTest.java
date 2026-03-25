@@ -311,8 +311,6 @@ public class TelecomServiceImplTest extends TelecomTestCase {
 
         mPackageManager = mContext.getPackageManager();
         when(mPackageManager.getPackageUid(anyString(), eq(0))).thenReturn(Binder.getCallingUid());
-        when(mPackageManager.getAppUidForPrivateComputeCoreUid(anyInt())).thenAnswer(
-                invocation -> invocation.getArgument(0));
         when(mTelephonyFeatureFlags.workProfileApiSplit()).thenReturn(false);
     }
 
