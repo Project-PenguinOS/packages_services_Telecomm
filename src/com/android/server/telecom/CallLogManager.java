@@ -212,12 +212,6 @@ public final class CallLogManager extends CallsManagerListenerBase {
             return false;
         }
 // QTI_BEGIN: 2020-12-09: Telephony: IMS: Fix conference call log issues
-
-        //Not log participant host
-        if (call.hasProperty(Connection.PROPERTY_IS_PARTICIPANT_HOST)) {
-            return false;
-        }
-
 // QTI_END: 2020-12-09: Telephony: IMS: Fix conference call log issues
         // A conference call which had children should not be logged, unless it was remotely hosted.
         if (call.isConference() && call.hadChildren() &&
@@ -337,8 +331,7 @@ public final class CallLogManager extends CallsManagerListenerBase {
         CallLogUtils.AddCallParams.AddCallParametersBuilder paramBuilder =
                 new CallLogUtils.AddCallParams.AddCallParametersBuilder();
 
-        paramBuilder.setStart(call.isChildCall() ? call.getConnectTimeMillis()
-            : call.getCreationTimeMillis());
+        paramBuilder.setStart(call.getCreationTimeMillis());
         paramBuilder.setDuration((int) (call.getAgeMillis() / 1000));
 
         String logNumber = getLogNumber(call);
