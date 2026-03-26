@@ -274,6 +274,22 @@ public class BluetoothDeviceManager {
         }
     }
 
+    public void handleBluetoothStateChanged(int state) {
+        if (state == BluetoothAdapter.STATE_TURNING_OFF || state == BluetoothAdapter.STATE_OFF) {
+            Log.i(this, "handleBluetoothStateChanged: BT state=" + state + ", clearing devices");
+            synchronized (mBtDeviceManagerLock) {
+                mHfpDevicesByAddress.clear();
+                mHearingAidDevicesByAddress.clear();
+                mLeAudioDevicesByAddress.clear();
+                mHearingAidDeviceSyncIds.clear();
+                mGroupsByDevice.clear();
+            }
+            handleAudioRefactoringServiceDisconnected(BluetoothProfile.HEADSET);
+            handleAudioRefactoringServiceDisconnected(BluetoothProfile.HEARING_AID);
+            handleAudioRefactoringServiceDisconnected(BluetoothProfile.LE_AUDIO);
+        }
+    }
+
     private final LinkedHashMap<String, BluetoothDevice> mHfpDevicesByAddress =
             new LinkedHashMap<>();
     private final LinkedHashMap<String, BluetoothDevice> mHearingAidDevicesByAddress =
