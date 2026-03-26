@@ -225,6 +225,7 @@ public class BluetoothDeviceManager {
                             Log.i(BluetoothDeviceManager.this, logString);
                             mLocalLog.log(logString);
                             handleAudioRefactoringServiceDisconnected(profile);
+                            lostServiceDevices.clear();
                         }
                     } finally {
                         Log.endSession();
@@ -271,6 +272,22 @@ public class BluetoothDeviceManager {
         } else {
             Log.d(this, "handleAudioRefactoringServiceDisconnected: call audio "
                     + "is not currently routed to BT so skipping switch to baseline");
+        }
+    }
+
+    public void handleBluetoothStateChanged(int state) {
+        if (state == BluetoothAdapter.STATE_TURNING_OFF || state == BluetoothAdapter.STATE_OFF) {
+            Log.i(this, "handleBluetoothStateChanged: BT state=" + state + ", clearing devices");
+            synchronized (mBtDeviceManagerLock) {
+                mHfpDevicesByAddress.clear();
+                mHearingAidDevicesByAddress.clear();
+                mLeAudioDevicesByAddress.clear();
+                mHearingAidDeviceSyncIds.clear();
+                mGroupsByDevice.clear();
+            }
+            handleAudioRefactoringServiceDisconnected(BluetoothProfile.HEADSET);
+            handleAudioRefactoringServiceDisconnected(BluetoothProfile.HEARING_AID);
+            handleAudioRefactoringServiceDisconnected(BluetoothProfile.LE_AUDIO);
         }
     }
 

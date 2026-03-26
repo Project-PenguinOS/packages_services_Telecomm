@@ -281,12 +281,13 @@ android_library {
 // Build the Telecom service.
 android_app {
     name: "TelecomShim",
+    manifest: "shim/AndroidManifest.xml",
+    resource_dirs: [],
     srcs: [
         "shim/src/com/android/server/telecom/components/UserCallActivity.java",
         "src/com/android/server/telecom/components/TelecomService.java",
         ":telecom-service-init-sources",
     ],
-    resource_dirs: ["res"],
     libs: [
         "framework-annotations-lib",
         "framework-telecom.stubs.module_lib",

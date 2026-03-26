@@ -285,33 +285,29 @@ public class IncomingCallNotifier extends CallsManagerListenerBase {
         // if there is a fullscreen intent.  However since this notification doesn't have that we
         // will use this trick to get it to show as one anyways.
         builder.setVibrate(new long[0]);
-        builder.setColor(TelecomResourceId.getResources(mContext).getColor(
-                TelecomResourceId.getIdentifier(mContext, "theme_color", "color")));
+        builder.setColor(TelecomResourceId.getColor(mContext, "theme_color"));
         builder.addAction(
                 TelecomResourceId.getIdentifier(mContext, "on_going_call", "anim"),
-                getActionText(
-                        TelecomResourceId.getIdentifier(mContext, "answer_incoming_call", "string"),
-                        TelecomResourceId.getIdentifier(mContext, "notification_action_answer",
-                                "color")), PendingIntent.getBroadcast(mContext, 0, answerIntent,
-                                PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE));
+                getActionText("answer_incoming_call", "notification_action_answer"),
+                PendingIntent.getBroadcast(mContext, 0, answerIntent,
+                        PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE));
         builder.addAction(
                 TelecomResourceId.getIdentifier(mContext, "ic_close_dk", "drawable"),
-                getActionText(TelecomResourceId.getIdentifier(mContext, "decline_incoming_call",
-                        "string"), TelecomResourceId.getIdentifier(mContext,
-                        "notification_action_decline", "color")),
+                getActionText("decline_incoming_call", "notification_action_decline"),
                         PendingIntent.getBroadcast(mContext, 0, rejectIntent,
                         PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE));
         return builder;
     }
 
-    private CharSequence getActionText(int stringRes, int colorRes) {
-        CharSequence string = mContext.getText(stringRes);
+    private CharSequence getActionText(String stringResName, String colorResName) {
+        CharSequence string = TelecomResourceId.getText(mContext, stringResName);
         if (string == null) {
             return "";
         }
         Spannable spannable = new SpannableString(string);
         spannable.setSpan(
-                    new ForegroundColorSpan(mContext.getColor(colorRes)), 0, spannable.length(), 0);
+                    new ForegroundColorSpan(TelecomResourceId.getColor(mContext, colorResName)), 0,
+                    spannable.length(), 0);
         return spannable;
     }
 }
