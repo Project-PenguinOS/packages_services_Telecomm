@@ -225,6 +225,7 @@ public class BluetoothDeviceManager {
                             Log.i(BluetoothDeviceManager.this, logString);
                             mLocalLog.log(logString);
                             handleAudioRefactoringServiceDisconnected(profile);
+                            lostServiceDevices.clear();
                         }
                     } finally {
                         Log.endSession();
