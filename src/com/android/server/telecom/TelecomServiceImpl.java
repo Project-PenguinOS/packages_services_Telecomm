@@ -1723,13 +1723,21 @@ public class TelecomServiceImpl {
                     if (!enforceAnswerCallPermission(packageName, Binder.getCallingUid())) return;
                     // Legacy behavior is to ignore whether the invocation is from a system app:
                     boolean isCallerPrivileged = isPrivilegedUid() || isSysUiUid();
+                    Call call = mCallsManager.getFirstCallWithState(CallState.RINGING,
+                            CallState.SIMULATED_RINGING);
+                    // Ensure that the associated user of the call matches with the calling user
+                    // handle. Otherwise, we should verify that the user has the cross user
+                    // permission. If none of the requirements are met, we will exit immediately.
+                    if (!doesAssociatedUserMatchCaller(call, Binder.getCallingUserHandle())) {
+                        return;
+                    }
                     Log.i(TAG, "acceptRingingCall: Binder.getCallingUid = [" +
                             Binder.getCallingUid() + "] isCallerPrivileged = " +
                             isCallerPrivileged);
                     long token = Binder.clearCallingIdentity();
                     event.setResult(ApiStats.RESULT_NORMAL);
                     try {
-                        acceptRingingCallInternal(DEFAULT_VIDEO_STATE, packageName,
+                        acceptRingingCallInternal(call, DEFAULT_VIDEO_STATE, packageName,
                                 isCallerPrivileged);
                     } finally {
                         Binder.restoreCallingIdentity(token);
@@ -1755,13 +1763,22 @@ public class TelecomServiceImpl {
                     if (!enforceAnswerCallPermission(packageName, Binder.getCallingUid())) return;
                     // Legacy behavior is to ignore whether the invocation is from a system app:
                     boolean isCallerPrivileged = isPrivilegedUid() || isSysUiUid();
+                    Call call = mCallsManager.getFirstCallWithState(CallState.RINGING,
+                            CallState.SIMULATED_RINGING);
+                    // Ensure that the associated user of the call matches with the calling user
+                    // handle. Otherwise, we should verify that the user has the cross user
+                    // permission. If none of the requirements are met, we will exit immediately.
+                    if (!doesAssociatedUserMatchCaller(call, Binder.getCallingUserHandle())) {
+                        return;
+                    }
                     Log.i(TAG, "acceptRingingCallWithVideoState: Binder.getCallingUid = "
                             + "[" + Binder.getCallingUid() + "] isCallerPrivileged = " +
                             isCallerPrivileged);
                     long token = Binder.clearCallingIdentity();
                     event.setResult(ApiStats.RESULT_NORMAL);
                     try {
-                        acceptRingingCallInternal(videoState, packageName, isCallerPrivileged);
+                        acceptRingingCallInternal(call, videoState, packageName,
+                                isCallerPrivileged);
                     } finally {
                         Binder.restoreCallingIdentity(token);
                     }
@@ -3637,10 +3654,8 @@ public class TelecomServiceImpl {
         return false;
     }
 
-    private void acceptRingingCallInternal(int videoState, String packageName,
+    private void acceptRingingCallInternal(Call call, int videoState, String packageName,
             boolean isCallerPrivileged) {
-        Call call = mCallsManager.getFirstCallWithState(CallState.RINGING,
-                CallState.SIMULATED_RINGING);
         if (call != null) {
             if (call.isSelfManaged() && !isCallerPrivileged) {
                 Log.addEvent(call, LogUtils.Events.REQUEST_ACCEPT,
