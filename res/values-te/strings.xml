@@ -94,11 +94,9 @@
     <string name="notification_local_voicemail_title" msgid="7886943892975348066">"వాయిస్ మెయిల్"</string>
     <string name="notification_local_voicemail_details" msgid="8462904524686541516">"<xliff:g id="CALLER_NAME">%2$s</xliff:g> నుండి వచ్చిన కాల్ కోసం <xliff:g id="APP_NAME">%1$s</xliff:g> వాయిస్ మెయిల్‌ను రికార్డ్ చేస్తోంది."</string>
     <string name="notification_local_voicemail_unknown_details" msgid="7688396653463660224">"తెలియని కాలర్ నుండి వచ్చిన కాల్ కోసం <xliff:g id="APP_NAME">%1$s</xliff:g> వాయిస్ మెయిల్‌ను రికార్డ్ చేస్తోంది."</string>
-    <!-- no translation found for notification_local_voicemail_public_details (7881672203714928274) -->
-    <skip />
+    <string name="notification_local_voicemail_public_details" msgid="7881672203714928274">"కాల్ కోసం <xliff:g id="APP_NAME">%1$s</xliff:g> వాయిస్ మెయిల్‌ను రికార్డ్ చేస్తోంది."</string>
     <string name="notification_send_to_voicemail_details" msgid="5864892579891906399">"మెసేజ్‌ను తీసుకోవడానికి <xliff:g id="CALLER_NAME">%2$s</xliff:g> నుండి <xliff:g id="APP_NAME">%1$s</xliff:g>‌కు కాల్ పంపండి."</string>
-    <!-- no translation found for notification_send_to_voicemail_public_details (4874500727719949035) -->
-    <skip />
+    <string name="notification_send_to_voicemail_public_details" msgid="4874500727719949035">"మెసేజ్‌ను తీసుకోవడానికి కాల్‌ను <xliff:g id="APP_NAME">%1$s</xliff:g>‌కు పంపండి."</string>
     <string name="send_to_voicemail" msgid="7535268790380893835">"వాయిస్ మెయిల్‌కు పంపండి"</string>
     <string name="notification_send_to_voicemail_unknown_details" msgid="2376840328981503932">"మెసేజ్‌ను తీసుకోవడానికి తెలియని కాలర్‌ను <xliff:g id="APP_NAME">%1$s</xliff:g>‌కు పంపండి."</string>
     <string name="alert_outgoing_call_null_app_name" msgid="7017268474293036850">"ఈ కాల్ చేయడం వలన మీ ఇన్‌కమింగ్ కాల్ ముగుస్తుంది."</string>
