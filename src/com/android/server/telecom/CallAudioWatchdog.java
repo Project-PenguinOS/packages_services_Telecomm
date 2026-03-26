@@ -368,7 +368,8 @@ public class CallAudioWatchdog extends CallsManagerListenerBase
                             session = getSession(config.getClientUid());
                         }
                         if (session != null && session.getTelecomCall() instanceof Call
-                                && ((Call) session.getTelecomCall()).isTransactionalCall()) {
+                                && ((Call) session.getTelecomCall()).isTransactionalCall()
+                                && ((Call) session.getTelecomCall()).isActive()) {
                             Log.i(CallAudioWatchdog.this, "onRecordingConfigChanged: transactional "
                                     + "call for uid=%d was silenced by platform", config.getClientUid());
                             mAnomalyReporter.reportAnomaly(

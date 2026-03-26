@@ -5252,6 +5252,23 @@ public class CallsManager extends Call.ListenerBase
         return false;
     }
 
+    /**
+     * @return {@code true} if there are any external calls, {@code false} otherwise.
+     */
+    public boolean hasExternalCalls() {
+        if (mCalls.isEmpty()) {
+            return false;
+        }
+
+        for (Call call : mCalls) {
+            if (call.isExternalCall()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
     boolean hasRingingCall() {
         return getFirstCallWithState(CallState.RINGING, CallState.ANSWERED) != null;
     }
