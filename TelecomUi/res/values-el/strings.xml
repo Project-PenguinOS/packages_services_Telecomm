@@ -29,6 +29,6 @@
     <string name="blocked_numbers_block_emergency_number_message" msgid="7109238580553660467">"Δεν είναι δυνατός ο αποκλεισμός του αριθμού έκτακτης ανάγκης."</string>
     <string name="blocked_numbers_number_already_blocked_message" msgid="5999222621606917984">"Ο αριθμός <xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g> αποκλείστηκε ήδη."</string>
     <string name="alert_outgoing_call" msgid="762286363406537247">"Εάν πραγματοποιήσετε αυτή την κλήση, η κλήση σας μέσω <xliff:g id="OTHER_APP">%1$s</xliff:g> θα τερματιστεί."</string>
-    <string name="alert_redirect_outgoing_call_timeout" msgid="7563578831876981546">"Δεν είναι δυνατή η πραγματοποίηση κλήσης από την εφαρμογή <xliff:g id="OTHER_APP">%1$s</xliff:g>. Δοκιμάστε να χρησιμοποιήσετε μια άλλη εφαρμογή ανακατεύθυνσης κλήσεων ή να επικοινωνήσετε με τον προγραμματιστή της εφαρμογής για βοήθεια."</string>
+    <string name="alert_redirect_outgoing_call_timeout" msgid="7563578831876981546">"Δεν είναι δυνατή η πραγματοποίηση κλήσης από την εφαρμογή <xliff:g id="OTHER_APP">%1$s</xliff:g>. Δοκιμάστε να χρησιμοποιήσετε άλλη εφαρμογή ανακατεύθυνσης κλήσεων ή να επικοινωνήσετε με τον προγραμματιστή της εφαρμογής για βοήθεια."</string>
     <string name="phone_strings_emergency_call_made_dialog_title_txt" msgid="1535746249366437841">"Πραγματοποιήθηκε κλήση έκτακτης ανάγκης"</string>
 </resources>
