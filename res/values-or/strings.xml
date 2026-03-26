@@ -52,9 +52,6 @@
     <string name="outgoing_call_not_allowed_no_permission" msgid="8590468836581488679">"ଫୋନ୍‌ର ବିନାଅନୁମତିରେ ଏହି ଆପ୍ଲିକେଶନ୍ ଆଉଟ୍‌ଗୋ‌ଇଙ୍ଗ କଲ୍ କରିପାରିବ ନାହିଁ।"</string>
     <string name="outgoing_call_error_no_phone_number_supplied" msgid="7665135102566099778">"ଗୋଟିଏ କଲ୍ କରିବା ପାଇଁ ଏକ ବୈଧ ନମ୍ବର୍ ପ୍ରବେଶ କରନ୍ତୁ।"</string>
     <string name="duplicate_video_call_not_allowed" msgid="5754746140185781159">"ଏହି ସମୟରେ କଲ୍ ଯୋଡ଼ାଯାଇପାରିବ ନାହିଁ।"</string>
-    <string name="no_vm_number" msgid="2179959110602180844">"ହଜିଯାଇଥିବା ଭଏସମେଲ୍ ନମ୍ବର୍"</string>
-    <string name="no_vm_number_msg" msgid="1339245731058529388">"SIM କାର୍ଡରେ କୌଣସି ଭଏସମେଲ୍ ନମ୍ବର୍ ଷ୍ଟୋର୍ କରାଯାଇନାହିଁ।"</string>
-    <string name="add_vm_number_str" msgid="5179510133063168998">"ନମ୍ବର୍ ଯୋଡ଼ନ୍ତୁ"</string>
     <string name="change_default_dialer_dialog_title" msgid="5861469279421508060">"<xliff:g id="NEW_APP">%s</xliff:g>କୁ ଆପଣଙ୍କ ଫୋନ୍‌ର ଡିଫଲ୍ଟ ଆପ୍ କରିବେ?"</string>
     <string name="change_default_dialer_dialog_affirmative" msgid="8604665314757739550">"ଡିଫଲ୍ଟ ସେଟ୍ କରନ୍ତୁ"</string>
     <string name="change_default_dialer_dialog_negative" msgid="8648669840052697821">"ବାତିଲ କରନ୍ତୁ"</string>
@@ -67,20 +64,11 @@
     <string name="blocked_numbers" msgid="8322134197039865180">"ବ୍ଲକ୍ କରାଯାଇଥିବା ନମ୍ବର୍"</string>
     <string name="blocked_numbers_msg" msgid="141985883563301785">"ବ୍ଲକ କରାଯାଇଥିବା ନମ୍ବରରୁ ଆପଣ କଲ କିମ୍ବା ମେସେଜ ପାଇବେ ନାହିଁ। ଆପଣ ଏକ ଜରୁରୀକାଳୀନ କଲ କଲେ, ଅଗ୍ରାହ୍ୟ ସେଟିଂସ ସ୍ୱତଃ ବନ୍ଦ ହୋଇଯାଏ।"</string>
     <string name="block_number" msgid="3784343046852802722">"ଗୋଟିଏ ନମ୍ବର୍ ଯୋଡ଼ନ୍ତୁ"</string>
-    <string name="unblock_dialog_body" msgid="2723393535797217261">"<xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g>କୁ ଅନବ୍ଲକ୍ କରିବେ?"</string>
-    <string name="unblock_button" msgid="8732021675729981781">"ଅନବ୍ଲକ୍ କରନ୍ତୁ"</string>
-    <string name="add_blocked_dialog_body" msgid="8599974422407139255">"ଏହାର କଲ୍ ଓ ଟେକ୍ସଟ୍‌କୁ ବ୍ଲକ୍ କରନ୍ତୁ"</string>
     <string name="add_blocked_number_hint" msgid="8769422085658041097">"ଫୋନ୍ ନମ୍ଵର୍"</string>
-    <string name="block_button" msgid="485080149164258770">"ବ୍ଲକ୍ କରନ୍ତୁ"</string>
-    <string name="non_primary_user" msgid="315564589279622098">"କେବଳ ଡିଭାଇସ୍‌ର ମାଲିକ ଅବରୋଧ କରାଯାଇଥିବା ନମ୍ବର୍‌କୁ ଦେଖିପାରିବେ ଓ ପରିଚାଳନା କରିପାରିବେ।"</string>
     <string name="delete_icon_description" msgid="5335959254954774373">"ଅନବ୍ଲକ୍ କରନ୍ତୁ"</string>
     <string name="blocked_numbers_butter_bar_title" msgid="582982373755950791">"ଅସ୍ଥାୟୀରୂପେ ଅବରୋଧ ଅଫ୍ ଅଛି"</string>
     <string name="blocked_numbers_butter_bar_body" msgid="1261213114919301485">"ଆପଣ ଗୋଟିଏ ଜରୁରିକାଳୀନ ନମ୍ବରକୁ ଡାଏଲ କିମ୍ବା ଟେକ୍ସଟ କରିବା ପରେ, ଜରୁରିକାଳୀନ ସେବା ଆପଣଙ୍କୁ କଣ୍ଟାକ୍ଟ କରିପାରୁଛି କି ନାହିଁ ତାହା ସୁନିଶ୍ଚିତ କରିବା ପାଇଁ ଅବରୋଧକୁ ବନ୍ଦ କରି ଦିଆଯାଇଛି।"</string>
     <string name="blocked_numbers_butter_bar_button" msgid="2704456308072489793">"ବର୍ତ୍ତମାନ ପୁନଃସକ୍ଷମ କରନ୍ତୁ"</string>
-    <string name="blocked_numbers_number_blocked_message" msgid="4314736791180919167">"<xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g> ବ୍ଲକ୍ କରାଯାଇଛି"</string>
-    <string name="blocked_numbers_number_unblocked_message" msgid="2933071624674945601">"<xliff:g id="UNBLOCKED_NUMBER">%1$s</xliff:g> ଅନବ୍ଲକ୍ କରାଯାଇଛି"</string>
-    <string name="blocked_numbers_block_emergency_number_message" msgid="4198550501500893890">"ଜରୁରିକାଳୀନ ନମ୍ବର୍‌କୁ ଅବରୋଧ କରିବାରେ ଅକ୍ଷମ।"</string>
-    <string name="blocked_numbers_number_already_blocked_message" msgid="2301270825735665458">"<xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g>କୁ ଅବରୋଧ କରାଯାଇସରିଛି।"</string>
     <string name="toast_personal_call_msg" msgid="5817631570381795610">"କଲ୍ କରିବା ପାଇଁ ବ୍ୟକ୍ତିଗତ ଡାଏଲର୍‌କୁ ବ୍ୟବହାର କରନ୍ତୁ"</string>
     <string name="notification_incoming_call" msgid="1233481138362230894">"<xliff:g id="CALL_FROM">%2$s</xliff:g> ଠାରୁ <xliff:g id="CALL_VIA">%1$s</xliff:g>କୁ କଲ୍ କରନ୍ତୁ"</string>
     <string name="notification_incoming_video_call" msgid="5795968314037063900">"<xliff:g id="CALL_FROM">%2$s</xliff:g> ଠାରୁ <xliff:g id="CALL_VIA">%1$s</xliff:g> ଭିଡିଓ କଲ୍ କରନ୍ତୁ"</string>
@@ -109,12 +97,10 @@
     <string name="notification_send_to_voicemail_details" msgid="5864892579891906399">"ଏକ ମେସେଜ ନେବା ପାଇଁ <xliff:g id="CALLER_NAME">%2$s</xliff:g>ଙ୍କଠାରୁ ଆସୁଥିବା କଲକୁ <xliff:g id="APP_NAME">%1$s</xliff:g>କୁ ପଠାନ୍ତୁ।"</string>
     <string name="send_to_voicemail" msgid="7535268790380893835">"ଭଏସମେଲକୁ ପଠାନ୍ତୁ"</string>
     <string name="notification_send_to_voicemail_unknown_details" msgid="2376840328981503932">"ଏକ ମେସେଜ ନେବା ପାଇଁ ଅଜଣା କଲରଙ୍କୁ <xliff:g id="APP_NAME">%1$s</xliff:g>କୁ ପଠାନ୍ତୁ।"</string>
-    <string name="alert_outgoing_call" msgid="5319895109298927431">"ଏହି କଲ୍‌କୁ ସ୍ଥାପନ କରିବା ଦ୍ଵାରା ଆପଣଙ୍କର <xliff:g id="OTHER_APP">%1$s</xliff:g> କଲ୍ ସମାପ୍ତ ହୋ‌ଇଯିବ।"</string>
     <string name="alert_outgoing_call_null_app_name" msgid="7017268474293036850">"ଏହି କଲ କରିବା ଦ୍ଵାରା ଆପଣଙ୍କର ଇନକମିଂ କଲ ସମାପ୍ତ ହୋଇଯିବ।"</string>
     <string name="alert_redirect_outgoing_call_or_not" msgid="665409645789521636">"ଏହି କଲ୍ କିପରି କରିବାକୁ ଚାହାନ୍ତି ବାଛନ୍ତୁ"</string>
     <string name="alert_place_outgoing_call_with_redirection" msgid="5221065030959024121">"<xliff:g id="OTHER_APP">%1$s</xliff:g> ବ୍ୟବହାର କରି କଲ୍ ରିଡାଇରେକ୍ଟ କରନ୍ତୁ"</string>
     <string name="alert_place_unredirect_outgoing_call" msgid="2467608535225764006">"ମୋ ଫୋନ୍ ନମ୍ବର ବ୍ୟବହାର କରି କଲ୍ କରନ୍ତୁ"</string>
-    <string name="alert_redirect_outgoing_call_timeout" msgid="5568101425637373060">"<xliff:g id="OTHER_APP">%1$s</xliff:g> କଲ୍‍ କରିପାରିବ ନାହିଁ। ଏକ ଭିନ୍ନ କଲ୍‍ ପୁନଃନିର୍ଦ୍ଦେଶିତ ଆପ୍‍ ବ୍ୟବହାର କରି ଚେଷ୍ଟା କରନ୍ତୁ କିମ୍ବା ସାହାଯ୍ୟ ପାଇଁ ଡେଭେଲପ୍‍ରଙ୍କ ସହ ଯୋଗାଯୋଗ କରନ୍ତୁ।"</string>
     <string name="phone_settings_call_blocking_txt" msgid="7311523114822507178">"କଲ୍‌ ବ୍ଲକିଂ"</string>
     <string name="phone_settings_number_not_in_contact_txt" msgid="2602249106007265757">"ଯୋଗାଯୋଗରେ ନଥିବା ନମ୍ବର୍"</string>
     <string name="phone_settings_number_not_in_contact_summary_txt" msgid="963327038085718969">"ଆପଣଙ୍କ ଯୋଗାଯୋଗରେ ତାଲିକାଭୁକ୍ତ ହୋ‌ଇନଥିବା ନମ୍ବର୍‌କୁ ଅବରୋଧ କରନ୍ତୁ"</string>
@@ -128,7 +114,6 @@
     <string name="phone_settings_unavailable_summary_txt" msgid="8221686031038282633">"ନମ୍ଵର ଉପଲବ୍ଧ ନଥିବା କ୍ଷେତ୍ରରେ କଲଗୁଡ଼ିକୁ ବ୍ଲକ କରନ୍ତୁ"</string>
     <string name="phone_strings_call_blocking_turned_off_notification_title_txt" msgid="2895809176537908791">"କଲ୍‌ ବ୍ଲକିଂ"</string>
     <string name="phone_strings_call_blocking_turned_off_notification_text_txt" msgid="1713632946174016619">"କଲ୍ ବ୍ଲକିଂକୁ ଅକ୍ଷମ କରାଯାଇଛି"</string>
-    <string name="phone_strings_emergency_call_made_dialog_title_txt" msgid="6629412508584507377">"ଜରୁରିକାଳୀନ କଲ୍ କରାଗଲା"</string>
     <string name="phone_strings_emergency_call_made_dialog_call_blocking_text_txt" msgid="3140411733995271126">"ଜରୁରିକାଳୀନ ଉତ୍ତରଦାତାମାନେ ଆପଣଙ୍କୁ କଣ୍ଟାକ୍ଟ କରିବା ପାଇଁ କଲ ଅବରୋଧକୁ ଅକ୍ଷମ କରାଯାଇଛି।"</string>
     <string name="toast_emergency_can_not_pull_call" msgid="9074229465338410869">"ଜରୁରୀକାଳୀନ କଲ୍ ବେଳେ ଅନ୍ୟ କଲ୍ ଉଠାଇ ପାରିବେ ନାହିଁ।"</string>
     <string name="cancel" msgid="6733466216239934756">"ବାତିଲ କରନ୍ତୁ"</string>

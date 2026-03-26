@@ -254,6 +254,21 @@ public class MissedCallNotifierImplTest extends TelecomTestCase {
 
     @SmallTest
     @Test
+    public void testSkipRedundantDefaultDialerClear() {
+        MissedCallNotifier missedCallNotifier = setupMissedCallNotificationThroughDefaultDialer();
+        // First clear should send broadcast
+        missedCallNotifier.clearMissedCalls(PRIMARY_USER);
+
+        // Second clear should be skipped
+        missedCallNotifier.clearMissedCalls(PRIMARY_USER);
+
+        // Verify broadcast sent only once
+        verify(mContext, times(1)).sendBroadcastAsUser(any(Intent.class), any(),
+                anyString(), any());
+    }
+
+    @SmallTest
+    @Test
     public void testDefaultDialerIncrement() {
         MissedCallNotifier missedCallNotifier = setupMissedCallNotificationThroughDefaultDialer();
         PhoneAccount phoneAccount = makePhoneAccount(PRIMARY_USER, NO_CAPABILITY);
