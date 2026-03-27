@@ -129,6 +129,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     public static final int SOURCE_CONNECTION_SERVICE = 1;
     /** Identifies extras changes which originated from an incall service. */
     public static final int SOURCE_INCALL_SERVICE = 2;
+    /** Identifies extras changes which originated internally from Telecom. */
+    public static final int SOURCE_INTERNAL = 3;
 
     private static final int RTT_PIPE_READ_SIDE_INDEX = 0;
     private static final int RTT_PIPE_WRITE_SIDE_INDEX = 1;
@@ -2734,6 +2736,11 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             mWasHighDefAudio = (connectionProperties & Connection.PROPERTY_HIGH_DEF_AUDIO) ==
                     Connection.PROPERTY_HIGH_DEF_AUDIO;
             mWasWifi = (connectionProperties & Connection.PROPERTY_WIFI) > 0;
+            // We may need to add the extra for the ringing WiFi call if there's an ongoing VoLTE
+            // call.
+            if ((isNew() || isRinging("setConnectionProperties")) && mWasWifi) {
+                mCallsManager.maybeAddAnsweringCallDropsFg(this);
+            }
             for (Listener l : mListeners) {
                 l.onConnectionPropertiesChanged(this, didRttChange);
             }
@@ -3795,13 +3802,24 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     }
 
     /**
+     * Adds extras to the extras bundle associated with this {@link Call}, as made by Telecom.
+     *
+     * @param extras The extras.
+     */
+    public void putInternalExtras(Bundle extras) {
+        putExtras(SOURCE_INTERNAL, extras, null);
+    }
+
+    /**
      * Adds extras to the extras bundle associated with this {@link Call}.
      *
      * Note: this method needs to know the source of the extras change (see
-     * {@link #SOURCE_CONNECTION_SERVICE}, {@link #SOURCE_INCALL_SERVICE}).  Extras changes which
-     * originate from a connection service will only be notified to incall services.  Changes
-     * originating from the InCallServices will notify the connection service of the
-     * change, as well as other InCallServices other than the originator.
+     * {@link #SOURCE_CONNECTION_SERVICE}, {@link #SOURCE_INCALL_SERVICE},
+     * {@link #SOURCE_INTERNAL}).  Extras changes which originate from a connection service will
+     * only be notified to incall services. Changes originating from the InCallServices will notify
+     * the connection service of the change, as well as other InCallServices other than the
+     * originator. Changes originating from Telecom will notify both the connection service and
+     * other InCallServices.
      *
      * @param source The source of the extras addition.
      * @param extras The extras.
@@ -3875,8 +3893,8 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
             }
         }
 
-        // If the change originated from an InCallService, notify the connection service.
-        if (source == SOURCE_INCALL_SERVICE) {
+        // If the change originated from an InCallService or Telecom, notify the connection service.
+        if (source == SOURCE_INCALL_SERVICE || source == SOURCE_INTERNAL) {
             Log.addEvent(this, LogUtils.Events.ICS_EXTRAS_CHANGED);
             if (mTransactionalService != null) {
                 Log.i(this, "putExtras: called on TransactionalService. doing nothing");
@@ -5186,7 +5204,7 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
      *
      * @return true if wifi call was used during this call.
      */
-    boolean wasWifi() {
+    public boolean wasWifi() {
         return mWasWifi;
     }
 
