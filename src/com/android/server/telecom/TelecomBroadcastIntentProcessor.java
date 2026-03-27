@@ -291,12 +291,18 @@ public final class TelecomBroadcastIntentProcessor {
         } else if (ACTION_PICKUP_LOCAL_VOICEMAIL.equals(action)) {
             Log.startSession("TBIP.aPLV", "localvmdialog");
             try {
-                Call call = mCallsManager.getCall(intent.getData().getSchemeSpecificPart());
-                if (call != null) {
-                    mCallsManager.answerCall(call, VideoProfile.STATE_AUDIO_ONLY,
-                            REQUEST_ORIGIN_TELECOM_LOCAL_VOICEMAIL_NOTIFICATION);
-                    mCallsManager.getInCallController().bringToForeground(
-                            false, call.getAssociatedUser());
+                Uri data = intent.getParcelableExtra(EXTRA_DATA_URI);
+                if (data == null) {
+                    data = intent.getData();
+                }
+                if (data != null) {
+                    Call call = mCallsManager.getCall(data.getSchemeSpecificPart());
+                    if (call != null) {
+                        mCallsManager.answerCall(call, VideoProfile.STATE_AUDIO_ONLY,
+                                REQUEST_ORIGIN_TELECOM_LOCAL_VOICEMAIL_NOTIFICATION);
+                        mCallsManager.getInCallController().bringToForeground(
+                                false, call.getAssociatedUser());
+                    }
                 }
             } finally {
                 Log.endSession();
@@ -304,9 +310,15 @@ public final class TelecomBroadcastIntentProcessor {
         } else if (ACTION_SEND_CALL_TO_LOCAL_VOICEMAIL.equals(action)) {
             Log.startSession("TBIP.aSCTLV", "localvmdialog");
             try {
-                Call call = mCallsManager.getCall(intent.getData().getSchemeSpecificPart());
-                if (call != null) {
-                    mCallsManager.getLocalVoicemailController().sendCallToLocalVoicemail(call);
+                Uri data = intent.getParcelableExtra(EXTRA_DATA_URI);
+                if (data == null) {
+                    data = intent.getData();
+                }
+                if (data != null) {
+                    Call call = mCallsManager.getCall(data.getSchemeSpecificPart());
+                    if (call != null) {
+                        mCallsManager.getLocalVoicemailController().sendCallToLocalVoicemail(call);
+                    }
                 }
             } finally {
                 Log.endSession();

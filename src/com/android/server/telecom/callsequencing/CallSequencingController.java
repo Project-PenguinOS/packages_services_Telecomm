@@ -410,13 +410,14 @@ public class CallSequencingController {
                                 + "disconnecting carrier call for making VOIP call active");
                         return CompletableFuture.completedFuture(false);
                     } else {
-                        if (isSequencingRequiredActiveAndCall) {
+                        if (isSequencingRequiredActiveAndCall || activeCall.isTransactionalCall()) {
                             // Disconnect all calls with the same phone account as the active call
                             // as they do would not support holding.
                             Log.i(this, "Disconnecting non-holdable calls from account (%s).",
                                     activeCall.getTargetPhoneAccount());
                             return disconnectAllCallsWithPhoneAccount(
-                                    activeCall.getTargetPhoneAccount(), false /* excludeAccount */);
+                                    activeCall.getTargetPhoneAccount(), false /* excludeAccount */,
+                                    call /* callToExclude */);
                         } else {
                             // Disconnect calls on other phone accounts and allow CS to handle
                             // holding/disconnecting calls from the same CS.
@@ -424,7 +425,8 @@ public class CallSequencingController {
                                     + "disconnecting calls on other phone accounts and allowing "
                                     + "ConnectionService to determine how to handle this case.");
                             return disconnectAllCallsWithPhoneAccount(
-                                    activeCall.getTargetPhoneAccount(), true /* excludeAccount */);
+                                    activeCall.getTargetPhoneAccount(), true /* excludeAccount */,
+                                    call /* callToExclude */);
                         }
                     }
                 } else {
@@ -1163,13 +1165,14 @@ public class CallSequencingController {
     }
 
     private CompletableFuture<Boolean> disconnectAllCallsWithPhoneAccount(
-            PhoneAccountHandle handle, boolean excludeAccount) {
+            PhoneAccountHandle handle, boolean excludeAccount, Call callToExclude) {
         CompletableFuture<Boolean> disconnectFuture = CompletableFuture.completedFuture(true);
         // Filter out the corresponding phone account and ensure that we don't consider conference
         // participants as part of the bulk disconnect (we'll just disconnect the host directly).
         List<Call> calls = mCallsManager.getCalls().stream()
                 .filter(c -> excludeAccount != c.getTargetPhoneAccount().equals(handle)
-                        && c.getParentCall() == null).toList();
+                        && c.getParentCall() == null
+                        && !Objects.equals(c, callToExclude)).toList();
         for (Call call: calls) {
             // Wait for all disconnects before we accept the new call.
             disconnectFuture = disconnectFuture.thenComposeAsync((result) -> {
