@@ -1689,10 +1689,17 @@ public class TelecomServiceImpl {
                     Log.i(TAG, "endCall: Binder.getCallingUid = [" +
                             Binder.getCallingUid() + "] isCallerPrivileged = " +
                             isCallerPrivileged);
+                    Call callToEnd = getOngoingCall();
+                    // Ensure that the associated user of the call matches with the calling user
+                    // handle. Otherwise, we should verify that the user has the cross user
+                    // permission. If none of the requirements are met, we will exit immediately.
+                    if (!doesAssociatedUserMatchCaller(callToEnd, Binder.getCallingUserHandle())) {
+                        return false;
+                    }
                     long token = Binder.clearCallingIdentity();
                     event.setResult(ApiStats.RESULT_NORMAL);
                     try {
-                        return endCallInternal(callingPackage, isCallerPrivileged);
+                        return endCallInternal(callToEnd, callingPackage, isCallerPrivileged);
                     } finally {
                         Binder.restoreCallingIdentity(token);
                     }
@@ -3656,7 +3663,7 @@ public class TelecomServiceImpl {
     // Supporting methods for the ITelecomService interface implementation.
     //
 
-    private boolean endCallInternal(String callingPackage, boolean isCallerPrivileged) {
+    private Call getOngoingCall() {
         // Always operate on the foreground call if one exists, otherwise get the first call in
         // priority order by call-state.
         Call call = mCallsManager.getForegroundCall();
@@ -3669,7 +3676,10 @@ public class TelecomServiceImpl {
                     CallState.SIMULATED_RINGING,
                     CallState.ON_HOLD);
         }
+        return call;
+    }
 
+    private boolean endCallInternal(Call call, String callingPackage, boolean isCallerPrivileged) {
         if (call != null) {
             if (call.isEmergencyCall()) {
                 android.util.EventLog.writeEvent(0x534e4554, "132438333", -1, "");
@@ -3924,6 +3934,13 @@ public class TelecomServiceImpl {
             // phone account's user handle
             enforceInAppCrossUserPermission();
         }
+    }
+
+    private boolean doesAssociatedUserMatchCaller(Call call, UserHandle callingUser) {
+        if (call != null && !Objects.equals(callingUser, call.getAssociatedUser())) {
+            return hasInAppCrossUserPermission();
+        }
+        return true;
     }
 
     private void enforcePhoneAccountHandleMatchesCaller(PhoneAccountHandle phoneAccountHandle,
