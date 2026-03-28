@@ -107,6 +107,10 @@ public class TelecomResourceId {
         return getResources(context).getInteger(getIdentifier(context, name, "integer"));
     }
 
+    public static int getColor(Context context, String name) {
+        return getResources(context).getColor(getIdentifier(context, name, "color"), null);
+    }
+
     public static boolean getBoolean(Context context, String name) {
         return getResources(context).getBoolean(getIdentifier(context, name, "bool"));
     }
