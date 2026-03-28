@@ -94,11 +94,9 @@
     <string name="notification_local_voicemail_title" msgid="7886943892975348066">"व्हॉइसमेल"</string>
     <string name="notification_local_voicemail_details" msgid="8462904524686541516">"<xliff:g id="CALLER_NAME">%2$s</xliff:g> यांच्या कॉलसाठी <xliff:g id="APP_NAME">%1$s</xliff:g> द्वारे व्हॉइसमेल रेकॉर्ड केला जात आहे."</string>
     <string name="notification_local_voicemail_unknown_details" msgid="7688396653463660224">"अज्ञात कॉलरच्या कॉलसाठी <xliff:g id="APP_NAME">%1$s</xliff:g> द्वारे व्हॉइसमेल रेकॉर्ड केला जात आहे."</string>
-    <!-- no translation found for notification_local_voicemail_public_details (7881672203714928274) -->
-    <skip />
+    <string name="notification_local_voicemail_public_details" msgid="7881672203714928274">"एका कॉलसाठी <xliff:g id="APP_NAME">%1$s</xliff:g> द्वारे व्हॉइसमेल रेकॉर्ड केला जात आहे."</string>
     <string name="notification_send_to_voicemail_details" msgid="5864892579891906399">"मेसेज मिळवण्यासाठी <xliff:g id="CALLER_NAME">%2$s</xliff:g> यांचा कॉल <xliff:g id="APP_NAME">%1$s</xliff:g> वर पाठवा."</string>
-    <!-- no translation found for notification_send_to_voicemail_public_details (4874500727719949035) -->
-    <skip />
+    <string name="notification_send_to_voicemail_public_details" msgid="4874500727719949035">"कॉल <xliff:g id="APP_NAME">%1$s</xliff:g> वर पाठवा, जेणेकरून ते मेसेज घेऊ शकेल."</string>
     <string name="send_to_voicemail" msgid="7535268790380893835">"व्हॉइसमेल वर पाठवा"</string>
     <string name="notification_send_to_voicemail_unknown_details" msgid="2376840328981503932">"मेसेज मिळवण्यासाठी अज्ञात कॉलरला <xliff:g id="APP_NAME">%1$s</xliff:g> वर पाठवा."</string>
     <string name="alert_outgoing_call_null_app_name" msgid="7017268474293036850">"हा कॉल केल्याने तुमचा इनकमिंग कॉल संपेल."</string>

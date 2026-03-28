@@ -95,6 +95,8 @@ public class CallSequencingController {
             UUID.fromString("ea094d77-6ea9-4e40-891e-14bff5d485d7");
     public static final String SEQUENCING_CANNOT_HOLD_ACTIVE_CALL_MSG =
             "Cannot hold active call";
+    private static final String KEY_SHOW_VOWIFI_DROP_DIALOG_ON_DSDS_BOOL =
+            "show_vowifi_drop_dialog_on_dsds_bool";
 
     public CallSequencingController(CallsManager callsManager, Context context,
             ClockProxy clockProxy, AnomalyReporterAdapter anomalyReporter,
@@ -1097,6 +1099,18 @@ public class CallSequencingController {
                 CarrierConfigManager.KEY_ALLOW_HOLD_CALL_DURING_EMERGENCY_BOOL, false);
     }
 
+    /**
+     * Checks the carrier config to see if the carrier supports dropping the VoLTE call when
+     * receiving a VoWiFi call in DSDS mode.
+     * @param handle The {@code PhoneAccountHandle} to check
+     * @return {@code true} if the carrier supports dropping the VoLTE call, {@code} false
+     *         otherwise.
+     */
+    private boolean showWifiDropDialogOnDsds(PhoneAccountHandle handle) {
+        return mCallsManager.getCarrierConfigForPhoneAccount(handle).getBoolean(
+                KEY_SHOW_VOWIFI_DROP_DIALOG_ON_DSDS_BOOL, false);
+    }
+
     public static boolean arePhoneAccountsSame(Call call1, Call call2) {
         if (call1 == null || call2 == null) {
             return false;
@@ -1186,8 +1200,13 @@ public class CallSequencingController {
         }
         // Check if the active call doesn't support hold. If it doesn't we should indicate to the
         // user via the EXTRA_ANSWERING_DROPS_FG_CALL extra that the call would be dropped by
-        // answering the incoming call.
-        if (!mCallsManager.supportsHold(activeCall)) {
+        // answering the incoming call. Also set the extra when answering an incoming VoWiFi call
+        // with an ongoing VoLTE call on another sim. Whether the warning is display to the
+        // user will depend on the carrier config (show_vowifi_drop_dialog_on_dsds_bool).
+        boolean dropFgVolteForWifi = !mCallsManager.isDsdaCallingPossible()
+                && showWifiDropDialogOnDsds(activeCall.getTargetPhoneAccount())
+                && activeCall.wasVolte() && incomingCall.wasWifi();
+        if (dropFgVolteForWifi || !mCallsManager.supportsHold(activeCall)) {
             CharSequence droppedApp = activeCall.getTargetPhoneAccountLabel();
             Bundle dropCallExtras = new Bundle();
             dropCallExtras.putBoolean(Connection.EXTRA_ANSWERING_DROPS_FG_CALL, true);
@@ -1196,7 +1215,8 @@ public class CallSequencingController {
             dropCallExtras.putCharSequence(
                     Connection.EXTRA_ANSWERING_DROPS_FG_CALL_APP_NAME, droppedApp);
             Log.i(this, "Incoming call will drop %s call.", droppedApp);
-            incomingCall.putConnectionServiceExtras(dropCallExtras);
+            // Ensure we update the connection service as well as the InCallServices.
+            incomingCall.putInternalExtras(dropCallExtras);
         }
     }
 

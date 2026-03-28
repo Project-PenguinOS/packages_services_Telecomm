@@ -2347,6 +2347,68 @@ public class TelecomServiceImplTest extends TelecomTestCase {
 
     @SmallTest
     @Test
+    public void testAcceptRingingCall_UserMismatchNoPermission() throws Exception {
+        Call call = mock(Call.class);
+        when(mFakeCallsManager.getFirstCallWithState(anyInt(), anyInt())).thenReturn(call);
+
+        // Set the call's associated user to be different from the calling user
+        UserHandle differentUser = new UserHandle(Binder.getCallingUserHandle().getIdentifier() + 1);
+        when(call.getAssociatedUser()).thenReturn(differentUser);
+
+        // Deny cross-user permission
+        when(mContext.checkCallingOrSelfPermission(Manifest.permission.INTERACT_ACROSS_USERS))
+                .thenReturn(PackageManager.PERMISSION_DENIED);
+
+        mTSIBinder.acceptRingingCall("");
+
+        // Verify that answerCall is never called because of the user mismatch and lack of permission
+        verify(mFakeCallsManager, never()).answerCall(any(), anyInt());
+    }
+
+    @SmallTest
+    @Test
+    public void testAcceptRingingCallWithVideoState_UserMismatchNoPermission() throws Exception {
+        Call call = mock(Call.class);
+        when(mFakeCallsManager.getFirstCallWithState(anyInt(), anyInt())).thenReturn(call);
+
+        // Set the call's associated user to be different from the calling user
+        UserHandle differentUser = new UserHandle(Binder.getCallingUserHandle().getIdentifier() + 1);
+        when(call.getAssociatedUser()).thenReturn(differentUser);
+
+        // Deny cross-user permission
+        when(mContext.checkCallingOrSelfPermission(Manifest.permission.INTERACT_ACROSS_USERS))
+                .thenReturn(PackageManager.PERMISSION_DENIED);
+
+        mTSIBinder.acceptRingingCallWithVideoState("", VideoProfile.STATE_RX_ENABLED);
+
+        // Verify that answerCall is never called because of the user mismatch and lack of permission
+        verify(mFakeCallsManager, never()).answerCall(any(), anyInt());
+    }
+
+    @SmallTest
+    @Test
+    public void testAcceptRingingCall_UserMatchNoPermission() throws Exception {
+        Call call = mock(Call.class);
+        when(mFakeCallsManager.getFirstCallWithState(anyInt(), anyInt())).thenReturn(call);
+
+        // Set the call's associated user to match the calling user
+        when(call.getAssociatedUser()).thenReturn(Binder.getCallingUserHandle());
+
+        // Deny cross-user permission
+        when(mContext.checkCallingOrSelfPermission(Manifest.permission.INTERACT_ACROSS_USERS))
+                .thenReturn(PackageManager.PERMISSION_DENIED);
+
+        int fakeVideoState = 29578215;
+        when(call.getVideoState()).thenReturn(fakeVideoState);
+
+        mTSIBinder.acceptRingingCall("");
+
+        // Verify that answerCall is called because the user matches, even without cross-user permission
+        verify(mFakeCallsManager).answerCall(eq(call), eq(fakeVideoState));
+    }
+
+    @SmallTest
+    @Test
     public void testIsInCall() throws Exception {
         when(mFakeCallsManager.hasOngoingCalls(any(UserHandle.class), anyBoolean()))
                 .thenReturn(true);
