@@ -616,7 +616,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     private boolean mIsDisconnectingChildCall = false;
 
 // QTI_BEGIN: 2020-12-09: Telephony: IMS: Fix conference call log issues
-    private boolean mIsChildCall = false;
 
 // QTI_END: 2020-12-09: Telephony: IMS: Fix conference call log issues
     /**
@@ -2813,11 +2812,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
     }
 
 // QTI_BEGIN: 2020-12-09: Telephony: IMS: Fix conference call log issues
-    public boolean isChildCall() {
-        return mIsChildCall;
-    }
-
-
 // QTI_END: 2020-12-09: Telephony: IMS: Fix conference call log issues
     /**
      * Sets whether this call is a child call.
@@ -4254,7 +4248,6 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         if (parentCall != null && !parentCall.getChildCalls().contains(this)) {
             parentCall.addChildCall(this);
 // QTI_BEGIN: 2020-12-09: Telephony: IMS: Fix conference call log issues
-            mIsChildCall = true;
 // QTI_END: 2020-12-09: Telephony: IMS: Fix conference call log issues
         }
     }
