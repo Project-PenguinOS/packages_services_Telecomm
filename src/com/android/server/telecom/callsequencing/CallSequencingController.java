@@ -1143,7 +1143,9 @@ public class CallSequencingController {
         if (call1 == null || call2 == null) {
             return false;
         }
-        return Objects.equals(call1.getTargetPhoneAccount(), call2.getTargetPhoneAccount());
+        return Objects.equals(call1.getTargetPhoneAccount(), call2.getTargetPhoneAccount())
+                || Objects.equals(call1.getDelegatePhoneAccountHandle(),
+                        call2.getDelegatePhoneAccountHandle());
     }
 
     /**

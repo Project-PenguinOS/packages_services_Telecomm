@@ -110,6 +110,7 @@
     <string name="send_to_voicemail" msgid="7535268790380893835">"အသံမေးလ်သို့ ပို့ရန်"</string>
     <string name="notification_send_to_voicemail_unknown_details" msgid="2376840328981503932">"အမည်မသိခေါ်ဆိုသူထံမှ ဖုန်းခေါ်ဆိုမှုကို မက်ဆေ့ဂျ်ယူရန် <xliff:g id="APP_NAME">%1$s</xliff:g> သို့ ပို့နိုင်သည်။"</string>
     <string name="alert_outgoing_call" msgid="5319895109298927431">"ဤခေါ်ဆိုမှု ပြုလုပ်ပါက <xliff:g id="OTHER_APP">%1$s</xliff:g> သုံးပြီးပြောနေခြင်းကို ဖြတ်ပစ်ပါမည်။"</string>
+    <string name="alert_outgoing_call_null_app_name" msgid="7017268474293036850">"ဤဖုန်းခေါ်ဆိုမှု ပြုလုပ်ပါက အဝင်ခေါ်ဆိုမှုပြတ်တောက်သွားမည်။"</string>
     <string name="alert_redirect_outgoing_call_or_not" msgid="665409645789521636">"ဤခေါ်ဆိုမှု ပြုလုပ်ပုံကို ရွေးချယ်ပါ"</string>
     <string name="alert_place_outgoing_call_with_redirection" msgid="5221065030959024121">"ခေါ်ဆိုမှုကို <xliff:g id="OTHER_APP">%1$s</xliff:g> ဖြင့် တစ်ဆင့်ပြန်ညွှန်ရန်"</string>
     <string name="alert_place_unredirect_outgoing_call" msgid="2467608535225764006">"ကျွန်ုပ်၏ ဖုန်းနံပါတ်ဖြင့် ဖုန်းခေါ်ရန်"</string>

@@ -302,7 +302,7 @@ public class CallAudioModeStateMachine extends StateMachine {
             mLocalLog.log("Enter UNFOCUSED");
             if (mIsInitialized) {
                 Log.i(this, "enter: AudioManager#setMode(MODE_NORMAL)");
-                mAudioManager.setMode(AudioManager.MODE_NORMAL);
+                setMode(AudioManager.MODE_NORMAL);
                 mCallAudioManager.setCallAudioRouteFocusState(
                         CallAudioRouteController.NO_FOCUS);
                 mLocalLog.log("Mode MODE_NORMAL");
@@ -376,7 +376,7 @@ public class CallAudioModeStateMachine extends StateMachine {
             if (mIsInitialized) {
                 mCallAudioManager.setCallAudioRouteFocusState(CallAudioRouteController.NO_FOCUS);
                 Log.i(this, "enter: AudioManager#setMode(MODE_AUDIO_PROCESSING)");
-                mAudioManager.setMode(NEW_AUDIO_MODE_FOR_AUDIO_PROCESSING);
+                setMode(NEW_AUDIO_MODE_FOR_AUDIO_PROCESSING);
                 mLocalLog.log("Mode MODE_CALL_SCREENING");
                 mMostRecentMode = NEW_AUDIO_MODE_FOR_AUDIO_PROCESSING;
             }
@@ -475,7 +475,7 @@ public class CallAudioModeStateMachine extends StateMachine {
                         mCallAudioManager.getCrsAudioController().setAudioModeForCrs();
                         mLocalLog.log("Mode MODE_IN_CALL , It is CRS CALL");
                     } else {
-                        mAudioManager.setMode(AudioManager.MODE_RINGTONE);
+                        setMode(AudioManager.MODE_RINGTONE);
                         mLocalLog.log("Mode MODE_RINGTONE");
                     }
                 }
@@ -582,7 +582,7 @@ public class CallAudioModeStateMachine extends StateMachine {
                     audioFocusRequestResultToString(focusResult));
 
             Log.i(this, "enter: AudioManager#setMode(MODE_IN_CALL)");
-            mAudioManager.setMode(AudioManager.MODE_IN_CALL);
+            setMode(AudioManager.MODE_IN_CALL);
             mLocalLog.log("Mode MODE_IN_CALL");
             mMostRecentMode = AudioManager.MODE_IN_CALL;
             mCallAudioManager.setCallAudioRouteFocusState(CallAudioRouteController.ACTIVE_FOCUS);
@@ -669,7 +669,7 @@ public class CallAudioModeStateMachine extends StateMachine {
                     null /* no policy */);
             Log.i(this, "enter: AudioManager#requestAudioFocus(CALL)=%s",
                     audioFocusRequestResultToString(focusResult));
-            mAudioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+            setMode(AudioManager.MODE_IN_COMMUNICATION);
             mLocalLog.log("Mode MODE_IN_COMMUNICATION");
             mMostRecentMode = AudioManager.MODE_IN_COMMUNICATION;
             mCallAudioManager.setCallAudioRouteFocusState(CallAudioRouteController.ACTIVE_FOCUS);
@@ -755,7 +755,7 @@ public class CallAudioModeStateMachine extends StateMachine {
             mLocalLog.log("Enter local voicemail");
             mLocalLog.log("Mode MODE_CALL_REDIRECT");
             Log.i(this, "enter: AudioManager#setMode(MODE_CALL_REDIRECT");
-            mAudioManager.setMode(AudioManager.MODE_CALL_REDIRECT);
+            setMode(AudioManager.MODE_CALL_REDIRECT);
             mCallAudioManager.setCallAudioRouteFocusState(CallAudioRouteController.ACTIVE_FOCUS);
         }
 
@@ -830,7 +830,7 @@ public class CallAudioModeStateMachine extends StateMachine {
             mLocalLog.log("Enter Streaming");
             mLocalLog.log("Mode MODE_COMMUNICATION_REDIRECT");
             Log.i(this, "enter: AudioManager#setMode(MODE_COMMUNICATION_REDIRECT");
-            mAudioManager.setMode(AudioManager.MODE_COMMUNICATION_REDIRECT);
+            setMode(AudioManager.MODE_COMMUNICATION_REDIRECT);
             mMostRecentMode = AudioManager.MODE_NORMAL;
             mCallAudioManager.setCallAudioRouteFocusState(CallAudioRouteController.ACTIVE_FOCUS);
             mCallAudioManager.getCallAudioRouteAdapter().sendMessageWithSessionInfo(
@@ -914,7 +914,7 @@ public class CallAudioModeStateMachine extends StateMachine {
             Log.i(this, "enter: AudioManager#requestAudioFocus(CALL)=%s",
                     audioFocusRequestResultToString(focusResult));
             Log.i(this, "enter: AudioManager#setMode(%d)", mMostRecentMode);
-            mAudioManager.setMode(mMostRecentMode);
+            setMode(mMostRecentMode);
             mLocalLog.log("Mode " + mMostRecentMode);
             mCallAudioManager.setCallAudioRouteFocusStateForEndTone();
         }
@@ -1123,6 +1123,14 @@ public class CallAudioModeStateMachine extends StateMachine {
             mCurrentAudioFocusRequest = null;
         } else {
             Log.i(this, "abandonAudioFocus: already unfocused");
+        }
+    }
+
+    private void setMode(int mode) {
+        if (!com.android.internal.telecom.flags.Flags.callAudioRouteRf()) {
+            mAudioManager.setMode(mode);
+        } else {
+            mCallAudioManager.setAudioMode(mode);
         }
     }
 

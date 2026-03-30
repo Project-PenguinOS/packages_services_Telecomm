@@ -82,7 +82,9 @@ public class WiredHeadsetManager {
         mAudioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
         mIsPluggedIn = isWiredHeadsetPluggedIn();
 
-        mAudioManager.registerAudioDeviceCallback(new WiredHeadsetCallback(), null);
+        if (!com.android.internal.telecom.flags.Flags.callAudioRouteRf()) {
+            mAudioManager.registerAudioDeviceCallback(new WiredHeadsetCallback(), null);
+        }
     }
 
     @VisibleForTesting
@@ -99,6 +101,14 @@ public class WiredHeadsetManager {
     @VisibleForTesting
     public boolean isPluggedIn() {
         return mIsPluggedIn;
+    }
+
+    public void refreshHeadsetStatus() {
+        boolean isPluggedIn = isWiredHeadsetPluggedIn();
+        if (mIsPluggedIn != isPluggedIn) {
+            Log.i(this, "refreshHeadsetStatus: plugged in: %b -> %b", mIsPluggedIn, isPluggedIn);
+            onHeadsetPluggedInChanged(isPluggedIn);
+        }
     }
 
     private boolean isWiredHeadsetPluggedIn() {

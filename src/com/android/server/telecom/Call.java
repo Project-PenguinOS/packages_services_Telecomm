@@ -3622,7 +3622,27 @@ public class Call implements CreateConnectionResponse, EventManager.Loggable,
         if (mState == CallState.ACTIVE) {
             Log.addEvent(this, LogUtils.Events.REQUEST_HOLD, reason);
             if (mTransactionalService != null) {
-                return mTransactionalService.onSetInactive(this);
+                holdFutureHandler = mTransactionalService.onSetInactive(this);
+                if (com.android.internal.telecom.flags.Flags.disconnectVoipOnHoldFail()) {
+                    holdFutureHandler = holdFutureHandler.thenCompose((result) -> {
+                        if (!result) {
+                            Log.i(this, "hold: Completing transaction "
+                                    + "after disconnecting held transactional call.");
+                            // Disconnect the call if the call fails to be held and treat as a
+                            // completed transaction.
+                            if (this.getState() != CallState.DISCONNECTING
+                                    || this.getState() != CallState.DISCONNECTED) {
+                                setOverrideDisconnectCauseCode(new DisconnectCause(
+                                        DisconnectCause.ERROR, "did not hold in the "
+                                        + "timeout window"));
+                                return disconnect("Disconnecting since call failed to hold in "
+                                        + "the timeout window.");
+                            }
+                        }
+                        return CompletableFuture.completedFuture(true);
+                    });
+                }
+                return holdFutureHandler;
             } else if (mConnectionService != null) {
                 if (mFlags.transactionalCsVerifier()) {
                     holdFutureHandler = awaitCallStateChangeAndMaybeDisconnectCall(isSelfManaged(),

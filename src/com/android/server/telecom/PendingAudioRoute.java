@@ -195,6 +195,10 @@ public class PendingAudioRoute {
         mDestRoute = route;
     }
 
+    public void setActive(boolean active) {
+        mActive = active;
+    }
+
     public FeatureFlags getFeatureFlags() {
         return mFeatureFlags;
     }

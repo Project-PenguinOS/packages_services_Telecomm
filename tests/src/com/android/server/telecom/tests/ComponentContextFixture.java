@@ -16,20 +16,22 @@
 
 package com.android.server.telecom.tests;
 
-import com.android.server.telecom.flags.FeatureFlags;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
+import static android.content.Context.DEVICE_ID_DEFAULT;
 
-import com.android.internal.telecom.IConnectionService;
-import com.android.internal.telecom.IInCallService;
-
-import org.mockito.MockitoAnnotations;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.matches;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
 import android.Manifest;
-import android.annotation.Nullable;
-import android.annotation.RequiresPermission;
 import android.app.AppOpsManager;
 import android.app.NotificationManager;
 import android.app.StatsManager;
@@ -60,6 +62,7 @@ import android.location.CountryDetector;
 import android.location.LocationManager;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
+import android.media.AudioModeSession;
 import android.net.Uri;
 import android.os.BugreportManager;
 import android.os.Bundle;
@@ -79,8 +82,8 @@ import android.permission.PermissionCheckerManager;
 import android.permission.PermissionManager;
 import android.provider.BlockedNumbersManager;
 import android.telecom.ConnectionService;
-import android.telecom.Log;
 import android.telecom.InCallService;
+import android.telecom.Log;
 import android.telecom.TelecomManager;
 import android.telephony.CarrierConfigManager;
 import android.telephony.SubscriptionManager;
@@ -89,6 +92,17 @@ import android.telephony.TelephonyRegistryManager;
 import android.test.mock.MockContext;
 import android.util.DisplayMetrics;
 import android.view.accessibility.AccessibilityManager;
+
+import com.android.internal.telecom.IConnectionService;
+import com.android.internal.telecom.IInCallService;
+import com.android.server.telecom.flags.FeatureFlags;
+
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
+
+import org.mockito.MockitoAnnotations;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -102,27 +116,11 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
-import static android.content.Context.DEVICE_ID_DEFAULT;
-
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.matches;
-import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyInt;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
-
 /**
- * Controls a test {@link Context} as would be provided by the Android framework to an
- * {@code Activity}, {@code Service} or other system-instantiated component.
+ * Controls a test {@link Context} as would be provided by the Android framework to an {@code
+ * Activity}, {@code Service} or other system-instantiated component.
  *
- * The {@link Context} created by this object is "hollow" but its {@code applicationContext}
+ * <p>The {@link Context} created by this object is "hollow" but its {@code applicationContext}
  * property points to an application context implementing all the nontrivial functionality.
  */
 public class ComponentContextFixture implements TestFixture<Context> {
@@ -155,7 +153,9 @@ public class ComponentContextFixture implements TestFixture<Context> {
         }
 
         @Override
-        public Context createAttributionContext(String attributionTag) { return this; }
+        public Context createAttributionContext(String attributionTag) {
+            return this;
+        }
 
         @Override
         public String getPackageName() {
@@ -197,17 +197,14 @@ public class ComponentContextFixture implements TestFixture<Context> {
         }
 
         @Override
-        public boolean bindService(
-                Intent serviceIntent,
-                ServiceConnection connection,
-                int flags) {
+        public boolean bindService(Intent serviceIntent, ServiceConnection connection, int flags) {
             if (mServiceByServiceConnection.containsKey(connection)) {
                 throw new RuntimeException("ServiceConnection already bound: " + connection);
             }
             IInterface service = mServiceByComponentName.get(serviceIntent.getComponent());
             if (service == null) {
-                throw new RuntimeException("ServiceConnection not found: "
-                        + serviceIntent.getComponent());
+                throw new RuntimeException(
+                        "ServiceConnection not found: " + serviceIntent.getComponent());
             }
             mServiceByServiceConnection.put(connection, service);
             connection.onServiceConnected(serviceIntent.getComponent(), service.asBinder());
@@ -215,8 +212,7 @@ public class ComponentContextFixture implements TestFixture<Context> {
         }
 
         @Override
-        public void unbindService(
-                ServiceConnection connection) {
+        public void unbindService(ServiceConnection connection) {
             IInterface service = mServiceByServiceConnection.remove(connection);
             if (service == null) {
                 throw new IllegalArgumentException("ServiceConnection not found: " + connection);
@@ -397,8 +393,7 @@ public class ComponentContextFixture implements TestFixture<Context> {
                 }
 
                 @Override
-                public void unstableProviderDied(IContentProvider icp) {
-                }
+                public void unstableProviderDied(IContentProvider icp) {}
             };
         }
 
@@ -415,29 +410,45 @@ public class ComponentContextFixture implements TestFixture<Context> {
         }
 
         @Override
-        public Intent registerReceiver(BroadcastReceiver receiver, IntentFilter filter,
-                String broadcastPermission, Handler scheduler) {
+        public Intent registerReceiver(
+                BroadcastReceiver receiver,
+                IntentFilter filter,
+                String broadcastPermission,
+                Handler scheduler) {
             mBroadcastReceivers.add(receiver);
             return null;
         }
 
         @Override
-        public Intent registerReceiver(BroadcastReceiver receiver, IntentFilter filter,
-                String broadcastPermission, Handler scheduler, int flags) {
+        public Intent registerReceiver(
+                BroadcastReceiver receiver,
+                IntentFilter filter,
+                String broadcastPermission,
+                Handler scheduler,
+                int flags) {
             mBroadcastReceivers.add(receiver);
             return null;
         }
 
         @Override
-        public Intent registerReceiverAsUser(BroadcastReceiver receiver, UserHandle handle,
-                IntentFilter filter, String broadcastPermission, Handler scheduler) {
+        public Intent registerReceiverAsUser(
+                BroadcastReceiver receiver,
+                UserHandle handle,
+                IntentFilter filter,
+                String broadcastPermission,
+                Handler scheduler) {
             mBroadcastReceivers.add(receiver);
             return null;
         }
 
         @Override
-        public Intent registerReceiverAsUser(BroadcastReceiver receiver, UserHandle handle,
-                IntentFilter filter, String broadcastPermission, Handler scheduler, int flags) {
+        public Intent registerReceiverAsUser(
+                BroadcastReceiver receiver,
+                UserHandle handle,
+                IntentFilter filter,
+                String broadcastPermission,
+                Handler scheduler,
+                int flags) {
             mBroadcastReceivers.add(receiver);
             return null;
         }
@@ -463,36 +474,54 @@ public class ComponentContextFixture implements TestFixture<Context> {
         }
 
         @Override
-        public void sendBroadcastAsUser(Intent intent, UserHandle user, String receiverPermission,
-                Bundle options) {
+        public void sendBroadcastAsUser(
+                Intent intent, UserHandle user, String receiverPermission, Bundle options) {
             // Override so that this can be verified via spy.
         }
 
         @Override
-        public void sendBroadcastAsUser(Intent intent, UserHandle user, String receiverPermission,
-                int appOp) {
+        public void sendBroadcastAsUser(
+                Intent intent, UserHandle user, String receiverPermission, int appOp) {
             // Override so that this can be verified via spy.
         }
 
         @Override
-        public void sendOrderedBroadcastAsUser(Intent intent, UserHandle user,
-                String receiverPermission, BroadcastReceiver resultReceiver, Handler scheduler,
-                int initialCode, String initialData, Bundle initialExtras) {
+        public void sendOrderedBroadcastAsUser(
+                Intent intent,
+                UserHandle user,
+                String receiverPermission,
+                BroadcastReceiver resultReceiver,
+                Handler scheduler,
+                int initialCode,
+                String initialData,
+                Bundle initialExtras) {
             // TODO -- need to ensure this is captured
         }
 
         @Override
-        public void sendOrderedBroadcastAsUser(Intent intent, UserHandle user,
-                String receiverPermission, int appOp, BroadcastReceiver resultReceiver,
-                Handler scheduler, int initialCode, String initialData, Bundle initialExtras) {
-        }
+        public void sendOrderedBroadcastAsUser(
+                Intent intent,
+                UserHandle user,
+                String receiverPermission,
+                int appOp,
+                BroadcastReceiver resultReceiver,
+                Handler scheduler,
+                int initialCode,
+                String initialData,
+                Bundle initialExtras) {}
 
         @Override
-        public void sendOrderedBroadcastAsUser(Intent intent, UserHandle user,
-                String receiverPermission, int appOp, Bundle options,
-                BroadcastReceiver resultReceiver, Handler scheduler, int initialCode,
-                String initialData, Bundle initialExtras) {
-        }
+        public void sendOrderedBroadcastAsUser(
+                Intent intent,
+                UserHandle user,
+                String receiverPermission,
+                int appOp,
+                Bundle options,
+                BroadcastReceiver resultReceiver,
+                Handler scheduler,
+                int initialCode,
+                String initialData,
+                Bundle initialExtras) {}
 
         @Override
         public Context createPackageContext(String packageName, int flags)
@@ -522,8 +551,7 @@ public class ComponentContextFixture implements TestFixture<Context> {
         }
 
         @Override
-        public void enforcePermission(
-                String permission, int pid, int uid, String message) {
+        public void enforcePermission(String permission, int pid, int uid, String message) {
             // By default, don't enforce anything in mock.
         }
 
@@ -536,7 +564,6 @@ public class ComponentContextFixture implements TestFixture<Context> {
         public SharedPreferences getSharedPreferences(String name, int mode) {
             return mSharedPreferences;
         }
-
     }
 
     public class FakeAudioManager extends AudioManager {
@@ -547,9 +574,38 @@ public class ComponentContextFixture implements TestFixture<Context> {
         private int mMode = AudioManager.MODE_NORMAL;
         private int mRingerMode = AudioManager.RINGER_MODE_NORMAL;
         private AudioDeviceInfo mCommunicationDevice;
+        private final Map<OnCommunicationDeviceChangedListener, Executor> mListeners =
+                new HashMap<>();
+        private List<AudioDeviceInfo> mAvailableDevices = new ArrayList<>();
 
         public FakeAudioManager(Context context) {
             super(context);
+            mAvailableDevices.add(
+                    mockAudioDeviceInfo(AudioDeviceInfo.TYPE_BUILTIN_EARPIECE, "earpiece"));
+            mAvailableDevices.add(
+                    mockAudioDeviceInfo(AudioDeviceInfo.TYPE_BUILTIN_SPEAKER, "speaker"));
+        }
+
+        private AudioDeviceInfo mockAudioDeviceInfo(int type, String address) {
+            AudioDeviceInfo info = mock(AudioDeviceInfo.class);
+            when(info.getType()).thenReturn(type);
+            when(info.getAddress()).thenReturn(address);
+            when(info.isSink()).thenReturn(true);
+            return info;
+        }
+
+        public void setAvailableDevices(List<AudioDeviceInfo> devices) {
+            mAvailableDevices = devices;
+        }
+
+        @Override
+        public List<AudioDeviceInfo> getAvailableCommunicationDevices() {
+            return mAvailableDevices;
+        }
+
+        @Override
+        public AudioDeviceInfo[] getDevices(int flags) {
+            return mAvailableDevices.toArray(new AudioDeviceInfo[0]);
         }
 
         @Override
@@ -593,7 +649,7 @@ public class ComponentContextFixture implements TestFixture<Context> {
         }
 
         @Override
-        public void setStreamVolume(int streamTypeUnused, int index, int flagsUnused){
+        public void setStreamVolume(int streamTypeUnused, int index, int flagsUnused) {
             mAudioStreamValue = index;
         }
 
@@ -605,6 +661,7 @@ public class ComponentContextFixture implements TestFixture<Context> {
         @Override
         public void clearCommunicationDevice() {
             mCommunicationDevice = null;
+            notifyCommunicationDeviceListeners(null);
         }
 
         @Override
@@ -615,7 +672,27 @@ public class ComponentContextFixture implements TestFixture<Context> {
         @Override
         public boolean setCommunicationDevice(AudioDeviceInfo device) {
             mCommunicationDevice = device;
+            notifyCommunicationDeviceListeners(device);
             return true;
+        }
+
+        @Override
+        public void addOnCommunicationDeviceChangedListener(
+                Executor executor, OnCommunicationDeviceChangedListener listener) {
+            mListeners.put(listener, executor);
+        }
+
+        @Override
+        public void removeOnCommunicationDeviceChangedListener(
+                OnCommunicationDeviceChangedListener listener) {
+            mListeners.remove(listener);
+        }
+
+        private void notifyCommunicationDeviceListeners(AudioDeviceInfo device) {
+            for (Map.Entry<OnCommunicationDeviceChangedListener, Executor> entry :
+                    mListeners.entrySet()) {
+                entry.getValue().execute(() -> entry.getKey().onCommunicationDeviceChanged(device));
+            }
         }
     }
 
@@ -631,22 +708,23 @@ public class ComponentContextFixture implements TestFixture<Context> {
     private final Map<IInterface, ComponentName> mComponentNameByService = new HashMap<>();
     private final Map<ServiceConnection, IInterface> mServiceByServiceConnection = new HashMap<>();
 
-    private final Context mContext = new MockContext() {
-        @Override
-        public Context getApplicationContext() {
-            return mApplicationContextSpy;
-        }
+    private final Context mContext =
+            new MockContext() {
+                @Override
+                public Context getApplicationContext() {
+                    return mApplicationContextSpy;
+                }
 
-        @Override
-        public Resources getResources() {
-            return mResources;
-        }
+                @Override
+                public Resources getResources() {
+                    return mResources;
+                }
 
-        @Override
-        public int getDeviceId() {
-          return DEVICE_ID_DEFAULT;
-        }
-    };
+                @Override
+                public int getDeviceId() {
+                    return DEVICE_ID_DEFAULT;
+                }
+            };
 
     // The application context is the most important object this class provides to the system
     // under test.
@@ -661,7 +739,9 @@ public class ComponentContextFixture implements TestFixture<Context> {
     private final DisplayMetrics mDisplayMetrics = mock(DisplayMetrics.class);
     private final PackageManager mPackageManager = mock(PackageManager.class);
     private final Executor mMainExecutor = mock(Executor.class);
-    private final AudioManager mAudioManager = spy(new FakeAudioManager(mContext));
+    private final FakeAudioManager mFakeAudioManager = new FakeAudioManager(mContext);
+    private final AudioManager mAudioManager = spy(mFakeAudioManager);
+    private final AudioModeSession mAudioModeSession = mock(AudioModeSession.class);
     private final TelephonyManager mTelephonyManager = mock(TelephonyManager.class);
     private final LocationManager mLocationManager = mock(LocationManager.class);
     private final AppOpsManager mAppOpsManager = mock(AppOpsManager.class);
@@ -694,7 +774,6 @@ public class ComponentContextFixture implements TestFixture<Context> {
     private BlockedNumbersManager mBlockedNumbersManager = mock(BlockedNumbersManager.class);
     private PowerExemptionManager mPowerExemptionManager = mock(PowerExemptionManager.class);
 
-
     public ComponentContextFixture(FeatureFlags featureFlags) {
         MockitoAnnotations.initMocks(this);
         when(featureFlags.telecomResolveHiddenDependencies()).thenReturn(true);
@@ -709,54 +788,80 @@ public class ComponentContextFixture implements TestFixture<Context> {
 
         // TODO: Move into actual tests
         doReturn(false).when(mAudioManager).isWiredHeadsetOn();
-        doReturn(AudioManager.AUDIOFOCUS_REQUEST_GRANTED).when(mAudioManager).requestAudioFocus(any(), any());
-        doReturn(AudioManager.AUDIOFOCUS_REQUEST_GRANTED).when(mAudioManager).abandonAudioFocusRequest(any());
+        doReturn(AudioManager.AUDIOFOCUS_REQUEST_GRANTED)
+                .when(mAudioManager)
+                .requestAudioFocus(any(), any());
+        doReturn(AudioManager.AUDIOFOCUS_REQUEST_GRANTED)
+                .when(mAudioManager)
+                .abandonAudioFocusRequest(any());
+        doReturn(mAudioModeSession).when(mAudioManager).createAudioModeSession(any(), any(), any());
 
-        doAnswer(new Answer<List<ResolveInfo>>() {
-            @Override
-            public List<ResolveInfo> answer(InvocationOnMock invocation) throws Throwable {
-                return doQueryIntentServices(
-                        (Intent) invocation.getArguments()[0],
-                        (Integer) invocation.getArguments()[1]);
-            }
-        }).when(mPackageManager).queryIntentServices((Intent) any(), anyInt());
+        doAnswer(
+                        new Answer<List<ResolveInfo>>() {
+                            @Override
+                            public List<ResolveInfo> answer(InvocationOnMock invocation)
+                                    throws Throwable {
+                                return doQueryIntentServices(
+                                        (Intent) invocation.getArguments()[0],
+                                        (Integer) invocation.getArguments()[1]);
+                            }
+                        })
+                .when(mPackageManager)
+                .queryIntentServices((Intent) any(), anyInt());
 
-        doAnswer(new Answer<List<ResolveInfo>>() {
-            @Override
-            public List<ResolveInfo> answer(InvocationOnMock invocation) throws Throwable {
-                return doQueryIntentServices(
-                        (Intent) invocation.getArguments()[0],
-                        (Integer) invocation.getArguments()[1]);
-            }
-        }).when(mPackageManager).queryIntentServicesAsUser((Intent) any(), anyInt(), anyInt());
+        doAnswer(
+                        new Answer<List<ResolveInfo>>() {
+                            @Override
+                            public List<ResolveInfo> answer(InvocationOnMock invocation)
+                                    throws Throwable {
+                                return doQueryIntentServices(
+                                        (Intent) invocation.getArguments()[0],
+                                        (Integer) invocation.getArguments()[1]);
+                            }
+                        })
+                .when(mPackageManager)
+                .queryIntentServicesAsUser((Intent) any(), anyInt(), anyInt());
 
-        doAnswer(new Answer<List<ResolveInfo>>() {
-            @Override
-            public List<ResolveInfo> answer(InvocationOnMock invocation) throws Throwable {
-                return doQueryIntentReceivers(
-                        (Intent) invocation.getArguments()[0],
-                        (Integer) invocation.getArguments()[1]);
-            }
-        }).when(mPackageManager).queryBroadcastReceivers((Intent) any(), anyInt());
+        doAnswer(
+                        new Answer<List<ResolveInfo>>() {
+                            @Override
+                            public List<ResolveInfo> answer(InvocationOnMock invocation)
+                                    throws Throwable {
+                                return doQueryIntentReceivers(
+                                        (Intent) invocation.getArguments()[0],
+                                        (Integer) invocation.getArguments()[1]);
+                            }
+                        })
+                .when(mPackageManager)
+                .queryBroadcastReceivers((Intent) any(), anyInt());
 
-        doAnswer(new Answer<List<ResolveInfo>>() {
-            @Override
-            public List<ResolveInfo> answer(InvocationOnMock invocation) throws Throwable {
-                return doQueryIntentReceivers(
-                        (Intent) invocation.getArguments()[0],
-                        (Integer) invocation.getArguments()[1]);
-            }
-        }).when(mPackageManager).queryBroadcastReceiversAsUser((Intent) any(), anyInt(), anyInt());
+        doAnswer(
+                        new Answer<List<ResolveInfo>>() {
+                            @Override
+                            public List<ResolveInfo> answer(InvocationOnMock invocation)
+                                    throws Throwable {
+                                return doQueryIntentReceivers(
+                                        (Intent) invocation.getArguments()[0],
+                                        (Integer) invocation.getArguments()[1]);
+                            }
+                        })
+                .when(mPackageManager)
+                .queryBroadcastReceiversAsUser((Intent) any(), anyInt(), anyInt());
 
         // By default, tests use non-ui apps instead of 3rd party companion apps.
         when(mPermissionCheckerManager.checkPermission(
-                matches(Manifest.permission.CALL_COMPANION_APP), any(AttributionSourceState.class),
-                nullable(String.class), anyBoolean(), anyBoolean(), anyBoolean(), anyInt()))
+                        matches(Manifest.permission.CALL_COMPANION_APP),
+                        any(AttributionSourceState.class),
+                        nullable(String.class),
+                        anyBoolean(),
+                        anyBoolean(),
+                        anyBoolean(),
+                        anyInt()))
                 .thenReturn(PermissionCheckerManager.PERMISSION_HARD_DENIED);
 
         try {
-            when(mPackageManager.getPermissionInfo(anyString(), anyInt())).thenReturn(
-                    mPermissionInfo);
+            when(mPackageManager.getPermissionInfo(anyString(), anyInt()))
+                    .thenReturn(mPermissionInfo);
         } catch (PackageManager.NameNotFoundException ex) {
         }
 
@@ -769,19 +874,22 @@ public class ComponentContextFixture implements TestFixture<Context> {
         // Used in CreateConnectionProcessor to rank emergency numbers by viability.
         // For the test, make them all equal to INVALID so that the preferred PhoneAccount will be
         // chosen.
-        when(mTelephonyManager.getSubscriptionId(any())).thenReturn(
-                SubscriptionManager.INVALID_SUBSCRIPTION_ID);
+        when(mTelephonyManager.getSubscriptionId(any()))
+                .thenReturn(SubscriptionManager.INVALID_SUBSCRIPTION_ID);
 
         when(mTelephonyManager.getNetworkOperatorName()).thenReturn("label1");
         when(mTelephonyManager.getMaxNumberOfSimultaneouslyActiveSims()).thenReturn(1);
         when(mTelephonyManager.createForSubscriptionId(anyInt())).thenReturn(mTelephonyManager);
         when(mResources.getBoolean(eq(R.bool.grant_location_permission_enabled))).thenReturn(false);
-        doAnswer(new Answer<Void>(){
-            @Override
-            public Void answer(InvocationOnMock invocation) throws Throwable {
-                return null;
-            }
-        }).when(mAppOpsManager).checkPackage(anyInt(), anyString());
+        doAnswer(
+                        new Answer<Void>() {
+                            @Override
+                            public Void answer(InvocationOnMock invocation) throws Throwable {
+                                return null;
+                            }
+                        })
+                .when(mAppOpsManager)
+                .checkPackage(anyInt(), anyString());
 
         when(mNotificationManager.matchesCallFilter(any(Uri.class))).thenReturn(true);
 
@@ -789,9 +897,11 @@ public class ComponentContextFixture implements TestFixture<Context> {
         when(mCarrierConfigManager.getConfigForSubId(anyInt())).thenReturn(new PersistableBundle());
 
         when(mUserManager.getSerialNumberForUser(any(UserHandle.class))).thenReturn(-1L);
+        when(mUserManager.isAdminUser()).thenReturn(true);
 
-        doReturn(null).when(mApplicationContextSpy).registerReceiver(any(BroadcastReceiver.class),
-                any(IntentFilter.class));
+        doReturn(null)
+                .when(mApplicationContextSpy)
+                .registerReceiver(any(BroadcastReceiver.class), any(IntentFilter.class));
 
         // Make sure we do not hide PII during testing.
         Log.setTag("TelecomTEST");
@@ -816,9 +926,7 @@ public class ComponentContextFixture implements TestFixture<Context> {
         return mContext;
     }
 
-    public void addConnectionService(
-            ComponentName componentName,
-            IConnectionService service)
+    public void addConnectionService(ComponentName componentName, IConnectionService service)
             throws Exception {
         addService(ConnectionService.SERVICE_INTERFACE, componentName, service);
         ServiceInfo serviceInfo = new ServiceInfo();
@@ -828,18 +936,13 @@ public class ComponentContextFixture implements TestFixture<Context> {
         mServiceInfoByComponentName.put(componentName, serviceInfo);
     }
 
-    public void removeConnectionService(
-            ComponentName componentName,
-            IConnectionService service)
+    public void removeConnectionService(ComponentName componentName, IConnectionService service)
             throws Exception {
         removeService(ConnectionService.SERVICE_INTERFACE, componentName, service);
         mServiceInfoByComponentName.remove(componentName);
     }
 
-    public void addInCallService(
-            ComponentName componentName,
-            IInCallService service,
-            int uid)
+    public void addInCallService(ComponentName componentName, IInCallService service, int uid)
             throws Exception {
         addService(InCallService.SERVICE_INTERFACE, componentName, service);
         ServiceInfo serviceInfo = new ServiceInfo();
@@ -853,16 +956,25 @@ public class ComponentContextFixture implements TestFixture<Context> {
         mServiceInfoByComponentName.put(componentName, serviceInfo);
 
         // Used in InCallController to check permissions for CONTROL_INCALL_fvEXPERIENCE
-        when(mPackageManager.getPackagesForUid(eq(uid))).thenReturn(new String[] {
-                componentName.getPackageName() });
-        when(mPackageManager.checkPermission(eq(Manifest.permission.CONTROL_INCALL_EXPERIENCE),
-                eq(componentName.getPackageName()))).thenReturn(PackageManager.PERMISSION_GRANTED);
-        when(mPackageManager.checkPermission(eq(Manifest.permission.INTERACT_ACROSS_USERS),
-                eq(componentName.getPackageName()))).thenReturn(PackageManager.PERMISSION_GRANTED);
+        when(mPackageManager.getPackagesForUid(eq(uid)))
+                .thenReturn(new String[] {componentName.getPackageName()});
+        when(mPackageManager.checkPermission(
+                        eq(Manifest.permission.CONTROL_INCALL_EXPERIENCE),
+                        eq(componentName.getPackageName())))
+                .thenReturn(PackageManager.PERMISSION_GRANTED);
+        when(mPackageManager.checkPermission(
+                        eq(Manifest.permission.INTERACT_ACROSS_USERS),
+                        eq(componentName.getPackageName())))
+                .thenReturn(PackageManager.PERMISSION_GRANTED);
         when(mPermissionCheckerManager.checkPermission(
-                eq(Manifest.permission.CONTROL_INCALL_EXPERIENCE),
-                any(AttributionSourceState.class), anyString(), anyBoolean(), anyBoolean(),
-                anyBoolean(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
+                        eq(Manifest.permission.CONTROL_INCALL_EXPERIENCE),
+                        any(AttributionSourceState.class),
+                        anyString(),
+                        anyBoolean(),
+                        anyBoolean(),
+                        anyBoolean(),
+                        anyInt()))
+                .thenReturn(PackageManager.PERMISSION_GRANTED);
     }
 
     public void addIntentReceiver(String action, ComponentName name) {
@@ -876,13 +988,16 @@ public class ComponentContextFixture implements TestFixture<Context> {
     public void putResource(int id, final String value) {
         when(mResources.getText(eq(id))).thenReturn(value);
         when(mResources.getString(eq(id))).thenReturn(value);
-        when(mResources.getString(eq(id), any())).thenAnswer(new Answer<String>() {
-            @Override
-            public String answer(InvocationOnMock invocation) {
-                Object[] args = invocation.getArguments();
-                return String.format(value, Arrays.copyOfRange(args, 1, args.length));
-            }
-        });
+        when(mResources.getString(eq(id), any()))
+                .thenAnswer(
+                        new Answer<String>() {
+                            @Override
+                            public String answer(InvocationOnMock invocation) {
+                                Object[] args = invocation.getArguments();
+                                return String.format(
+                                        value, Arrays.copyOfRange(args, 1, args.length));
+                            }
+                        });
     }
 
     public void putFloatResource(int id, final float value) {
@@ -918,8 +1033,16 @@ public class ComponentContextFixture implements TestFixture<Context> {
         return mTelephonyManager;
     }
 
+    public FakeAudioManager getFakeAudioManager() {
+        return mFakeAudioManager;
+    }
+
     public AudioManager getAudioManager() {
         return mAudioManager;
+    }
+
+    public AudioModeSession getAudioModeSession() {
+        return mAudioModeSession;
     }
 
     public CarrierConfigManager getCarrierConfigManager() {
@@ -944,6 +1067,7 @@ public class ComponentContextFixture implements TestFixture<Context> {
 
     /**
      * For testing purposes, add a context for a specific user.
+     *
      * @param userHandle the userhandle
      * @param context the context
      */
