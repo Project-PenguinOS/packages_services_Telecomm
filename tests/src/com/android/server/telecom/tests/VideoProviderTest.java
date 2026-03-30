@@ -98,6 +98,11 @@ public class VideoProviderTest extends TelecomSystemTest {
         super.setUp();
         mContext = mComponentContextFixture.getTestDouble().getApplicationContext();
         mAppOpsManager = (AppOpsManager) mContext.getSystemService(Context.APP_OPS_SERVICE);
+
+        doNothing().when(mContext).enforcePermission(anyString(), anyInt(), anyInt(), anyString());
+        doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager).noteOp(anyInt(), anyInt(),
+                anyString());
+
         mConnectionServiceFixtureA.mConnectionServiceDelegate.mCapabilities
                 |= Connection.CAPABILITY_SUPPORTS_VT_LOCAL_BIDIRECTIONAL;
         mCallIds = startAndMakeActiveOutgoingCall(
@@ -124,10 +129,6 @@ public class VideoProviderTest extends TelecomSystemTest {
         mConnectionInfo = mConnectionServiceFixtureA.mConnectionById.get(mCallIds.mConnectionId);
         mVerificationLock = new CountDownLatch(1);
         mTelecomSystem.getCallsManager().waitOnHandlers();
-
-        doNothing().when(mContext).enforcePermission(anyString(), anyInt(), anyInt(), anyString());
-        doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager).noteOp(anyInt(), anyInt(),
-                anyString());
 
     }
 
