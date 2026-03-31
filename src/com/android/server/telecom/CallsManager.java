@@ -7898,6 +7898,11 @@ public class CallsManager extends Call.ListenerBase
         return mCallLogIntegrationAdapter.isCallLogPrefEnabledForPackage(userHandle, packageName);
     }
 
+    public void maybeAddAnsweringCallDropsFg(Call incomingCall) {
+        Call activeCall = (Call) mConnectionSvrFocusMgr.getCurrentFocusCall();
+        mCallSequencingAdapter.maybeAddAnsweringCallDropsFg(activeCall, incomingCall);
+    }
+
     public LocalVoicemailController getLocalVoicemailController() {
         return mLocalVoicemailController;
     }
