@@ -30,8 +30,10 @@ import static com.android.server.telecom.AudioRoute.BT_AUDIO_ROUTE_TYPES;
 import static com.android.server.telecom.AudioRoute.DEVICE_INFO_TYPE_TO_AUDIO_ROUTE_TYPE;
 import static com.android.server.telecom.AudioRoute.TYPE_BLUETOOTH_HA;
 import static com.android.server.telecom.AudioRoute.TYPE_BLUETOOTH_SCO;
+import static com.android.server.telecom.AudioRoute.TYPE_EARPIECE;
 import static com.android.server.telecom.AudioRoute.TYPE_INVALID;
 import static com.android.server.telecom.AudioRoute.TYPE_SPEAKER;
+import static com.android.server.telecom.AudioRoute.TYPE_WIRED;
 
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
@@ -42,6 +44,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.media.AudioAttributes;
 import android.media.AudioDeviceAttributes;
 import android.media.AudioDeviceCallback;
@@ -817,6 +820,14 @@ public class CallAudioRouteController extends CallsManagerListenerBase
     public void onCallRemoved(Call call) {
         Log.i(this, "onCallRemoved(%s)", call);
         mCallsActiveFocusSwitch.remove(call);
+        // Reset the mute state if all external and non-external calls have been removed. This
+        // should only be performed for the watch case.
+        if (mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_WATCH)
+                && mFocusType == NO_FOCUS && !mCallsManager.hasAnyCalls()
+                && !mCallsManager.hasExternalCalls()) {
+            Log.i(this, "Last call removed in NO_FOCUS, resetting mute.");
+            handleMuteChanged(false, false);
+        }
     }
 
     private boolean shouldHandleRouteForVideoCall() {
@@ -1027,14 +1038,27 @@ public class CallAudioRouteController extends CallsManagerListenerBase
     private void maybeClearPendingMessage() {
         AudioRoute pendingDestRoute = mPendingAudioRoute.getDestRoute();
         if (pendingDestRoute != null) {
-            if (isCurrentCommunicationDevice(pendingDestRoute)) {
-                if (pendingDestRoute.getType() == TYPE_BLUETOOTH_SCO) {
-                    mPendingAudioRoute.clearPendingMessage(
-                            new Pair<>(BT_AUDIO_CONNECTED, pendingDestRoute.getBluetoothAddress()));
-                } else if (pendingDestRoute.getType() == TYPE_SPEAKER) {
-                    mPendingAudioRoute.clearPendingMessage(new Pair<>(SPEAKER_ON, null));
+            // If the pending destination route is already the current communication device or if
+            // it's not BT and speaker, then clear all pending connecting messages (speaker + BT).
+            if (isCurrentCommunicationDevice(pendingDestRoute) || (pendingDestRoute.getType()
+                    != TYPE_BLUETOOTH_SCO && pendingDestRoute.getType() != TYPE_SPEAKER)) {
+                Log.i(this, "maybeClearPendingMessage: Clearing all BT_AUDIO_CONNECTED "
+                        + "+ SPEAKER_ON pending messages.");
+                // Clear all BT_AUDIO_CONNECTED messages
+                for (Pair<Integer, String> pendingMessage : mPendingAudioRoute
+                        .getPendingMessages()) {
+                    if (pendingMessage != null && pendingMessage.first == BT_AUDIO_CONNECTED) {
+                        mPendingAudioRoute.clearPendingMessage(pendingMessage);
+                    }
                 }
-            } else if (pendingDestRoute.getType() != TYPE_BLUETOOTH_SCO) {
+                mPendingAudioRoute.clearPendingMessage(new Pair<>(SPEAKER_ON, null));
+            } else if (pendingDestRoute.getType() == TYPE_BLUETOOTH_SCO) {
+                Log.i(this, "maybeClearPendingMessage: Clearing SPEAKER_ON pending message.");
+                // Don't wait for SPEAKER_ON msg if pending route is not SPEAKER.
+                mPendingAudioRoute.clearPendingMessage(new Pair<>(SPEAKER_ON, null));
+            } else if (pendingDestRoute.getType() == TYPE_SPEAKER) {
+                Log.i(this, "maybeClearPendingMessage: Clearing all BT_AUDIO_CONNECTED "
+                        + "pending messages.");
                 // Don't wait for BT_AUDIO_CONNECTED msgs if pending route is not BT_SCO.
                 for (Pair<Integer, String> pendingMessage :
                         mPendingAudioRoute.getPendingMessages()) {
@@ -1042,9 +1066,6 @@ public class CallAudioRouteController extends CallsManagerListenerBase
                         mPendingAudioRoute.clearPendingMessage(pendingMessage);
                     }
                 }
-            } else if (pendingDestRoute.getType() != TYPE_SPEAKER) {
-                // Don't wait for SPEAKER_ON msg if pending route is not SPEAKER.
-                mPendingAudioRoute.clearPendingMessage(new Pair<>(SPEAKER_ON, null));
             }
         }
     }
@@ -1448,8 +1469,13 @@ public class CallAudioRouteController extends CallsManagerListenerBase
             case NO_FOCUS -> {
                 mWasOnSpeaker = false;
                 // Reset mute state after call ends. This should remain unaffected if audio routing
-                // never went active.
-                handleMuteChanged(false, false /* isExternal */);
+                // never went active. Only reset if there are no external calls. Ensure that this
+                // conditional gate only applies to watches, otherwise, always reset as per existing
+                // behavior.
+                if (!mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_WATCH)
+                        || !mCallsManager.hasExternalCalls()) {
+                    handleMuteChanged(false, false /* isExternal */);
+                }
                 // Ensure we reset call audio state at the end of the call (i.e. if we're on
                 // speaker, route back to earpiece). If we're on BT, remain on BT if it's still
                 // connected.
@@ -2200,6 +2226,9 @@ public class CallAudioRouteController extends CallsManagerListenerBase
                 || existingHaRoute.getType() != AudioRoute.TYPE_BLUETOOTH_HA) {
             return;
         }
+        if (newHaDevice.getAddress().equals(existingHaRoute.getBluetoothAddress())) {
+            return;
+        }
         // This is critical to avoid an inconsistent hash state.
         updateAvailableRoutes(existingHaRoute, false);
         existingHaRoute.setBluetoothHaPairDevice(newHaDevice);
@@ -2673,12 +2702,17 @@ public class CallAudioRouteController extends CallsManagerListenerBase
         boolean areCommunicationDevicesSame = Objects.equals(previousCommunicationDevice,
                 newCommunicationDevice);
 
-        // Ensure that if the BT device is removed via BT_DEVICE_REMOVED and the route no longer
-        // exists, that we still clear the pending SCO disconnect message.
-        if (previousCommunicationDevice != null
-                && previousCommunicationDevice.getAddress() != null) {
-            mPendingAudioRoute.clearPendingMessage(new Pair<>(BT_AUDIO_DISCONNECTED,
-                    previousCommunicationDevice.getAddress()));
+        // Ensure that if the BT device is removed via BT_DEVICE_REMOVED and the SCO route no longer
+        // exists, that we still clear the pending SCO disconnect message and recalculate the route.
+        // Note that if the route doesn't exist, then we must be in a pending route change to move
+        // out of the current (removed) route.
+        if (currentAudioType == TYPE_BLUETOOTH_SCO && previousCommunicationDevice != null
+                && previousCommunicationDevice.getAddress() != null && getBluetoothRoute(
+                        TYPE_BLUETOOTH_SCO, previousCommunicationDevice.getAddress()) == null) {
+            // Use onMessageReceived here to ensure that the pending route change is fulfilled if
+            // there aren't anymore pending messages.
+            mPendingAudioRoute.onMessageReceived(new Pair<>(BT_AUDIO_DISCONNECTED,
+                    previousCommunicationDevice.getAddress()), null);
         }
 
         // We need to perform an update if the current communication device type is different from

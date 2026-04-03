@@ -456,8 +456,7 @@ public class BasicCallTests extends TelecomSystemTest {
                 Call.STATE_SELECT_PHONE_ACCOUNT, mInCallServiceFixtureY.getCall(callId).getState());
         mInCallServiceFixtureX.mInCallAdapter.phoneAccountSelected(
                 callId, mPhoneAccountA0.getAccountHandle(), false);
-        waitForHandlerAction(
-                mConnectionServiceFixtureA.mConnectionServiceDelegate.getHandler(), TEST_TIMEOUT);
+        mTelecomSystem.getCallsManager().getLatestPostSelectionProcessingFuture().join();
         waitForHandlerAction(
                 mConnectionServiceFixtureA.mConnectionServiceDelegate.getHandler(), TEST_TIMEOUT);
         verifyAndProcessOutgoingCallBroadcast(mPhoneAccountA0.getAccountHandle());

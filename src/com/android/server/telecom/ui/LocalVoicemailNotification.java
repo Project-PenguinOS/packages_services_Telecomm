@@ -34,8 +34,6 @@ import android.text.SpannableString;
 import android.text.TextUtils;
 import android.text.style.ForegroundColorSpan;
 
-import androidx.annotation.Nullable;
-
 import com.android.internal.annotations.GuardedBy;
 import com.android.server.telecom.AppLabelProxy;
 import com.android.server.telecom.Call;
@@ -85,6 +83,8 @@ public class LocalVoicemailNotification extends CallsManagerListenerBase
     @GuardedBy("mNotificationLock")
     private boolean mIsNotificationShowing = false;
     @GuardedBy("mNotificationLock")
+    private boolean mIsSendToVoicemailNotificationShowing = false;
+    @GuardedBy("mNotificationLock")
     private UserHandle mNotificationUserHandle;
 
     public LocalVoicemailNotification(@NonNull Context context,
@@ -112,6 +112,7 @@ public class LocalVoicemailNotification extends CallsManagerListenerBase
     public void onCallRemoved(Call call) {
         if (call == mVoicemailCall) {
             trackVoicemailCall(null);
+            dequeueSendToVoicemailNotification();
             dequeueVoicemailNotification();
         }
     }
@@ -122,6 +123,7 @@ public class LocalVoicemailNotification extends CallsManagerListenerBase
 
         if (newState == CallState.LOCAL_VOICEMAIL) {
             trackVoicemailCall(call);
+            dequeueSendToVoicemailNotification();
             enqueueVoicemailNotification(call);
         } else if (oldState == CallState.LOCAL_VOICEMAIL && call == mVoicemailCall) {
             trackVoicemailCall(null);
@@ -162,6 +164,13 @@ public class LocalVoicemailNotification extends CallsManagerListenerBase
         mAsyncTaskExecutor.execute(() -> hideVoicemailNotification());
     }
 
+    /**
+     * Dequeue the send to voicemail notification.
+     */
+    private void dequeueSendToVoicemailNotification() {
+        mAsyncTaskExecutor.execute(() -> hideSendToVoicemailNotification());
+    }
+
     private void enqueueSendToVoicemailNotification(Call call) {
         mAsyncTaskExecutor.execute(() -> {
             Icon contactPhotoIcon = makePersonIcon();
@@ -197,27 +206,52 @@ public class LocalVoicemailNotification extends CallsManagerListenerBase
         CharSequence contentText;
         if (TextUtils.isEmpty(callerName) ||
                 callerPresentation != TelecomManager.PRESENTATION_ALLOWED) {
-            contentText = mContext.getString(
-                    TelecomResourceId.getIdentifier(mContext,
-                            "notification_send_to_voicemail_unknown_details", "string"), appName);
+            contentText = TelecomResourceId.getString(mContext,
+                    "notification_send_to_voicemail_unknown_details", appName);
         } else {
-            contentText = mContext.getString(
-                    TelecomResourceId.getIdentifier(mContext,
-                            "notification_send_to_voicemail_details", "string"),
+            contentText = TelecomResourceId.getString(mContext,
+                    "notification_send_to_voicemail_details",
+
                     appName, callerName);
         }
 
-        Notification notification = new Notification.Builder(mContext,
-                NotificationChannelManager.CHANNEL_ID_AUDIO_PROCESSING)
+        // Content of the public notification with the caller name removed.
+        // Voicemail is being recorded by <xliff:g id="app_name">%1$s</xliff:g> for a call.
+        CharSequence publicContentText = TelecomResourceId.getString(mContext,
+                "notification_send_to_voicemail_public_details", appName);
+
+        // Version of the notification that has private information removed so it is safe to show
+        // on the lock screen when private information is hidden.
+        Notification publicNotification = new Notification.Builder(mContext,
+                NotificationChannelManager.CHANNEL_ID_LOCAL_VOICEMAIL)
                 .setOngoing(true)
-                //.setExtras(extras);
+                .setVisibility(Notification.VISIBILITY_PUBLIC)
+                .setCategory(Notification.CATEGORY_CALL)
+                .setContentTitle(title)
+                .setContentText(publicContentText)
+                .setSmallIcon(
+                        TelecomResourceId.getIdentifier(mContext, "ic_phone", "drawable"))
+                .setColor(TelecomResourceId.getColor(mContext, "theme_color"))
+                .addAction(
+                        new Notification.Action.Builder(
+                                TelecomResourceId.getIdentifier(mContext, "voicemail_24px",
+                                        "drawable"),
+                                TelecomResourceId.getString(mContext, "send_to_voicemail"),
+                                sendToVoicemailPendingIntent)
+                                .build())
+                .build();
+
+        Notification notification = new Notification.Builder(mContext,
+                NotificationChannelManager.CHANNEL_ID_LOCAL_VOICEMAIL)
+                .setOngoing(true)
+                .setVisibility(Notification.VISIBILITY_PRIVATE)
+                .setPublicVersion(publicNotification)
                 .setCategory(Notification.CATEGORY_CALL)
                 .setContentTitle(title)
                 .setContentText(contentText)
                 .setSmallIcon(
                         TelecomResourceId.getIdentifier(mContext, "ic_phone", "drawable"))
-                .setColor(mContext.getResources().getColor(
-                        TelecomResourceId.getIdentifier(mContext, "theme_color", "color")))
+                .setColor(TelecomResourceId.getColor(mContext, "theme_color"))
                 .addAction(
                         new Notification.Action.Builder(
                                 TelecomResourceId.getIdentifier(mContext, "voicemail_24px",
@@ -228,7 +262,7 @@ public class LocalVoicemailNotification extends CallsManagerListenerBase
                 .build();
 
         synchronized(mNotificationLock) {
-            mIsNotificationShowing = true;
+            mIsSendToVoicemailNotificationShowing = true;
             mNotificationUserHandle = userHandle;
             try {
                 UserUtil.processNotification(mContext, userHandle, NOTIFICATION_TAG,
@@ -246,7 +280,8 @@ public class LocalVoicemailNotification extends CallsManagerListenerBase
             String callerName, Uri callerAddress, int callerPresentation,
             Icon photoIcon, String appPackageName,
             long connectTimeMillis) {
-        Log.i(this, "showVoicemailNotification; callid=%s, hasPhoto=%b", callId, photoIcon != null);
+        Log.i(this, "showLocalVoicemailProcessingNotification; callid=%s, hasPhoto=%b", callId,
+                photoIcon != null);
 
         String appName = "";
         if (appPackageName != null) {
@@ -289,6 +324,8 @@ public class LocalVoicemailNotification extends CallsManagerListenerBase
             contentText = TelecomResourceId.getString(mContext,
                     "notification_local_voicemail_details", appName, callerName);
         }
+        CharSequence publicContentText = TelecomResourceId.getString(mContext,
+                "notification_local_voicemail_public_details", appName);
 
         // This little bit of ugliness is required to make sure that the "answer" button is colored
         // appropriately.
@@ -301,9 +338,28 @@ public class LocalVoicemailNotification extends CallsManagerListenerBase
                 answerSpannable.length(),
                 Spannable.SPAN_INCLUSIVE_EXCLUSIVE);
 
-        Notification.Builder builder = new Notification.Builder(mContext,
-                NotificationChannelManager.CHANNEL_ID_AUDIO_PROCESSING)
+        Notification publicNotification = new Notification.Builder(mContext,
+                NotificationChannelManager.CHANNEL_ID_LOCAL_VOICEMAIL)
                 .setStyle(Notification.CallStyle.forOngoingCall(person, hangupPendingIntent))
+                .setVisibility(Notification.VISIBILITY_PUBLIC)
+                .addAction(new Notification.Action.Builder(
+                        TelecomResourceId.getIdentifier(mContext, "ic_call_answer", "drawable"),
+                        answerSpannable, pickupPendingIntent).build())
+                .setSmallIcon(TelecomResourceId.getIdentifier(mContext, "ic_phone", "drawable"))
+                .setContentTitle(title)
+                .setContentText(publicContentText)
+                .setWhen(connectTimeMillis)
+                .setShowWhen(true)
+                .setUsesChronometer(true)
+                .setFullScreenIntent(nullPendingIntent, true)
+                .setColorized(true)
+                .build();
+
+        Notification.Builder builder = new Notification.Builder(mContext,
+                NotificationChannelManager.CHANNEL_ID_LOCAL_VOICEMAIL)
+                .setStyle(Notification.CallStyle.forOngoingCall(person, hangupPendingIntent))
+                .setVisibility(Notification.VISIBILITY_PRIVATE)
+                .setPublicVersion(publicNotification)
                 .addAction(new Notification.Action.Builder(
                         TelecomResourceId.getIdentifier(mContext, "ic_call_answer", "drawable"),
                         answerSpannable, pickupPendingIntent).build())
@@ -380,6 +436,16 @@ public class LocalVoicemailNotification extends CallsManagerListenerBase
                 mIsNotificationShowing = false;
                 UserUtil.processNotification(mContext, mNotificationUserHandle, NOTIFICATION_TAG,
                         VOICEMAIL_NOTIFICATION_ID, null /* notification */);
+            }
+        }
+    }
+
+    private void hideSendToVoicemailNotification() {
+        synchronized (mNotificationLock) {
+            if (mIsSendToVoicemailNotificationShowing) {
+                mIsSendToVoicemailNotificationShowing = false;
+                UserUtil.processNotification(mContext, mNotificationUserHandle, NOTIFICATION_TAG,
+                        SEND_TO_VOICEMAIL_NOTIFICATION_ID, null /* notification */);
             }
         }
     }

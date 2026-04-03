@@ -139,6 +139,7 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
     private final Object mMissedCallCountsLock = new Object();
     // Used to track the number of missed calls.
     private final Map<UserHandle, Integer> mMissedCallCounts;
+    private final Map<UserHandle, Integer> mLastNotifiedCount = new ArrayMap<>();
 
     private Set<UserHandle> mUsersToLoadAfterBootComplete = new ArraySet<>();
     private FeatureFlags mFeatureFlags;
@@ -287,6 +288,16 @@ public class MissedCallNotifierImpl extends CallsManagerListenerBase implements 
 
     private void sendNotificationThroughDefaultDialer(String dialerPackage, CallInfo callInfo,
             UserHandle userHandle, int missedCallCount, @Nullable Uri uri) {
+        synchronized (mMissedCallCountsLock) {
+            Integer lastCount = mLastNotifiedCount.get(userHandle);
+            if (lastCount != null && lastCount == 0 && missedCallCount == 0) {
+                Log.i(this, "sendNotificationThroughDefaultDialer; skipping redundant clear "
+                        + "(count=0) for userHandle=%s", userHandle);
+                return;
+            }
+            mLastNotifiedCount.put(userHandle, missedCallCount);
+        }
+
         Intent intent = getShowMissedCallIntentForDefaultDialer(dialerPackage)
             .setFlags(Intent.FLAG_RECEIVER_FOREGROUND)
             .putExtra(TelecomManager.EXTRA_CLEAR_MISSED_CALLS_INTENT,

@@ -350,7 +350,6 @@ public class InCallControllerTests extends TelecomTestCase {
                 .thenReturn(new CallEndpoint("Earpiece", 1));
         when(mMockCallEndpointController.getAvailableEndpoints())
                 .thenReturn(new HashSet<>());
-        when(mFeatureFlags.notifyAvailableEndpointsOnIcsConnected()).thenReturn(true);
 
         when(mMockContext.getSystemService(eq(Context.USER_SERVICE))).thenReturn(mMockUserManager);
         when(mMockContext.getSystemService(eq(UserManager.class)))

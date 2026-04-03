@@ -95,6 +95,8 @@ public class CallSequencingController {
             UUID.fromString("ea094d77-6ea9-4e40-891e-14bff5d485d7");
     public static final String SEQUENCING_CANNOT_HOLD_ACTIVE_CALL_MSG =
             "Cannot hold active call";
+    private static final String KEY_SHOW_VOWIFI_DROP_DIALOG_ON_DSDS_BOOL =
+            "show_vowifi_drop_dialog_on_dsds_bool";
 
     public CallSequencingController(CallsManager callsManager, Context context,
             ClockProxy clockProxy, AnomalyReporterAdapter anomalyReporter,
@@ -410,13 +412,14 @@ public class CallSequencingController {
                                 + "disconnecting carrier call for making VOIP call active");
                         return CompletableFuture.completedFuture(false);
                     } else {
-                        if (isSequencingRequiredActiveAndCall) {
+                        if (isSequencingRequiredActiveAndCall || activeCall.isTransactionalCall()) {
                             // Disconnect all calls with the same phone account as the active call
                             // as they do would not support holding.
                             Log.i(this, "Disconnecting non-holdable calls from account (%s).",
                                     activeCall.getTargetPhoneAccount());
                             return disconnectAllCallsWithPhoneAccount(
-                                    activeCall.getTargetPhoneAccount(), false /* excludeAccount */);
+                                    activeCall.getTargetPhoneAccount(), false /* excludeAccount */,
+                                    call /* callToExclude */);
                         } else {
                             // Disconnect calls on other phone accounts and allow CS to handle
                             // holding/disconnecting calls from the same CS.
@@ -424,7 +427,8 @@ public class CallSequencingController {
                                     + "disconnecting calls on other phone accounts and allowing "
                                     + "ConnectionService to determine how to handle this case.");
                             return disconnectAllCallsWithPhoneAccount(
-                                    activeCall.getTargetPhoneAccount(), true /* excludeAccount */);
+                                    activeCall.getTargetPhoneAccount(), true /* excludeAccount */,
+                                    call /* callToExclude */);
                         }
                     }
                 } else {
@@ -1139,6 +1143,18 @@ public class CallSequencingController {
                 CarrierConfigManager.KEY_ALLOW_HOLD_CALL_DURING_EMERGENCY_BOOL, false);
     }
 
+    /**
+     * Checks the carrier config to see if the carrier supports dropping the VoLTE call when
+     * receiving a VoWiFi call in DSDS mode.
+     * @param handle The {@code PhoneAccountHandle} to check
+     * @return {@code true} if the carrier supports dropping the VoLTE call, {@code} false
+     *         otherwise.
+     */
+    private boolean showWifiDropDialogOnDsds(PhoneAccountHandle handle) {
+        return mCallsManager.getCarrierConfigForPhoneAccount(handle).getBoolean(
+                KEY_SHOW_VOWIFI_DROP_DIALOG_ON_DSDS_BOOL, false);
+    }
+
     public static boolean arePhoneAccountsSame(Call call1, Call call2) {
         if (call1 == null || call2 == null) {
             return false;
@@ -1163,13 +1179,14 @@ public class CallSequencingController {
     }
 
     private CompletableFuture<Boolean> disconnectAllCallsWithPhoneAccount(
-            PhoneAccountHandle handle, boolean excludeAccount) {
+            PhoneAccountHandle handle, boolean excludeAccount, Call callToExclude) {
         CompletableFuture<Boolean> disconnectFuture = CompletableFuture.completedFuture(true);
         // Filter out the corresponding phone account and ensure that we don't consider conference
         // participants as part of the bulk disconnect (we'll just disconnect the host directly).
         List<Call> calls = mCallsManager.getCalls().stream()
                 .filter(c -> excludeAccount != c.getTargetPhoneAccount().equals(handle)
-                        && c.getParentCall() == null).toList();
+                        && c.getParentCall() == null
+                        && !Objects.equals(c, callToExclude)).toList();
         for (Call call: calls) {
             // Wait for all disconnects before we accept the new call.
             disconnectFuture = disconnectFuture.thenComposeAsync((result) -> {
@@ -1227,8 +1244,13 @@ public class CallSequencingController {
         }
         // Check if the active call doesn't support hold. If it doesn't we should indicate to the
         // user via the EXTRA_ANSWERING_DROPS_FG_CALL extra that the call would be dropped by
-        // answering the incoming call.
-        if (!mCallsManager.supportsHold(activeCall)) {
+        // answering the incoming call. Also set the extra when answering an incoming VoWiFi call
+        // with an ongoing VoLTE call on another sim. Whether the warning is display to the
+        // user will depend on the carrier config (show_vowifi_drop_dialog_on_dsds_bool).
+        boolean dropFgVolteForWifi = !mCallsManager.isDsdaCallingPossible()
+                && showWifiDropDialogOnDsds(activeCall.getTargetPhoneAccount())
+                && activeCall.wasVolte() && incomingCall.wasWifi();
+        if (dropFgVolteForWifi || !mCallsManager.supportsHold(activeCall)) {
             CharSequence droppedApp = activeCall.getTargetPhoneAccountLabel();
             Bundle dropCallExtras = new Bundle();
             dropCallExtras.putBoolean(Connection.EXTRA_ANSWERING_DROPS_FG_CALL, true);
@@ -1237,7 +1259,8 @@ public class CallSequencingController {
             dropCallExtras.putCharSequence(
                     Connection.EXTRA_ANSWERING_DROPS_FG_CALL_APP_NAME, droppedApp);
             Log.i(this, "Incoming call will drop %s call.", droppedApp);
-            incomingCall.putConnectionServiceExtras(dropCallExtras);
+            // Ensure we update the connection service as well as the InCallServices.
+            incomingCall.putInternalExtras(dropCallExtras);
         }
     }
 

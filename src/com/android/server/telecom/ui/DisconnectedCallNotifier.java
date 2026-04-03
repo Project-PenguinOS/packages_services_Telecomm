@@ -172,9 +172,7 @@ public class DisconnectedCallNotifier extends CallsManagerListenerBase {
         Notification.Builder publicBuilder = new Notification.Builder(contextForUser,
                 NotificationChannelManager.CHANNEL_ID_DISCONNECTED_CALLS);
         publicBuilder.setSmallIcon(android.R.drawable.stat_notify_error)
-                .setColor(TelecomResourceId.getResources(mContext).getColor(
-                        TelecomResourceId.getIdentifier(mContext,
-                        "theme_color", "color"), null /*theme*/))
+                .setColor(TelecomResourceId.getColor(mContext, "theme_color"))
                 // Set when the call was disconnected.
                 .setWhen(call.endTimeMs)
                 .setShowWhen(true)
@@ -182,7 +180,7 @@ public class DisconnectedCallNotifier extends CallsManagerListenerBase {
                 .setContentTitle(TelecomResourceId.getText(mContext, "userCallActivityLabel"))
                 // Notification details shows that there are disconnected call(s), but does not
                 // reveal the caller information.
-                .setContentText(mContext.getText(titleResId))
+                .setContentText(TelecomResourceId.getTelecomContext(mContext).getText(titleResId))
                 .setAutoCancel(true);
 
         if (!call.isEmergency) {
@@ -193,9 +191,7 @@ public class DisconnectedCallNotifier extends CallsManagerListenerBase {
         Notification.Builder builder = new Notification.Builder(contextForUser,
                 NotificationChannelManager.CHANNEL_ID_DISCONNECTED_CALLS);
         builder.setSmallIcon(android.R.drawable.stat_notify_error)
-                .setColor(TelecomResourceId.getResources(mContext).getColor(
-                        TelecomResourceId.getIdentifier(mContext,
-                        "theme_color", "color"), null /*theme*/))
+                .setColor(TelecomResourceId.getColor(mContext, "theme_color"))
                 .setWhen(call.endTimeMs)
                 .setShowWhen(true)
                 .setContentTitle(TelecomResourceId.getText(mContext,
