@@ -78,6 +78,7 @@ import com.android.server.telecom.MissedCallNotifier;
 import com.android.server.telecom.PhoneAccountRegistrar;
 import com.android.server.telecom.TelecomResourceId;
 import com.android.server.telecom.TelephonyUtil;
+import com.android.server.telecom.util.CallerInfo;
 import com.android.server.telecom.flags.FeatureFlags;
 
 import org.junit.After;
@@ -1385,6 +1386,167 @@ public class CallLogManagerTest extends TelecomTestCase {
         // The verifyInsertionWithCapture helper contains a verify(..., times(1)) check,
         // which will fail if more than one insertion occurs.
         verifyInsertionWithCapture(CURRENT_USER_ID);
+    }
+
+    /**
+     * Verifies that the caller display name is logged as the preferred display name
+     * when it is present and its presentation is allowed.
+     */
+    @MediumTest
+    @Test
+    public void testLogCallPreferredDisplayName_CallerDisplayPresentAndAllowed() {
+        when(mFeatureFlags.supportDisplayNameCallLog()).thenReturn(true);
+        when(mMockPhoneAccountRegistrar.getPhoneAccountUnchecked(any(PhoneAccountHandle.class)))
+                .thenReturn(makeFakePhoneAccount(mDefaultAccountHandle, 0 /* capabilities */));
+        Call fakeCall = makeFakeCall(
+                DisconnectCause.OTHER, // disconnectCauseCode
+                false, // isConference
+                true, // isIncoming
+                1L, // creationTimeMillis
+                1000L, // ageMillis
+                TEL_PHONEHANDLE, // callHandle
+                mDefaultAccountHandle, // phoneAccountHandle
+                NO_VIDEO_STATE, // callVideoState
+                POST_DIAL_STRING, // postDialDigits
+                VIA_NUMBER_STRING, // viaNumber
+                UserHandle.of(CURRENT_USER_ID)
+        );
+        when(fakeCall.getCallerDisplayName()).thenReturn("Alice");
+        when(fakeCall.getCallerDisplayNamePresentation()).thenReturn(TelecomManager.PRESENTATION_ALLOWED);
+
+        mCallLogManager.onCallStateChanged(fakeCall, CallState.ACTIVE, CallState.DISCONNECTED);
+        ContentValues insertedValues = verifyInsertionWithCapture(CURRENT_USER_ID);
+
+        boolean found = false;
+        for (String key : insertedValues.keySet()) {
+            if ("Alice".equals(insertedValues.getAsString(key))) {
+                found = true;
+                break;
+            }
+        }
+        assertTrue("Preferred name Alice not found in ContentValues", found);
+    }
+
+    /**
+     * Verifies that the caller display name is NOT logged as the preferred display name
+     * when its presentation is restricted, even if the name is present.
+     */
+    @MediumTest
+    @Test
+    public void testLogCallPreferredDisplayName_CallerDisplayPresentAndRestricted() {
+        when(mFeatureFlags.supportDisplayNameCallLog()).thenReturn(true);
+        when(mMockPhoneAccountRegistrar.getPhoneAccountUnchecked(any(PhoneAccountHandle.class)))
+                .thenReturn(makeFakePhoneAccount(mDefaultAccountHandle, 0 /* capabilities */));
+        Call fakeCall = makeFakeCall(
+                DisconnectCause.OTHER, // disconnectCauseCode
+                false, // isConference
+                true, // isIncoming
+                1L, // creationTimeMillis
+                1000L, // ageMillis
+                TEL_PHONEHANDLE, // callHandle
+                mDefaultAccountHandle, // phoneAccountHandle
+                NO_VIDEO_STATE, // callVideoState
+                POST_DIAL_STRING, // postDialDigits
+                VIA_NUMBER_STRING, // viaNumber
+                UserHandle.of(CURRENT_USER_ID)
+        );
+        when(fakeCall.getCallerDisplayName()).thenReturn("Alice");
+        when(fakeCall.getCallerDisplayNamePresentation()).thenReturn(TelecomManager.PRESENTATION_RESTRICTED);
+        CallerInfo callerInfo = new CallerInfo();
+        callerInfo.cnapName = "Alice";
+        callerInfo.namePresentation = TelecomManager.PRESENTATION_RESTRICTED;
+        when(fakeCall.getCallerInfo()).thenReturn(callerInfo);
+
+        mCallLogManager.onCallStateChanged(fakeCall, CallState.ACTIVE, CallState.DISCONNECTED);
+        ContentValues insertedValues = verifyInsertionWithCapture(CURRENT_USER_ID);
+
+        for (String key : insertedValues.keySet()) {
+            assertFalse("Restricted name Alice should not be in ContentValues",
+                    "Alice".equals(insertedValues.getAsString(key)));
+        }
+    }
+
+    /**
+     * Verifies that the CNAP name from CallerInfo is logged as the preferred display name
+     * when the caller display name is absent and the CNAP name presentation is allowed.
+     */
+    @MediumTest
+    @Test
+    public void testLogCallPreferredDisplayName_CallerInfoPresentAndAllowed() {
+        when(mFeatureFlags.supportDisplayNameCallLog()).thenReturn(true);
+        when(mMockPhoneAccountRegistrar.getPhoneAccountUnchecked(any(PhoneAccountHandle.class)))
+                .thenReturn(makeFakePhoneAccount(mDefaultAccountHandle, 0 /* capabilities */));
+        Call fakeCall = makeFakeCall(
+                DisconnectCause.OTHER, // disconnectCauseCode
+                false, // isConference
+                true, // isIncoming
+                1L, // creationTimeMillis
+                1000L, // ageMillis
+                TEL_PHONEHANDLE, // callHandle
+                mDefaultAccountHandle, // phoneAccountHandle
+                NO_VIDEO_STATE, // callVideoState
+                POST_DIAL_STRING, // postDialDigits
+                VIA_NUMBER_STRING, // viaNumber
+                UserHandle.of(CURRENT_USER_ID)
+        );
+        when(fakeCall.getCallerDisplayName()).thenReturn(null);
+
+        CallerInfo callerInfo = new CallerInfo();
+        callerInfo.cnapName = "Bob";
+        callerInfo.namePresentation = TelecomManager.PRESENTATION_ALLOWED;
+        when(fakeCall.getCallerInfo()).thenReturn(callerInfo);
+
+        mCallLogManager.onCallStateChanged(fakeCall, CallState.ACTIVE, CallState.DISCONNECTED);
+        ContentValues insertedValues = verifyInsertionWithCapture(CURRENT_USER_ID);
+
+        boolean found = false;
+        for (String key : insertedValues.keySet()) {
+            if ("Bob".equals(insertedValues.getAsString(key))) {
+                found = true;
+                break;
+            }
+        }
+        assertTrue("Preferred name Bob not found in ContentValues", found);
+    }
+
+    /**
+     * Verifies that the CNAP name from CallerInfo is NOT logged as the preferred display name
+     * when its presentation is restricted, even if the caller display name is absent.
+     */
+    @MediumTest
+    @Test
+    public void testLogCallPreferredDisplayName_CallerInfoPresentAndRestricted() {
+        when(mFeatureFlags.supportDisplayNameCallLog()).thenReturn(true);
+        when(mMockPhoneAccountRegistrar.getPhoneAccountUnchecked(any(PhoneAccountHandle.class)))
+                .thenReturn(makeFakePhoneAccount(mDefaultAccountHandle, 0 /* capabilities */));
+        Call fakeCall = makeFakeCall(
+                DisconnectCause.OTHER, // disconnectCauseCode
+                false, // isConference
+                true, // isIncoming
+                1L, // creationTimeMillis
+                1000L, // ageMillis
+                TEL_PHONEHANDLE, // callHandle
+                mDefaultAccountHandle, // phoneAccountHandle
+                NO_VIDEO_STATE, // callVideoState
+                POST_DIAL_STRING, // postDialDigits
+                VIA_NUMBER_STRING, // viaNumber
+                UserHandle.of(CURRENT_USER_ID)
+        );
+        when(fakeCall.getCallerDisplayName()).thenReturn("");
+        when(fakeCall.getCallerDisplayNamePresentation()).thenReturn(TelecomManager.PRESENTATION_RESTRICTED);
+
+        CallerInfo callerInfo = new CallerInfo();
+        callerInfo.cnapName = "Bob";
+        callerInfo.namePresentation = TelecomManager.PRESENTATION_RESTRICTED;
+        when(fakeCall.getCallerInfo()).thenReturn(callerInfo);
+
+        mCallLogManager.onCallStateChanged(fakeCall, CallState.ACTIVE, CallState.DISCONNECTED);
+        ContentValues insertedValues = verifyInsertionWithCapture(CURRENT_USER_ID);
+
+        for (String key : insertedValues.keySet()) {
+            assertFalse("Restricted name Bob should not be in ContentValues",
+                    "Bob".equals(insertedValues.getAsString(key)));
+        }
     }
 
     private ArgumentCaptor<CountryListener> verifyCountryIso(CountryDetector mockDetector,

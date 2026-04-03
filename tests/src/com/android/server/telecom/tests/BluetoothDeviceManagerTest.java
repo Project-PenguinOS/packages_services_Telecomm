@@ -335,6 +335,29 @@ public class BluetoothDeviceManagerTest extends TelecomTestCase {
 
     @SmallTest
     @Test
+    public void testBluetoothStateOff() {
+        receiverUnderTest.onReceive(mContext,
+                buildConnectionActionIntent(BluetoothHeadset.STATE_CONNECTED, device1,
+                        BluetoothDeviceManager.DEVICE_TYPE_HEADSET));
+        receiverUnderTest.onReceive(mContext,
+                buildConnectionActionIntent(BluetoothHeadset.STATE_CONNECTED, device2,
+                        BluetoothDeviceManager.DEVICE_TYPE_HEARING_AID));
+        receiverUnderTest.onReceive(mContext,
+                buildConnectionActionIntent(BluetoothHeadset.STATE_CONNECTED, device5,
+                        BluetoothDeviceManager.DEVICE_TYPE_LE_AUDIO));
+        leAudioCallbacksTest.getValue().onGroupNodeAdded(device5, 1);
+        when(mBluetoothLeAudio.getGroupId(device5)).thenReturn(1);
+        when(mBluetoothLeAudio.getConnectedGroupLeadDevice(1)).thenReturn(device5);
+
+        Intent stateChangeIntent = new Intent(BluetoothAdapter.ACTION_STATE_CHANGED);
+        stateChangeIntent.putExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.STATE_OFF);
+        receiverUnderTest.onReceive(mContext, stateChangeIntent);
+
+        assertEquals(0, mBluetoothDeviceManager.getNumConnectedDevices());
+    }
+
+    @SmallTest
+    @Test
     public void testHandleAudioRefactoringServiceDisconnectedWhileSpeaker() {
         Map<AudioRoute, BluetoothDevice> btRoutes = new HashMap<>();
         when(mCallAudioRouteController.getBluetoothRoutes()).thenReturn(btRoutes);

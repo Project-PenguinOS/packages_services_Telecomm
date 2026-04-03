@@ -41,6 +41,7 @@ public class NotificationChannelManager {
     public static final String CHANNEL_ID_DISCONNECTED_CALLS = "TelecomDisconnectedCalls";
     public static final String CHANNEL_ID_IN_CALL_SERVICE_CRASH = "TelecomInCallServiceCrash";
     public static final String CHANNEL_ID_CALL_STREAMING = "TelecomCallStreaming";
+    public static final String CHANNEL_ID_LOCAL_VOICEMAIL = "LocalVoicemail";
 
     private BroadcastReceiver mLocaleChangeReceiver = new BroadcastReceiver() {
         @Override
@@ -63,6 +64,7 @@ public class NotificationChannelManager {
         createOrUpdateChannel(context, CHANNEL_ID_INCOMING_CALLS);
         createOrUpdateChannel(context, CHANNEL_ID_CALL_BLOCKING);
         createOrUpdateChannel(context, CHANNEL_ID_AUDIO_PROCESSING);
+        createOrUpdateChannel(context, CHANNEL_ID_LOCAL_VOICEMAIL);
         createOrUpdateChannel(context, CHANNEL_ID_DISCONNECTED_CALLS);
         createOrUpdateChannel(context, CHANNEL_ID_IN_CALL_SERVICE_CRASH);
         createOrUpdateChannel(context, CHANNEL_ID_CALL_STREAMING);
@@ -112,6 +114,15 @@ public class NotificationChannelManager {
                 name = TelecomResourceId.getText(context,
                         "notification_channel_background_calls");
                 importance = NotificationManager.IMPORTANCE_LOW;
+                canShowBadge = false;
+                lights = false;
+                vibration = false;
+                sound = null;
+            }
+            case CHANNEL_ID_LOCAL_VOICEMAIL -> {
+                name = TelecomResourceId.getText(context,
+                        "notification_local_voicemail_title");
+                importance = NotificationManager.IMPORTANCE_DEFAULT;
                 canShowBadge = false;
                 lights = false;
                 vibration = false;
