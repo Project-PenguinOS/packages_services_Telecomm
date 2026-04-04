@@ -2293,6 +2293,57 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
 
     @Test
     @SmallTest
+    public void testRouteToCommunicationDeviceOnUnexpectedUpdate() {
+        // Verifies that if, for instance, there's a request to route to SCO and the communication
+        // device updates to an unexpected device (like earpiece), that we handle this properly in
+        // Telecom to ensure that the UI is updated accordingly.
+        // Initialize controller and add a BT device
+        AudioDeviceInfo speakerDeviceInfo = mock(AudioDeviceInfo.class);
+        when(speakerDeviceInfo.getType()).thenReturn(AudioDeviceInfo.TYPE_BUILTIN_SPEAKER);
+        mController.initialize();
+        mController.setActive(true);
+        mController.setCurrentCommunicationDevice(speakerDeviceInfo);
+
+        // Request to route to speaker and verify route change
+        mController.sendMessageWithSessionInfo(USER_SWITCH_SPEAKER);
+        mController.sendMessageWithSessionInfo(SPEAKER_ON);
+        CallAudioState expectedState = new CallAudioState(false, CallAudioState.ROUTE_SPEAKER,
+                CallAudioState.ROUTE_EARPIECE | CallAudioState.ROUTE_SPEAKER,
+                null, new HashSet<>());
+        verify(mCallsManager, timeout(TEST_TIMEOUT)).onCallAudioStateChanged(
+                any(CallAudioState.class), eq(expectedState));
+
+        mController.sendMessageWithSessionInfo(BT_DEVICE_ADDED, AudioRoute.TYPE_BLUETOOTH_SCO,
+                BLUETOOTH_DEVICE_1);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+
+        // Request user switch to BLUETOOTH_DEVICE_1
+        mController.sendMessageWithSessionInfo(USER_SWITCH_BLUETOOTH, 0, BT_ADDRESS_1);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+        // Verify that we're pending the SCO audio connected message
+        assertTrue(mController.isPending());
+        assertTrue(mController.getPendingAudioRoute().getPendingMessages().contains(
+                new Pair<>(BT_AUDIO_CONNECTED, BT_ADDRESS_1)));
+
+        // handleCommunicationDeviceChanged: from speaker -> earpiece
+        mController.setCurrentCommunicationDevice(mEarpieceDeviceInfo);
+        mController.handleCommunicationDeviceChanged(AudioRoute.TYPE_EARPIECE,
+                mEarpieceDeviceInfo, speakerDeviceInfo);
+        waitForHandlerAction(mController.getAdapterHandler(), TEST_TIMEOUT);
+
+        // Verify that the pending SCO audio connected message is removed
+        assertFalse(mController.getPendingAudioRoute().getPendingMessages()
+                .contains(new Pair<>(BT_AUDIO_CONNECTED, BT_ADDRESS_1)));
+        // Verify that the audio route is to earpiece properly
+        expectedState = new CallAudioState(false, CallAudioState.ROUTE_EARPIECE,
+                CallAudioState.ROUTE_EARPIECE | CallAudioState.ROUTE_SPEAKER
+                        | CallAudioState.ROUTE_BLUETOOTH, null, BLUETOOTH_DEVICES);
+        verify(mCallsManager, timeout(TEST_TIMEOUT)).onCallAudioStateChanged(
+                any(CallAudioState.class), eq(expectedState));
+    }
+
+    @Test
+    @SmallTest
     public void testSwitchToBtOnCommunicationDeviceUpdate() {
         // This test verifies that when the audio framework reports a communication device change
         // to a Bluetooth device, the controller correctly queues a SWITCH_BLUETOOTH message
@@ -2556,7 +2607,7 @@ public class CallAudioRouteControllerTest extends TelecomTestCase {
                 .get(AudioRoute.TYPE_BLUETOOTH_LE);
         assertFalse(bluetoothLeDeviceInfoTypes.contains(AudioDeviceInfo.TYPE_BLE_HEARING_AID));
     }
-
+    
     @Test
     @SmallTest
     public void testHearingAidPair_AddMainDeviceTwice() {

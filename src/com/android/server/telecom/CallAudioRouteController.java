@@ -2756,6 +2756,12 @@ public class CallAudioRouteController extends CallsManagerListenerBase
                 handleBtConnectionStateChanged(
                         newCommunicationDevice.getAddress(), true /* isScoConnected */);
                 mRingtonePlayer.updateBtActiveState(true);
+            } else {
+                if (newAudioType == TYPE_EARPIECE) {
+                    sendMessageWithSessionInfo(SWITCH_EARPIECE);
+                } else if (newAudioType == TYPE_WIRED) {
+                    sendMessageWithSessionInfo(SWITCH_HEADSET);
+                }
             }
         }
     }

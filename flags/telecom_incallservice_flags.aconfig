@@ -20,3 +20,13 @@ flag {
    }
 }
 
+# OWNER=huiwang TARGET=26Q1
+flag {
+  name: "notify_available_endpoints_on_ics_connected"
+  namespace: "telecom"
+  description: "Notify onAvailableCallEndpointsChanged on ICS connected"
+  bug: "448784549"
+  metadata {
+      purpose: PURPOSE_BUGFIX
+  }
+}

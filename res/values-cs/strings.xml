@@ -94,9 +94,11 @@
     <string name="notification_local_voicemail_title" msgid="7886943892975348066">"Hlasová zpráva"</string>
     <string name="notification_local_voicemail_details" msgid="8462904524686541516">"Aplikace <xliff:g id="APP_NAME">%1$s</xliff:g> nahrává hlasovou zprávu od volajícího <xliff:g id="CALLER_NAME">%2$s</xliff:g>."</string>
     <string name="notification_local_voicemail_unknown_details" msgid="7688396653463660224">"Aplikace <xliff:g id="APP_NAME">%1$s</xliff:g> nahrává hlasovou zprávu od neznámého volajícího."</string>
-    <string name="notification_local_voicemail_public_details" msgid="7881672203714928274">"<xliff:g id="APP_NAME">%1$s</xliff:g> nahrává hlasovou zprávu z hovoru."</string>
+    <!-- no translation found for notification_local_voicemail_public_details (7881672203714928274) -->
+    <skip />
     <string name="notification_send_to_voicemail_details" msgid="5864892579891906399">"Předat hovor od volajícího <xliff:g id="CALLER_NAME">%2$s</xliff:g> aplikaci <xliff:g id="APP_NAME">%1$s</xliff:g>, aby přijala zprávu."</string>
-    <string name="notification_send_to_voicemail_public_details" msgid="4874500727719949035">"Předat hovor od volajícího aplikaci <xliff:g id="APP_NAME">%1$s</xliff:g>, aby přijala zprávu."</string>
+    <!-- no translation found for notification_send_to_voicemail_public_details (4874500727719949035) -->
+    <skip />
     <string name="send_to_voicemail" msgid="7535268790380893835">"Odeslat do hlasové schránky"</string>
     <string name="notification_send_to_voicemail_unknown_details" msgid="2376840328981503932">"Předat hovor od neznámého volajícího aplikaci <xliff:g id="APP_NAME">%1$s</xliff:g>, aby přijala zprávu."</string>
     <string name="alert_outgoing_call_null_app_name" msgid="7017268474293036850">"Když zahájíte tento hovor, stávající hovor se ukončí."</string>
