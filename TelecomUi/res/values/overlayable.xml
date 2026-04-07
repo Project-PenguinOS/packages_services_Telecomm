@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 The Android Open Source Project
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+-->
+<resources>
+    <overlayable name="TelecomUiCustomization">
+        <policy type="product|vendor|system">
+            <!-- config -->
+            <item type="bool" name="combine_options_to_block_unavailable_and_unknown_callers" />
+            <item type="bool" name="show_option_to_block_callers_not_in_contacts" />
+            <item type="bool" name="combine_options_to_block_restricted_and_unknown_callers" />
+
+            <!-- colors -->
+            <item type="color" name="background_color" />
+            <item type="color" name="blocked_numbers_divider_color" />
+            <item type="color" name="blocked_numbers_primary_text_color" />
+            <item type="color" name="blocked_numbers_secondary_text_color" />
+
+            <!-- dimens -->
+            <item type="dimen" name="dialer_settings_actionbar_elevation" />
+            <item type="dimen" name="blocked_numbers_dialog_padding" />
+            <item type="dimen" name="blocked_numbers_large_padding" />
+            <item type="dimen" name="blocked_numbers_extra_large_padding" />
+            <item type="dimen" name="blocked_numbers_button_bottom_margin" />
+            <item type="dimen" name="blocked_numbers_button_large_padding" />
+            <item type="dimen" name="blocked_numbers_progress_bar_padding" />
+            <item type="dimen" name="blocked_numbers_delete_icon_padding" />
+            <item type="dimen" name="blocked_numbers_head1_font_size" />
+            <item type="dimen" name="blocked_numbers_primary2_font_size" />
+            <item type="dimen" name="blocked_numbers_secondary_font_size" />
+            <item type="dimen" name="blocked_numbers_line_spacing" />
+            <item type="dimen" name="blocked_numbers_secondary_line_spacing" />
+            <item type="dimen" name="blocked_numbers_divider_stroke" />
+
+            <!-- styles -->
+            <item type="style" name="Theme.Telecom.BlockedNumbers" />
+            <item type="style" name="Theme.Telecom.DialerSettings" />
+            <item type="style" name="Theme.Telecom.EnableAccount" />
+            <item type="style" name="TelecomDialerSettingsActionBarStyle" />
+            <item type="style" name="TelecomDialerSettingsTextHead1" />
+            <item type="style" name="TelecomDialerSettingsActionOverflowButtonStyle" />
+            <item type="style" name="CallSettingsWithoutDividerTheme" />
+            <item type="style" name="BlockedNumbersTextHead1" />
+            <item type="style" name="BlockedNumbersButton" />
+            <item type="style" name="BlockedNumbersTextPrimary2" />
+            <item type="style" name="BlockedNumbersTextSecondary" />
+            <item type="style" name="Theme.Telecomm.Transparent" />
+
+            <!-- strings -->
+            <item type="string" name="no_vm_number" />
+            <item type="string" name="no_vm_number_msg" />
+            <item type="string" name="add_vm_number_str" />
+            <item type="string" name="unblock_dialog_body" />
+            <item type="string" name="unblock_button" />
+            <item type="string" name="add_blocked_number_hint" />
+            <item type="string" name="block_button" />
+            <item type="string" name="non_primary_user" />
+            <item type="string" name="blocked_numbers_number_blocked_message" />
+            <item type="string" name="blocked_numbers_number_unblocked_message" />
+            <item type="string" name="blocked_numbers_block_emergency_number_message" />
+            <item type="string" name="blocked_numbers_number_already_blocked_message" />
+            <item type="string" name="alert_outgoing_call" />
+            <item type="string" name="alert_redirect_outgoing_call_timeout" />
+            <item type="string" name="phone_strings_emergency_call_made_dialog_title_txt" />
+        </policy>
+    </overlayable>
+</resources>

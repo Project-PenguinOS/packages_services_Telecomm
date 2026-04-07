@@ -34,14 +34,18 @@ import android.media.AudioManager;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.server.telecom.WiredHeadsetManager;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.MockitoSession;
+import org.mockito.quality.Strictness;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -58,6 +62,7 @@ public class WiredHeadsetManagerTest extends TelecomTestCase {
 
     private WiredHeadsetManager mWiredHeadsetManager;
     private AudioDeviceCallback mAudioDeviceCallback;
+    private MockitoSession mMockitoSession;
 
     private final int mDeviceType;
 
@@ -80,6 +85,13 @@ public class WiredHeadsetManagerTest extends TelecomTestCase {
     @Before
     public void setUp() throws Exception {
         super.setUp();
+        mMockitoSession = ExtendedMockito.mockitoSession()
+                .strictness(Strictness.LENIENT)
+                .mockStatic(com.android.internal.telecom.flags.Flags.class)
+                .startMocking();
+        ExtendedMockito.when(com.android.internal.telecom.flags.Flags.callAudioRouteRf())
+                .thenReturn(false);
+
         when(mMockContext.getSystemService(Context.AUDIO_SERVICE)).thenReturn(mMockAudioManager);
 
         // Capture the callback to simulate device connection/disconnection
@@ -93,6 +105,15 @@ public class WiredHeadsetManagerTest extends TelecomTestCase {
         mWiredHeadsetManager = new WiredHeadsetManager(mMockContext);
         mAudioDeviceCallback = callbackCaptor.getValue();
         mWiredHeadsetManager.addListener(mMockListener);
+    }
+
+    @Override
+    @After
+    public void tearDown() throws Exception {
+        if (mMockitoSession != null) {
+            mMockitoSession.finishMocking();
+        }
+        super.tearDown();
     }
 
     @SmallTest

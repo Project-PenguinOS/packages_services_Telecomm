@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 The Android Open Source Project
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+-->
+
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <!-- missing voicemail number -->
+    <!-- Title of the "Missing voicemail number" dialog -->
+    <!-- [BACKUP_MESSAGE_ID: 2179959110602180844] -->
+    <string name="no_vm_number">Missing voicemail number</string>
+    <!-- Body text of the "Missing voicemail number" dialog -->
+    <!-- [BACKUP_MESSAGE_ID: 1339245731058529388] -->
+    <string name="no_vm_number_msg">No voicemail number is stored on the SIM card.</string>
+    <!-- Button label on the "Missing voicemail number" dialog -->
+    <!-- [BACKUP_MESSAGE_ID: 5179510133063168998] -->
+    <string name="add_vm_number_str">Add number</string>
+    <!-- Body of dialog to confirm unblocking a number. -->
+    <!-- [BACKUP_MESSAGE_ID: 2723393535797217261] -->
+    <string name="unblock_dialog_body">Unblock <xliff:g id="number_to_block">%1$s</xliff:g>?</string>
+    <!-- Button to unblock a number. -->
+    <!-- [BACKUP_MESSAGE_ID: 8732021675729981781] -->
+    <string name="unblock_button">Unblock</string>
+    <!-- Body of dialog to block a number.  -->
+    <!-- [BACKUP_MESSAGE_ID: 8599974422407139255] -->
+    <string name="add_blocked_dialog_body">Block calls and texts from</string>
+    <!-- Button to block a number. -->
+    <!-- [BACKUP_MESSAGE_ID: 485080149164258770] -->
+    <string name="block_button">Block</string>
+    <!-- String shown to users unable to manage blocked numbers because they are not owners of the
+        device. -->
+    <!-- [BACKUP_MESSAGE_ID: 315564589279622098] -->
+    <string name="non_primary_user">Only the device owner can view and manage blocked numbers.</string>
+    <!-- Message to show when a number is blocked. -->
+    <!-- [BACKUP_MESSAGE_ID: 4314736791180919167] -->
+    <string name="blocked_numbers_number_blocked_message"><xliff:g id="blocked_number">%1$s</xliff:g> blocked</string>
+    <!-- Message to show when a number is unblocked. -->
+    <!-- [BACKUP_MESSAGE_ID: 2933071624674945601] -->
+    <string name="blocked_numbers_number_unblocked_message"><xliff:g id="unblocked_number">%1$s</xliff:g> unblocked</string>
+    <!-- Message to show when a number cannot be blocked because it is associated with emergency services.. -->
+    <!-- [BACKUP_MESSAGE_ID: 4198550501500893890] -->
+    <string name="blocked_numbers_block_emergency_number_message">Unable to block emergency number.</string>
+    <!-- Message to show when a number is already blocked. -->
+    <!-- [BACKUP_MESSAGE_ID: 2301270825735665458] -->
+    <string name="blocked_numbers_number_already_blocked_message"><xliff:g id="blocked_number">%1$s</xliff:g> is already blocked.</string>
+    <!-- Alert dialog content used to inform the user that placing a new outgoing call will end the
+     ongoing call in the app "other_app". -->
+    <!-- [BACKUP_MESSAGE_ID: 5319895109298927431] -->
+    <string name="alert_outgoing_call">Placing this call will end your <xliff:g id="other_app">%1$s</xliff:g> call.</string>
+    <!-- Alert dialog content used to tell the user the call is canceled because no response from the call redirection app "other_app". -->
+    <!-- [BACKUP_MESSAGE_ID: 5568101425637373060] -->
+    <string name="alert_redirect_outgoing_call_timeout">Call can\'t be placed by <xliff:g id="other_app">%1$s</xliff:g>. Try using a different call redirecting app or contacting the developer for help.</string>
+    <!-- Title of the dialog "phone_strings_emergency_call_made_dialog_text_txt". -->
+    <!-- [BACKUP_MESSAGE_ID: 6629412508584507377] -->
+    <string name="phone_strings_emergency_call_made_dialog_title_txt">Emergency call made</string>
+</resources>

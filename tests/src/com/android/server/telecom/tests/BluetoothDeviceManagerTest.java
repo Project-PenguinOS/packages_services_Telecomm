@@ -51,6 +51,7 @@ import android.util.Pair;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.server.telecom.AudioRoute;
 import com.android.server.telecom.CallAudioRouteController;
 import com.android.server.telecom.PendingAudioRoute;
@@ -65,6 +66,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.MockitoSession;
+import org.mockito.quality.Strictness;
 
 import static org.mockito.Mockito.reset;
 import java.util.ArrayList;
@@ -93,6 +96,7 @@ public class BluetoothDeviceManagerTest extends TelecomTestCase {
     BluetoothProfile.ServiceListener serviceListenerUnderTest;
     BluetoothStateReceiver receiverUnderTest;
     ArgumentCaptor<BluetoothLeAudio.Callback> leAudioCallbacksTest;
+    private MockitoSession mMockitoSession;
 
     private BluetoothDevice device1;
     private BluetoothDevice device2;
@@ -105,6 +109,13 @@ public class BluetoothDeviceManagerTest extends TelecomTestCase {
     @Before
     public void setUp() throws Exception {
         super.setUp();
+        mMockitoSession = ExtendedMockito.mockitoSession()
+                .strictness(Strictness.LENIENT)
+                .mockStatic(com.android.internal.telecom.flags.Flags.class)
+                .startMocking();
+        ExtendedMockito.when(com.android.internal.telecom.flags.Flags.callAudioRouteRf())
+                .thenReturn(false);
+
         device1 = makeBluetoothDevice("00:00:00:00:00:01");
         // hearing aid
         device2 = makeBluetoothDevice("00:00:00:00:00:02");
@@ -151,6 +162,9 @@ public class BluetoothDeviceManagerTest extends TelecomTestCase {
     @Override
     @After
     public void tearDown() throws Exception {
+        if (mMockitoSession != null) {
+            mMockitoSession.finishMocking();
+        }
         super.tearDown();
     }
 

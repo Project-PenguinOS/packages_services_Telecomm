@@ -1698,6 +1698,28 @@ public class CallTest extends TelecomTestCase {
 
     @Test
     @SmallTest
+    @EnableFlags(Flags.FLAG_DISCONNECT_VOIP_ON_HOLD_FAIL)
+    public void testTransactionalHoldTimeoutCompletesSuccessfully() throws Exception {
+        Call call = spy(createCall("1"));
+        call.setState(CallState.ACTIVE, "1");
+        call.setTransactionServiceWrapper(mMockTransactionalService);
+
+        CompletableFuture<Boolean> holdResult = CompletableFuture.completedFuture(false);
+        CompletableFuture<Boolean> disconnectResult = CompletableFuture.completedFuture(true);
+        when(mMockTransactionalService.onSetInactive(call)).thenReturn(holdResult);
+        when(mMockTransactionalService.onDisconnect(eq(call), any(DisconnectCause.class)))
+                .thenReturn(disconnectResult);
+
+        CompletableFuture<Boolean> testFuture = call.hold("test");
+        holdResult.complete(false);
+
+        assertTrue(testFuture.get(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS));
+        assertTrue(call.isLocallyDisconnecting());
+        assertEquals(DisconnectCause.ERROR, call.getOverrideDisconnectCauseCode().getCode());
+    }
+
+    @Test
+    @SmallTest
     public void testPutExtras() {
         // This specific test is mainly to encompass missing coverage for this Call#putExtras
         Call call = spy(createCall("1"));

@@ -159,6 +159,11 @@ public class CallAudioManager extends CallsManagerListenerBase {
         Log.i(this, "onCallStateChanged: Call state changed for TC@%s: %s -> %s", call.getId(),
                 CallState.toString(oldState), CallState.toString(newState));
 
+        if (oldState == CallState.NEW && newState != CallState.NEW) {
+            mCallAudioRouteAdapter.sendMessageWithSessionInfo(
+                    CallAudioRouteController.ON_CALL_ADDED);
+        }
+
         removeCallFromAllBins(call);
         HashSet<Call> newBinForCall = getBinForCall(call);
         if (newBinForCall != null) {
@@ -243,6 +248,10 @@ public class CallAudioManager extends CallsManagerListenerBase {
         }
         updateForegroundCall();
         mCalls.add(call);
+        if (call.getState() != CallState.NEW) {
+            mCallAudioRouteAdapter.sendMessageWithSessionInfo(
+                    CallAudioRouteController.ON_CALL_ADDED);
+        }
         sendCallStatusToBluetoothStateReceiver();
 
         onCallEnteringState(call, call.getState());
@@ -260,6 +269,8 @@ public class CallAudioManager extends CallsManagerListenerBase {
 
         updateForegroundCall();
         mCalls.remove(call);
+        mCallAudioRouteAdapter.sendMessageWithSessionInfo(
+                CallAudioRouteController.ON_CALL_REMOVED);
         sendCallStatusToBluetoothStateReceiver();
 
         onCallLeavingState(call, call.getState());
@@ -467,6 +478,9 @@ public class CallAudioManager extends CallsManagerListenerBase {
             return;
         }
 
+        mCallAudioRouteAdapter.sendMessageWithSessionInfo(
+                CallAudioRouteController.VIDEO_STATE_CHANGED, newVideoState);
+
         if (!VideoProfile.isVideo(previousVideoState) &&
                 mCallsManager.isSpeakerphoneAutoEnabledForVideoCalls(newVideoState)) {
             Log.d(LOG_TAG, "Switching to speaker because call %s transitioned video state from %s" +
@@ -475,6 +489,12 @@ public class CallAudioManager extends CallsManagerListenerBase {
             mCallAudioRouteAdapter.sendMessageWithSessionInfo(
                     CallAudioRouteController.SWITCH_SPEAKER);
         }
+    }
+
+    @VisibleForTesting
+    public void setAudioMode(int mode) {
+        mCallAudioRouteAdapter.sendMessageWithSessionInfo(
+                CallAudioRouteController.SET_AUDIO_MODE, mode);
     }
 
     public CallAudioState getCallAudioState() {
@@ -595,6 +615,7 @@ public class CallAudioManager extends CallsManagerListenerBase {
                 call.silence();
                 mSilencedCalls.add(call);
                 if (getCrsAudioController() != null
+                        && getCrsAudioController().isCrsInCallMode(call)
                         && getCrsAudioController().shouldControlCrsWithParameters()) {
                     // Send speech mute in case user explicitly mute the ring
                     getCrsAudioController().setCrsSpeechMuted(true);

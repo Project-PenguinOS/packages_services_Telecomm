@@ -590,7 +590,10 @@ public class BluetoothDeviceManager {
             Log.i(this, "setCommunicationDeviceForAddress: Device %s already active.", address);
             return true;
         }
-        boolean success = mAudioManager.setCommunicationDevice(deviceInfo);
+        boolean success = true;
+        if (!com.android.internal.telecom.flags.Flags.callAudioRouteRf()) {
+            success = mAudioManager.setCommunicationDevice(deviceInfo);
+        }
         Log.i(this, "setCommunicationDeviceForAddress: "
                 + "AudioManager#setCommunicationDevice(%s)=%b", deviceInfo, success);
         return success;

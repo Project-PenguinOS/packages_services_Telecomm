@@ -849,6 +849,9 @@ public class CallsManager extends Call.ListenerBase
                 featureFlags), playerFactory, mRinger, new RingbackPlayer(playerFactory),
                 bluetoothStateReceiver, mDtmfLocalTonePlayer, featureFlags,
                 mCallConnectedIndicatorSettings);
+        if (mCrsAudioController != null) {
+            mCrsAudioController.setCallAudioManager(mCallAudioManager);
+        }
 
         mConnectionSvrFocusMgr = connectionServiceFocusManagerFactory.create(mRequester);
         mHeadsetMediaButton = headsetMediaButtonFactory.create(context, this, mLock);
@@ -906,6 +909,7 @@ public class CallsManager extends Call.ListenerBase
         mListeners.add(mCallStreamingNotification);
         mListeners.add(mCallAudioWatchDog);
         mListeners.add(mVoipCallMonitor);
+        mListeners.add((CallAudioRouteController) mCallAudioRouteAdapter);
 
         // Note this needs to be after mCallAudioManager so that the audio mode changes as needed
         // before we try to bind.
@@ -2890,6 +2894,10 @@ public class CallsManager extends Call.ListenerBase
                             // This is the state where the user is expected to select an account
                             callToPlace.setState(CallState.SELECT_PHONE_ACCOUNT,
                                     "needs account selection");
+                            // Clean up any existing calls that are also currently in
+                            // SELECT_PHONE_ACCOUNT stage to prevent potential build up of stuck
+                            // calls in this stage.
+                            cleanupCallsInSelectPhoneAccount(callToPlace);
                             // Create our own instance to modify (since extras may be Bundle.EMPTY)
                             Bundle newExtras = new Bundle(extras);
                             ArrayList<PhoneAccountHandle> accountsFromSuggestions =
@@ -2906,8 +2914,23 @@ public class CallsManager extends Call.ListenerBase
                                     android.telecom.Call.EXTRA_SUGGESTED_PHONE_ACCOUNTS,
                                     accountSuggestionArrayList);
                             // Set a future in place so that we can proceed once the dialer replies.
+                            CompletableFuture<Pair<Call, PhoneAccountHandle>>
+                                    pendingAccountSelectionFuture = new CompletableFuture<>();
+                            // Set a timeout of 120s (default) and if there's no response, complete
+                            // the future so that this doesn't get indefinitely stuck and keep other
+                            // call dependencies in a limbo state.
+                            long selectionTimeout = mTimeoutsAdapter
+                                    .getNonVoipCallIntermediateStateTimeoutMillis();
+                            if (com.android.internal.telecom.flags.Flags
+                                    .cleanupCallsInSelectAccount()) {
+                                pendingAccountSelectionFuture =
+                                        new CompletableFuture<Pair<Call, PhoneAccountHandle>>()
+                                                .completeOnTimeout(new Pair<>(null, null),
+                                                        selectionTimeout, TimeUnit.MILLISECONDS);
+                            }
+
                             mPendingAccountSelection.put(callToPlace.getId(),
-                                    new CompletableFuture<>());
+                                    pendingAccountSelectionFuture);
                             callToPlace.setIntentExtras(newExtras);
 
                             addCall(callToPlace);
@@ -7838,6 +7861,18 @@ public class CallsManager extends Call.ListenerBase
         } catch (InterruptedException e) {
             Log.w(this, e.toString());
         }
+    }
+
+    private void cleanupCallsInSelectPhoneAccount(Call excludeCall) {
+        if (!com.android.internal.telecom.flags.Flags.cleanupCallsInSelectAccount()) {
+            return;
+        }
+        Stream<Call> calls = getCallsWithState(CALL_FILTER_ALL, excludeCall,
+                CallState.SELECT_PHONE_ACCOUNT);
+        calls.forEach((call) -> {
+            call.disconnect("Disconnecting call in SELECT_PHONE_ACCOUNT due to new call "
+                    + "currently in the same state.");
+        });
     }
 
     @VisibleForTesting

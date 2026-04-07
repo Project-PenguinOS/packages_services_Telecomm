@@ -110,6 +110,7 @@
     <string name="send_to_voicemail" msgid="7535268790380893835">"ส่งไปยังข้อความเสียง"</string>
     <string name="notification_send_to_voicemail_unknown_details" msgid="2376840328981503932">"ส่งผู้โทรที่ไม่รู้จักไปยัง <xliff:g id="APP_NAME">%1$s</xliff:g> เพื่อรับฝากข้อความ"</string>
     <string name="alert_outgoing_call" msgid="5319895109298927431">"การโทรออกนี้จะวางสายใน <xliff:g id="OTHER_APP">%1$s</xliff:g>"</string>
+    <string name="alert_outgoing_call_null_app_name" msgid="7017268474293036850">"การโทรออกนี้จะเป็นการวางสายที่สนทนาอยู่"</string>
     <string name="alert_redirect_outgoing_call_or_not" msgid="665409645789521636">"เลือกวิธีโทรออก"</string>
     <string name="alert_place_outgoing_call_with_redirection" msgid="5221065030959024121">"โอนสายโดยใช้ <xliff:g id="OTHER_APP">%1$s</xliff:g>"</string>
     <string name="alert_place_unredirect_outgoing_call" msgid="2467608535225764006">"โทรออกโดยใช้หมายเลขโทรศัพท์ของฉัน"</string>

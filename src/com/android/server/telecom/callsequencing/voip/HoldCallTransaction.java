@@ -45,6 +45,7 @@ public class HoldCallTransaction extends CallTransaction {
         CompletableFuture<CallTransactionResult> future = new CompletableFuture<>();
 
         if (mCallsManager.canHold(mCall)) {
+            mCall.setIsHeldDueToNewCall(false);
             mCallsManager.markCallAsOnHold(mCall);
             future.complete(new CallTransactionResult(
                     CallTransactionResult.RESULT_SUCCEED, null));
