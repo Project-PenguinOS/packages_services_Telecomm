@@ -732,6 +732,23 @@ public class ConnectionServiceWrapper extends ServiceBinder implements
                             childCall.setParentAndChildCall(conferenceCall);
                         }
                     }
+
+                    // If this is an RTT conference, explicitly call startRtt() to push the
+                    // new conference RTT pipes down to the connection service.
+                    // When addConferenceCall() is used (IMS conference path),
+                    // setConnectionProperties() fires with PROPERTY_IS_RTT *before*
+                    // mConnectionService is set on the Call object, so the startRtt() call inside
+                    // setConnectionProperties() is silently skipped (mConnectionService==null).
+                    // handleCreateConferenceSuccess() is never called for this path either.
+                    // We must explicitly call startRtt() here, after mConnectionService is set.
+                    if (conferenceCall.isRttCall()) {
+                        Log.i(this, "addConferenceCall: RTT conference detected, starting RTT"
+                                + " for callId=%s", callId);
+                        conferenceCall.createRttStreams();
+                        startRtt(conferenceCall,
+                                conferenceCall.getInCallToCsRttPipeForCs(),
+                                conferenceCall.getCsToInCallRttPipeForCs());
+                    }
                 }
             } catch (Throwable t) {
                 Log.e(ConnectionServiceWrapper.this, t, "");
