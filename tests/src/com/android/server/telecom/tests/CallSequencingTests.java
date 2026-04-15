@@ -741,6 +741,114 @@ public class CallSequencingTests extends TelecomTestCase {
         verify(mNewCall, times(0)).setOverrideDisconnectCauseCode(any(DisconnectCause.class));
     }
 
+    /**
+     * Verifies that when an incoming call arrives on the same PhoneAccount as an active,
+     * unholdable Transactional call, Telecom explicitly disconnects the active call to ensure
+     * focus can be granted to the new call, while ensuring the new call itself is not disconnected.
+     */
+    @Test
+    @SmallTest
+    public void testHoldCallForNewCall_TransactionalSameAccount_Disconnect() {
+        setPhoneAccounts(mNewCall, mActiveCall, true); // Same account
+        setActiveCallFocus(mActiveCall);
+        when(mCallsManager.canHold(mActiveCall)).thenReturn(false);
+        when(mCallsManager.supportsHold(mActiveCall)).thenReturn(false);
+        when(mActiveCall.isTransactionalCall()).thenReturn(true);
+        // Include BOTH calls in the list to verify exclusion logic
+        when(mCallsManager.getCalls()).thenReturn(Arrays.asList(mActiveCall, mNewCall));
+        when(mActiveCall.disconnect(anyString())).thenReturn(
+                CompletableFuture.completedFuture(true));
+        when(mNewCall.disconnect(anyString())).thenReturn(
+                CompletableFuture.completedFuture(true));
+
+        assertTrue(CallSequencingController.arePhoneAccountsSame(mNewCall, mActiveCall));
+        CompletableFuture<Boolean> resultFuture = mController
+                .holdActiveCallForNewCallWithSequencing(mNewCall,
+                        CallsManager.REQUEST_ORIGIN_UNKNOWN);
+
+        // This should now disconnect the active call
+        verify(mActiveCall, timeout(SEQUENCING_TIMEOUT_MS)).disconnect(anyString());
+        // But it should NOT disconnect the new call
+        verify(mNewCall, never()).disconnect(anyString());
+        assertTrue(waitForFutureResult(resultFuture, false));
+    }
+
+    @Test
+    @SmallTest
+    public void testMaybeAddAnsweringCallDropsFg_VoLTE_VoWiFi() {
+        PersistableBundle bundle = new PersistableBundle();
+        bundle.putBoolean(CarrierConfigManager.KEY_SHOW_VOWIFI_DROP_DIALOG_ON_DSDS_BOOL, true);
+        when(mCallsManager.getCarrierConfigForPhoneAccount(any())).thenReturn(bundle);
+
+        when(mCallsManager.isDsdaCallingPossible()).thenReturn(false);
+        when(mActiveCall.wasVolte()).thenReturn(true);
+        when(mNewCall.wasWifi()).thenReturn(true);
+        when(mActiveCall.getTargetPhoneAccountLabel()).thenReturn("ActiveApp");
+        when(mCallsManager.supportsHold(mActiveCall)).thenReturn(true);
+        setPhoneAccounts(mNewCall, mActiveCall, false);
+
+        mController.maybeAddAnsweringCallDropsFg(mActiveCall, mNewCall);
+
+        ArgumentCaptor<Bundle> bundleCaptor = ArgumentCaptor.forClass(Bundle.class);
+        verify(mNewCall).putInternalExtras(bundleCaptor.capture());
+        Bundle resultBundle = bundleCaptor.getValue();
+        assertTrue(resultBundle.getBoolean(Connection.EXTRA_ANSWERING_DROPS_FG_CALL));
+        assertEquals("ActiveApp", resultBundle.getCharSequence(
+                Connection.EXTRA_ANSWERING_DROPS_FG_CALL_APP_NAME));
+    }
+
+    @Test
+    @SmallTest
+    public void testMaybeAddAnsweringCallDropsFg_VoLTE_VoWiFi_ConfigDisabled() {
+        PersistableBundle bundle = new PersistableBundle();
+        bundle.putBoolean(CarrierConfigManager.KEY_SHOW_VOWIFI_DROP_DIALOG_ON_DSDS_BOOL, false);
+        when(mCallsManager.getCarrierConfigForPhoneAccount(any())).thenReturn(bundle);
+
+        when(mCallsManager.isDsdaCallingPossible()).thenReturn(false);
+        when(mActiveCall.wasVolte()).thenReturn(true);
+        when(mNewCall.wasWifi()).thenReturn(true);
+        when(mActiveCall.getTargetPhoneAccountLabel()).thenReturn("ActiveApp");
+        when(mCallsManager.supportsHold(mActiveCall)).thenReturn(true);
+        setPhoneAccounts(mNewCall, mActiveCall, false);
+
+        mController.maybeAddAnsweringCallDropsFg(mActiveCall, mNewCall);
+
+        verify(mNewCall, never()).putInternalExtras(any(Bundle.class));
+    }
+
+    @Test
+    @SmallTest
+    public void testMaybeAddAnsweringCallDropsFg_VoLTE_VoWiFi_Dsda() {
+        PersistableBundle bundle = new PersistableBundle();
+        bundle.putBoolean(CarrierConfigManager.KEY_SHOW_VOWIFI_DROP_DIALOG_ON_DSDS_BOOL, true);
+        when(mCallsManager.getCarrierConfigForPhoneAccount(any())).thenReturn(bundle);
+        when(mCallsManager.isDsdaCallingPossible()).thenReturn(true);
+        when(mActiveCall.wasVolte()).thenReturn(true);
+        when(mNewCall.wasWifi()).thenReturn(true);
+        when(mCallsManager.supportsHold(mActiveCall)).thenReturn(true);
+        when(mActiveCall.getTargetPhoneAccountLabel()).thenReturn("ActiveApp");
+        setPhoneAccounts(mNewCall, mActiveCall, false);
+
+        mController.maybeAddAnsweringCallDropsFg(mActiveCall, mNewCall);
+        verify(mNewCall, never()).putInternalExtras(any(Bundle.class));
+    }
+
+    @Test
+    @SmallTest
+    public void testMaybeAddAnsweringCallDropsFg_NoVoLTE_VoWiFi() {
+        PersistableBundle bundle = new PersistableBundle();
+        bundle.putBoolean(CarrierConfigManager.KEY_SHOW_VOWIFI_DROP_DIALOG_ON_DSDS_BOOL, true);
+        when(mCallsManager.getCarrierConfigForPhoneAccount(any())).thenReturn(bundle);
+        when(mActiveCall.wasVolte()).thenReturn(false);
+        when(mNewCall.wasWifi()).thenReturn(true);
+        setPhoneAccounts(mNewCall, mActiveCall, false);
+        when(mCallsManager.supportsHold(mActiveCall)).thenReturn(true);
+
+        mController.maybeAddAnsweringCallDropsFg(mActiveCall, mNewCall);
+
+        verify(mNewCall, never()).putInternalExtras(any(Bundle.class));
+    }
+
     /* Helpers */
     private void setPhoneAccounts(Call call1, Call call2, boolean useSamePhoneAccount) {
         when(call1.getTargetPhoneAccount()).thenReturn(mHandle1);

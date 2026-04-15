@@ -186,10 +186,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-// QTI_BEGIN: 2018-03-13: Telephony: IMS-VT: Add support for Low battery
-import org.codeaurora.ims.QtiCallConstants;
-// QTI_END: 2018-03-13: Telephony: IMS-VT: Add support for Low battery
-
 /**
  * Singleton.
  *
@@ -1280,11 +1276,6 @@ public class CallsManager extends Call.ListenerBase
                     incomingCall.setMissedReason(AUTO_MISSED_MAXIMUM_DIALING);
                     autoMissCallAndLog(incomingCall, result);
                 }
-// QTI_BEGIN: 2018-03-13: Telephony: IMS-VT: Add support for Low battery
-            } else if (!isIncomingVideoCallAllowed(incomingCall)) {
-                Log.i(this, "onCallFilteringCompleted: MT Video Call rejecting.");
-// QTI_END: 2018-03-13: Telephony: IMS-VT: Add support for Low battery
-                autoMissCallAndLog(incomingCall, result);
             } else if (result.shouldScreenViaAudio) {
                 Log.i(this, "onCallFilteringCompleted: starting background audio processing");
                 // CallScreeningService started the audio processing so set the use case to the same
@@ -1323,33 +1314,6 @@ public class CallsManager extends Call.ListenerBase
         }
     }
 
-// QTI_BEGIN: 2018-03-13: Telephony: IMS-VT: Add support for Low battery
-    /**
-     * Determines if the incoming video call is allowed or not
-     *
-     * @param Call The incoming call.
-     * @return {@code false} if incoming video call is not allowed.
-     */
-    private static boolean isIncomingVideoCallAllowed(Call call) {
-        Bundle extras = call.getExtras();
-        if (extras == null || (!isIncomingVideoCall(call))) {
-            Log.w(TAG, "isIncomingVideoCallAllowed: null Extras or not an incoming video call " +
-                    "or allow video calls in low battery");
-            return true;
-        }
-
-        final boolean isLowBattery = extras.getBoolean(QtiCallConstants.LOW_BATTERY_EXTRA_KEY,
-                false);
-        Log.d(TAG, "isIncomingVideoCallAllowed: lowbattery = " + isLowBattery);
-        return !isLowBattery;
-    }
-
-    private static boolean isIncomingVideoCall(Call call) {
-        return (!VideoProfile.isAudioOnly(call.getVideoState()) &&
-            call.getState() == CallState.RINGING);
-    }
-
-// QTI_END: 2018-03-13: Telephony: IMS-VT: Add support for Low battery
     /**
      * In the event that the maximum supported calls of a given type is reached, the
      * default behavior is to reject any additional calls of that type.  This checks
@@ -5252,6 +5216,23 @@ public class CallsManager extends Call.ListenerBase
         return false;
     }
 
+    /**
+     * @return {@code true} if there are any external calls, {@code false} otherwise.
+     */
+    public boolean hasExternalCalls() {
+        if (mCalls.isEmpty()) {
+            return false;
+        }
+
+        for (Call call : mCalls) {
+            if (call.isExternalCall()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
     boolean hasRingingCall() {
         return getFirstCallWithState(CallState.RINGING, CallState.ANSWERED) != null;
     }
@@ -7915,6 +7896,11 @@ public class CallsManager extends Call.ListenerBase
 
     public boolean isCallLogPrefEnabledForPackage(UserHandle userHandle, String packageName) {
         return mCallLogIntegrationAdapter.isCallLogPrefEnabledForPackage(userHandle, packageName);
+    }
+
+    public void maybeAddAnsweringCallDropsFg(Call incomingCall) {
+        Call activeCall = (Call) mConnectionSvrFocusMgr.getCurrentFocusCall();
+        mCallSequencingAdapter.maybeAddAnsweringCallDropsFg(activeCall, incomingCall);
     }
 
     public LocalVoicemailController getLocalVoicemailController() {

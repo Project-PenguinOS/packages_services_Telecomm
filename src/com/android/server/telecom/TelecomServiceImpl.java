@@ -32,6 +32,7 @@ import static android.telecom.TelecomManager.TELECOM_TRANSACTION_SUCCESS;
 
 import android.Manifest;
 
+import android.app.privatecompute.flags.Flags;
 import android.annotation.SuppressLint;
 import android.app.ActivityManager;
 import android.app.AppOpsManager;
@@ -199,6 +200,18 @@ public class TelecomServiceImpl {
     private TransactionManager mTransactionManager;
     private final PermissionManager mPermissionManager;
     private PackageRemovedReceiver mPackageRemovedReceiver;
+
+    private int getAppUidIfPcc(int uid) {
+        if (mPackageManager != null && Process.isPrivateComputeCoreUid(uid)) {
+            try {
+                return mPackageManager.getAppUidForPrivateComputeCoreUid(uid);
+            } catch (Exception e) {
+                Log.w(TAG, "getAppUidIfPcc: exception for uid " + uid + " : " + e);
+            }
+        }
+        return uid;
+    }
+
     private final ITelecomService.Stub mBinderImpl = new ITelecomService.Stub() {
 
         @Override
@@ -1623,6 +1636,14 @@ public class TelecomServiceImpl {
             return UserHandle.getAppId(uid1) == UserHandle.getAppId(uid2);
         }
 
+        private boolean isSameAppIncludingPccUid(int uid1, int uid2) {
+            if (Flags.enablePccFrameworkSupport()) {
+                uid1 = getAppUidIfPcc(uid1);
+                uid2 = getAppUidIfPcc(uid2);
+            }
+            return isSameApp(uid1, uid2);
+        }
+
         private boolean isSysUiUid() {
             int callingUid = Binder.getCallingUid();
             int systemUiUid;
@@ -1633,7 +1654,7 @@ public class TelecomServiceImpl {
                         systemUiUid = mPackageManager.getPackageUid(mSystemUiPackageName, 0);
                         Log.i(TAG, "isSysUiUid: callingUid = " + callingUid + "; systemUiUid = "
                                 + systemUiUid);
-                        return isSameApp(callingUid, systemUiUid);
+                        return isSameAppIncludingPccUid(callingUid, systemUiUid);
                     } catch (PackageManager.NameNotFoundException e) {
                         Log.w(TAG,
                                 "isSysUiUid: caught PackageManager NameNotFoundException = " + e);
@@ -1668,10 +1689,17 @@ public class TelecomServiceImpl {
                     Log.i(TAG, "endCall: Binder.getCallingUid = [" +
                             Binder.getCallingUid() + "] isCallerPrivileged = " +
                             isCallerPrivileged);
+                    Call callToEnd = getOngoingCall();
+                    // Ensure that the associated user of the call matches with the calling user
+                    // handle. Otherwise, we should verify that the user has the cross user
+                    // permission. If none of the requirements are met, we will exit immediately.
+                    if (!doesAssociatedUserMatchCaller(callToEnd, Binder.getCallingUserHandle())) {
+                        return false;
+                    }
                     long token = Binder.clearCallingIdentity();
                     event.setResult(ApiStats.RESULT_NORMAL);
                     try {
-                        return endCallInternal(callingPackage, isCallerPrivileged);
+                        return endCallInternal(callToEnd, callingPackage, isCallerPrivileged);
                     } finally {
                         Binder.restoreCallingIdentity(token);
                     }
@@ -1695,13 +1723,21 @@ public class TelecomServiceImpl {
                     if (!enforceAnswerCallPermission(packageName, Binder.getCallingUid())) return;
                     // Legacy behavior is to ignore whether the invocation is from a system app:
                     boolean isCallerPrivileged = isPrivilegedUid() || isSysUiUid();
+                    Call call = mCallsManager.getFirstCallWithState(CallState.RINGING,
+                            CallState.SIMULATED_RINGING);
+                    // Ensure that the associated user of the call matches with the calling user
+                    // handle. Otherwise, we should verify that the user has the cross user
+                    // permission. If none of the requirements are met, we will exit immediately.
+                    if (!doesAssociatedUserMatchCaller(call, Binder.getCallingUserHandle())) {
+                        return;
+                    }
                     Log.i(TAG, "acceptRingingCall: Binder.getCallingUid = [" +
                             Binder.getCallingUid() + "] isCallerPrivileged = " +
                             isCallerPrivileged);
                     long token = Binder.clearCallingIdentity();
                     event.setResult(ApiStats.RESULT_NORMAL);
                     try {
-                        acceptRingingCallInternal(DEFAULT_VIDEO_STATE, packageName,
+                        acceptRingingCallInternal(call, DEFAULT_VIDEO_STATE, packageName,
                                 isCallerPrivileged);
                     } finally {
                         Binder.restoreCallingIdentity(token);
@@ -1727,13 +1763,22 @@ public class TelecomServiceImpl {
                     if (!enforceAnswerCallPermission(packageName, Binder.getCallingUid())) return;
                     // Legacy behavior is to ignore whether the invocation is from a system app:
                     boolean isCallerPrivileged = isPrivilegedUid() || isSysUiUid();
+                    Call call = mCallsManager.getFirstCallWithState(CallState.RINGING,
+                            CallState.SIMULATED_RINGING);
+                    // Ensure that the associated user of the call matches with the calling user
+                    // handle. Otherwise, we should verify that the user has the cross user
+                    // permission. If none of the requirements are met, we will exit immediately.
+                    if (!doesAssociatedUserMatchCaller(call, Binder.getCallingUserHandle())) {
+                        return;
+                    }
                     Log.i(TAG, "acceptRingingCallWithVideoState: Binder.getCallingUid = "
                             + "[" + Binder.getCallingUid() + "] isCallerPrivileged = " +
                             isCallerPrivileged);
                     long token = Binder.clearCallingIdentity();
                     event.setResult(ApiStats.RESULT_NORMAL);
                     try {
-                        acceptRingingCallInternal(videoState, packageName, isCallerPrivileged);
+                        acceptRingingCallInternal(call, videoState, packageName,
+                                isCallerPrivileged);
                     } finally {
                         Binder.restoreCallingIdentity(token);
                     }
@@ -3613,10 +3658,8 @@ public class TelecomServiceImpl {
         return false;
     }
 
-    private void acceptRingingCallInternal(int videoState, String packageName,
+    private void acceptRingingCallInternal(Call call, int videoState, String packageName,
             boolean isCallerPrivileged) {
-        Call call = mCallsManager.getFirstCallWithState(CallState.RINGING,
-                CallState.SIMULATED_RINGING);
         if (call != null) {
             if (call.isSelfManaged() && !isCallerPrivileged) {
                 Log.addEvent(call, LogUtils.Events.REQUEST_ACCEPT,
@@ -3635,7 +3678,7 @@ public class TelecomServiceImpl {
     // Supporting methods for the ITelecomService interface implementation.
     //
 
-    private boolean endCallInternal(String callingPackage, boolean isCallerPrivileged) {
+    private Call getOngoingCall() {
         // Always operate on the foreground call if one exists, otherwise get the first call in
         // priority order by call-state.
         Call call = mCallsManager.getForegroundCall();
@@ -3648,7 +3691,10 @@ public class TelecomServiceImpl {
                     CallState.SIMULATED_RINGING,
                     CallState.ON_HOLD);
         }
+        return call;
+    }
 
+    private boolean endCallInternal(Call call, String callingPackage, boolean isCallerPrivileged) {
         if (call != null) {
             if (call.isEmergencyCall()) {
                 android.util.EventLog.writeEvent(0x534e4554, "132438333", -1, "");
@@ -3785,13 +3831,16 @@ public class TelecomServiceImpl {
             Binder.restoreCallingIdentity(token);
         }
 
-        if (packageUid != callingUid) {
+        int definingAppUid = Flags.enablePccFrameworkSupport() ?
+                getAppUidIfPcc(callingUid) : callingUid;
+
+        if (packageUid != definingAppUid) {
             Log.i(this, "callingUidMatchesPackageManagerRecords: uid mismatch found for"
                     + "packageName=[%s]. packageManager reports packageUid=[%d] but "
                     + "binder reports callingUid=[%d]", packageName, packageUid, callingUid);
         }
 
-        return packageUid == callingUid;
+        return packageUid == definingAppUid;
     }
 
     /**
@@ -3900,6 +3949,13 @@ public class TelecomServiceImpl {
             // phone account's user handle
             enforceInAppCrossUserPermission();
         }
+    }
+
+    private boolean doesAssociatedUserMatchCaller(Call call, UserHandle callingUser) {
+        if (call != null && !Objects.equals(callingUser, call.getAssociatedUser())) {
+            return hasInAppCrossUserPermission();
+        }
+        return true;
     }
 
     private void enforcePhoneAccountHandleMatchesCaller(PhoneAccountHandle phoneAccountHandle,

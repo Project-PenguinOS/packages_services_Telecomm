@@ -17,9 +17,11 @@
 package com.android.server.telecom.tests;
 
 import static android.telephony.TelephonyManager.EVENT_DISPLAY_EMERGENCY_MESSAGE;
+import static android.telecom.Call.STATE_NEW;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -59,6 +61,7 @@ import android.os.UserHandle;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.telecom.BluetoothCallQualityReport;
+import android.telecom.Call.Details;
 import android.telecom.CallAttributes;
 import android.telecom.CallEndpoint;
 import android.telecom.Connection;
@@ -2340,6 +2343,37 @@ public class CallTest extends TelecomTestCase {
 
     private Call createCall(String id, int callDirection) {
         return createCall(id, callDirection, TEST_ADDRESS);
+    }
+
+    @Test
+    @SmallTest
+    public void testDetailsEquals_withIntents() {
+        Bundle extras1 = new Bundle();
+        Intent intent1 = new Intent("action");
+        intent1.putExtra("extra_key", "extra_value");
+        extras1.putParcelable("intent_key", intent1);
+
+        Bundle extras2 = new Bundle();
+        Intent intent2 = new Intent("action");
+        intent2.putExtra("extra_key", "different_value"); // filterEquals ignores extras
+        extras2.putParcelable("intent_key", intent2);
+
+        Bundle extras3 = new Bundle();
+        Intent intent3 = new Intent("different_action");
+        extras3.putParcelable("intent_key", intent3);
+
+        Details details1 = new Details(STATE_NEW, "1", Uri.parse("tel:123"), 0, "name",
+                0, null, 0, 0, null, 0, null, 0, null, extras1,
+                null, 0, null, 0, 0, null, null);
+        Details details2 = new Details(STATE_NEW, "1", Uri.parse("tel:123"), 0, "name",
+                0, null, 0, 0, null, 0, null, 0, null, extras2,
+                null, 0, null, 0, 0, null, null);
+        Details details3 = new Details(STATE_NEW, "1", Uri.parse("tel:123"), 0, "name",
+                0, null, 0, 0, null, 0, null, 0, null, extras3,
+                null, 0, null, 0, 0, null, null);
+
+        assertEquals(details1, details2);
+        assertNotEquals(details1, details3);
     }
 
     @Test
