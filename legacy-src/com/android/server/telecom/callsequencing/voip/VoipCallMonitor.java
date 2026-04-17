@@ -117,13 +117,24 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
     @Override
     public void onCallAdded(Call call) {
         PhoneAccountHandle handle = getTargetPhoneAccount(call);
-        if (!isTransactional(call) || handle == null) {
+        if (handle == null) {
             return;
         }
+
         int callingPid = getCallingPackagePid(call);
         int callingUid = getCallingPackageUid(call);
-        if (Flags.voipBackgroundActivityLaunchFix()) {
+        if (Flags.voipBackgroundActivityLaunchFix()
+                && (isTransactional(call)
+                || (com.android.internal.telecom.flags.Flags.connectionServiceBal()
+                && call.isSelfManaged()))) {
+            // Both SM and transactional calls use a voipapp listener because both need the BAL
+            // workaround.
             call.addInCallServiceToVoipAppListener(mInCallServiceActionListenerImpl);
+        }
+
+        // However, the rest only applies to transactional calls.
+        if (!isTransactional(call)) {
+            return;
         }
         Set<Call> ongoingCalls = mAccountHandleToCallMap
                 .computeIfAbsent(handle, k -> new HashSet<>());
@@ -295,19 +306,29 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
             @Override
             public void onServiceConnected(ComponentName name, IBinder service) {
                 synchronized (mSyncRoot) {
-                    Log.i(TAG, "bindToAppsConnectionServiceForBackgroundActivityStart: "
-                            + "onServiceConnected: [%s]", name);
-                    outcomeReceiver.onResult(VoipCallMonitor.this);
+                    Log.startSession("VCMSC.oSC", Log.getPackageAbbreviation(name));
+                    try {
+                        Log.i(TAG, "bindToAppsConnectionServiceForBackgroundActivityStart: "
+                                + "onServiceConnected: [%s]", name);
+                        outcomeReceiver.onResult(VoipCallMonitor.this);
+                    } finally {
+                        Log.endSession();
+                    }
                 }
             }
 
             @Override
             public void onServiceDisconnected(ComponentName name) {
                 synchronized (mSyncRoot) {
-                    Log.i(TAG, "bindToAppsConnectionServiceForBackgroundActivityStart: "
-                            + "onServiceDisconnected: [%s]", name);
-                    outcomeReceiver.onResult(VoipCallMonitor.this);
-                    mBoundAppsForActivityLaunch.remove(phoneAccountHandle);
+                    Log.startSession("VCMSC.oSD", Log.getPackageAbbreviation(name));
+                    try {
+                        Log.i(TAG, "bindToAppsConnectionServiceForBackgroundActivityStart: "
+                                + "onServiceDisconnected: [%s]", name);
+                        outcomeReceiver.onResult(VoipCallMonitor.this);
+                        mBoundAppsForActivityLaunch.remove(phoneAccountHandle);
+                    } finally {
+                        Log.endSession();
+                    }
                 }
             }
         };
@@ -329,6 +350,8 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
             }
             return; // Failed to bind, nothing to clean up
         }
+        Log.i(this, "bindToAppsConnectionServiceForBackgroundActivityStart: bind to %s",
+                phoneAccountHandle);
 
         // Track that we are bound
         mBoundAppsForActivityLaunch.add(phoneAccountHandle);
@@ -558,6 +581,10 @@ public class VoipCallMonitor extends CallsManagerListenerBase {
         PhoneAccountHandle phoneAccountHandle = call.getTargetPhoneAccount();
         Intent intent = new Intent(ConnectionService.SERVICE_INTERFACE);
         intent.setPackage(phoneAccountHandle.getComponentName().getPackageName());
+        // Needed so that when we do the unbind, we know not to disconnect all the connections
+        // related to this ConnectionService; important for self-managed where we are binding twice
+        // to grant the BAL.
+        intent.putExtra(ConnectionService.EXTRA_IS_BAL_BINDING, true);
         return intent;
     }
 
