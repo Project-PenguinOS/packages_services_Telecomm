@@ -121,6 +121,7 @@
 
         <activity android:name=".components.UserCallActivity"
             android:theme="@style/Theme.Telecomm.Transparent"
+            android:permission="android.permission.CALL_PHONE"
             android:exported="true">
             <intent-filter>
                 <action android:name="com.android.internal.telecom.action.CALL_TRAMPOLINE"/>
