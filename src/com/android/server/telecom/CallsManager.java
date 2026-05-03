@@ -3682,7 +3682,8 @@ public class CallsManager extends Call.ListenerBase
      */
     private void showRedirectionDialog(@NonNull String callId, @NonNull CharSequence appName) {
         AlertDialog confirmDialog = (new AlertDialog.Builder(mContext)).create();
-        LayoutInflater layoutInflater = mContext.getSystemService(LayoutInflater.class);
+        LayoutInflater layoutInflater = LayoutInflater.from(TelecomResourceId
+                .getTelecomContext(mContext));
         View dialogView = layoutInflater.inflate(TelecomResourceId.getIdentifier(mContext,
                 "call_redirection_confirm_dialog", "layout"), null);
 
@@ -3705,9 +3706,8 @@ public class CallsManager extends Call.ListenerBase
         Button buttonSecondLine = (Button)
                 dialogView.findViewById(TelecomResourceId.getIdentifier(mContext,
                         "buttonSecondLine", "id"));
-        buttonSecondLine.setText(mContext.getString(
-                TelecomResourceId.getIdentifier(mContext,
-                        "alert_place_outgoing_call_with_redirection", "string"), appName));
+        buttonSecondLine.setText(TelecomResourceId.getString(mContext,
+                "alert_place_outgoing_call_with_redirection", appName));
         buttonSecondLine.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {

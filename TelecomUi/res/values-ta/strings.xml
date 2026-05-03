@@ -21,7 +21,7 @@
     <string name="add_vm_number_str" msgid="7980945268907340849">"எண்ணைச் சேர்"</string>
     <string name="unblock_dialog_body" msgid="6409669116679064706">"<xliff:g id="NUMBER_TO_BLOCK">%1$s</xliff:g> தடையை நீக்கவா?"</string>
     <string name="unblock_button" msgid="2085988753097438725">"தடையை நீக்கு"</string>
-    <string name="add_blocked_dialog_body" msgid="3646939382577972663">"இந்த எண்ணிலிருந்து வரும் அழைப்புகளையும் உரைச்செய்திகளையும் தடு:"</string>
+    <string name="add_blocked_dialog_body" msgid="3646939382577972663">"இந்த எண்ணிலிருந்து வரும் அழைப்புகளையும் மெசேஜ்களையும் தடு:"</string>
     <string name="block_button" msgid="2455086271060345610">"தடு"</string>
     <string name="non_primary_user" msgid="2435380778851874271">"சாதன உரிமையாளர் மட்டுமே தடுக்கப்பட்ட எண்களைப் பார்க்கவும் நிர்வகிக்கவும் முடியும்."</string>
     <string name="blocked_numbers_number_blocked_message" msgid="3020928355060753128">"<xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g> தடுக்கப்பட்டது"</string>

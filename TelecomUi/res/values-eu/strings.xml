@@ -23,7 +23,7 @@
     <string name="unblock_button" msgid="2085988753097438725">"Desblokeatu"</string>
     <string name="add_blocked_dialog_body" msgid="3646939382577972663">"Blokeatu zenbaki honetatik jasotzen diren deiak eta testu-mezuak:"</string>
     <string name="block_button" msgid="2455086271060345610">"Blokeatu"</string>
-    <string name="non_primary_user" msgid="2435380778851874271">"Gailuaren jabeak soilik ikus eta kudea ditzake blokeatutako zenbakiak."</string>
+    <string name="non_primary_user" msgid="2435380778851874271">"Gailuaren jabeak soilik ikusi eta kudea ditzake blokeatutako zenbakiak."</string>
     <string name="blocked_numbers_number_blocked_message" msgid="3020928355060753128">"Blokeatu da <xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g>"</string>
     <string name="blocked_numbers_number_unblocked_message" msgid="3112599598762744796">"Desblokeatu da <xliff:g id="UNBLOCKED_NUMBER">%1$s</xliff:g>"</string>
     <string name="blocked_numbers_block_emergency_number_message" msgid="7109238580553660467">"Ezin da blokeatu larrialdietarako zenbakia."</string>

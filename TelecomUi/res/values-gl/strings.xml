@@ -24,7 +24,7 @@
     <string name="add_blocked_dialog_body" msgid="3646939382577972663">"Bloquear chamadas e mensaxes do"</string>
     <string name="block_button" msgid="2455086271060345610">"Bloquear"</string>
     <string name="non_primary_user" msgid="2435380778851874271">"Só o propietario do dispositivo pode ver e xestionar os números bloqueados."</string>
-    <string name="blocked_numbers_number_blocked_message" msgid="3020928355060753128">"Bloqueouse a <xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g>"</string>
+    <string name="blocked_numbers_number_blocked_message" msgid="3020928355060753128">"<xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g> bloqueado"</string>
     <string name="blocked_numbers_number_unblocked_message" msgid="3112599598762744796">"<xliff:g id="UNBLOCKED_NUMBER">%1$s</xliff:g> desbloqueado"</string>
     <string name="blocked_numbers_block_emergency_number_message" msgid="7109238580553660467">"Non se pode bloquear o número de emerxencia."</string>
     <string name="blocked_numbers_number_already_blocked_message" msgid="5999222621606917984">"O <xliff:g id="BLOCKED_NUMBER">%1$s</xliff:g> xa está bloqueado."</string>
