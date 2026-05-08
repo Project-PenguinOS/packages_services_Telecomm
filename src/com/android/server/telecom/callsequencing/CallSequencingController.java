@@ -12,6 +12,10 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 package com.android.server.telecom.callsequencing;
@@ -276,43 +280,81 @@ public class CallSequencingController {
         Log.i(this, "holdActiveCallForNewCallWithSequencing, newCall: %s, "
                         + "activeCall: %s", call.getId(),
                 (activeCall == null ? "<none>" : activeCall.getId()));
+        boolean isActiveCallHfp = mCallsManager.isCallHfp(activeCall);
         if (activeCall != null && activeCall != call) {
-            if (mCallsManager.isHfpCallPresent()) {
-                Call heldCall = mCallsManager.getFirstCallWithState(CallState.ON_HOLD);
-                CompletableFuture<Boolean> disconnectFutureHfp;
-                if (heldCall != null) {
-                    boolean heldCallIsHfp = mCallsManager.isCallHfp(heldCall);
-                    if (mCallsManager.supportsHold(activeCall)) {
-                        Log.i(this, "holdActiveCallForNewCall: hold active call");
-                        // We don't wamt to use futures if the held call is HFP because
-                        // it won't be disconnected right away and the hold will fail.
-                        if (heldCallIsHfp) {
-                            Log.i(this, "holdActiveCallForNewCall: Held HFP call present.");
-                            heldCall.disconnect();
-                            activeCall.hold();
-                            return CompletableFuture.completedFuture(true);
-                        }
+            // CallSequencingController logic checks if sequencing is required
+            // based on whether the calls are on the same phone account. If
+            // the calls are on different accounts, it assumes sequencing is not
+            // required. However, for HFP calls, even though the same phone account
+            // is used, sequencing is required if disconnecting a call before holding
+            // the active call for ACTIVE + HELD + INCOMING usecases.
+            // Specific handling is also required if the INCOMING call is an HFP call,
+            // as requests to disconnect/hold another HFP call will be ignored.
+            Call heldCall = mCallsManager.getFirstCallWithState(CallState.ON_HOLD);
+            if (call.getState() == CallState.RINGING && heldCall != null) {
+                boolean isHeldCallHfp = mCallsManager.isCallHfp(heldCall);
+                // if either the held call or active call is HFP, do not use CompletableFutures
+                // as the request will be ignored in HeadsetClientStateMachine or sequencing
+                // is required for HFP calls
+                // if other calls are both cellular calls, then use legacy CompletableFuture logic
+                if (isHeldCallHfp || isActiveCallHfp) {
+                    Log.i(this, "holdActiveCallForNewCallWithSequencing" +
+                            " handling hfp call usecases");
+                    // Usecase: ACTIVE cellular call + HELD HFP call + INCOMING HFP call
+                    // Legacy flow is to disconnect the HELD call and hold the ACTIVE call
+                    // This can result in a HELD cellular call + HELD HFP call + ACTIVE HFP call
+                    // To avoid the above issue, disconnect the active cellular call
+                    boolean isIncomingCallHfp = mCallsManager.isCallHfp(call);
+                    if (!isActiveCallHfp && isHeldCallHfp && isIncomingCallHfp) {
+                        Log.d(this,"holdActiveCallForNewCallWithSequencing" +
+                                " disconnect active cellular call");
+                        return activeCall.disconnect();
+                    }
+                    // Usecase: ACTIVE cellular call + HELD HFP call + INCOMING cellular call
+                    // if the active call is a cellular call and does not support HOLD,
+                    // then disconnect the active call.
+                    // HFP calls by default support hold
+                    if (!mCallsManager.supportsHold(activeCall)) {
+                        Log.d(this, "holdActiveCallForNewCallWithSequencing" +
+                                "active call does not support hold");
+                        return activeCall.disconnect();
+                    }
+                    CompletableFuture<Boolean> disconnectFutureHfp = null;
+                    if (!(isHeldCallHfp && isIncomingCallHfp)) {
                         disconnectFutureHfp = heldCall.disconnect();
-                        return disconnectFutureHfp
-                                .thenComposeAsync((result) -> {
-                                    if (result) {
-                                        return activeCall.hold().thenCompose((holdSuccess) -> {
-                                            if (holdSuccess) {
-                                                // Increase hold count only if hold succeeds.
-                                                call.increaseHeldByThisCallCount();
-                                            }
-                                            return CompletableFuture.completedFuture(holdSuccess);
+                    }
+                    // if the active call is HFP and the incoming call is HFP, the hold request is
+                    // ignored at HeadsetClientStateMachine
+                    // if the active call is cellular and the incoming call is cellular,
+                    // the hold request is ignored. As part of ImsPhoneCallTracker#acceptCall
+                    // it will trigger a request to hold the active call for the waiting call
+                    if ((isActiveCallHfp && isIncomingCallHfp) ||
+                            (!isActiveCallHfp && !isIncomingCallHfp)) {
+                        return disconnectFutureHfp != null ?
+                                disconnectFutureHfp : CompletableFuture.completedFuture(true);
+                    } else {
+                        if (disconnectFutureHfp == null) {
+                            return activeCall.hold();
+                        } else {
+                            return disconnectFutureHfp
+                                    .thenComposeAsync((result) -> {
+                                        if (result) {
+                                            return activeCall.hold().thenCompose((holdSuccess) -> {
+                                                if (holdSuccess) {
+                                                    call.increaseHeldByThisCallCount();
+                                                }
+                                                return CompletableFuture.completedFuture(
+                                                        holdSuccess);
                                         });
                                     }
                                     return CompletableFuture.completedFuture(false);
-                                }, new LoggedHandlerExecutor(mHandler,
-                                       "CSC.hACFNCWS", mCallsManager.getLock()));
-                    } else {
-                        Log.i(this, "holdActiveCallForNewCall: disconnect active call");
-                        return activeCall.disconnect();
+                            }, new LoggedHandlerExecutor(mHandler,
+                                "CSC.hACFNCWS", mCallsManager.getLock()));
+                        }
                     }
                 }
             }
+
             boolean isSequencingRequiredActiveAndCall = !arePhoneAccountsSame(call, activeCall);
             if (mCallsManager.canHold(activeCall)) {
                 CompletableFuture<Boolean> holdFuture = activeCall.hold("swap to " + call.getId());
@@ -338,7 +380,6 @@ public class CallSequencingController {
                 // Call C (Incoming) - PA1          Call C (Incoming) - PA2
                 // We should ensure that only operations across phone accounts require sequencing.
                 // Otherwise, we can send the requests up til the focus call state in question.
-                Call heldCall = mCallsManager.getFirstCallWithState(CallState.ON_HOLD);
                 CompletableFuture<Boolean> disconnectFutureHandler = null;
 
                 boolean isSequencingRequiredHeldAndActive = false;
