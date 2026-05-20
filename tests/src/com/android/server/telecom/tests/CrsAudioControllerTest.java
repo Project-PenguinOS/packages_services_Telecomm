@@ -318,10 +318,32 @@ public class CrsAudioControllerTest extends TelecomTestCase {
     @Test
     public void testConfigureCrsAudioVolume_ringtoneMode() {
         RingerAttributes ringerAttributes = new RingerAttributes.Builder().setRingToneType(
-                Call.RINGTONE_SOURCE_NETWORK_RING_MODE).build();
+                Call.RINGTONE_SOURCE_NETWORK_RING_MODE)
+                .setRingerAudible(true)
+                .setShouldRingForContact(true)
+                .build();
         mockStringResource("config_audio_parameter_key_crs_volume", "crs_volume_key");
+        when(mAudioManager.getRingerMode()).thenReturn(AudioManager.RINGER_MODE_NORMAL);
+        when(mAudioManager.getStreamVolume(AudioManager.STREAM_RING)).thenReturn(5);
         mCrsAudioController.configureCrsRingVolume(ringerAttributes);
         verify(mAudioManager, times(1)).getStreamVolume(AudioManager.STREAM_RING);
+        verify(mAudioManager, times(1)).setParameters("crs_volume_key5");
+    }
+
+    @Test
+    public void testConfigureCrsAudioVolume_ringtoneMode_vibrateModeMutesCrs() {
+        RingerAttributes ringerAttributes = new RingerAttributes.Builder().setRingToneType(
+                Call.RINGTONE_SOURCE_NETWORK_RING_MODE)
+                .setRingerAudible(true)
+                .setShouldRingForContact(true)
+                .build();
+        mockStringResource("config_audio_parameter_key_crs_volume", "crs_volume_key");
+        when(mAudioManager.getRingerMode()).thenReturn(AudioManager.RINGER_MODE_VIBRATE);
+        when(mAudioManager.getStreamVolume(AudioManager.STREAM_RING)).thenReturn(1);
+
+        mCrsAudioController.configureCrsRingVolume(ringerAttributes);
+
+        verify(mAudioManager, times(1)).setParameters("crs_volume_key0");
     }
 
     @Test
