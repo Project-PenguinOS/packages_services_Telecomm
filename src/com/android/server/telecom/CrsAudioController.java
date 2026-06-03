@@ -295,8 +295,14 @@ public class CrsAudioController {
         if (ringerAttributes.getRingtoneType() == RINGTONE_SOURCE_NETWORK_RING_MODE) {
             //CRS has no haptics channel
             Log.i(TAG, "Playing CRS in RINGTONE Mode");
-            setVolumeLevelForCrsInRingtoneMode(
-                    mAudioManager.getStreamVolume(AudioManager.STREAM_RING));
+            int crsVolume = mAudioManager.getStreamVolume(AudioManager.STREAM_RING);
+            int ringerMode = mAudioManager.getRingerMode();
+            if (ringerMode != AudioManager.RINGER_MODE_NORMAL
+                    || !ringerAttributes.shouldRingForContact()
+                    || !ringerAttributes.isRingerAudible()) {
+                crsVolume = 0;
+            }
+            setVolumeLevelForCrsInRingtoneMode(crsVolume);
         } else if (ringerAttributes.getRingtoneType() == RINGTONE_SOURCE_NETWORK_IN_CALL_MODE) {
             Log.i(TAG, "CRS ringtone playing in IN-Call Mode");
             if (shouldControlCrsWithParameters()) {
