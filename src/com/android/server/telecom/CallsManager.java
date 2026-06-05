@@ -4770,8 +4770,9 @@ public class CallsManager extends Call.ListenerBase
 // QTI_BEGIN: 2024-07-12: Telephony: HFP: handle HFP and cellular calls
     /* Returns true if HFP call is present */
     public boolean isHfpCallPresent() {
+        String hfpString = TelecomResourceId.getString(mContext, "hfp_client_connection");
         Optional<Call> hfpCall = mCalls.stream()
-                .filter(call -> mContext.getString(R.string.hfp_client_connection).equals(
+                .filter(call -> hfpString.equals(
                          call.getTargetPhoneAccount() == null ? null :
                          call.getTargetPhoneAccount().getComponentName().getClassName()))
                 .findFirst();
@@ -6242,7 +6243,8 @@ public class CallsManager extends Call.ListenerBase
     }
 
     private boolean isPhoneAccountHfp(PhoneAccountHandle phoneAccount) {
-        return mContext.getString(R.string.hfp_client_connection).equals(
+        String hfpString = TelecomResourceId.getString(mContext, "hfp_client_connection");
+        return hfpString.equals(
                    phoneAccount == null ? null :
                    phoneAccount.getComponentName().getClassName());
     }
