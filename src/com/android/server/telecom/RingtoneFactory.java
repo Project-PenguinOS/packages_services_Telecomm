@@ -95,7 +95,7 @@ public class RingtoneFactory {
             // ringtone for user or profile.
             int subId = mCallsManager.getPhoneAccountRegistrar()
                     .getSubscriptionIdForPhoneAccount(incomingCall.getTargetPhoneAccount());
-            int phoneId = SubscriptionManager.getPhoneId(subId);
+            int phoneId = SubscriptionManager.getSlotIndex(subId);
             Context contextToUse = hasDefaultRingtoneForUserBySlot(userContext, phoneId)
                     ? userContext : mContext;
             UserManager um = contextToUse.getSystemService(UserManager.class);
@@ -107,8 +107,10 @@ public class RingtoneFactory {
                     defaultRingtoneUri = RingtoneManager.getRingtoneUriForPhoneAccountHandle(
                             contextToUse, accountHandle);
                 } else {
-                    defaultRingtoneUri = RingtoneManager.getActualDefaultRingtoneUriBySlot(
-                            contextToUse, RingtoneManager.TYPE_RINGTONE, phoneId);
+                    String settingKey = phoneId == 1 ? "ringtone2" : "ringtone";
+                    String uriString = Settings.System.getString(
+                            contextToUse.getContentResolver(), settingKey);
+                    defaultRingtoneUri = uriString != null ? Uri.parse(uriString) : null;
                 }
                 if (defaultRingtoneUri == null) {
                     Log.i(this, "getRingtone: defaultRingtoneUri for user is null.");
@@ -127,10 +129,10 @@ public class RingtoneFactory {
                                     RingtoneManager.PHONE_ACCOUNT_HANDLE_USER_HANDLE,
                                     String.valueOf(accountHandle.getUserHandle().hashCode()))
                             .build()
-                            : (phoneId == 1 ? Settings.System.DEFAULT_RINGTONE2_URI
+                            : (phoneId == 1 ? Settings.System.getUriFor("ringtone2")
                                     : Settings.System.DEFAULT_RINGTONE_URI);
                 } else {
-                    defaultRingtoneUri = phoneId == 1 ? Settings.System.DEFAULT_RINGTONE2_URI
+                    defaultRingtoneUri = phoneId == 1 ? Settings.System.getUriFor("ringtone2")
                             : Settings.System.DEFAULT_RINGTONE_URI;
                     if (defaultRingtoneUri == null) {
                         Log.i(this, "getRingtone: Settings.System.DEFAULT_RINGTONE_URI is null.");
@@ -223,7 +225,7 @@ public class RingtoneFactory {
         if(userContext == null) {
             return false;
         }
-        String ringtoneSetting = phoneId == 1 ? Settings.System.RINGTONE2
+        String ringtoneSetting = phoneId == 1 ? "ringtone2"
                 : Settings.System.RINGTONE;
         return !TextUtils.isEmpty(Settings.System.getString(userContext.getContentResolver(),
                 ringtoneSetting));
