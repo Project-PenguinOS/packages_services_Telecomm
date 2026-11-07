@@ -1767,8 +1767,6 @@ public class CallAudioRouteController extends CallsManagerListenerBase
      * change for the current audio route and the call audio state to be updated accordingly.
      */
     public void handleExitPendingRoute() {
-        if (shouldIgnoreActionForCrs("handleExitPendingRoute")) return;
-
         if (mIsPending) {
             mCurrentRoute = mPendingAudioRoute.getDestRoute();
             Log.addEvent(mCallsManager.getForegroundCall(), LogUtils.Events.AUDIO_ROUTE,
