@@ -124,9 +124,21 @@ public class CallLogIntegrationAdapterImpl implements CallLogIntegrationAdapter 
                         mPackagesToAdd.putIfAbsent(userHandle, new HashSet<>());
                         mPackagesToAdd.get(userHandle).add(packageName);
                     } else if (Intent.ACTION_PACKAGE_REMOVED.equals(intent.getAction())) {
-                        mPackagesToRemove.putIfAbsent(userHandle, new HashSet<>());
-                        mPackagesToRemove.get(userHandle).add(packageName);
-                        removeLogEntries(mContext, packageName, userHandle, mExecutor);
+                        boolean isReplacing = intent.getBooleanExtra(
+                                Intent.EXTRA_REPLACING, false);
+                        boolean isUserInitiated = intent.getBooleanExtra(
+                                Intent.EXTRA_USER_INITIATED, false);
+                        boolean isDataRemoved = intent.getBooleanExtra(
+                                Intent.EXTRA_DATA_REMOVED, false);
+                        if (!isReplacing && (isUserInitiated || isDataRemoved)) {
+                            mPackagesToRemove.putIfAbsent(userHandle, new HashSet<>());
+                            mPackagesToRemove.get(userHandle).add(packageName);
+                            removeLogEntries(mContext, packageName, userHandle, mExecutor);
+                        } else {
+                            Log.i(TAG, "VoIP package %s removal ignored (isReplacing=%b,"
+                                    + " isUserInitiated=%b, isDataRemoved=%b)",
+                                    packageName, isReplacing, isUserInitiated, isDataRemoved);
+                        }
                     }
                 }
             } else {

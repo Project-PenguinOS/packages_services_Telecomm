@@ -291,6 +291,8 @@ public class CallLogIntegrationTests extends TelecomTestCase {
         intent.setData(Uri.parse("package:" + PKG_1));
         // Set a UID that corresponds to the test user.
         intent.putExtra(Intent.EXTRA_UID, mUserHandle.getIdentifier() * UserHandle.PER_USER_RANGE);
+        intent.putExtra(Intent.EXTRA_USER_INITIATED, true);
+        intent.putExtra(Intent.EXTRA_DATA_REMOVED, true);
         mAdapter.getPackageChangedReceiver().onReceive(mContext, intent);
 
         // Verify that we deleted the call log entries for the package.
@@ -300,6 +302,98 @@ public class CallLogIntegrationTests extends TelecomTestCase {
                 + PKG_1 + "%'";
         verify(mUserContentResolver, timeout(TIMEOUT)).delete(eq(expectedUri),
                 eq(expectedSelection), eq(null));
+    }
+
+    @Test
+    @RequiresFlagsEnabled(android.telecom.flags.Flags.FLAG_INTEGRATED_CALL_LOGS_STAGE2)
+    public void testPackageRemoved_isReplacing_doesNotDeleteCallLogEntries() {
+        // Initialize state with one available package.
+        when(mPackageManager.queryIntentActivities(any(), anyInt()))
+                .thenReturn(Collections.singletonList(createResolveInfo(PKG_1)));
+        mAdapter.getSupportedVoipCallLogIntegrationPackages(mUserHandle);
+
+        // Simulate package being updated (replacing).
+        Intent intent = new Intent(Intent.ACTION_PACKAGE_REMOVED);
+        intent.setData(Uri.parse("package:" + PKG_1));
+        intent.putExtra(Intent.EXTRA_UID, mUserHandle.getIdentifier() * UserHandle.PER_USER_RANGE);
+        intent.putExtra(Intent.EXTRA_REPLACING, true);
+        intent.putExtra(Intent.EXTRA_USER_INITIATED, true);
+        mAdapter.getPackageChangedReceiver().onReceive(mContext, intent);
+
+        // Verify that we did NOT delete call log entries or mark package for removal.
+        verify(mUserContentResolver, never()).delete(any(Uri.class), anyString(), any());
+        assertTrue(mAdapter.getPackagesToRemove().isEmpty());
+    }
+
+    @Test
+    @RequiresFlagsEnabled(android.telecom.flags.Flags.FLAG_INTEGRATED_CALL_LOGS_STAGE2)
+    public void testPackageRemoved_userInitiated_deletesCallLogEntries() {
+        // Initialize state with one available package.
+        when(mPackageManager.queryIntentActivities(any(), anyInt()))
+                .thenReturn(Collections.singletonList(createResolveInfo(PKG_1)));
+        mAdapter.getSupportedVoipCallLogIntegrationPackages(mUserHandle);
+
+        // Simulate package being removed with user initiated = true.
+        Intent intent = new Intent(Intent.ACTION_PACKAGE_REMOVED);
+        intent.setData(Uri.parse("package:" + PKG_1));
+        intent.putExtra(Intent.EXTRA_UID, mUserHandle.getIdentifier() * UserHandle.PER_USER_RANGE);
+        intent.putExtra(Intent.EXTRA_USER_INITIATED, true);
+        intent.putExtra(Intent.EXTRA_DATA_REMOVED, false);
+        mAdapter.getPackageChangedReceiver().onReceive(mContext, intent);
+
+        // Verify that we deleted the call log entries for the package.
+        Uri expectedUri = ContentProvider.createContentUriForUser(
+                CallLog.Calls.CONTENT_URI_WITH_VOIP_CALLS, mUserHandle);
+        String expectedSelection = CallLog.Calls.PHONE_ACCOUNT_COMPONENT_NAME + " LIKE '"
+                + PKG_1 + "%'";
+        verify(mUserContentResolver, timeout(TIMEOUT)).delete(eq(expectedUri),
+                eq(expectedSelection), eq(null));
+    }
+
+    @Test
+    @RequiresFlagsEnabled(android.telecom.flags.Flags.FLAG_INTEGRATED_CALL_LOGS_STAGE2)
+    public void testPackageRemoved_dataRemoved_deletesCallLogEntries() {
+        // Initialize state with one available package.
+        when(mPackageManager.queryIntentActivities(any(), anyInt()))
+                .thenReturn(Collections.singletonList(createResolveInfo(PKG_1)));
+        mAdapter.getSupportedVoipCallLogIntegrationPackages(mUserHandle);
+
+        // Simulate package being removed with data removed = true.
+        Intent intent = new Intent(Intent.ACTION_PACKAGE_REMOVED);
+        intent.setData(Uri.parse("package:" + PKG_1));
+        intent.putExtra(Intent.EXTRA_UID, mUserHandle.getIdentifier() * UserHandle.PER_USER_RANGE);
+        intent.putExtra(Intent.EXTRA_USER_INITIATED, false);
+        intent.putExtra(Intent.EXTRA_DATA_REMOVED, true);
+        mAdapter.getPackageChangedReceiver().onReceive(mContext, intent);
+
+        // Verify that we deleted the call log entries for the package.
+        Uri expectedUri = ContentProvider.createContentUriForUser(
+                CallLog.Calls.CONTENT_URI_WITH_VOIP_CALLS, mUserHandle);
+        String expectedSelection = CallLog.Calls.PHONE_ACCOUNT_COMPONENT_NAME + " LIKE '"
+                + PKG_1 + "%'";
+        verify(mUserContentResolver, timeout(TIMEOUT)).delete(eq(expectedUri),
+                eq(expectedSelection), eq(null));
+    }
+
+    @Test
+    @RequiresFlagsEnabled(android.telecom.flags.Flags.FLAG_INTEGRATED_CALL_LOGS_STAGE2)
+    public void testPackageRemoved_notUserInitiatedNorDataRemoved_doesNotDeleteCallLogEntries() {
+        // Initialize state with one available package.
+        when(mPackageManager.queryIntentActivities(any(), anyInt()))
+                .thenReturn(Collections.singletonList(createResolveInfo(PKG_1)));
+        mAdapter.getSupportedVoipCallLogIntegrationPackages(mUserHandle);
+
+        // Simulate package removal intent without user initiated or data removed extras.
+        Intent intent = new Intent(Intent.ACTION_PACKAGE_REMOVED);
+        intent.setData(Uri.parse("package:" + PKG_1));
+        intent.putExtra(Intent.EXTRA_UID, mUserHandle.getIdentifier() * UserHandle.PER_USER_RANGE);
+        intent.putExtra(Intent.EXTRA_USER_INITIATED, false);
+        intent.putExtra(Intent.EXTRA_DATA_REMOVED, false);
+        mAdapter.getPackageChangedReceiver().onReceive(mContext, intent);
+
+        // Verify that we did NOT delete call log entries or mark package for removal.
+        verify(mUserContentResolver, never()).delete(any(Uri.class), anyString(), any());
+        assertTrue(mAdapter.getPackagesToRemove().isEmpty());
     }
 
     @Test

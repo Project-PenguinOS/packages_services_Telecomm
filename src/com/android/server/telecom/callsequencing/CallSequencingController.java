@@ -549,6 +549,9 @@ public class CallSequencingController {
                 } else {
                     Log.i(this, "unholdCall: Request to hold active call transaction failed. "
                             + "Aborting unhold transaction.");
+                    mContext.getMainExecutor().execute(() -> {
+                        showErrorDialogForCannotSwapCall(call);
+                    });
                 }
                 return CompletableFuture.completedFuture(result);
             }, new LoggedHandlerExecutor(mHandler, "CSC.uC",
